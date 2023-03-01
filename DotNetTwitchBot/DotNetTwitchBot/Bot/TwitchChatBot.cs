@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot
             return Task.CompletedTask;
         }
 
-        public async Task Initialize() 
+        public void Initialize() 
         {
             var credentials = new ConnectionCredentials(_configuration["botName"], _configuration["botTwitchOAuth"]);
             _twitchClient.Initialize(credentials, _configuration["broadcaster"]);
@@ -73,9 +73,9 @@ namespace DotNetTwitchBot.Bot
             _logger.LogDebug("OnDisconnected");
         }
 
-        private void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
+        private async void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
         {
-            _commandService.OnCommand(e.Command);
+            await _commandService.OnCommand(e.Command);
         }
 
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
@@ -91,7 +91,8 @@ namespace DotNetTwitchBot.Bot
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await Initialize();
+            await Task.Run(() => Initialize());
+            
         }
     }
 }
