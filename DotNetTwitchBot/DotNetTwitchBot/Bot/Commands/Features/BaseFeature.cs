@@ -8,9 +8,9 @@
 
         public CommandService CommandService { get; }
 
-        public void SendChatMessage(string message) 
+        public async Task SendChatMessage(string message) 
         {
-            CommandService.SendChatMessage(message);
+            await CommandService.SendChatMessage(message);
         }
     }
 }

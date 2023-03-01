@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program

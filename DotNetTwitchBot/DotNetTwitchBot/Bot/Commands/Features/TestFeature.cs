@@ -1,3 +1,5 @@
+using DotNetTwitchBot.Bot.Events;
+
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class TestFeature : BaseFeature
@@ -12,12 +14,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        private void OnCommand(object? sender, CommandEventArgs e)
+        private async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = e.Command;
             switch(command) {
                 case "test":
-                    SendChatMessage("Test message received");
+                    await SendChatMessage("Test message received");
                     break;
             }
         }

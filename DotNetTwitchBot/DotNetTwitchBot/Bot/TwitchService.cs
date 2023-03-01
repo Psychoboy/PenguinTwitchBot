@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot
             return users.Users.FirstOrDefault()?.Id;
         }
 
-        public async Task SubscribeToChannelRedemptionAddEvents(string sessionId) {
+        public async Task SubscribeToAllTheStuffs(string sessionId) {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId();
             if(userId == null) return;

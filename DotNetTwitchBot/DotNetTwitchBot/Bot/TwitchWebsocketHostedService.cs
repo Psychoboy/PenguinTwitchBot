@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Commands;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
@@ -9,8 +10,9 @@ namespace DotNetTwitchBot.Bot
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private TwitchService _twitchService;
+        private CommandService _commandService;
 
-        public TwitchWebsocketHostedService(ILogger<TwitchWebsocketHostedService> logger, EventSubWebsocketClient eventSubWebsocketClient, TwitchService twitchService)
+        public TwitchWebsocketHostedService(ILogger<TwitchWebsocketHostedService> logger, CommandService commandService, EventSubWebsocketClient eventSubWebsocketClient, TwitchService twitchService)
         {
             _logger = logger;
             _eventSubWebsocketClient = eventSubWebsocketClient;
@@ -23,23 +25,30 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
             _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
+            _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _twitchService = twitchService;
+            _commandService = commandService;
+        }
+
+        private void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
+        {
+            
         }
 
         private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
-            throw new NotImplementedException();
+            
         }
 
         private void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
-            throw new NotImplementedException();
+            
         }
 
-        private void OnChannelCheer(object? sender, ChannelCheerArgs e)
+        private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
-            throw new NotImplementedException();
+            await _commandService.OnCheer();
         }
 
         private void OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
@@ -47,9 +56,9 @@ namespace DotNetTwitchBot.Bot
             _logger.LogInformation("Channel pointed redeemed: {0}", e.Notification.Payload.Event.Reward.Title);
         }
 
-        private void OnChannelFollow(object? sender, ChannelFollowArgs e)
+        private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
-            
+            await _commandService.OnFollow();
         }
 
         private void OnErrorOccurred(object? sender, ErrorOccuredArgs e)
@@ -62,16 +71,18 @@ namespace DotNetTwitchBot.Bot
             
         }
 
-        private void OnWebsocketDisconnected(object? sender, EventArgs e)
+        private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
             _logger.LogWarning("Websocket Disconnected");
+            //TODO and Exponent attempt to not flood
+            //await _eventSubWebsocketClient.ReconnectAsync();
         }
 
         private async void OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)
         {
             _logger.LogInformation("Websocket connected");
             if(e.IsRequestedReconnect) return;
-            await _twitchService.SubscribeToChannelRedemptionAddEvents(_eventSubWebsocketClient.SessionId);
+            await _twitchService.SubscribeToAllTheStuffs(_eventSubWebsocketClient.SessionId);
             _logger.LogInformation("Subscribed to events");
         }
 

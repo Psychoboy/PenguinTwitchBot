@@ -1,14 +1,20 @@
-﻿namespace DotNetTwitchBot.Bot.Commands
+﻿using DotNetTwitchBot.Bot.Events;
+
+namespace DotNetTwitchBot.Bot.Commands
 {
     public class CommandService
     {
-        public event EventHandler<CommandEventArgs>? CommandEvent;
-        public event EventHandler<String>? ChatMessage;
+        //public event EventHandler<CommandEventArgs>? CommandEvent;
+        public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
+        public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
+        public event AsyncEventHandler<String>? ChatMessage;
+        public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
+        public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
+        public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
 
-        public void ExecuteCommand(TwitchLib.Client.Models.ChatCommand command)
+        public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
         {
-            if(CommandEvent != null)
-            {
+            if(CommandEvent != null) {
                 var eventArgs = new CommandEventArgs();
                 eventArgs.Arg = command.ArgumentsAsString;
                 eventArgs.Args = command.ArgumentsAsList;
@@ -18,14 +24,26 @@
                 eventArgs.isSub = command.ChatMessage.IsSubscriber;
                 eventArgs.isMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator;
                 eventArgs.isVip = command.ChatMessage.IsVip;
-                CommandEvent(this, eventArgs);
+                await CommandEvent(this, eventArgs);
             }
         }
 
-        public void SendChatMessage(string message) 
+        public async Task SendChatMessage(string message) 
         {
             if(ChatMessage != null) {
-                ChatMessage(this, message);
+                await ChatMessage(this, message);
+            }
+        }
+
+        public async Task OnCheer() {
+            if(CheerEvent != null) {
+                await CheerEvent(this, new CheerEventArgs());
+            }
+        }
+
+        public async Task OnFollow() {
+            if(FollowEvent != null) {
+                await FollowEvent(this, new FollowEventArgs());
             }
         }
     }

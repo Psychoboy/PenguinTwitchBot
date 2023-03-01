@@ -35,7 +35,7 @@ namespace DotNetTwitchBot
             var currentSection = remainingSections[0];
             if (remainingSections.Length > 1)
             {
-                // continue with the procress, moving down the tree
+                // continue with the process, moving down the tree
                 var nextSection = remainingSections[1];
                 SetValueRecursively(nextSection, jsonObj[currentSection], value);
             }

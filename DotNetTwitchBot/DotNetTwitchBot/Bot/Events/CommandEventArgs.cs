@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Bot.Commands
+﻿using System.ComponentModel;
+
+namespace DotNetTwitchBot.Bot.Events
 {
     public sealed class CommandEventArgs{
         public string Command { get; set; } = "";

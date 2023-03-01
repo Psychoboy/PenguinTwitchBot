@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Events;
 using TwitchLib.Client;
 using TwitchLib.Client.Models;
 
@@ -20,9 +21,10 @@ namespace DotNetTwitchBot.Bot
             
         }
 
-        private void CommandService_OnChatMessage(object? sender, string e)
+        private Task CommandService_OnChatMessage(object? sender, string e)
         {
             _twitchClient.SendMessage(_configuration["broadcaster"], e);
+            return Task.CompletedTask;
         }
 
         public async Task Initialize() 
@@ -73,7 +75,7 @@ namespace DotNetTwitchBot.Bot
 
         private void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
         {
-            _commandService.ExecuteCommand(e.Command);
+            _commandService.OnCommand(e.Command);
         }
 
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
