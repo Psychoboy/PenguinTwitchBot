@@ -20,8 +20,26 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ErrorOccurred += OnErrorOccurred;
 
             _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
+            _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
+            _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
+            _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _twitchService = twitchService;
+        }
+
+        private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void OnChannelCheer(object? sender, ChannelCheerArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private void OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)

@@ -33,6 +33,48 @@ namespace DotNetTwitchBot.Bot
             if(userId == null) return;
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.follow", "2", 
+                new Dictionary<string, string>{
+                    {"broadcaster_user_id", userId},
+                    {"moderator_user_id", userId}
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.subscribe", "1", 
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.subscription.gift", "1", 
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.subscription.message", "1", 
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.cheer", "1", 
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -47,9 +89,16 @@ namespace DotNetTwitchBot.Bot
             var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
             SettingsHelpers.AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
             _logger.LogInformation("Token expires in {0}", expiresIn.ToString("hh\\:mm\\:ss"));
+            try{
             var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"]);
+            _configuration["twitchAccessToken"] = refreshToken.AccessToken;
+            _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
+            _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
+            _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
             SettingsHelpers.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-            SettingsHelpers.AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn);
+            SettingsHelpers.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+            SettingsHelpers.AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
+            } catch(Exception){}
         }
     }
 }
