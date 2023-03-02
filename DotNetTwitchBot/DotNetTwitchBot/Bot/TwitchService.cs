@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TwitchLib.Api;
+using TwitchLib.Api.Core.Enums;
 
 namespace DotNetTwitchBot.Bot
 {
@@ -13,17 +14,23 @@ namespace DotNetTwitchBot.Bot
         private ILogger<TwitchService> _logger;
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
-
         public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration) {
 
             _logger = logger;
             _configuration = configuration;
             _twitchApi.Settings.ClientId = _configuration["twitchClientId"];
             _twitchApi.Settings.AccessToken = _configuration["twitchAccessToken"];
+            _twitchApi.Settings.Scopes = new List<AuthScopes>();
+            foreach(var authScope in Enum.GetValues(typeof(AuthScopes))) {
+                if((AuthScopes)authScope == AuthScopes.Any) continue;
+                _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
+            }
+
         }
 
         public async Task<string?> GetBroadcasterUserId() {
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{_configuration["broadcaster"]});
+            await ValidateAndRefreshToken();
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{_configuration["broadcaster"]},_configuration["twitchAccessToken"]);
             return users.Users.FirstOrDefault()?.Id;
         }
 
@@ -86,19 +93,24 @@ namespace DotNetTwitchBot.Bot
 
         public async Task ValidateAndRefreshToken() {
             var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync();
-            var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
-            SettingsHelpers.AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
-            _logger.LogInformation("Token expires in {0}", expiresIn.ToString("hh\\:mm\\:ss"));
+            if(validToken != null && validToken.ExpiresIn > 120) {
+                var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
+                SettingsHelpers.AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
+                _logger.LogInformation("Token expires in {0}", expiresIn.ToString("hh\\:mm\\:ss"));
+            } else {
             try{
-            var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"]);
-            _configuration["twitchAccessToken"] = refreshToken.AccessToken;
-            _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
-            _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
-            _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-            SettingsHelpers.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-            SettingsHelpers.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-            SettingsHelpers.AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
-            } catch(Exception){}
+                var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"], _configuration["twitchClientId"]);
+                _configuration["twitchAccessToken"] = refreshToken.AccessToken;
+                _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
+                _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
+                _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
+                SettingsHelpers.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                SettingsHelpers.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                SettingsHelpers.AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
+                } catch(Exception e){
+                    _logger.LogError("Error refreshing token: {0}", e.Message);
+                }
+            }
         }
     }
 }

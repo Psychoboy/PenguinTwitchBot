@@ -7,6 +7,6 @@ namespace DotNetTwitchBot.Bot.Events
 {
     public class CheerEventArgs
     {
-        
+        public string Sender {get;set;}
     }
 }

@@ -1,6 +1,5 @@
 using DotNetTwitchBot.Bot;
-using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Core;
 using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program
@@ -11,14 +10,17 @@ internal class Program
         builder.Configuration.AddJsonFile("appsettings.secrets.json");
         // Add services to the container.
         builder.Services.AddControllersWithViews();
-        builder.Services.AddSingleton<CommandService>();
+        builder.Services.AddSingleton<EventService>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
 
         //Add Features Here:
-        builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TestFeature>();
+        // builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TestFeature>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.UserFeature>();
+        builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TicketFeature>();
+        
 
 
         var app = builder.Build();

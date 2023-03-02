@@ -1,10 +1,11 @@
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class TestFeature : BaseFeature
     {
-        public TestFeature(CommandService commandService) : base(commandService)
+        public TestFeature(EventService commandService) : base(commandService)
         {
             commandService.CommandEvent += OnCommand;
         }

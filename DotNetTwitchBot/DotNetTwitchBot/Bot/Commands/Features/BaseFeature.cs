@@ -1,16 +1,18 @@
-﻿namespace DotNetTwitchBot.Bot.Commands.Features
+﻿using DotNetTwitchBot.Bot.Core;
+
+namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public abstract class BaseFeature : BackgroundService
     {
-        public BaseFeature(CommandService commandService) {
-            CommandService = commandService;
+        public BaseFeature(EventService eventService) {
+            _eventService = eventService;
         }
 
-        public CommandService CommandService { get; }
+        protected EventService _eventService { get; }
 
         public async Task SendChatMessage(string message) 
         {
-            await CommandService.SendChatMessage(message);
+            await _eventService.SendChatMessage(message);
         }
     }
 }

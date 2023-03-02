@@ -5,8 +5,10 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Events
 {
-    public class FollowEventArgs
+    public class ChannelPointRedeemEventArgs
     {
         public string Sender {get;set;} = "";
+        public string Title {get;set;} = "";
+        public string UserInput {get;set;} = "";
     }
 }

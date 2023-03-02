@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Core;
 using TwitchLib.Client;
+using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 
 namespace DotNetTwitchBot.Bot
@@ -9,15 +10,15 @@ namespace DotNetTwitchBot.Bot
     {
         private readonly IConfiguration _configuration;
         private TwitchClient _twitchClient { get; set; }
-        private CommandService _commandService { get; set;}
+        private EventService _commandService { get; set;}
         private readonly ILogger<TwitchChatBot> _logger;
 
-        public TwitchChatBot(ILogger<TwitchChatBot> logger, IConfiguration configuration, CommandService commandService) {
+        public TwitchChatBot(ILogger<TwitchChatBot> logger, IConfiguration configuration, EventService commandService) {
             _configuration = configuration;
             _logger = logger;
             _twitchClient = new TwitchClient();
             _commandService = commandService;
-            _commandService.ChatMessage += CommandService_OnChatMessage;
+            _commandService.SendMessageEvent += CommandService_OnChatMessage;
             
         }
 
@@ -40,7 +41,18 @@ namespace DotNetTwitchBot.Bot
             _twitchClient.OnConnected += Client_OnConnected;
             _twitchClient.OnMessageReceived += Client_OnMessageReceived;
             _twitchClient.OnConnectionError += Client_OnConnectionError;
+            _twitchClient.OnMessageReceived += OnMessageReceived;
+            _twitchClient.OnUserJoined += OnUserJoined;
             _twitchClient.Connect();
+        }
+
+        private void OnUserJoined(object? sender, OnUserJoinedArgs e)
+        {
+        }
+
+        private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+        {
+            await _commandService.OnChatMessage(e.ChatMessage);
         }
 
         private void Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
