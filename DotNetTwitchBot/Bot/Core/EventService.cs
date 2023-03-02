@@ -56,7 +56,8 @@ namespace DotNetTwitchBot.Bot.Core
             if(ChatMessageEvent != null) {
                 await ChatMessageEvent(this, new ChatMessageEventArgs(){
                     Message = message.Message,
-                    Sender = message.Username,
+                    Sender = message.Username.ToLower(),
+                    DisplayName = message.DisplayName,
                     isSub = message.IsSubscriber,
                     isMod = message.IsModerator,
                     isVip = message.IsVip

@@ -18,6 +18,8 @@ internal class Program
         builder.Services.Configure<LiteDbOptions>(builder.Configuration.GetSection("LiteDbOptions"));
         builder.Services.AddSingleton<ILiteDbContext, LiteDbContext>();
         builder.Services.AddSingleton<IDbViewerPoints, DbViewerPoints>();
+        builder.Services.AddSingleton<IViewerData, ViewerData>();
+        builder.Services.AddSingleton<IGiveawayEntries, GiveawayEntries>();
 
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();

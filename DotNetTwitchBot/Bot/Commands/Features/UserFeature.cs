@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
@@ -10,15 +11,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class UserFeature : BaseFeature
     {
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
+        private IViewerData _viewerData;
         private readonly ILogger<UserFeature> _logger;
 
-        public UserFeature(ILogger<UserFeature> logger, EventService eventService) : base(eventService)
+        public UserFeature(
+            ILogger<UserFeature> logger, 
+            EventService eventService,
+            IViewerData viewerData
+            ) : base(eventService)
         {
             _logger = logger;
             eventService.ChatMessageEvent += OnChatMessage;
             eventService.SubscriptionEvent += OnSubscription;
             eventService.CheerEvent += OnCheer;
             eventService.FollowEvent += OnFollow;
+
+            _viewerData = viewerData;
         }
 
         private Task OnFollow(object? sender, FollowEventArgs e)
@@ -57,6 +65,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             updateLastActive(e.Sender);
+            var viewer = _viewerData.FindOne(e.Sender);
+            if(viewer == null) {
+                viewer = new Models.Viewer(){
+                    DisplayName = e.DisplayName,
+                    Username = e.Sender
+                };
+            }
+
+            viewer.isMod = e.isMod;
+            viewer.isSub = e.isSub;
+            viewer.isVip = e.isVip;
+            viewer.LastSeen = DateTime.Now;
+            _viewerData.InsertOrUpdate(viewer);
+
             return Task.CompletedTask;
         }
     }

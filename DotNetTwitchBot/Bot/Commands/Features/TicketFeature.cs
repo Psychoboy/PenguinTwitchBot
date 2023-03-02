@@ -15,9 +15,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<TicketFeature> _logger;
         
         Timer _timer;
-
-        // //Temp Table for Tracking Points
-        // private Dictionary<string, int> _tickets = new Dictionary<string, int>();
         private UserFeature _userFeature;
         private IDbViewerPoints _dbViewerPoints;
 
