@@ -26,7 +26,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public ViewerPoints? FindOne(string username)
         {
-            return _liteDb.GetCollection<ViewerPoints>(TableName).Find(x => x.Username == username.ToLower()).FirstOrDefault();
+            return _liteDb.GetCollection<ViewerPoints>(TableName)
+            .Find(x => x.Username.Equals(username, StringComparison.CurrentCultureIgnoreCase))
+            .FirstOrDefault();
         }
 
         public int Insert(ViewerPoints viewerPoints)
