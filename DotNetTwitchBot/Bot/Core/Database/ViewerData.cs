@@ -24,7 +24,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public Viewer? FindOne(string username)
         {
-            return _liteDb.GetCollection<Viewer>(TableName).Find(x => x.Username == username.ToLower()).FirstOrDefault();
+            return _liteDb.GetCollection<Viewer>(TableName)
+            .Find(x => x.Username.Equals(username, StringComparison.CurrentCultureIgnoreCase))
+            .FirstOrDefault();
         }
 
         public int Insert(Viewer viewer)

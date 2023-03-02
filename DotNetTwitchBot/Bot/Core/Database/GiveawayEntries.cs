@@ -16,6 +16,13 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public GiveawayEntries(ILiteDbContext liteDbContext) {
             _liteDb = liteDbContext.Database;
         }
+
+        public int Count(string username)
+        {
+            return _liteDb.GetCollection<GiveawayEntry>(TableName)
+            .Count(x => x.Username.Equals(username, StringComparison.CurrentCultureIgnoreCase));
+        }
+
         public int DeleteAll()
         {
             return _liteDb.GetCollection<GiveawayEntry>(TableName).DeleteAll();

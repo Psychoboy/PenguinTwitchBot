@@ -27,6 +27,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "testenter":{
                     break;
                 }
+                case "testentries":{
+                    break;
+                }
                 case "testdraw": {
                     break;
                 }

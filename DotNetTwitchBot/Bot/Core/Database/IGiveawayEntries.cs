@@ -11,5 +11,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         int InsertBulk(IEnumerable<GiveawayEntry> entries);
         IEnumerable<GiveawayEntry> FindAll();
         int DeleteAll();
+        int Count(string username);
     }
 }
