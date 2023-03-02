@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Database;
 using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program
@@ -12,6 +13,12 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<EventService>();
         builder.Services.AddSingleton<TwitchService>();
+        
+        //Database
+        builder.Services.Configure<LiteDbOptions>(builder.Configuration.GetSection("LiteDbOptions"));
+        builder.Services.AddSingleton<ILiteDbContext, LiteDbContext>();
+        builder.Services.AddSingleton<IDbViewerPoints, DbViewerPoints>();
+
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();

@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using DotNetTwitchBot.Bot.Core.Database;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -15,13 +16,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         
         Timer _timer;
 
-        //Temp Table for Tracking Points
-        private Dictionary<string, int> _tickets = new Dictionary<string, int>();
+        // //Temp Table for Tracking Points
+        // private Dictionary<string, int> _tickets = new Dictionary<string, int>();
         private UserFeature _userFeature;
+        private IDbViewerPoints _dbViewerPoints;
 
         public TicketFeature(
             ILogger<TicketFeature> logger, 
-            EventService eventService, 
+            EventService eventService,
+            IDbViewerPoints dbViewerPoints, 
             UserFeature userFeature) 
             : base(eventService)
         {
@@ -31,6 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _timer = new Timer(10000);
             _timer.Elapsed += OnTimerElapsed;
             _userFeature = userFeature;
+            _dbViewerPoints = dbViewerPoints;
         }
 
         public void GiveTicketsToActiveUsers(int amount) {
@@ -40,12 +44,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public void GiveTicketsToUser(string user, int amount) {
-             if(!_tickets.ContainsKey(user)) {
-                _tickets[user] = 0;
+        public int GiveTicketsToUser(string user, int amount) {
+            var viewer = _dbViewerPoints.FindOne(user);
+            if(viewer == null) {
+                viewer = new Models.ViewerPoints(){
+                    Username = user.ToLower(),
+                    Points = 0
+                };
             }
-            _tickets[user] += amount;
+            viewer.Points += amount;
+            _dbViewerPoints.InsertOrUpdate(viewer);
             _logger.LogInformation("Gave points to {0}", user);
+            return viewer.Points;
         }
 
         private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -66,8 +76,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 case "givepoints":{
                     if(e.isMod && Int32.TryParse(e.Args[1], out int amount)) {
-                        GiveTicketsToUser(e.TargetUser, amount);
-                        await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, _tickets[e.TargetUser]));
+                        var totalPoints = GiveTicketsToUser(e.TargetUser, amount);
+                        await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, totalPoints));
                     }
                     break;
                 }
@@ -76,10 +86,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
         private async Task SendUserPoints(string sender) {
+            var viewer = _dbViewerPoints.FindOne(sender);
+            var test = _dbViewerPoints.FindAll().ToList();
             await this._eventService.SendChatMessage(
                 string.Format("@{0}, you have {1} testpoints.", 
                 sender,
-                _tickets.ContainsKey(sender) ? _tickets[sender] : 0
+                viewer != null ? viewer.Points : 0
                 ));
         }
 
