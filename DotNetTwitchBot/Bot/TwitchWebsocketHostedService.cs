@@ -78,8 +78,13 @@ namespace DotNetTwitchBot.Bot
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
             _logger.LogWarning("Websocket Disconnected");
-            //TODO and Exponent attempt to not flood
-            //await _eventSubWebsocketClient.ReconnectAsync();
+            var delayCounter = 1.0;
+            while(!await _eventSubWebsocketClient.ReconnectAsync()) {
+                delayCounter = (delayCounter * 2);
+                if(delayCounter > 60.0) delayCounter = 60.0;
+                _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
+                await Task.Delay((int)delayCounter * 1000);                
+            }
         }
 
         private async void OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)

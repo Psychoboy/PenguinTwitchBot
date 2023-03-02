@@ -8,8 +8,8 @@ namespace DotNetTwitchBot.Bot.Models
     public class Viewer
     {
         public int Id {get;set;}
-        public string Username {get;set;}
-        public string DisplayName {get;set;}
+        public string Username {get;set;} = string.Empty;
+        public string DisplayName {get;set;} = string.Empty;
 
         public DateTime LastSeen {get;set;}
         public bool isSub {get;set;}

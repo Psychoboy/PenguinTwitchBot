@@ -56,7 +56,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        private void updateLastActive(string sender) {
+        private void updateLastActive(string? sender) {
+            if(sender == null) return;
             _usersLastActive[sender] = DateTime.Now;
             _logger.LogInformation("Updated active user: {0}", sender);
             _logger.LogInformation("Active Users: {0}", _usersLastActive.Count);

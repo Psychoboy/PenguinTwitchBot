@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace DotNetTwitchBot
 {
@@ -13,7 +14,7 @@ namespace DotNetTwitchBot
             {
                 var filePath = Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
                 string json = File.ReadAllText(filePath);
-                dynamic jsonObj = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
+                dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
 
                 SetValueRecursively(sectionPathKey, jsonObj, value);
 

@@ -7,6 +7,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 {
     public class LiteDbOptions
     {
-        public string DatabaseLocation { get; set; }
+        public string DatabaseLocation { get; set; } = string.Empty;
     }
 }

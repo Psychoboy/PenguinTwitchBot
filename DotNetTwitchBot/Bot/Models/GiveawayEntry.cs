@@ -8,6 +8,6 @@ namespace DotNetTwitchBot.Bot.Models
     public class GiveawayEntry
     {
         public int Id {get;set;}
-        public string Username {get;set;}
+        public string? Username {get;set;}
     }
 }
