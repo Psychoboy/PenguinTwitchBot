@@ -13,22 +13,28 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
         public event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         public event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
+        public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
+        public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
+
+        public bool IsOnline {get;set;} = false;
 
         public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
         {
             if(CommandEvent != null) {
-                var eventArgs = new CommandEventArgs();
-                eventArgs.Arg = command.ArgumentsAsString;
-                eventArgs.Args = command.ArgumentsAsList;
-                eventArgs.Command = command.CommandText.ToLower();
-                eventArgs.IsWhisper = false;
-                eventArgs.Sender = command.ChatMessage.Username;
-                eventArgs.isSub = command.ChatMessage.IsSubscriber;
-                eventArgs.isMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator;
-                eventArgs.isVip = command.ChatMessage.IsVip;
-                if(eventArgs.Args.Count > 0) {
-                    eventArgs.TargetUser = eventArgs.Args[0].Replace("@", "").Trim().ToLower();
-                }
+                var eventArgs = new CommandEventArgs(){
+                    Arg = command.ArgumentsAsString,
+                    Args = command.ArgumentsAsList,
+                    Command = command.CommandText.ToLower(),
+                    IsWhisper = false,
+                    Sender = command.ChatMessage.Username,
+                    isSub = command.ChatMessage.IsSubscriber,
+                    isMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator,
+                    isVip = command.ChatMessage.IsVip,
+                    isBroadcaster = command.ChatMessage.IsBroadcaster,
+                    TargetUser = command.ArgumentsAsList.Count > 0 
+                        ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower() 
+                        : ""
+                };
                 await CommandEvent(this, eventArgs);
             }
         }
@@ -60,7 +66,8 @@ namespace DotNetTwitchBot.Bot.Core
                     DisplayName = message.DisplayName,
                     isSub = message.IsSubscriber,
                     isMod = message.IsModerator,
-                    isVip = message.IsVip
+                    isVip = message.IsVip,
+                    isBroadcaster = message.IsBroadcaster
                 });
             }
         }
@@ -79,6 +86,18 @@ namespace DotNetTwitchBot.Bot.Core
                     Title = title,
                     UserInput = userInput
                 });
+            }
+        }
+
+        public async Task OnUserJoined(string username) {
+            if(UserJoinedEvent != null) {
+                await UserJoinedEvent(this, new UserJoinedEventArgs(){Username = username});
+            }
+        }
+
+        public async Task OnUserLeft(string username) {
+            if(UserLeftEvent != null) {
+                await UserLeftEvent(this, new UserLeftEventArgs(){Username = username});
             }
         }
     }

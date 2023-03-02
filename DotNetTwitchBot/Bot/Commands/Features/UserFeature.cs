@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class UserFeature : BaseFeature
     {
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
+        private HashSet<string> _users = new HashSet<string>();
         private IViewerData _viewerData;
         private readonly ILogger<UserFeature> _logger;
 
@@ -25,8 +27,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             eventService.SubscriptionEvent += OnSubscription;
             eventService.CheerEvent += OnCheer;
             eventService.FollowEvent += OnFollow;
+            eventService.UserJoinedEvent += OnUserJoined;
+            eventService.UserLeftEvent += OnUserLeft;
 
             _viewerData = viewerData;
+        }
+
+        private Task OnUserLeft(object? sender, UserLeftEventArgs e)
+        {
+            _users.Remove(e.Username);
+            return Task.CompletedTask;
+        }
+
+        private Task OnUserJoined(object? sender, UserJoinedEventArgs e)
+        {
+            _users.Add(e.Username);
+            return Task.CompletedTask;
         }
 
         private Task OnFollow(object? sender, FollowEventArgs e)
@@ -37,6 +53,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetActiveUsers() {
             return _usersLastActive.Where(kvp => kvp.Value.AddMinutes(5) > DateTime.Now).Select(x => x.Key).ToList();
+        }
+
+        public List<string> GetCurrentUsers() {
+            return _users.ToList();
+        }
+
+        public Viewer? GetViewer(string username) {
+            var viewer = _viewerData.FindOne(username);
+            return viewer;
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -77,6 +102,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             viewer.isMod = e.isMod;
             viewer.isSub = e.isSub;
             viewer.isVip = e.isVip;
+            viewer.isBroadcaster = e.isBroadcaster;
             viewer.LastSeen = DateTime.Now;
             _viewerData.InsertOrUpdate(viewer);
 

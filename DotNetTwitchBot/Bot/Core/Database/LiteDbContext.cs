@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public LiteDbContext(IOptions<LiteDbOptions> options){
             Database = new LiteDatabase(options.Value.DatabaseLocation);
+            Database.Rebuild(); //Clean up DB TODO: Clean up on a schedule
         }
     }
 }

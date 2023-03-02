@@ -10,19 +10,26 @@ namespace DotNetTwitchBot.Bot
     {
         private readonly IConfiguration _configuration;
         private TwitchClient _twitchClient { get; set; }
-        private EventService _commandService { get; set;}
+        private EventService _eventService { get; set;}
+
+        private TwitchService _twitchService;
         private readonly ILogger<TwitchChatBot> _logger;
 
-        public TwitchChatBot(ILogger<TwitchChatBot> logger, IConfiguration configuration, EventService commandService) {
+        public TwitchChatBot(
+            ILogger<TwitchChatBot> logger,
+             IConfiguration configuration, 
+             EventService eventService,
+             TwitchService twitchService) {
             _configuration = configuration;
             _logger = logger;
             _twitchClient = new TwitchClient();
-            _commandService = commandService;
-            _commandService.SendMessageEvent += CommandService_OnChatMessage;
+            _eventService = eventService;
+            _twitchService = twitchService;
+            _eventService.SendMessageEvent += CommandService_OnSendMessage;
             
         }
 
-        private Task CommandService_OnChatMessage(object? sender, string e)
+        private Task CommandService_OnSendMessage(object? sender, string e)
         {
             _twitchClient.SendMessage(_configuration["broadcaster"], e);
             return Task.CompletedTask;
@@ -43,16 +50,23 @@ namespace DotNetTwitchBot.Bot
             _twitchClient.OnConnectionError += Client_OnConnectionError;
             _twitchClient.OnMessageReceived += OnMessageReceived;
             _twitchClient.OnUserJoined += OnUserJoined;
+            _twitchClient.OnUserLeft += OnUserLeft;
             _twitchClient.Connect();
+        }
+
+        private void OnUserLeft(object? sender, OnUserLeftArgs e)
+        {
+            _logger.LogInformation($"{e.Username} Left.");
         }
 
         private void OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
+            _logger.LogInformation($"{e.Username} Joined.");
         }
 
         private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
-            await _commandService.OnChatMessage(e.ChatMessage);
+            await _eventService.OnChatMessage(e.ChatMessage);
         }
 
         private void Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
@@ -87,7 +101,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
         {
-            await _commandService.OnCommand(e.Command);
+            await _eventService.OnCommand(e.Command);
         }
 
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
@@ -95,10 +109,16 @@ namespace DotNetTwitchBot.Bot
             _logger.LogDebug("OnLeftChannel");
         }
 
-        private void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
+        private async void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
         {
             _logger.LogDebug("OnJoinedChannel");
             _logger.LogInformation(string.Format("Joined {0}", e.Channel));
+            try{
+                _eventService.IsOnline = await _twitchService.IsStreamOnline();
+            } catch (Exception ex) {
+                _logger.LogError(ex.Message);
+            }
+            _logger.LogInformation($"Stream Is Online: {_eventService.IsOnline}");
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

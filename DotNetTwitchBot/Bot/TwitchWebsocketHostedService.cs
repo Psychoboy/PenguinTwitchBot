@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 
 namespace DotNetTwitchBot.Bot
 {
@@ -10,9 +11,13 @@ namespace DotNetTwitchBot.Bot
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private TwitchService _twitchService;
-        private EventService _commandService;
+        private EventService _eventService;
 
-        public TwitchWebsocketHostedService(ILogger<TwitchWebsocketHostedService> logger, EventService commandService, EventSubWebsocketClient eventSubWebsocketClient, TwitchService twitchService)
+        public TwitchWebsocketHostedService(
+            ILogger<TwitchWebsocketHostedService> logger, 
+            EventService eventService, 
+            EventSubWebsocketClient eventSubWebsocketClient, 
+            TwitchService twitchService)
         {
             _logger = logger;
             _eventSubWebsocketClient = eventSubWebsocketClient;
@@ -27,33 +32,48 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+
+            _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
+            _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
             _twitchService = twitchService;
-            _commandService = commandService;
+            _eventService = eventService;
+        }
+
+        private void OnStreamOffline(object? sender, StreamOfflineArgs e)
+        {
+            _logger.LogInformation($"Stream is offline");
+            _eventService.IsOnline = false;
+        }
+
+        private void OnStreamOnline(object? sender, StreamOnlineArgs e)
+        {
+            _logger.LogInformation($"Stream is online");
+            _eventService.IsOnline = true;
         }
 
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
-            await _commandService.OnSubscription(e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
         }
 
         private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
-            await _commandService.OnSubscription(e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
         }
 
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
-            await _commandService.OnSubscription(e.Notification.Payload.Event.UserName);   
+            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);   
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
-            await _commandService.OnCheer(e.Notification.Payload.Event.UserName);
+            await _eventService.OnCheer(e.Notification.Payload.Event.UserName);
         }
 
         private async void OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
-            await _commandService.OnChannelPointRedeem(
+            await _eventService.OnChannelPointRedeem(
                 e.Notification.Payload.Event.UserName,
                 e.Notification.Payload.Event.Reward.Title,
                 e.Notification.Payload.Event.UserInput);
@@ -62,7 +82,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
-            await _commandService.OnFollow(e.Notification.Payload.Event.UserName);
+            await _eventService.OnFollow(e.Notification.Payload.Event.UserName);
         }
 
         private void OnErrorOccurred(object? sender, ErrorOccuredArgs e)

@@ -31,7 +31,28 @@ namespace DotNetTwitchBot.Bot
         public async Task<string?> GetBroadcasterUserId() {
             await ValidateAndRefreshToken();
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{_configuration["broadcaster"]},_configuration["twitchAccessToken"]);
+            
             return users.Users.FirstOrDefault()?.Id;
+        }
+
+        public async Task<string?> GetUserId(string user) {
+            await ValidateAndRefreshToken();
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{user},_configuration["twitchAccessToken"]);
+            return users.Users.FirstOrDefault()?.Id;
+        }
+
+        public async Task<bool> IsStreamOnline() {
+            await ValidateAndRefreshToken();
+            var userId = await GetBroadcasterUserId();
+            if(userId == null) {
+                throw new Exception("Error getting stream status.");
+            }
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>(){userId});
+            if(streams.Streams == null) {
+                return false;
+            }
+
+            return streams.Streams.Count() > 0;
         }
 
         public async Task SubscribeToAllTheStuffs(string sessionId) {
@@ -83,6 +104,24 @@ namespace DotNetTwitchBot.Bot
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
+                "1",
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "stream.offline",
+                "1",
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "stream.online",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },

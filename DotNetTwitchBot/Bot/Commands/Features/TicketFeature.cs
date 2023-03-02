@@ -28,16 +28,31 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             this._eventService.CommandEvent += OnCommand;
             _logger = logger;
             
-            _timer = new Timer(10000);
+            _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
             _userFeature = userFeature;
             _dbViewerPoints = dbViewerPoints;
         }
 
-        public void GiveTicketsToActiveUsers(int amount) {
-             var activeUsers = _userFeature.GetActiveUsers();
-            foreach(var activeUser in activeUsers) {
-                GiveTicketsToUser(activeUser, amount);
+        public void GiveTicketsToActiveUsersWithBonus(int amount, int bonusAmount) {
+            var activeUsers = _userFeature.GetActiveUsers();
+            GiveTicketsWithBonusToUsers(activeUsers, amount, bonusAmount);
+        }
+
+        public void GiveTicketsToAllOnlineUsersWithBonus(int amount, int bonusAmount) {
+            var users = _userFeature.GetCurrentUsers();
+            GiveTicketsWithBonusToUsers(users, amount, bonusAmount);
+        }
+        
+        public void GiveTicketsWithBonusToUsers(List<string> users, int amount, int subBonusAmount)
+        {
+            foreach(var user in users) {
+                var bonus = 0;
+                var viewer = _userFeature.GetViewer(user);
+                if(viewer != null) {
+                    bonus = viewer.isSub ? subBonusAmount : 0; // Sub Bonus
+                }
+                GiveTicketsToUser(user, amount + bonus);
             }
         }
 
@@ -57,8 +72,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            _logger.LogInformation("Starting to give  out tickets");
-            GiveTicketsToActiveUsers(5);
+            if(_eventService.IsOnline) {
+                _logger.LogInformation("Starting to give  out tickets");
+                GiveTicketsToActiveUsersWithBonus(5, 5);
+                GiveTicketsToAllOnlineUsersWithBonus(1, 2);
+            } else {
+                _logger.LogInformation("Stream offline, skipping tickets");
+            }
         }
         
         public void RemoveTicketsFromUser(string user, int amount) {
