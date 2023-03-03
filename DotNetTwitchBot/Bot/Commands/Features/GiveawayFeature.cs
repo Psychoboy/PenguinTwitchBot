@@ -81,10 +81,5 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var entries = await _giveawayData.CountForUser(sender);
             await _eventService.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
-
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            return Task.CompletedTask;
-        }
     }
 }

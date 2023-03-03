@@ -33,5 +33,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public async Task InsertOrUpdate(Viewer viewer) {
             await _db.InsertOrReplaceAsync(viewer);
         }
+
+        public async Task<List<Viewer>> GetAllSubscribers() {
+            return await _db.Table<Viewer>().Where(x => x.isSub == true).ToListAsync();
+        }
     }
 }

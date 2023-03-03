@@ -13,11 +13,11 @@ namespace DotNetTwitchBot.Bot.Models
         [Indexed]
         public string Username {get;set;} = string.Empty;
         public string DisplayName {get;set;} = string.Empty;
-        public DateTime LastSeen {get;set;}
-        public bool isSub {get;set;}
-        public bool isVip {get;set;}
-        public bool isMod {get;set;}
-        public bool isBroadcaster {get;set;}
+        public DateTime LastSeen {get;set;} = DateTime.MinValue;
+        public bool isSub {get;set;} = false;
+        public bool isVip {get;set;} = false;
+        public bool isMod {get;set;} = false;
+        public bool isBroadcaster {get;set;} = false;
 
     }
 }

@@ -8,7 +8,7 @@ using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         
         var builder = WebApplication.CreateBuilder(args);
@@ -38,7 +38,7 @@ internal class Program
         // builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TestFeature>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
-        builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
         
         
         // Log.Logger = new LoggerConfiguration()
@@ -55,6 +55,9 @@ internal class Program
         // });
 
         var app = builder.Build();
+
+        var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
+        await viewerFeature.LoadSubscribers();
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

@@ -14,12 +14,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
         private HashSet<string> _users = new HashSet<string>();
         private ViewerData _viewerData;
+        private TwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger, 
             EventService eventService,
-            ViewerData viewerData
+            ViewerData viewerData,
+            TwitchService twitchService
             ) : base(eventService)
         {
             _logger = logger;
@@ -31,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             eventService.UserLeftEvent += OnUserLeft;
 
             _viewerData = viewerData;
+            _twitchService = twitchService;
         }
 
         private Task OnUserLeft(object? sender, UserLeftEventArgs e)
@@ -62,11 +65,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Viewer?> GetViewer(string username) {
             return await _viewerData.FindOne(username);
-        }
-
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            return Task.CompletedTask;
         }
 
         private Task OnSubscription(object? sender, SubscriptionEventArgs e)
@@ -120,6 +118,33 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             viewer.isBroadcaster = e.isBroadcaster;
             viewer.LastSeen = DateTime.Now;
             await _viewerData.InsertOrUpdate(viewer);
+        }
+
+        public async Task LoadSubscribers(){
+            _logger.LogInformation("Loading Subscribers");
+            var subscribers = await _twitchService.GetAllSubscriptions();
+            foreach(var subscriber in subscribers){
+                var viewer = await GetViewer(subscriber.UserLogin);
+                if(viewer == null) {
+                    viewer = new Viewer(){
+                        Username = subscriber.UserLogin,
+                        DisplayName = subscriber.UserName
+                    };
+                }
+                viewer.isSub = true;
+                await _viewerData.InsertOrUpdate(viewer);
+            }
+            _logger.LogInformation("Getting existing subscribers.");
+            var curSubscribers = await _viewerData.GetAllSubscribers();
+            foreach(var curSubscriber in curSubscribers) {
+                if(!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username))) {
+                    _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
+                    curSubscriber.isSub = false;
+                    await _viewerData.Update(curSubscriber);
+                }
+            }
+
+            _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
         }
     }
 }

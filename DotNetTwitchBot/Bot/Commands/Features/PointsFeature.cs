@@ -126,7 +126,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 ));
         }
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        public override Task StartAsync(CancellationToken cancellationToken)
         {
             _timer.Start();
             return Task.CompletedTask;
