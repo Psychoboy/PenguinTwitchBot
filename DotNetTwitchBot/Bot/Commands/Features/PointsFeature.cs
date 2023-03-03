@@ -91,11 +91,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            //if(_eventService.IsOnline) {
+            if(_eventService.IsOnline) {
                 _logger.LogInformation("Starting to give  out tickets");
                 await GivePointsToActiveViewersWithBonus(5, 5);
                 await GivePointsToAllOnlineViewersWithBonus(1, 2);
-            //}
+            }
         }
         
        
