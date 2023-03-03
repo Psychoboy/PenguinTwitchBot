@@ -64,6 +64,15 @@ namespace DotNetTwitchBot.Bot
             return users.Users.FirstOrDefault()?.Id;
         }
 
+        public async Task<bool> IsUserFollowing(string user) {
+            await ValidateAndRefreshToken();
+            var broadcasterId = await GetBroadcasterUserId();
+            var userId = await GetUserId(user);
+            if(userId == null) return false;
+            var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
+            return response.Follows.Any();
+        }
+
         public async Task<bool> IsStreamOnline() {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId();

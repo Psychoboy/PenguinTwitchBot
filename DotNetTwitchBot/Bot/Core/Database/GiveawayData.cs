@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
     {
         private ILogger<GiveawayData> _logger;
         private SQLiteAsyncConnection _db;
+        
 
         public GiveawayData(
             ILogger<GiveawayData> logger,
@@ -31,6 +33,17 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public async Task<int> CountForUser(string username) {
             return await _db.Table<GiveawayEntry>().Where(x => x.Username == username).CountAsync();
+        }
+
+        public async Task<GiveawayEntry?> RandomEntry() {
+            var count = await _db.Table<GiveawayEntry>().CountAsync();
+            if(count == 0) return null;
+            var rnd = new Random();
+            return await _db.Table<GiveawayEntry>().ElementAtAsync(rnd.Next(0,count));
+        }
+
+        public async Task DeleteAll() {
+            await _db.Table<GiveawayEntry>().DeleteAsync();
         }
     }
 }

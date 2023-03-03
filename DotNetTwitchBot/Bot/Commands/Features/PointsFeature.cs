@@ -32,22 +32,23 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _timer.Elapsed += OnTimerElapsed;
             _viewerFeature = viewerFeature;
             _pointsData = pointsData;
+            _timer.Start();
         }
 
-        public async Task GivePointsToActiveViewersWithBonus(int amount, int bonusAmount) {
+        public async Task GivePointsToActiveViewersWithBonus(long amount, long bonusAmount) {
             var activeViewers =  _viewerFeature.GetActiveViewers();
             await GivePointsWithBonusToViewers(activeViewers, amount, bonusAmount);
         }
 
-        public async Task GivePointsToAllOnlineViewersWithBonus(int amount, int bonusAmount) {
+        public async Task GivePointsToAllOnlineViewersWithBonus(long amount, long bonusAmount) {
             var viewers = _viewerFeature.GetCurrentViewers();
             await GivePointsWithBonusToViewers(viewers, amount, bonusAmount);
         }
         
-        public async Task GivePointsWithBonusToViewers(List<string> viewers, int amount, int subBonusAmount)
+        public async Task GivePointsWithBonusToViewers(List<string> viewers, long amount, long subBonusAmount)
         {
             foreach(var viewer in viewers) {
-                var bonus = 0;
+                long bonus = 0;
                 var viewerData = await _viewerFeature.GetViewer(viewer);
                 if(viewerData != null) {
                     bonus = viewerData.isSub ? subBonusAmount : 0; // Sub Bonus
@@ -56,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public async Task<int> GivePointsToViewer(string viewer, int amount) {
+        public async Task<long> GivePointsToViewer(string viewer, long amount) {
             var viewerPoints = await _pointsData.FindOne(viewer);
             if(viewerPoints == null) {
                 viewerPoints = new Models.ViewerPoints(){
@@ -75,12 +76,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerPoints.Points;
         }
 
-        public async Task<int> GetViewerPoints(string viewer){
+        public async Task<long> GetViewerPoints(string viewer){
             var viewerPoints = await _pointsData.FindOne(viewer);
             return viewerPoints == null ? 0 : viewerPoints.Points;
         }
 
-         public async Task<bool> RemovePointsFromViewer(string viewer, int amount) {
+         public async Task<bool> RemovePointsFromViewer(string viewer, long amount) {
             try{
                 await GivePointsToViewer(viewer, -amount);
                 return true;
@@ -107,7 +108,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     break;
                 }
                 case "givepoints":{
-                    if(e.isMod && Int32.TryParse(e.Args[1], out int amount)) {
+                    if(e.isMod && Int64.TryParse(e.Args[1], out long amount)) {
                         var totalPoints = await GivePointsToViewer(e.TargetUser, amount);
                         await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, totalPoints));
                     }
@@ -124,12 +125,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 sender,
                 viewer != null ? viewer.Points : 0
                 ));
-        }
-
-        public override Task StartAsync(CancellationToken cancellationToken)
-        {
-            _timer.Start();
-            return Task.CompletedTask;
         }
     }
 }

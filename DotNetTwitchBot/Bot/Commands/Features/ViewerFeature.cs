@@ -67,11 +67,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return await _viewerData.FindOne(username);
         }
 
-        private Task OnSubscription(object? sender, SubscriptionEventArgs e)
+        private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
+            if(e.Sender == null) return;
             _logger.LogInformation("{0} Subscribed.", e.Sender);
+            await AddSubscription(e.Sender);
             updateLastActive(e.Sender);
-            return Task.CompletedTask;
         }
 
         private async Task AddSubscription(string username) {
@@ -92,7 +93,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private Task OnCheer(object? sender, CheerEventArgs e)
         {
-            updateLastActive(e.Sender);
+            if(!e.IsAnonymous){
+                updateLastActive(e.Sender);
+                _logger.LogInformation("{0} cheered {1} bits with message {2}", e.Sender, e.Amount, e.Message);
+            } else {
+                _logger.LogInformation("Anonymous User cheered {0} bits", e.Amount);
+            }
             return Task.CompletedTask;
         }
 

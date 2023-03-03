@@ -74,7 +74,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
-            await _eventService.OnCheer(e.Notification.Payload.Event.UserName);
+            await _eventService.OnCheer(e.Notification.Payload.Event);
         }
 
         private async void OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot
 
         private void OnWebsocketReconnected(object? sender, EventArgs e)
         {
-            
+            _logger.LogWarning($"Websocket {_eventSubWebsocketClient.SessionId} reconnected");
         }
 
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)

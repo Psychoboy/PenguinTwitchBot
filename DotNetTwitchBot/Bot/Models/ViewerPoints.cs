@@ -13,6 +13,6 @@ namespace DotNetTwitchBot.Bot.Models
         public int? Id {get;set;}
         [Indexed]
         public string Username {get;set;} = "";
-        public int Points {get;set;} = 0;
+        public long Points {get;set;} = 0;
     }
 }

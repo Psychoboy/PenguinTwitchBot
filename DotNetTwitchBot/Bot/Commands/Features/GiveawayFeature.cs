@@ -11,18 +11,25 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class GiveawayFeature : BaseFeature
     {
+        private ILogger<GiveawayFeature> _logger;
         private GiveawayData _giveawayData;
         private PointsFeature _pointsFeature;
+        private TwitchService _twitchService;
 
         public GiveawayFeature(
+            ILogger<GiveawayFeature> logger,
             EventService eventService,
             GiveawayData giveawayData,
-            PointsFeature pointsFeature
+            PointsFeature pointsFeature,
+            TwitchService twitchService
             ) : base(eventService)
         {
+            _logger = logger;
             _giveawayData = giveawayData;
             _pointsFeature = pointsFeature;
+            _twitchService = twitchService;
             eventService.CommandEvent += OnCommandEvent;
+
         }
 
         private async Task OnCommandEvent(object? sender, CommandEventArgs e)
@@ -37,9 +44,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     break;
                 }
                 case "testdraw": {
+                    if(!e.isBroadcaster) return;
+                    await Draw();
                     break;
                 }
                 case "testresetdraw": {
+                    if(!e.isBroadcaster) return;
+                    await Reset();
                     break;
                 }
                 case "testprize": {
@@ -48,14 +59,34 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
+        private async Task Reset()
+        {
+            await _giveawayData.DeleteAll();
+        }
+
+        private async Task Draw()
+        {
+            var entry = await _giveawayData.RandomEntry();
+            if(entry == null) return;
+            _logger.LogInformation("Entry Id: {0} Username {1} selected", entry.Id, entry.Username);
+            var isFollower = await _twitchService.IsUserFollowing(entry.Username);
+            await _eventService.SendChatMessage(string.Format("{0} won the drawing and {1} following", entry.Username, isFollower ? "is" : "is not"));
+
+        }
+
         private async Task Enter(string sender, string amount) {
             amount = amount.ToLower();
             var viewerPoints = await _pointsFeature.GetViewerPoints(sender);
 
             if(amount == "max" || amount == "all") {
-                amount = viewerPoints.ToString();
+                var currentEntries = await _giveawayData.CountForUser(sender);
+                if(currentEntries + viewerPoints > 1000000) // Max entries is 1million
+                {
+                    var maxPoints = 1000000 - currentEntries;
+                    amount = maxPoints > 0 ? maxPoints.ToString() : "0";
+                }
             }
-            if(!Int32.TryParse(amount, out var points)) {
+            if(!Int64.TryParse(amount, out var points)) {
                 await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", sender));
                 return;
             }
@@ -67,6 +98,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await _eventService.SendChatMessage("@{0}, failed to enter giveaway. Please try again.");
                 return;
             }
+
+            if(points > 1000000) {
+                await _eventService.SendChatMessage("@{0}, Max entries is 1,000,000");
+            }
+
+            
             var entries = new GiveawayEntry[points];
             for(var i = 0; i < points; i++) {
                 entries[i] = new GiveawayEntry(){
@@ -74,6 +111,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 };
             }
             await _giveawayData.InsertAll(entries);
+            
+            
             await _eventService.SendChatMessage($"@{sender}, you have bought {points} entries.");
         }
 

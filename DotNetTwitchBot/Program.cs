@@ -40,24 +40,14 @@ internal class Program
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
         
-        
-        // Log.Logger = new LoggerConfiguration()
-        // // .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
-        // .Enrich.FromLogContext()
-        // .WriteTo.File(path)
-        // .CreateLogger();
-        // LoggerFactory.Create(config => {
-        //     new LoggerConfiguration()
-        //     //.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
-        //     .Enrich.FromLogContext()
-        //     .WriteTo.File(path, rollingInterval: RollingInterval.Day)
-        //     .CreateLogger();
-        // });
-
         var app = builder.Build();
 
+        //Force load/startup
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.LoadSubscribers();
+        var pointsFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
+        var giveawayFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
+        
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

@@ -1,5 +1,6 @@
 ﻿using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -46,9 +47,23 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnCheer(string sender) {
+        // public async Task OnCheer(string sender) {
+        //     if(CheerEvent != null) {
+        //         await CheerEvent(this, new CheerEventArgs(){
+        //             Sender = sender
+        //             });
+        //     }
+        // }
+
+        internal async Task OnCheer(ChannelCheer ev)
+        {
             if(CheerEvent != null) {
-                await CheerEvent(this, new CheerEventArgs(){Sender = sender});
+                await CheerEvent(this, new CheerEventArgs(){
+                    Sender = ev.UserName,
+                    Amount = ev.Bits,
+                    Message = ev.Message,
+                    IsAnonymous = ev.IsAnonymous
+                });
             }
         }
 
@@ -100,5 +115,7 @@ namespace DotNetTwitchBot.Bot.Core
                 await UserLeftEvent(this, new UserLeftEventArgs(){Username = username});
             }
         }
+
+        
     }
 }
