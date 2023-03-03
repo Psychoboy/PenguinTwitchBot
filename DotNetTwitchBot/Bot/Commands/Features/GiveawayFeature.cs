@@ -11,17 +11,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class GiveawayFeature : BaseFeature
     {
-        private IGiveawayEntries _giveawayEntries;
-        private IDbViewerPoints _viewerPoints;
+        private GiveawayData _giveawayData;
+        private PointsFeature _pointsFeature;
 
         public GiveawayFeature(
             EventService eventService,
-            IGiveawayEntries giveawayEntries,
-            IDbViewerPoints viewerPoints
+            GiveawayData giveawayData,
+            PointsFeature pointsFeature
             ) : base(eventService)
         {
-            _giveawayEntries = giveawayEntries;
-            _viewerPoints = viewerPoints;
+            _giveawayData = giveawayData;
+            _pointsFeature = pointsFeature;
             eventService.CommandEvent += OnCommandEvent;
         }
 
@@ -50,37 +50,35 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task Enter(string sender, string amount) {
             amount = amount.ToLower();
-            var viewerPoints = _viewerPoints.FindOne(sender);
-            if(viewerPoints == null) {
-                await _eventService.SendChatMessage(string.Format("@{0}, you do not have any tickets to enter.", sender));
-                return;
-            }
+            var viewerPoints = await _pointsFeature.GetViewerPoints(sender);
+
             if(amount == "max" || amount == "all") {
-                amount = viewerPoints.Points.ToString();
+                amount = viewerPoints.ToString();
             }
             if(!Int32.TryParse(amount, out var points)) {
                 await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", sender));
                 return;
             }
-            if(points == 0 || points > viewerPoints.Points) {
+            if(points == 0 || points > viewerPoints) {
                 await _eventService.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", sender));
                 return;
             }
-
-            viewerPoints.Points -= points;
-            _viewerPoints.Update(viewerPoints);
+            if(!(await _pointsFeature.RemovePointsFromViewer(sender, points))) {
+                await _eventService.SendChatMessage("@{0}, failed to enter giveaway. Please try again.");
+                return;
+            }
             var entries = new GiveawayEntry[points];
             for(var i = 0; i < points; i++) {
                 entries[i] = new GiveawayEntry(){
                     Username = sender
                 };
             }
-            _giveawayEntries.InsertBulk(entries);
+            await _giveawayData.InsertAll(entries);
             await _eventService.SendChatMessage($"@{sender}, you have bought {points} entries.");
         }
 
         private async Task Entries(string sender) {
-            var entries = _giveawayEntries.Count(sender);
+            var entries = await _giveawayData.CountForUser(sender);
             await _eventService.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 

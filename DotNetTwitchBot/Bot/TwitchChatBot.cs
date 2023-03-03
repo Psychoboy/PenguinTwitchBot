@@ -56,12 +56,12 @@ namespace DotNetTwitchBot.Bot
 
         private void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
-            _logger.LogInformation($"{e.Username} Left.");
+            _logger.LogInformation("{0} Left.", e.Username);
         }
 
         private void OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
-            _logger.LogInformation($"{e.Username} Joined.");
+            _logger.LogInformation("{0} Joined.", e.Username);
         }
 
         private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
@@ -115,6 +115,7 @@ namespace DotNetTwitchBot.Bot
             _logger.LogInformation(string.Format("Joined {0}", e.Channel));
             try{
                 _eventService.IsOnline = await _twitchService.IsStreamOnline();
+                // await _twitchService.GetAllSubscriptions();
             } catch (Exception ex) {
                 _logger.LogError(ex.Message);
             }

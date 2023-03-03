@@ -1,47 +1,37 @@
+using System.Security.Cryptography.X509Certificates;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Models;
-using LiteDB;
+using SQLite;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
-    public class ViewerData : IViewerData
+    public class ViewerData
     {
-        private LiteDatabase _liteDb;
-        private string TableName = "Viewers";
+        private ILogger<ViewerData> _logger;
+        private SQLiteAsyncConnection _db;
 
-        public ViewerData(ILiteDbContext liteDbContext) {
-            _liteDb = liteDbContext.Database;
-            var col = _liteDb.GetCollection<Viewer>(TableName);
-            col.EnsureIndex(x => x.Username);
-        }
-        public IEnumerable<Viewer> FindAll()
+        public ViewerData(
+            ILogger<ViewerData> logger,
+            Database db
+            ) 
         {
-            return _liteDb.GetCollection<Viewer>(TableName).FindAll();   
-        }
-
-        public Viewer? FindOne(string username)
-        {
-            return _liteDb.GetCollection<Viewer>(TableName)
-            .Find(x => x.Username.Equals(username, StringComparison.CurrentCultureIgnoreCase))
-            .FirstOrDefault();
+            _logger = logger;
+            _db = db.Db;
         }
 
-        public int Insert(Viewer viewer)
-        {
-            return _liteDb.GetCollection<Viewer>(TableName).Insert(viewer);
+        public async Task<Viewer?> FindOne(string username) {
+            return await _db.FindAsync<Viewer>(x => x.Username.ToLower() == username.ToLower());
         }
 
-        public bool InsertOrUpdate(Viewer viewer)
-        {
-            return _liteDb.GetCollection<Viewer>(TableName).Upsert(viewer);
+        public async Task Update(Viewer viewer) {
+            await _db.UpdateAsync(viewer);
         }
 
-        public bool Update(Viewer viewer)
-        {
-            return _liteDb.GetCollection<Viewer>(TableName).Update(viewer);
+        public async Task InsertOrUpdate(Viewer viewer) {
+            await _db.InsertOrReplaceAsync(viewer);
         }
     }
 }
