@@ -17,6 +17,7 @@
 mono_crash.*
 Database.db
 Database-log.db
+data.db
 
 # Build results
 [Dd]ebug/
