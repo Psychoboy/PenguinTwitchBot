@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Core
         //     }
         // }
 
-        internal async Task OnCheer(ChannelCheer ev)
+        public async Task OnCheer(ChannelCheer ev)
         {
             if(CheerEvent != null) {
                 await CheerEvent(this, new CheerEventArgs(){
@@ -67,9 +67,14 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnFollow(string sender) {
+        public async Task OnFollow(ChannelFollow ev)
+        {
             if(FollowEvent != null) {
-                await FollowEvent(this, new FollowEventArgs(){Sender = sender});
+                await FollowEvent(this, new FollowEventArgs(){
+                    Username = ev.UserLogin,
+                    DisplayName = ev.UserName,
+                    FollowDate = ev.FollowedAt.DateTime
+                });
             }
         }
 

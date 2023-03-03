@@ -25,6 +25,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
             Db.CreateTableAsync<GiveawayEntry>().Wait();
             Db.CreateTableAsync<Viewer>().Wait();
             Db.CreateTableAsync<ViewerPoints>().Wait();
+            Db.CreateTableAsync<Follower>().Wait();
             _logger.LogInformation("Tables updated");
         }
 

@@ -88,7 +88,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
-            await _eventService.OnFollow(e.Notification.Payload.Event.UserName);
+            await _eventService.OnFollow(e.Notification.Payload.Event);
         }
 
         private void OnErrorOccurred(object? sender, ErrorOccuredArgs e)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.Models;
 using Newtonsoft.Json;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -64,13 +65,41 @@ namespace DotNetTwitchBot.Bot
             return users.Users.FirstOrDefault()?.Id;
         }
 
-        public async Task<bool> IsUserFollowing(string user) {
+        public async Task<Follower?> GetUserFollow(string user) {
             await ValidateAndRefreshToken();
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
-            if(userId == null) return false;
+            if(userId == null) return null;
             var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-            return response.Follows.Any();
+            if(!response.Follows.Any()) {
+                return null;
+            }
+            var firstFollower = response.Follows.First();
+            return new Follower(){
+                Username = firstFollower.FromLogin,
+                DisplayName = firstFollower.FromLogin,
+                FollowDate = firstFollower.FollowedAt
+            };
+        }
+
+        public async Task<List<Follower>> GetAllFollows() {
+            await ValidateAndRefreshToken();
+            var broadcasterId = await GetBroadcasterUserId();
+            var after = "";
+            List<Follower> followers = new List<Follower>();
+            while(true){
+                var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(after, null, 100, null, broadcasterId, _configuration["twitchAccessToken"]);
+                followers.AddRange(response.Follows.Select(x => new Follower(){
+                    Username = x.FromLogin,
+                    DisplayName = x.FromUserName,
+                    FollowDate = x.FollowedAt
+                }));
+                after = response.Pagination.Cursor;
+                if(string.IsNullOrEmpty(response.Pagination.Cursor)) {
+                    break;
+                }
+            }
+            return followers;
         }
 
         public async Task<bool> IsStreamOnline() {

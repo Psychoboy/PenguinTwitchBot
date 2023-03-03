@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
         private HashSet<string> _users = new HashSet<string>();
         private ViewerData _viewerData;
+        private FollowData _followData;
         private TwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
 
@@ -21,7 +22,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<ViewerFeature> logger, 
             EventService eventService,
             ViewerData viewerData,
-            TwitchService twitchService
+            TwitchService twitchService,
+            FollowData followData
             ) : base(eventService)
         {
             _logger = logger;
@@ -33,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             eventService.UserLeftEvent += OnUserLeft;
 
             _viewerData = viewerData;
+            _followData = followData;
             _twitchService = twitchService;
         }
 
@@ -48,11 +51,35 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        private Task OnFollow(object? sender, FollowEventArgs e)
+        private async Task OnFollow(object? sender, FollowEventArgs e)
         {
-            _logger.LogInformation("{0} Followed.", e.Sender);
-            updateLastActive(e.Sender);
-            return Task.CompletedTask;
+            _logger.LogInformation("{0} Followed.", e.DisplayName);
+            updateLastActive(e.Username);
+            await AddFollow(e);
+        }
+
+        private async Task AddFollow(FollowEventArgs args) {
+            var follower = await _followData.GetFollower(args.Username);
+            if(follower == null) {
+                follower = new Follower(){
+                    Username = args.Username,
+                    DisplayName = args.DisplayName,
+                    FollowDate = args.FollowDate
+                };
+                await _followData.Insert(follower); 
+            }
+        }
+
+        public async Task<bool> IsFollower(string username) {
+            var follower = await _followData.GetFollower(username);
+            if(follower != null) {
+                return true;
+            }
+
+            follower = await _twitchService.GetUserFollow(username);
+            if(follower == null) return false;
+            await _followData.Insert(follower);
+            return true;
         }
 
         public List<string> GetActiveViewers() {

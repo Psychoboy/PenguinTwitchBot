@@ -29,6 +29,7 @@ internal class Program
         builder.Services.AddSingleton<GiveawayData>();
         builder.Services.AddSingleton<PointsData>();
         builder.Services.AddSingleton<ViewerData>();
+        builder.Services.AddSingleton<FollowData>();
 
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();

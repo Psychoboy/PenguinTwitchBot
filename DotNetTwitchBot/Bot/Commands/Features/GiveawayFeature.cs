@@ -14,20 +14,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private ILogger<GiveawayFeature> _logger;
         private GiveawayData _giveawayData;
         private PointsFeature _pointsFeature;
-        private TwitchService _twitchService;
+        private ViewerFeature _viewerFeature;
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
             EventService eventService,
             GiveawayData giveawayData,
             PointsFeature pointsFeature,
-            TwitchService twitchService
+            ViewerFeature viewerFeature
             ) : base(eventService)
         {
             _logger = logger;
             _giveawayData = giveawayData;
             _pointsFeature = pointsFeature;
-            _twitchService = twitchService;
+            _viewerFeature = viewerFeature;
             eventService.CommandEvent += OnCommandEvent;
 
         }
@@ -69,10 +69,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var entry = await _giveawayData.RandomEntry();
             if(entry == null) return;
             _logger.LogInformation("Entry Id: {0} Username {1} selected", entry.Id, entry.Username);
-            var isFollower = await _twitchService.IsUserFollowing(entry.Username);
+            var isFollower = await _viewerFeature.IsFollower(entry.Username);
             await _eventService.SendChatMessage(string.Format("{0} won the drawing and {1} following", entry.Username, isFollower ? "is" : "is not"));
 
         }
+
+        
 
         private async Task Enter(string sender, string amount) {
             amount = amount.ToLower();
