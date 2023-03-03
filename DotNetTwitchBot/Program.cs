@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Security.Cryptography.X509Certificates;
 using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
@@ -24,11 +25,10 @@ internal class Program
         builder.Services.AddSingleton<TwitchService>();
         
         //Database
-        builder.Services.Configure<LiteDbOptions>(builder.Configuration.GetSection("LiteDbOptions"));
-        builder.Services.AddSingleton<ILiteDbContext, LiteDbContext>();
-        builder.Services.AddSingleton<IDbViewerPoints, DbViewerPoints>();
-        builder.Services.AddSingleton<IViewerData, ViewerData>();
-        builder.Services.AddSingleton<IGiveawayEntries, GiveawayEntries>();
+        builder.Services.AddSingleton<Database>();
+        builder.Services.AddSingleton<GiveawayData>();
+        builder.Services.AddSingleton<PointsData>();
+        builder.Services.AddSingleton<ViewerData>();
 
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
@@ -36,8 +36,8 @@ internal class Program
 
         //Add Features Here:
         // builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TestFeature>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.UserFeature>();
-        builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TicketFeature>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
         builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
         
         

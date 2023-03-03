@@ -32,6 +32,7 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+            _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
@@ -64,6 +65,11 @@ namespace DotNetTwitchBot.Bot
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);   
+        }
+        
+         private void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
+        {
+            //TODO
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)

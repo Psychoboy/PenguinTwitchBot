@@ -1,0 +1,36 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.Models;
+using SQLite;
+
+namespace DotNetTwitchBot.Bot.Core.Database
+{
+    public class Database : IDisposable
+    {
+        private ILogger<Database> _logger;
+        public SQLiteAsyncConnection Db {get;}
+
+        public Database(
+            ILogger<Database> logger,
+            IConfiguration configuration
+            ) {
+            _logger = logger;
+            var databasePath = configuration["Database:DbLocation"];
+            Db = new SQLiteAsyncConnection(databasePath);
+            _logger.LogInformation("Database connected");
+            
+            _logger.LogInformation("Creating/Verifying/Updating Tables");
+            Db.CreateTableAsync<GiveawayEntry>().Wait();
+            Db.CreateTableAsync<Viewer>().Wait();
+            Db.CreateTableAsync<ViewerPoints>().Wait();
+            _logger.LogInformation("Tables updated");
+        }
+
+        public void Dispose()
+        {
+            Db.CloseAsync().Wait();
+        }
+    }
+}

@@ -9,17 +9,17 @@ using DotNetTwitchBot.Bot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class UserFeature : BaseFeature
+    public class ViewerFeature : BaseFeature
     {
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
         private HashSet<string> _users = new HashSet<string>();
-        private IViewerData _viewerData;
-        private readonly ILogger<UserFeature> _logger;
+        private ViewerData _viewerData;
+        private readonly ILogger<ViewerFeature> _logger;
 
-        public UserFeature(
-            ILogger<UserFeature> logger, 
+        public ViewerFeature(
+            ILogger<ViewerFeature> logger, 
             EventService eventService,
-            IViewerData viewerData
+            ViewerData viewerData
             ) : base(eventService)
         {
             _logger = logger;
@@ -51,17 +51,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        public List<string> GetActiveUsers() {
+        public List<string> GetActiveViewers() {
             return _usersLastActive.Where(kvp => kvp.Value.AddMinutes(5) > DateTime.Now).Select(x => x.Key).ToList();
         }
 
-        public List<string> GetCurrentUsers() {
+        public List<string> GetCurrentViewers() {
             return _users.ToList();
         }
 
-        public Viewer? GetViewer(string username) {
-            var viewer = _viewerData.FindOne(username);
-            return viewer;
+        public async Task<Viewer?> GetViewer(string username) {
+            return await _viewerData.FindOne(username);
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -75,19 +74,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        private void AddSubscription(string username) {
-            var viewer = GetViewer(username);
+        private async Task AddSubscription(string username) {
+            var viewer = await GetViewer(username);
             if(viewer == null) return;
             viewer.isSub = true;
-            _viewerData.Update(viewer);
+            await _viewerData.Update(viewer);
             _logger.LogInformation("{0} Subscription added.", username);
         }
 
-        private void RemoveSubscription(string username) {
-            var viewer = GetViewer(username);
+        private async Task RemoveSubscription(string username) {
+            var viewer = await GetViewer(username);
             if(viewer == null) return;
             viewer.isSub = false;
-            _viewerData.Update(viewer);
+            await _viewerData.Update(viewer);
             _logger.LogInformation("{0} Subscription removed.", username);
         }
 
@@ -102,10 +101,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _usersLastActive[sender] = DateTime.Now;
         }
 
-        private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             updateLastActive(e.Sender);
-            var viewer = _viewerData.FindOne(e.Sender);
+            var viewer = await _viewerData.FindOne(e.Sender);
             if(viewer == null) {
                 viewer = new Models.Viewer(){
                     DisplayName = e.DisplayName,
@@ -118,9 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             viewer.isVip = e.isVip;
             viewer.isBroadcaster = e.isBroadcaster;
             viewer.LastSeen = DateTime.Now;
-            _viewerData.InsertOrUpdate(viewer);
-
-            return Task.CompletedTask;
+            await _viewerData.InsertOrUpdate(viewer);
         }
     }
 }
