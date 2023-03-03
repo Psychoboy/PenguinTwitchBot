@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot
 
         private void Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
         {
-            _logger.LogDebug("OnConnectionError");
+            _logger.LogWarning("Bot Connection Error: {0}", e.Error.Message);
         }
 
         private void Client_OnMessageReceived(object? sender, TwitchLib.Client.Events.OnMessageReceivedArgs e)
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot
 
         private void Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedArgs e)
         {
-            _logger.LogDebug("OnConnected");
+            _logger.LogInformation("Bot Connected");
         }
 
         private void Client_OnLog(object? sender, TwitchLib.Client.Events.OnLogArgs e)
@@ -91,12 +91,12 @@ namespace DotNetTwitchBot.Bot
 
         private void Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
         {
-            _logger.LogDebug("OnError");
+            _logger.LogError("Bot Error: {0}", e.Exception);
         }
 
         private void Client_OnDisconnected(object? sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {
-            _logger.LogDebug("OnDisconnected");
+            _logger.LogDebug("Bot Disconnected");
         }
 
         private async void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
@@ -106,12 +106,11 @@ namespace DotNetTwitchBot.Bot
 
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
-            _logger.LogDebug("OnLeftChannel");
+            _logger.LogDebug("Bot left the channel ",e.Channel);
         }
 
         private async void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
         {
-            _logger.LogDebug("OnJoinedChannel");
             _logger.LogInformation(string.Format("Joined {0}", e.Channel));
             try{
                 _eventService.IsOnline = await _twitchService.IsStreamOnline();

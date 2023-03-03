@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Models
     public class ViewerPoints
     {
         [PrimaryKey, AutoIncrement]
-        public int Id {get;set;}
+        public int? Id {get;set;}
         [Indexed]
         public string Username {get;set;} = "";
         public int Points {get;set;} = 0;

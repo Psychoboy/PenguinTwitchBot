@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public ViewerData(
             ILogger<ViewerData> logger,
-            Database db
+            IDatabase db
             ) 
         {
             _logger = logger;

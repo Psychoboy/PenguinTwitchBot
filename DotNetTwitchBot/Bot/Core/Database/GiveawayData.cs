@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public GiveawayData(
             ILogger<GiveawayData> logger,
-            Database db
+            IDatabase db
             ) 
         {
             _logger = logger;

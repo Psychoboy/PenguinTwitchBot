@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Models
     public class GiveawayEntry
     {
         [PrimaryKey, AutoIncrement]
-        public int Id {get;set;}
+        public int? Id {get;set;}
         public string Username {get;set;} = "";
     }
 }

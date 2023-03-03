@@ -25,7 +25,7 @@ internal class Program
         builder.Services.AddSingleton<TwitchService>();
         
         //Database
-        builder.Services.AddSingleton<Database>();
+        builder.Services.AddSingleton<IDatabase, Database>();
         builder.Services.AddSingleton<GiveawayData>();
         builder.Services.AddSingleton<PointsData>();
         builder.Services.AddSingleton<ViewerData>();

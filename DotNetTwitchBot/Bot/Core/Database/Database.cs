@@ -7,7 +7,7 @@ using SQLite;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
-    public class Database : IDisposable
+    public class Database : IDatabase
     {
         private ILogger<Database> _logger;
         public SQLiteAsyncConnection Db {get;}
@@ -31,6 +31,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public void Dispose()
         {
             Db.CloseAsync().Wait();
+            _logger.LogInformation("Database Closed");
         }
     }
 }

@@ -47,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private Task OnFollow(object? sender, FollowEventArgs e)
         {
+            _logger.LogInformation("{0} Followed.", e.Sender);
             updateLastActive(e.Sender);
             return Task.CompletedTask;
         }
@@ -70,6 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
+            _logger.LogInformation("{0} Subscribed.", e.Sender);
             updateLastActive(e.Sender);
             return Task.CompletedTask;
         }

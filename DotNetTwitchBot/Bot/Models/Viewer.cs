@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Models
     public class Viewer
     {
         [PrimaryKey, AutoIncrement]
-        public int Id {get;set;}
+        public int? Id {get;set;}
         [Indexed]
         public string Username {get;set;} = string.Empty;
         public string DisplayName {get;set;} = string.Empty;
