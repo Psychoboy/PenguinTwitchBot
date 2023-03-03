@@ -22,6 +22,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
             return _liteDb.GetCollection<Viewer>(TableName).FindAll();   
         }
 
+        public IEnumerable<Viewer> FindAllSubscribers() {
+            return null;
+        }
+
         public Viewer? FindOne(string username)
         {
             return _liteDb.GetCollection<Viewer>(TableName)

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
+using TwitchLib.Api.Helix.Models.Subscriptions;
 
 namespace DotNetTwitchBot.Bot
 {
@@ -26,6 +27,28 @@ namespace DotNetTwitchBot.Bot
                 _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
             }
 
+        }
+
+        public async Task<List<Subscription>> GetAllSubscriptions() {
+            await ValidateAndRefreshToken();
+            var userId = await GetBroadcasterUserId();
+            if(userId == null) {
+                throw new Exception("Error getting user id.");
+            }
+
+            List<Subscription> subs = new List<Subscription>();
+            var after = "";
+            while(true){
+                var curSubs = await _twitchApi.Helix.Subscriptions.GetBroadcasterSubscriptionsAsync(userId, 100, after);
+                if(curSubs != null) {
+                    subs.AddRange(curSubs.Data);
+                    if(string.IsNullOrEmpty(curSubs.Pagination.Cursor)) {
+                        break;
+                    }
+                    after = curSubs.Pagination.Cursor;
+                }    
+            }
+            return subs;
         }
 
         public async Task<string?> GetBroadcasterUserId() {

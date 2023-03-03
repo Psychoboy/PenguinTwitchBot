@@ -13,14 +13,18 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public LiteDbContext( ILogger<LiteDbContext> logger, IOptions<LiteDbOptions> options){
             Database = new LiteDatabase(options.Value.DatabaseLocation);
-            Database.Rebuild(); //Clean up DB TODO: Clean up on a schedule
             _timer = new Timer(300000 * 6); //30 minutes
             _timer.Elapsed += OnTimerElapsed;
             _logger = logger;
+            _timer.Start();
         }
 
         private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+            CompressDatabase();
+        }
+
+        private void CompressDatabase() {
             Database.Rebuild();
             _logger.LogInformation($"Database rebuilt/compressed");
         }

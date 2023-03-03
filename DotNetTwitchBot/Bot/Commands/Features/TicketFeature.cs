@@ -76,8 +76,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _logger.LogInformation("Starting to give  out tickets");
                 GiveTicketsToActiveUsersWithBonus(5, 5);
                 GiveTicketsToAllOnlineUsersWithBonus(1, 2);
-            } else {
-                _logger.LogInformation("Stream offline, skipping tickets");
             }
         }
         

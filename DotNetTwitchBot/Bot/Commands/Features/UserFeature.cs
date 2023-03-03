@@ -75,6 +75,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
+        private void AddSubscription(string username) {
+            var viewer = GetViewer(username);
+            if(viewer == null) return;
+            viewer.isSub = true;
+            _viewerData.Update(viewer);
+            _logger.LogInformation("{0} Subscription added.", username);
+        }
+
+        private void RemoveSubscription(string username) {
+            var viewer = GetViewer(username);
+            if(viewer == null) return;
+            viewer.isSub = false;
+            _viewerData.Update(viewer);
+            _logger.LogInformation("{0} Subscription removed.", username);
+        }
+
         private Task OnCheer(object? sender, CheerEventArgs e)
         {
             updateLastActive(e.Sender);
@@ -84,8 +100,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private void updateLastActive(string? sender) {
             if(sender == null) return;
             _usersLastActive[sender] = DateTime.Now;
-            _logger.LogInformation("Updated active user: {0}", sender);
-            _logger.LogInformation("Active Users: {0}", _usersLastActive.Count);
         }
 
         private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
