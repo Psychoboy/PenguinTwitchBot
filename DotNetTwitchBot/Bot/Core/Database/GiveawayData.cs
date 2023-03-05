@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
             await _db.InsertAllAsync(entries);
         }
 
-        public async Task<int> CountForUser(string username) {
+        public async Task<int?> CountForUser(string username) {
             return await _db.Table<GiveawayEntry>().Where(x => x.Username == username).CountAsync();
         }
 

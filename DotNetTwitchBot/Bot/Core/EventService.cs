@@ -1,4 +1,5 @@
-﻿using System.Reflection.Emit;
+﻿using System.Runtime.ExceptionServices;
+using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
@@ -6,6 +7,11 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class EventService
     {
+        private ILogger<EventService> _logger;
+
+        public EventService(ILogger<EventService> logger) {
+            _logger = logger;
+        }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
@@ -36,7 +42,11 @@ namespace DotNetTwitchBot.Bot.Core
                         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower() 
                         : ""
                 };
+                try{
                 await CommandEvent(this, eventArgs);
+                } catch (Exception e) {
+                    _logger.LogCritical("Command Failure {0}", e);
+                }
             }
         }
 

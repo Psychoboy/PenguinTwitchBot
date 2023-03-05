@@ -36,6 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch(e.Command) {
                 case "testenter":{
+                    if(e.Args.Count() == 0) return;
                     await Enter(e.Sender, e.Args.First());
                     break;
                 }
@@ -81,12 +82,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var viewerPoints = await _pointsFeature.GetViewerPoints(sender);
 
             if(amount == "max" || amount == "all") {
-                var currentEntries = await _giveawayData.CountForUser(sender);
-                if(currentEntries + viewerPoints > 1000000) // Max entries is 1million
-                {
-                    var maxPoints = 1000000 - currentEntries;
-                    amount = maxPoints > 0 ? maxPoints.ToString() : "0";
-                }
+                //var currentEntries = await _giveawayData.CountForUser(sender);
+                // if(currentEntries + viewerPoints > 1000000) // Max entries is 1million
+                // {
+                //     var maxPoints = 1000000 - currentEntries;
+                //     amount = maxPoints > 0 ? maxPoints.ToString() : "0";
+                // }
+                amount = (await _pointsFeature.GetViewerPoints(sender)).ToString();
             }
             if(!Int64.TryParse(amount, out var points)) {
                 await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", sender));
@@ -96,6 +98,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await _eventService.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", sender));
                 return;
             }
+
+            if(points < 0) {await _eventService.SendChatMessage(string.Format("@{0}, don't be dumb.", sender));}
+
             if(!(await _pointsFeature.RemovePointsFromViewer(sender, points))) {
                 await _eventService.SendChatMessage("@{0}, failed to enter giveaway. Please try again.");
                 return;
