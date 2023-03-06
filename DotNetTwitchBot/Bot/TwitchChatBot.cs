@@ -68,6 +68,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
+            _logger.LogInformation("CHATMSG: {0}: {1}", e.ChatMessage.Username, e.ChatMessage.Message);
             await _eventService.OnChatMessage(e.ChatMessage);
         }
 
