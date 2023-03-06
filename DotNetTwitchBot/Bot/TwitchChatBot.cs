@@ -54,14 +54,16 @@ namespace DotNetTwitchBot.Bot
             _twitchClient.Connect();
         }
 
-        private void OnUserLeft(object? sender, OnUserLeftArgs e)
+        private async void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
             _logger.LogInformation("{0} Left.", e.Username);
+            await _eventService.OnUserLeft(e.Username);
         }
 
-        private void OnUserJoined(object? sender, OnUserJoinedArgs e)
+        private async void OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
             _logger.LogInformation("{0} Joined.", e.Username);
+            await _eventService.OnUserJoined(e.Username);
         }
 
         private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)

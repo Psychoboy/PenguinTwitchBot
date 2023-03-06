@@ -92,6 +92,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+            var viewers = _viewerFeature.GetCurrentViewers();
+
+            _logger.LogInformation("Currently a total of {0} viewers", viewers.Count());
+
             if(_eventService.IsOnline) {
                 _logger.LogInformation("Starting to give  out tickets");
                 await GivePointsToActiveViewersWithBonus(5, 5);

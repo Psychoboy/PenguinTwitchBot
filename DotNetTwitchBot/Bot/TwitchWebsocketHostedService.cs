@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
             _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
-            //_eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
+            _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
@@ -54,7 +54,12 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
+            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
+        }
+
+        private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e) {
+            _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserName);
         }
 
         // private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
@@ -64,6 +69,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
+            _logger.LogInformation("onChannelSubscription: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);   
         }
         
@@ -88,6 +94,7 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
+            _logger.LogInformation("OnChannelFollow: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnFollow(e.Notification.Payload.Event);
         }
 

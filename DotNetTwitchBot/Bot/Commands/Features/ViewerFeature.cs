@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
         public List<string> GetActiveViewers() {
-            return _usersLastActive.Where(kvp => kvp.Value.AddMinutes(5) > DateTime.Now).Select(x => x.Key).ToList();
+            return _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
         }
 
         public List<string> GetCurrentViewers() {

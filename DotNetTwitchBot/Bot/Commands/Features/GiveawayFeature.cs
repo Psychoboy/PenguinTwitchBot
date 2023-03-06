@@ -82,12 +82,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var viewerPoints = await _pointsFeature.GetViewerPoints(sender);
 
             if(amount == "max" || amount == "all") {
-                //var currentEntries = await _giveawayData.CountForUser(sender);
-                // if(currentEntries + viewerPoints > 1000000) // Max entries is 1million
-                // {
-                //     var maxPoints = 1000000 - currentEntries;
-                //     amount = maxPoints > 0 ? maxPoints.ToString() : "0";
-                // }
                 amount = (await _pointsFeature.GetViewerPoints(sender)).ToString();
             }
             if(!Int64.TryParse(amount, out var points)) {
