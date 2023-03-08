@@ -29,6 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger = logger;
             eventService.ChatMessageEvent += OnChatMessage;
             eventService.SubscriptionEvent += OnSubscription;
+            eventService.SubscriptionEndEvent += OnSubscriptionEnd;
             eventService.CheerEvent += OnCheer;
             eventService.FollowEvent += OnFollow;
             eventService.UserJoinedEvent += OnUserJoined;
@@ -94,11 +95,27 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return await _viewerData.FindOne(username);
         }
 
+        public async Task<bool> IsSubscriber(string username) {
+            var viewer = await GetViewer(username);
+            if(viewer == null) {
+                return false;
+            }
+            return viewer.isSub;
+        }
+
         private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
             if(e.Sender == null) return;
             _logger.LogInformation("{0} Subscribed.", e.Sender);
             await AddSubscription(e.Sender);
+            updateLastActive(e.Sender);
+        }
+
+        private async Task OnSubscriptionEnd(object? sender, SubscriptionEventArgs e)
+        {
+            if(e.Sender == null) return;
+            _logger.LogInformation("{0} Unsubscribed", e.Sender);
+            await RemoveSubscription(e.Sender);
             updateLastActive(e.Sender);
         }
 
@@ -153,7 +170,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await _viewerData.InsertOrUpdate(viewer);
         }
 
-        public async Task LoadSubscribers(){
+        public async Task UpdateSubscribers(){
             _logger.LogInformation("Loading Subscribers");
             var subscribers = await _twitchService.GetAllSubscriptions();
             foreach(var subscriber in subscribers){
@@ -179,5 +196,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
         }
+
+        
     }
 }

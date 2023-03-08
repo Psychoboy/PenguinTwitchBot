@@ -56,13 +56,13 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
-            _logger.LogInformation("{0} Left.", e.Username);
+            _logger.LogDebug("{0} Left.", e.Username);
             await _eventService.OnUserLeft(e.Username);
         }
 
         private async void OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
-            _logger.LogInformation("{0} Joined.", e.Username);
+            _logger.LogDebug("{0} Joined.", e.Username);
             await _eventService.OnUserJoined(e.Username);
         }
 

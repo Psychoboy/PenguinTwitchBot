@@ -14,9 +14,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private readonly ILogger<PointsFeature> _logger;
         
-        Timer _timer;
+        Timer _autoPointsTimer;
+        Timer _ticketsToActiveCommandTimer;
         private ViewerFeature _viewerFeature;
         private PointsData _pointsData;
+
+        private long _ticketsToGiveOut = 0;
+        private DateTime _lastTicketsAdded = DateTime.Now;
 
         public PointsFeature(
             ILogger<PointsFeature> logger, 
@@ -28,16 +32,38 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             this._eventService.CommandEvent += OnCommand;
             _logger = logger;
             
-            _timer = new Timer(300000); //5 minutes
-            _timer.Elapsed += OnTimerElapsed;
+            _autoPointsTimer = new Timer(300000); //5 minutes
+            _autoPointsTimer.Elapsed += OnTimerElapsed;
+
+            _ticketsToActiveCommandTimer = new Timer(1000);
+            _ticketsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
+
             _viewerFeature = viewerFeature;
             _pointsData = pointsData;
-            _timer.Start();
+            _autoPointsTimer.Start();
+            _ticketsToActiveCommandTimer.Start();
         }
 
-        public async Task GivePointsToActiveViewersWithBonus(long amount, long bonusAmount) {
+        public async Task GivePointsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount) {
             var activeViewers =  _viewerFeature.GetActiveViewers();
-            await GivePointsWithBonusToViewers(activeViewers, amount, bonusAmount);
+            var onlineViewers = _viewerFeature.GetCurrentViewers();
+            foreach(var viewer in onlineViewers) {
+                if(await _viewerFeature.IsSubscriber(viewer)) {
+                    activeViewers.Add(viewer);
+                }
+            }
+            await GivePointsWithBonusToViewers(activeViewers.Distinct(), amount, bonusAmount);
+        }
+
+        public async Task GivePointsToActiveUsers(long amount) {
+            var activeViewers =  _viewerFeature.GetActiveViewers();
+            var onlineViewers = _viewerFeature.GetCurrentViewers();
+            foreach(var viewer in onlineViewers) {
+                if(await _viewerFeature.IsSubscriber(viewer)) {
+                    activeViewers.Add(viewer);
+                }
+            }
+            await GivePointsWithBonusToViewers(activeViewers.Distinct(), amount, 0);
         }
 
         public async Task GivePointsToAllOnlineViewersWithBonus(long amount, long bonusAmount) {
@@ -45,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await GivePointsWithBonusToViewers(viewers, amount, bonusAmount);
         }
         
-        public async Task GivePointsWithBonusToViewers(List<string> viewers, long amount, long subBonusAmount)
+        public async Task GivePointsWithBonusToViewers(IEnumerable<string> viewers, long amount, long subBonusAmount)
         {
             foreach(var viewer in viewers) {
                 long bonus = 0;
@@ -98,7 +124,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             if(_eventService.IsOnline) {
                 _logger.LogInformation("Starting to give  out tickets");
-                await GivePointsToActiveViewersWithBonus(5, 5);
+                await GivePointsToActiveAndSubsOnlineWithBonus(5, 5);
                 await GivePointsToAllOnlineViewersWithBonus(1, 2);
             }
         }
@@ -118,8 +144,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                     break;
                 }
+                case "addactivetest": {
+                    if((e.isMod) && Int64.TryParse(e.Args[0], out long amount)) {
+                        _lastTicketsAdded = DateTime.Now;
+                        _ticketsToGiveOut += amount;
+                    }
+                    break;
+                }
             }
-            
+        }
+
+        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
+            if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
+                    await GivePointsToActiveUsers(_ticketsToGiveOut);
+                    await _eventService.SendChatMessage(string.Format("Sending {0} tickets to all active users.", _ticketsToGiveOut));
+                    _ticketsToGiveOut = 0;
+            }
         }
 
         private async Task SayViewerPoints(string sender) {

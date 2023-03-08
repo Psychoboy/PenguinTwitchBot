@@ -45,10 +45,12 @@ internal class Program
 
         //Force load/startup
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        await viewerFeature.LoadSubscribers();
+        await viewerFeature.UpdateSubscribers();
         var pointsFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
         var giveawayFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
         
+
+        app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

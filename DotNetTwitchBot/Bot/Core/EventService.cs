@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
+        public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEndEvent;
         public event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         public event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
@@ -105,6 +106,13 @@ namespace DotNetTwitchBot.Bot.Core
         public async Task OnSubscription(string sender) {
             if(SubscriptionEvent != null) {
                 await SubscriptionEvent(this, new SubscriptionEventArgs(){Sender = sender});
+            }
+        }
+
+        public async Task OnSubscriptionEnd(string userName)
+        {
+            if(SubscriptionEndEvent != null) {
+                await SubscriptionEndEvent(this, new SubscriptionEventArgs(){Sender= userName});
             }
         }
 

@@ -30,9 +30,9 @@ namespace DotNetTwitchBot.Bot
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
             _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
+            _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
-            _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
@@ -73,9 +73,10 @@ namespace DotNetTwitchBot.Bot
             await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);   
         }
         
-         private void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
+         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
-            //TODO
+            _logger.LogInformation("OnChannelSubscriptionEnd: {0}", e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserName);
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
@@ -110,13 +111,17 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
-            _logger.LogWarning("Websocket Disconnected");
-            var delayCounter = 1.0;
-            while(!await _eventSubWebsocketClient.ReconnectAsync()) {
-                delayCounter = (delayCounter * 2);
-                if(delayCounter > 60.0) delayCounter = 60.0;
-                _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
-                await Task.Delay((int)delayCounter * 1000);                
+            try {
+                _logger.LogWarning("Websocket Disconnected");
+                var delayCounter = 1.0;
+                while(!await _eventSubWebsocketClient.ReconnectAsync()) {
+                    delayCounter = (delayCounter * 2);
+                    if(delayCounter > 60.0) delayCounter = 60.0;
+                    _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
+                    await Task.Delay((int)delayCounter * 1000);                
+                }
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
             }
         }
 
