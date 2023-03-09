@@ -66,7 +66,9 @@ namespace DotNetTwitchBot.Bot
         }
 
         public async Task<string?> GetBroadcasterUserId() {
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{_configuration["broadcaster"]},_configuration["twitchAccessToken"]);
+            var broadcaster = _configuration["broadcaster"];
+            if (broadcaster == null) return null;
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{broadcaster},_configuration["twitchAccessToken"]);
             
             return users.Users.FirstOrDefault()?.Id;
         }
@@ -205,7 +207,7 @@ namespace DotNetTwitchBot.Bot
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync();
                 if(validToken != null && validToken.ExpiresIn > 1200) {
                     var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    SettingsHelpers.AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
+                    AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
                 } else {
                 try{
                     _logger.LogInformation("Refreshing Token");
@@ -214,15 +216,55 @@ namespace DotNetTwitchBot.Bot
                     _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
                     _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
                     _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                    SettingsHelpers.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-                    SettingsHelpers.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                    SettingsHelpers.AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
+                    AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                    AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                    AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
                     } catch(Exception e){
                         _logger.LogError("Error refreshing token: {0}", e.Message);
                     }
                 }
             } catch (Exception ex) {
                 _logger.LogError(ex, "Error when validing/refreshing token");
+            }
+        }
+
+        public void AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
+        {
+            try
+            {
+                var filePath = _configuration["Secrets:SecretsConf"]; //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
+                if(filePath == null) throw new Exception("Invalid file configuration");
+                string json = File.ReadAllText(filePath);
+                dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
+
+                SetValueRecursively(sectionPathKey, jsonObj, value);
+
+                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(filePath, output);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating settings");
+            }
+        }
+
+        private void SetValueRecursively<T>(string sectionPathKey, dynamic jsonObj, T value)
+        {
+            // split the string at the first ':' character
+            var remainingSections = sectionPathKey.Split(":", 2);
+
+            var currentSection = remainingSections[0];
+            if (remainingSections.Length > 1)
+            {
+                // continue with the process, moving down the tree
+                var nextSection = remainingSections[1];
+                SetValueRecursively(nextSection, jsonObj[currentSection], value);
+            }
+            else
+            {
+                // we've got to the end of the tree, set the value
+                jsonObj[currentSection] = value; 
             }
         }
     }

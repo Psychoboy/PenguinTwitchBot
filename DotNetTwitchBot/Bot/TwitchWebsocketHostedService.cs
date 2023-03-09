@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DotNetTwitchBot.Bot.Core;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
@@ -112,16 +113,39 @@ namespace DotNetTwitchBot.Bot
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
             try {
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
+                bool fullConnect = false;
                 _logger.LogWarning("Websocket Disconnected");
                 var delayCounter = 1.0;
                 while(!await _eventSubWebsocketClient.ReconnectAsync()) {
                     delayCounter = (delayCounter * 2);
                     if(delayCounter > 60.0) delayCounter = 60.0;
                     _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
-                    await Task.Delay((int)delayCounter * 1000);                
+                    await Task.Delay((int)delayCounter * 1000);   
+                    if(stopwatch.Elapsed.TotalSeconds >=30.0 ){
+                        fullConnect = true;
+                        break;
+                    }             
+                }
+                if(fullConnect) {
+                    await Reconnect();
                 }
             } catch (Exception ex) {
                 _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
+            }
+        }
+
+        private async Task Reconnect() {
+            try {
+                var delayCounter = 1.0;
+                while(!await _eventSubWebsocketClient.ConnectAsync()) {
+                    delayCounter = (delayCounter * 2);
+                    if(delayCounter > 60.0) delayCounter = 60.0;
+                    _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
+                }
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
             }
         }
 

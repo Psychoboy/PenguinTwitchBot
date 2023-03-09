@@ -9,5 +9,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
     public interface IDatabase : IDisposable
     {
         public SQLiteAsyncConnection Db {get;}
+        public Task Backup();
     }
 }

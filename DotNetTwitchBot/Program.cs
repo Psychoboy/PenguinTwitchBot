@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Drawing;
 using System.Security.Cryptography.X509Certificates;
+using Quartz;
 using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
@@ -12,8 +14,12 @@ internal class Program
     {
         
         var builder = WebApplication.CreateBuilder(args);
-        builder.Configuration.AddJsonFile("appsettings.secrets.json");
+        var section = builder.Configuration.GetSection("Secrets");
+        var secretsFileLocation = section.GetValue<string>("SecretsConf");
+        if(secretsFileLocation == null) throw new Exception("Invalid file configuration");
+        builder.Configuration.AddJsonFile(secretsFileLocation);
         var path = builder.Configuration.GetValue<string>("Logging:FilePath");
+        if(path == null) path = "";
         builder.Host.UseSerilog((ctx, lc) => lc
             .WriteTo.Console()
             .WriteTo.File(path, rollingInterval: RollingInterval.Day)
@@ -41,6 +47,30 @@ internal class Program
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
         
+
+        //Backup Jobs:
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
+        builder.Services.AddQuartz(q => {
+            q.UseMicrosoftDependencyInjectionJobFactory();
+
+            var backupDbJobKey = new JobKey("BackupDbJob");
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
+            q.AddTrigger(opts => opts
+                .ForJob(backupDbJobKey)
+                .WithIdentity("BackupDb-Trigger")
+                .WithCronSchedule("0 0 12 * * ?") //Every day at noon
+            );
+            q.AddTrigger(opts => opts
+                .ForJob(backupDbJobKey)
+                .WithIdentity("BackupDb-Trigger")
+                .StartAt(new DateTimeOffset(DateTime.Now.AddMinutes(1)))
+            );
+        });
+        builder.Services.AddQuartzHostedService(
+            q => q.WaitForJobsToComplete = true
+        );
+        // var section = builder.Configuration.GetSection("Database");
+        // var test = section.GetValue<string>("DbLocation");
         var app = builder.Build();
 
         //Force load/startup
@@ -75,6 +105,6 @@ internal class Program
 
 
 
-        app.Run();
+        app.Run(); //Start in future to read input
     }
 }

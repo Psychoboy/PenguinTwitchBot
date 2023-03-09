@@ -34,5 +34,11 @@ namespace DotNetTwitchBot.Bot.Core.Database
             Db.CloseAsync().Wait();
             _logger.LogInformation("Database Closed");
         }
+
+        public async Task Backup()
+        {
+            await Db.BackupAsync(string.Format("dbBackup-{0}", DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss")));
+            _logger.LogInformation("Database backed up.");
+        }
     }
 }
