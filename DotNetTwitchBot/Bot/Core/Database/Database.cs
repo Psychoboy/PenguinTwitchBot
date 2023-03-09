@@ -37,7 +37,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public async Task Backup()
         {
-            await Db.BackupAsync(string.Format("dbBackup-{0}", DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss")));
+            if(!Directory.Exists("Data/backup")) {
+                Directory.CreateDirectory("Data/backup");
+            }
+            await Db.BackupAsync(string.Format("Data/backup/dbBackup-{0}.db", DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss")));
             _logger.LogInformation("Database backed up.");
         }
     }
