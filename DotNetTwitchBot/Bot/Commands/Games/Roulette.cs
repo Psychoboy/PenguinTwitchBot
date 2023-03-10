@@ -61,13 +61,13 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     if(Tools.CurrentThreadRandom.Next(100) > MustBeatValue) {
                         await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToBet);
                         var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
-                        await SendChatMessage(e.DisplayName, 
-                        string.Format(maxBet ? AllInWinMessage : WinMessage, e.Name, amountToBet, totalPoints));
+                        await SendChatMessage(
+                        string.Format(maxBet ? AllInWinMessage : WinMessage, e.DisplayName, amountToBet, totalPoints));
                     } else {
                         await _ticketsFeature.RemoveTicketsFromViewer(e.Name, amountToBet);
                         var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
-                        await SendChatMessage(e.DisplayName,
-                        string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.Name, amountToBet, totalPoints));
+                        await SendChatMessage(
+                        string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.DisplayName, amountToBet, totalPoints));
                     }
                 }
                 break;
