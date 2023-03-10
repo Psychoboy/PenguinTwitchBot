@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using System.Drawing;
 using System.Security.Cryptography.X509Certificates;
@@ -27,7 +28,7 @@ internal class Program
         
         // Add services to the container.
         builder.Services.AddControllersWithViews();
-        builder.Services.AddSingleton<EventService>();
+        builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         
         //Database
@@ -40,30 +41,37 @@ internal class Program
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
-
         //Add Features Here:
-        // builder.Services.AddHostedService<DotNetTwitchBot.Bot.Commands.Features.TestFeature>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
-        
+        var commands = new List<Type>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.PointsFeature));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.BaconRaffle));
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle>();
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle>();
+        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.BaconRaffle>();
 
+        foreach(var cmd in commands) {
+            builder.Services.AddSingleton(cmd);
+        }
+        
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
+
         builder.Services.AddQuartz(q => {
             q.UseMicrosoftDependencyInjectionJobFactory();
-
+            
             var backupDbJobKey = new JobKey("BackupDbJob");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
                 .ForJob(backupDbJobKey)
                 .WithIdentity("BackupDb-Trigger")
-                .WithCronSchedule("0 0 12 * * ?") //Every day at noon
-            );
-            q.AddTrigger(opts => opts
-                .ForJob(backupDbJobKey)
-                .WithIdentity("BackupDb-Trigger")
-                .StartAt(new DateTimeOffset(DateTime.Now.AddMinutes(1)))
+                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
             );
         });
         builder.Services.AddQuartzHostedService(
@@ -73,12 +81,16 @@ internal class Program
         // var test = section.GetValue<string>("DbLocation");
         var app = builder.Build();
 
-        //Force load/startup
+        //Loads all the command stuff into memory
+        //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.UpdateSubscribers();
-        var pointsFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
-        var giveawayFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
-        
+        foreach(var cmd in commands) {
+            app.Services.GetRequiredService(cmd);
+        }
+       
+
+        await app.Services.GetRequiredService<IDatabase>().Backup();
 
         app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 

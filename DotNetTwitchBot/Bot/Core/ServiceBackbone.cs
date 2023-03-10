@@ -5,12 +5,18 @@ using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class EventService
+    public class ServiceBackbone
     {
-        private ILogger<EventService> _logger;
+        private ILogger<ServiceBackbone> _logger;
+        private IConfiguration _configuration;
+        private string? BroadcasterName {get; set;}
+        private string? BotName {get;set;}
 
-        public EventService(ILogger<EventService> logger) {
+        public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration) {
             _logger = logger;
+            _configuration = configuration;
+            BroadcasterName = configuration["broadcaster"];
+            BotName = configuration["botName"];
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
@@ -25,6 +31,10 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
 
         public bool IsOnline {get;set;} = false;
+        public bool IsBroadcasterOrBot(string name) {
+            return (name.Equals(BroadcasterName, StringComparison.CurrentCultureIgnoreCase) ||
+                    name.Equals(BotName, StringComparison.CurrentCultureIgnoreCase));
+        }
 
         public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
         {
@@ -55,6 +65,12 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if(SendMessageEvent != null) {
                 await SendMessageEvent(this, message);
+            }
+        }
+
+        public async Task SendChatMessage(string name, string message) {
+            if(SendMessageEvent != null) {
+                await SendMessageEvent(this, string.Format("@{0},{1}", name, message));
             }
         }
 

@@ -10,7 +10,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class PointsFeature : BaseFeature
+    public class PointsFeature : BaseCommand
     {
         private readonly ILogger<PointsFeature> _logger;
         
@@ -24,12 +24,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public PointsFeature(
             ILogger<PointsFeature> logger, 
-            EventService eventService,
+            ServiceBackbone eventService,
             PointsData pointsData, 
             ViewerFeature viewerFeature) 
             : base(eventService)
         {
-            this._eventService.CommandEvent += OnCommand;
             _logger = logger;
             
             _autoPointsTimer = new Timer(300000); //5 minutes
@@ -128,9 +127,24 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await GivePointsToAllOnlineViewersWithBonus(1, 2);
             }
         }
-        
-       
-        private async Task OnCommand(object? sender, CommandEventArgs e)
+
+        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
+            if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
+                    await GivePointsToActiveUsers(_ticketsToGiveOut);
+                    await _eventService.SendChatMessage(string.Format("Sending {0} tickets to all active users.", _ticketsToGiveOut));
+                    _ticketsToGiveOut = 0;
+            }
+        }
+
+        private async Task SayViewerPoints(string sender) {
+            var viewer = await _pointsData.FindOne(sender);
+            await this._eventService.SendChatMessage(
+                string.Format("@{0}, you have {1} testpoints.", 
+                sender,
+                viewer != null ? viewer.Points : 0
+                ));
+        }
+        protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch(e.Command) {
                 case "testpoints": {
@@ -152,23 +166,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     break;
                 }
             }
-        }
-
-        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
-            if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
-                    await GivePointsToActiveUsers(_ticketsToGiveOut);
-                    await _eventService.SendChatMessage(string.Format("Sending {0} tickets to all active users.", _ticketsToGiveOut));
-                    _ticketsToGiveOut = 0;
-            }
-        }
-
-        private async Task SayViewerPoints(string sender) {
-            var viewer = await _pointsData.FindOne(sender);
-            await this._eventService.SendChatMessage(
-                string.Format("@{0}, you have {1} testpoints.", 
-                sender,
-                viewer != null ? viewer.Points : 0
-                ));
         }
     }
 }

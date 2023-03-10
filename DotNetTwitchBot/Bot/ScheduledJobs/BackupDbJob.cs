@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
         {
             _logger.LogInformation("DB Backup Starting");
             await _database.Backup();
-            _logger.LogInformation("DB Backup Complete");           
+            _logger.LogInformation("DB Backup Complete");       
         }
     }
 }

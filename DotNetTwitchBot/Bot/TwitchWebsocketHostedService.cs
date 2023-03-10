@@ -12,11 +12,11 @@ namespace DotNetTwitchBot.Bot
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private TwitchService _twitchService;
-        private EventService _eventService;
+        private ServiceBackbone _eventService;
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger, 
-            EventService eventService, 
+            ServiceBackbone eventService, 
             EventSubWebsocketClient eventSubWebsocketClient, 
             TwitchService twitchService)
         {

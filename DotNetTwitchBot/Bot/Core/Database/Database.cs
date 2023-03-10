@@ -41,6 +41,15 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 Directory.CreateDirectory("Data/backup");
             }
             await Db.BackupAsync(string.Format("Data/backup/dbBackup-{0}.db", DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss")));
+            _logger.LogInformation("Deleting old backups > 30 days");
+            var files = Directory.GetFiles("Data/backup");
+            foreach(var file in files) {
+                FileInfo fi = new FileInfo(file);
+                if(fi.CreationTime < DateTime.Now.AddDays(-30)) {
+                    _logger.LogInformation("Deleting backup: {0}", fi.Name);
+                    fi.Delete();
+                }
+            }
             _logger.LogInformation("Database backed up.");
         }
     }

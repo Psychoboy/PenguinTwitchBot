@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class GiveawayFeature : BaseFeature
+    public class GiveawayFeature : BaseCommand
     {
         private ILogger<GiveawayFeature> _logger;
         private GiveawayData _giveawayData;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
-            EventService eventService,
+            ServiceBackbone eventService,
             GiveawayData giveawayData,
             PointsFeature pointsFeature,
             ViewerFeature viewerFeature
@@ -28,36 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _giveawayData = giveawayData;
             _pointsFeature = pointsFeature;
             _viewerFeature = viewerFeature;
-            eventService.CommandEvent += OnCommandEvent;
 
-        }
-
-        private async Task OnCommandEvent(object? sender, CommandEventArgs e)
-        {
-            switch(e.Command) {
-                case "testenter":{
-                    if(e.Args.Count() == 0) return;
-                    await Enter(e.Sender, e.Args.First());
-                    break;
-                }
-                case "testentries":{
-                    await Entries(e.Sender);
-                    break;
-                }
-                case "testdraw": {
-                    if(!e.isBroadcaster) return;
-                    await Draw();
-                    break;
-                }
-                case "testresetdraw": {
-                    if(!e.isBroadcaster) return;
-                    await Reset();
-                    break;
-                }
-                case "testprize": {
-                    break;
-                }
-            }
         }
 
         private async Task Reset()
@@ -121,5 +92,34 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var entries = await _giveawayData.CountForUser(sender);
             await _eventService.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
+
+        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            switch(e.Command) {
+                case "testenter":{
+                    if(e.Args.Count() == 0) return;
+                    await Enter(e.Sender, e.Args.First());
+                    break;
+                }
+                case "testentries":{
+                    await Entries(e.Sender);
+                    break;
+                }
+                case "testdraw": {
+                    if(!e.isBroadcaster) return;
+                    await Draw();
+                    break;
+                }
+                case "testresetdraw": {
+                    if(!e.isBroadcaster) return;
+                    await Reset();
+                    break;
+                }
+                case "testprize": {
+                    break;
+                }
+            }
+        }
+
     }
 }

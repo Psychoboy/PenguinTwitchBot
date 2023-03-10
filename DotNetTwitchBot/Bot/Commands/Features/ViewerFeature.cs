@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class ViewerFeature : BaseFeature
+    public class ViewerFeature : BaseCommand
     {
         private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
         private HashSet<string> _users = new HashSet<string>();
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger, 
-            EventService eventService,
+            ServiceBackbone eventService,
             ViewerData viewerData,
             TwitchService twitchService,
             FollowData followData
@@ -197,6 +197,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
         }
 
-        
+        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

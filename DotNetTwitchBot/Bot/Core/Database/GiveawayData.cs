@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public async Task<GiveawayEntry?> RandomEntry() {
             var count = await _db.Table<GiveawayEntry>().CountAsync();
             if(count == 0) return null;
-            var rnd = new Random();
+            var rnd = Tools.CurrentThreadRandom;
             return await _db.Table<GiveawayEntry>().ElementAtAsync(rnd.Next(0,count));
         }
 
