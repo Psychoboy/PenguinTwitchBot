@@ -51,8 +51,12 @@ namespace DotNetTwitchBot.Bot
             _twitchClient.OnMessageReceived += OnMessageReceived;
             _twitchClient.OnUserJoined += OnUserJoined;
             _twitchClient.OnUserLeft += OnUserLeft;
+            _twitchClient.OnWhisperCommandReceived += OnWhisperCommandReceived;
+            _twitchClient.OnWhisperReceived += OnWhisperReceived;
             _twitchClient.Connect();
         }
+
+       
 
         private async void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
@@ -82,6 +86,11 @@ namespace DotNetTwitchBot.Bot
             _logger.LogDebug("OnMessageReceived");
         }
 
+         private void OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
+        {
+            _logger.LogDebug("OnWhisperReceived");
+        }
+
         private void Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedArgs e)
         {
             _logger.LogInformation("Bot Connected");
@@ -106,7 +115,10 @@ namespace DotNetTwitchBot.Bot
         {
             await _eventService.OnCommand(e.Command);
         }
-
+        private async void OnWhisperCommandReceived(object? sender, OnWhisperCommandReceivedArgs e)
+        {
+            await _eventService.OnWhisperCommand(e.Command);
+        }
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
             _logger.LogDebug("Bot left the channel ",e.Channel);

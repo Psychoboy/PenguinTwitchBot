@@ -15,12 +15,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<PointsFeature> _logger;
         
         Timer _autoPointsTimer;
-        Timer _ticketsToActiveCommandTimer;
+        
         private ViewerFeature _viewerFeature;
         private PointsData _pointsData;
 
-        private long _ticketsToGiveOut = 0;
-        private DateTime _lastTicketsAdded = DateTime.Now;
+        
 
         public PointsFeature(
             ILogger<PointsFeature> logger, 
@@ -33,14 +32,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             
             _autoPointsTimer = new Timer(300000); //5 minutes
             _autoPointsTimer.Elapsed += OnTimerElapsed;
-
-            _ticketsToActiveCommandTimer = new Timer(1000);
-            _ticketsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
-
             _viewerFeature = viewerFeature;
             _pointsData = pointsData;
             _autoPointsTimer.Start();
-            _ticketsToActiveCommandTimer.Start();
+            
         }
 
         public async Task GivePointsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount) {
@@ -128,14 +123,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
-            if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
-                    await GivePointsToActiveUsers(_ticketsToGiveOut);
-                    await _eventService.SendChatMessage(string.Format("Sending {0} tickets to all active users.", _ticketsToGiveOut));
-                    _ticketsToGiveOut = 0;
-            }
-        }
-
         private async Task SayViewerPoints(string sender) {
             var viewer = await _pointsData.FindOne(sender);
             await this._eventService.SendChatMessage(
@@ -155,13 +142,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     if(e.isMod && Int64.TryParse(e.Args[1], out long amount)) {
                         var totalPoints = await GivePointsToViewer(e.TargetUser, amount);
                         await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, totalPoints));
-                    }
-                    break;
-                }
-                case "addactivetest": {
-                    if((e.isMod) && Int64.TryParse(e.Args[0], out long amount)) {
-                        _lastTicketsAdded = DateTime.Now;
-                        _ticketsToGiveOut += amount;
                     }
                     break;
                 }

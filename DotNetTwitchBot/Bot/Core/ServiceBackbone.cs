@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+using TwitchLib.Client.Models;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -20,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Core
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
+        public event AsyncEventHandler<WhisperEventArgs>? WhisperEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
@@ -61,6 +63,24 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
+        public async Task OnWhisperCommand(WhisperCommand command)
+        {
+            if(WhisperEvent != null) {
+                var eventArgs = new WhisperEventArgs(){
+                    Arg = command.ArgumentsAsString,
+                    Args = command.ArgumentsAsList,
+                    Command = command.CommandText.ToLower(),
+                    IsWhisper = true,
+                    Sender = command.WhisperMessage.Username
+                };
+                try{
+                    await WhisperEvent(this, eventArgs);
+                } catch (Exception e) {
+                    _logger.LogCritical("Whisper Failure {0}", e);
+                }
+            }
+        }
+
         public async Task SendChatMessage(string message) 
         {
             if(SendMessageEvent != null) {
@@ -70,7 +90,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task SendChatMessage(string name, string message) {
             if(SendMessageEvent != null) {
-                await SendMessageEvent(this, string.Format("@{0},{1}", name, message));
+                await SendMessageEvent(this, string.Format("@{0}, {1}", name, message));
             }
         }
 

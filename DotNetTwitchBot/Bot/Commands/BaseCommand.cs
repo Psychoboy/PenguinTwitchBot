@@ -18,6 +18,10 @@ namespace DotNetTwitchBot.Bot.Commands
             await _eventService.SendChatMessage(message);
         }
 
+        public async Task SendChatMessage(string name, string message) {
+                await _eventService.SendChatMessage(name, message);
+        }
+
         public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
         public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 

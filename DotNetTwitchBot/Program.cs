@@ -49,12 +49,8 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.BaconRaffle));
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.PointsFeature>();
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature>();
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle>();
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle>();
-        // builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Games.BaconRaffle>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
 
         foreach(var cmd in commands) {
             builder.Services.AddSingleton(cmd);
