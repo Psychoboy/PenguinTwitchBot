@@ -5,6 +5,7 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public abstract class BaseCommand : IHostedService
     {
+        Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
         public BaseCommand(ServiceBackbone eventService)
         {
             _eventService = eventService;
@@ -26,5 +27,23 @@ namespace DotNetTwitchBot.Bot.Commands
         public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 
         protected abstract Task OnCommand(object? sender, CommandEventArgs e);
+
+        protected bool IsCoolDownExpired(string user, string command) {
+            if(_coolDowns.ContainsKey(user.ToLower())){
+                if(_coolDowns[user.ToLower()].ContainsKey(command)) {
+                    if(_coolDowns[user.ToLower()][command] > DateTime.Now) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        protected void AddCoolDown(string user, string command, int cooldown) {
+            if(!_coolDowns.ContainsKey(user.ToLower())) {
+                _coolDowns[user.ToLower()] = new Dictionary<string, DateTime>();
+            }
+
+            _coolDowns[user.ToLower()][command] = DateTime.Now.AddSeconds(cooldown);
+        }
     }
 }

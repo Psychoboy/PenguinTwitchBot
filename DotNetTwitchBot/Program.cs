@@ -51,6 +51,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.BaconRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
 
         foreach(var cmd in commands) {
             builder.Services.AddSingleton(cmd);

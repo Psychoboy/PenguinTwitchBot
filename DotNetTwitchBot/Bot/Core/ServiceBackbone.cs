@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Core
                         : ""
                 };
                 try{
-                await CommandEvent(this, eventArgs);
+                    await CommandEvent(this, eventArgs);
                 } catch (Exception e) {
                     _logger.LogCritical("Command Failure {0}", e);
                 }
