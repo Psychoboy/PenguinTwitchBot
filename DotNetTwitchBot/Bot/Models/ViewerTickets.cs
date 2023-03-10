@@ -7,7 +7,7 @@ using SQLite;
 
 namespace DotNetTwitchBot.Bot.Models
 {
-    public class ViewerPoints
+    public class ViewerTickets
     {
         [PrimaryKey, AutoIncrement]
         public int? Id {get;set;}

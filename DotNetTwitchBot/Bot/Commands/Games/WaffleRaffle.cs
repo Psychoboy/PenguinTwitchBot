@@ -12,8 +12,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
     {
         public WaffleRaffle(
             ServiceBackbone eventService,
-            PointsFeature pointsFeature
-        ) : base(eventService, pointsFeature, "sptvWaffle", "!waffle", "waffle")
+            TicketsFeature ticketsFeature
+        ) : base(eventService, ticketsFeature, "sptvWaffle", "!waffle", "waffle")
         {
         }
 

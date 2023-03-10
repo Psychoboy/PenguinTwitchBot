@@ -34,7 +34,7 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabase, Database>();
         builder.Services.AddSingleton<GiveawayData>();
-        builder.Services.AddSingleton<PointsData>();
+        builder.Services.AddSingleton<TicketsData>();
         builder.Services.AddSingleton<ViewerData>();
         builder.Services.AddSingleton<FollowData>();
 
@@ -44,7 +44,7 @@ internal class Program
         //Add Features Here:
         var commands = new List<Type>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.PointsFeature));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle));

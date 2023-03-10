@@ -11,12 +11,13 @@ namespace DotNetTwitchBot.Bot.Commands.Games
     public class Roulette : BaseCommand
     {
         private int MustBeatValue = 50;
+        private TicketsFeature _ticketsFeature;
         public Roulette(
             ServiceBackbone eventService,
-            PointsFeature pointsFeature
+            TicketsFeature ticketsFeature
         ) : base(eventService)
         {
-            _pointsFeature = pointsFeature;
+            _ticketsFeature = ticketsFeature;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -32,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     var amount = e.Args[0];
                     if(amount.Equals("all",StringComparison.CurrentCultureIgnoreCase) ||
                         amount.Equals("max",StringComparison.CurrentCultureIgnoreCase)) {
-                            var viewerPoints = await _pointsFeature.GetViewerPoints(e.Sender);
+                            var viewerPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
                             if(viewerPoints > Int32.MaxValue/2) {
                                 viewerPoints = (Int32.MaxValue-1)/2;
                             }
@@ -52,13 +53,13 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     }
                     AddCoolDown(e.Sender, e.Command, 30);
                     if(Tools.CurrentThreadRandom.Next(100) > MustBeatValue) {
-                        await _pointsFeature.GivePointsToViewer(e.Sender, amountToBet);
-                        var totalPoints = await _pointsFeature.GetViewerPoints(e.Sender);
+                        await _ticketsFeature.GiveTicketsToViewer(e.Sender, amountToBet);
+                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
                         await SendChatMessage(e.Sender, 
                         string.Format(maxBet ? AllInWinMessage : WinMessage, e.Sender, amountToBet, totalPoints));
                     } else {
-                        await _pointsFeature.RemovePointsFromViewer(e.Sender, amountToBet);
-                        var totalPoints = await _pointsFeature.GetViewerPoints(e.Sender);
+                        await _ticketsFeature.RemoveTicketsFromViewer(e.Sender, amountToBet);
+                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
                         await SendChatMessage(e.Sender,
                         string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.Sender, amountToBet, totalPoints));
                     }
@@ -71,6 +72,6 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         private string LoseMessage = "{0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan";
         private string AllInWinMessage = "PogChamp {0} went all in and won {1:n0} tickets PogChamp they now have {2:n0} tickets FeelsGoodMan";
         private string AllInLoseMessage = "{0} went all in and lost every single one of their {1:n0} tickets LUL";
-        private PointsFeature _pointsFeature;
+        
     }
 }

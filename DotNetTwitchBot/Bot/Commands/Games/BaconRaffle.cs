@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
     public class BaconRaffle : BaseRaffle
     {
         Random _randNumber = new Random();
-        public BaconRaffle(ServiceBackbone eventService, PointsFeature pointsFeature) : base(eventService, pointsFeature, "sptvBacon", "!bacon", "bacon")
+        public BaconRaffle(ServiceBackbone eventService, TicketsFeature ticketsFeature) : base(eventService, ticketsFeature, "sptvBacon", "!bacon", "bacon")
         {
         }
 

@@ -13,20 +13,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private ILogger<GiveawayFeature> _logger;
         private GiveawayData _giveawayData;
-        private PointsFeature _pointsFeature;
+        private TicketsFeature _ticketsFeature;
         private ViewerFeature _viewerFeature;
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
             ServiceBackbone eventService,
             GiveawayData giveawayData,
-            PointsFeature pointsFeature,
+            TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature
             ) : base(eventService)
         {
             _logger = logger;
             _giveawayData = giveawayData;
-            _pointsFeature = pointsFeature;
+            _ticketsFeature = ticketsFeature;
             _viewerFeature = viewerFeature;
 
         }
@@ -50,10 +50,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task Enter(string sender, string amount) {
             amount = amount.ToLower();
-            var viewerPoints = await _pointsFeature.GetViewerPoints(sender);
+            var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
 
             if(amount == "max" || amount == "all") {
-                amount = (await _pointsFeature.GetViewerPoints(sender)).ToString();
+                amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
             }
             if(!Int64.TryParse(amount, out var points)) {
                 await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", sender));
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             if(points < 0) {await _eventService.SendChatMessage(string.Format("@{0}, don't be dumb.", sender));}
 
-            if(!(await _pointsFeature.RemovePointsFromViewer(sender, points))) {
+            if(!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points))) {
                 await _eventService.SendChatMessage("@{0}, failed to enter giveaway. Please try again.");
                 return;
             }

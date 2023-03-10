@@ -10,21 +10,21 @@ using DotNetTwitchBot.Bot.Core.Database;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class PointsFeature : BaseCommand
+    public class TicketsFeature : BaseCommand
     {
-        private readonly ILogger<PointsFeature> _logger;
+        private readonly ILogger<TicketsFeature> _logger;
         
         Timer _autoPointsTimer;
         
         private ViewerFeature _viewerFeature;
-        private PointsData _pointsData;
+        private TicketsData _ticketsData;
 
         
 
-        public PointsFeature(
-            ILogger<PointsFeature> logger, 
+        public TicketsFeature(
+            ILogger<TicketsFeature> logger, 
             ServiceBackbone eventService,
-            PointsData pointsData, 
+            TicketsData ticketsData, 
             ViewerFeature viewerFeature) 
             : base(eventService)
         {
@@ -33,12 +33,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _autoPointsTimer = new Timer(300000); //5 minutes
             _autoPointsTimer.Elapsed += OnTimerElapsed;
             _viewerFeature = viewerFeature;
-            _pointsData = pointsData;
+            _ticketsData = ticketsData;
             _autoPointsTimer.Start();
             
         }
 
-        public async Task GivePointsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount) {
+        public async Task GiveTicketsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount) {
             var activeViewers =  _viewerFeature.GetActiveViewers();
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach(var viewer in onlineViewers) {
@@ -46,10 +46,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     activeViewers.Add(viewer);
                 }
             }
-            await GivePointsWithBonusToViewers(activeViewers.Distinct(), amount, bonusAmount);
+            await GiveTicketsWithBonusToViewers(activeViewers.Distinct(), amount, bonusAmount);
         }
 
-        public async Task GivePointsToActiveUsers(long amount) {
+        public async Task GiveTicketsToActiveUsers(long amount) {
             var activeViewers =  _viewerFeature.GetActiveViewers();
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach(var viewer in onlineViewers) {
@@ -57,15 +57,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     activeViewers.Add(viewer);
                 }
             }
-            await GivePointsWithBonusToViewers(activeViewers.Distinct(), amount, 0);
+            await GiveTicketsWithBonusToViewers(activeViewers.Distinct(), amount, 0);
         }
 
-        public async Task GivePointsToAllOnlineViewersWithBonus(long amount, long bonusAmount) {
+        public async Task GiveTicketsToAllOnlineViewersWithBonus(long amount, long bonusAmount) {
             var viewers = _viewerFeature.GetCurrentViewers();
-            await GivePointsWithBonusToViewers(viewers, amount, bonusAmount);
+            await GiveTicketsWithBonusToViewers(viewers, amount, bonusAmount);
         }
         
-        public async Task GivePointsWithBonusToViewers(IEnumerable<string> viewers, long amount, long subBonusAmount)
+        public async Task GiveTicketsWithBonusToViewers(IEnumerable<string> viewers, long amount, long subBonusAmount)
         {
             foreach(var viewer in viewers) {
                 long bonus = 0;
@@ -73,14 +73,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if(viewerData != null) {
                     bonus = viewerData.isSub ? subBonusAmount : 0; // Sub Bonus
                 }
-                await GivePointsToViewer(viewer, amount + bonus);
+                await GiveTicketsToViewer(viewer, amount + bonus);
             }
         }
 
-        public async Task<long> GivePointsToViewer(string viewer, long amount) {
-            var viewerPoints = await _pointsData.FindOne(viewer);
+        public async Task<long> GiveTicketsToViewer(string viewer, long amount) {
+            var viewerPoints = await _ticketsData.FindOne(viewer);
             if(viewerPoints == null) {
-                viewerPoints = new Models.ViewerPoints(){
+                viewerPoints = new Models.ViewerTickets(){
                     Username = viewer.ToLower(),
                     Points = 0
                 };
@@ -91,19 +91,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _logger.LogCritical("Points for {0} would have gone negative, points to remove {1}", viewer, amount);
                 throw new Exception("Points would have went negative. ABORTING");
             }
-            await _pointsData.InsertOrUpdate(viewerPoints);
+            await _ticketsData.InsertOrUpdate(viewerPoints);
             _logger.LogInformation("Gave points to {0}", viewer);
             return viewerPoints.Points;
         }
 
-        public async Task<long> GetViewerPoints(string viewer){
-            var viewerPoints = await _pointsData.FindOne(viewer);
+        public async Task<long> GetViewerTickets(string viewer){
+            var viewerPoints = await _ticketsData.FindOne(viewer);
             return viewerPoints == null ? 0 : viewerPoints.Points;
         }
 
-         public async Task<bool> RemovePointsFromViewer(string viewer, long amount) {
+         public async Task<bool> RemoveTicketsFromViewer(string viewer, long amount) {
             try{
-                await GivePointsToViewer(viewer, -amount);
+                await GiveTicketsToViewer(viewer, -amount);
                 return true;
             } catch (Exception) {
                 return false;
@@ -118,13 +118,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             if(_eventService.IsOnline) {
                 _logger.LogInformation("Starting to give  out tickets");
-                await GivePointsToActiveAndSubsOnlineWithBonus(5, 5);
-                await GivePointsToAllOnlineViewersWithBonus(1, 2);
+                await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 5);
+                await GiveTicketsToAllOnlineViewersWithBonus(1, 2);
             }
         }
 
-        private async Task SayViewerPoints(string sender) {
-            var viewer = await _pointsData.FindOne(sender);
+        private async Task SayViewerTickets(string sender) {
+            var viewer = await _ticketsData.FindOne(sender);
             await this._eventService.SendChatMessage(
                 string.Format("@{0}, you have {1} testpoints.", 
                 sender,
@@ -135,16 +135,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch(e.Command) {
                 case "testpoints": {
-                    await SayViewerPoints(e.Sender);
+                    await SayViewerTickets(e.Sender);
                     break;
                 }
                 case "givepoints":{
                     if(e.isMod && Int64.TryParse(e.Args[1], out long amount)) {
-                        var totalPoints = await GivePointsToViewer(e.TargetUser, amount);
+                        var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
                         await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, totalPoints));
                     }
                     break;
                 }
+                case "resetpoints" :{
+
+                }
+                break;
             }
         }
     }

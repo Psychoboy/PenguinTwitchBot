@@ -13,14 +13,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     {
         private List<string> ClaimedFirst {get;} = new List<string>();
         private int MaxClaims = 60;
-        private PointsFeature _pointsFeature;
+        private TicketsFeature _ticketsFeature;
 
         public First(
             ServiceBackbone eventService,
-            PointsFeature pointsFeature
+            TicketsFeature ticketsFeature
         ) : base(eventService)
         {
-            _pointsFeature = pointsFeature;
+            _ticketsFeature = ticketsFeature;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             ClaimedFirst.Add(sender.ToLower());
             var awardPoints = Tools.CurrentThreadRandom.Next(1,3);
-            await _pointsFeature.GivePointsToViewer(sender, awardPoints);
+            await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }
     }

@@ -12,17 +12,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class AddActive : BaseCommand
     {
-        private PointsFeature _pointsFeature;
+        private TicketsFeature _ticketsFeature;
         Timer _ticketsToActiveCommandTimer;
         private long _ticketsToGiveOut = 0;
         private DateTime _lastTicketsAdded = DateTime.Now;
 
         public AddActive(
             ServiceBackbone eventService,
-            PointsFeature pointsFeature
+            TicketsFeature ticketsFeature
         ) : base(eventService)
         {
-            _pointsFeature = pointsFeature;
+            _ticketsFeature = ticketsFeature;
             _ticketsToActiveCommandTimer = new Timer(1000);
             _ticketsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
             _ticketsToActiveCommandTimer.Start();
@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
             if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
-                    await _pointsFeature.GivePointsToActiveUsers(_ticketsToGiveOut);
+                    await _ticketsFeature.GiveTicketsToActiveUsers(_ticketsToGiveOut);
                     await _eventService.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
                     _ticketsToGiveOut = 0;
             }
