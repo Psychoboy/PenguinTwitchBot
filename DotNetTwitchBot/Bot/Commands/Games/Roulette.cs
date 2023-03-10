@@ -51,6 +51,12 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                         await SendChatMessage(e.Sender, "The amount needs to be greater then 0");
                         return;
                     }
+                    
+                    if(amountToBet > await _ticketsFeature.GetViewerTickets(e.Sender)) {
+                        await SendChatMessage(e.Sender, "You don't have that many tickets.");
+                        return;
+                    }
+
                     AddCoolDown(e.Sender, e.Command, 30);
                     if(Tools.CurrentThreadRandom.Next(100) > MustBeatValue) {
                         await _ticketsFeature.GiveTicketsToViewer(e.Sender, amountToBet);
