@@ -123,11 +123,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task SayViewerTickets(string sender) {
-            var viewer = await _ticketsData.FindOne(sender);
+        private async Task SayViewerTickets(CommandEventArgs e) {
+            var viewer = await _ticketsData.FindOne(e.Name);
             await this._eventService.SendChatMessage(
                 string.Format("@{0}, you have {1} testpoints.", 
-                sender,
+                e.DisplayName,
                 viewer != null ? viewer.Points : 0
                 ));
         }
@@ -135,7 +135,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch(e.Command) {
                 case "testpoints": {
-                    await SayViewerTickets(e.Sender);
+                    await SayViewerTickets(e);
                     break;
                 }
                 case "givepoints":{

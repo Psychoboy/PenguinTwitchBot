@@ -40,15 +40,15 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             switch (e.Command) {
                 case "testbaconstart": {
                     if(e.Args.Count == 0) return;
-                    if(!_eventService.IsBroadcasterOrBot(e.Sender)) return;
+                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return;
                     if(Int32.TryParse(e.Args[0], out int amount)) {
-                        await StartRaffle(e.Sender, amount);
+                        await StartRaffle(e.Name, amount);
                     }
                 }
                 break;
 
                 case "bacon": {
-                    await EnterRaffle(e.Sender);
+                    await EnterRaffle(e);
                 }
                 break;
             }

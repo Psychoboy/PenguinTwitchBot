@@ -98,11 +98,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             switch(e.Command) {
                 case "testenter":{
                     if(e.Args.Count() == 0) return;
-                    await Enter(e.Sender, e.Args.First());
+                    await Enter(e.Name, e.Args.First());
                     break;
                 }
                 case "testentries":{
-                    await Entries(e.Sender);
+                    await Entries(e.Name);
                     break;
                 }
                 case "testdraw": {

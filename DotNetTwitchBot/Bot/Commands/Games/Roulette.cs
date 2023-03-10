@@ -24,16 +24,16 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         {
             switch(e.Command){
                 case "testroulette":{
-                    if(!IsCoolDownExpired(e.Sender, e.Command)) return;
+                    if(!IsCoolDownExpired(e.Name, e.Command)) return;
                     if(e.Args.Count == 0) {
-                        await SendChatMessage(e.Sender, "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
+                        await SendChatMessage(e.DisplayName, "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
                         return;
                     }
                     var maxBet = false;
                     var amount = e.Args[0];
                     if(amount.Equals("all",StringComparison.CurrentCultureIgnoreCase) ||
                         amount.Equals("max",StringComparison.CurrentCultureIgnoreCase)) {
-                            var viewerPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
+                            var viewerPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             if(viewerPoints > Int32.MaxValue/2) {
                                 viewerPoints = (Int32.MaxValue-1)/2;
                             }
@@ -43,31 +43,31 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
                     var amountToBet = 0;
                     if(!Int32.TryParse(amount, out amountToBet)) {
-                        await SendChatMessage(e.Sender, "The amount must be a number, max, or all");
+                        await SendChatMessage(e.DisplayName, "The amount must be a number, max, or all");
                         return;
                     }
 
                     if(amountToBet <= 0) {
-                        await SendChatMessage(e.Sender, "The amount needs to be greater then 0");
+                        await SendChatMessage(e.DisplayName, "The amount needs to be greater then 0");
                         return;
                     }
                     
-                    if(amountToBet > await _ticketsFeature.GetViewerTickets(e.Sender)) {
-                        await SendChatMessage(e.Sender, "You don't have that many tickets.");
+                    if(amountToBet > await _ticketsFeature.GetViewerTickets(e.Name)) {
+                        await SendChatMessage(e.DisplayName, "You don't have that many tickets.");
                         return;
                     }
 
-                    AddCoolDown(e.Sender, e.Command, 30);
+                    AddCoolDown(e.Name, e.Command, 30);
                     if(Tools.CurrentThreadRandom.Next(100) > MustBeatValue) {
-                        await _ticketsFeature.GiveTicketsToViewer(e.Sender, amountToBet);
-                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
-                        await SendChatMessage(e.Sender, 
-                        string.Format(maxBet ? AllInWinMessage : WinMessage, e.Sender, amountToBet, totalPoints));
+                        await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToBet);
+                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
+                        await SendChatMessage(e.DisplayName, 
+                        string.Format(maxBet ? AllInWinMessage : WinMessage, e.Name, amountToBet, totalPoints));
                     } else {
-                        await _ticketsFeature.RemoveTicketsFromViewer(e.Sender, amountToBet);
-                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Sender);
-                        await SendChatMessage(e.Sender,
-                        string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.Sender, amountToBet, totalPoints));
+                        await _ticketsFeature.RemoveTicketsFromViewer(e.Name, amountToBet);
+                        var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
+                        await SendChatMessage(e.DisplayName,
+                        string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.Name, amountToBet, totalPoints));
                     }
                 }
                 break;

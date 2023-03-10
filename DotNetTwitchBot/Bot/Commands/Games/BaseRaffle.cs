@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands.Games
 {
@@ -134,13 +135,13 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             }
         }
 
-        protected async Task EnterRaffle(string username) {
+        protected async Task EnterRaffle(CommandEventArgs e) {
             if(CurrentState != State.Running) {
                 return;
             }
-
+            var username = e.Name;
             if(_entered.Exists(x => x.ToLower().Equals(username.ToLower()))) {
-                await _eventService.SendChatMessage(username, alreadyJoined);
+                await _eventService.SendChatMessage(e.DisplayName, alreadyJoined);
                 return;
             }
             _entered.Add(username);

@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             switch(e.Command){
                 case "addactivetest": {
-                    if(!_eventService.IsBroadcasterOrBot(e.Sender)) return Task.CompletedTask;
+                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
                     if(Int64.TryParse(e.Args[0], out long amount)) {
                         _lastTicketsAdded = DateTime.Now;
                         _ticketsToGiveOut += amount;

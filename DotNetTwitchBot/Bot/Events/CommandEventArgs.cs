@@ -6,7 +6,8 @@ namespace DotNetTwitchBot.Bot.Events
         public string Command { get; set; } = "";
         public string Arg { get; set; } = "";
         public List<string> Args { get; set; } = new List<string>();
-        public string Sender { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string DisplayName {get ;set;} = "";
 
         public string TargetUser {get;set;} ="";
         public bool IsWhisper { get; set; } = false;
