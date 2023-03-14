@@ -53,6 +53,10 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
 
+
+        commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.TestAlerts));
+
         foreach(var cmd in commands) {
             builder.Services.AddSingleton(cmd);
         }
@@ -105,6 +109,11 @@ internal class Program
         app.UseRouting();
 
         app.UseAuthorization();
+
+        var wsOptions = new WebSocketOptions{
+            KeepAliveInterval = TimeSpan.FromMinutes(2)
+        };
+        app.UseWebSockets(wsOptions);
 
         app.MapControllerRoute(
             name: "default",
