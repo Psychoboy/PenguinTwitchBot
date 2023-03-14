@@ -420,6 +420,15 @@ function getQueryMap() {
             }
         });
     }
+
+    function getWebSocket() {
+        let socketUri = ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws'), // URI of the socket.
+                reconnectInterval = 5000; // How often in milliseconds we should try reconnecting.
+
+        return new ReconnectingWebSocket(socketUri, null, {
+            reconnectInterval: reconnectInterval
+        });
+    }
     
     // var connectionUrl = document.getElementById("connectionUrl");
     // var connectButton = document.getElementById("connectButton");
@@ -440,7 +449,8 @@ function getQueryMap() {
     connectionUrl = scheme + "://" + document.location.hostname + port + "/ws" ;
 
     //stateLabel.innerHTML = "Connecting";
-    socket = new WebSocket(connectionUrl);
+    //socket = new WebSocket(connectionUrl);
+    socket = getWebSocket();
     socket.onopen = function (event) {
         updateState();
     };
