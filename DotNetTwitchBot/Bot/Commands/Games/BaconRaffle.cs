@@ -15,20 +15,22 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         {
         }
 
-        protected override void UpdateNumberOfWinners() {
+        protected override void UpdateNumberOfWinners()
+        {
             var entries = NumberEntered;
             var max = 3;
             var min = 1;
-            switch(entries) {
-                case <10:
+            switch (entries)
+            {
+                case < 10:
                     break;
                 case >= 10 and < 15:
                     max = 4;
                     break;
-                case >=15 and < 20:
+                case >= 15 and < 20:
                     min = 2;
                     break;
-                case >=20:
+                case >= 20:
                     max = 5;
                     break;
             }
@@ -37,20 +39,24 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command) {
-                case "testbaconstart": {
-                    if(e.Args.Count == 0) return;
-                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return;
-                    if(Int32.TryParse(e.Args[0], out int amount)) {
-                        await StartRaffle(e.Name, amount);
+            switch (e.Command)
+            {
+                case "testbaconstart":
+                    {
+                        if (e.Args.Count == 0) return;
+                        if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                        if (Int32.TryParse(e.Args[0], out int amount))
+                        {
+                            await StartRaffle(e.Name, amount);
+                        }
                     }
-                }
-                break;
+                    break;
 
-                case "bacon": {
-                    await EnterRaffle(e);
-                }
-                break;
+                case "bacon":
+                    {
+                        await EnterRaffle(e);
+                    }
+                    break;
             }
         }
     }

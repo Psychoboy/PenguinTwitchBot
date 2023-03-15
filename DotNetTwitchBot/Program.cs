@@ -13,24 +13,24 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        
+
         var builder = WebApplication.CreateBuilder(args);
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf");
-        if(secretsFileLocation == null) throw new Exception("Invalid file configuration");
+        if (secretsFileLocation == null) throw new Exception("Invalid file configuration");
         builder.Configuration.AddJsonFile(secretsFileLocation);
         var path = builder.Configuration.GetValue<string>("Logging:FilePath");
-        if(path == null) path = "";
+        if (path == null) path = "";
         builder.Host.UseSerilog((ctx, lc) => lc
             .WriteTo.Console()
             .WriteTo.File(path, rollingInterval: RollingInterval.Day)
         );
-        
+
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
-        
+
         //Database
         builder.Services.AddSingleton<IDatabase, Database>();
         builder.Services.AddSingleton<GiveawayData>();
@@ -41,6 +41,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         //Add Features Here:
         var commands = new List<Type>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
@@ -54,19 +55,23 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
 
 
+        //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.TestAlerts));
 
-        foreach(var cmd in commands) {
+        foreach (var cmd in commands)
+        {
             builder.Services.AddSingleton(cmd);
         }
-        
+
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
 
-        builder.Services.AddQuartz(q => {
+        builder.Services.AddQuartz(q =>
+        {
             q.UseMicrosoftDependencyInjectionJobFactory();
-            
+
             var backupDbJobKey = new JobKey("BackupDbJob");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
@@ -86,10 +91,11 @@ internal class Program
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.UpdateSubscribers();
-        foreach(var cmd in commands) {
+        foreach (var cmd in commands)
+        {
             app.Services.GetRequiredService(cmd);
         }
-       
+
 
         await app.Services.GetRequiredService<IDatabase>().Backup();
 
@@ -110,7 +116,8 @@ internal class Program
 
         app.UseAuthorization();
 
-        var wsOptions = new WebSocketOptions{
+        var wsOptions = new WebSocketOptions
+        {
             KeepAliveInterval = TimeSpan.FromMinutes(2)
         };
         app.UseWebSockets(wsOptions);

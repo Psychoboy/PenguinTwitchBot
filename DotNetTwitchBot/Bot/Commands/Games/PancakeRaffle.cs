@@ -19,20 +19,24 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command) {
-                case "testpancakestart": {
-                    if(e.Args.Count == 0) return;
-                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return;
-                    if(Int32.TryParse(e.Args[0], out int amount)) {
-                        await StartRaffle(e.Name, amount);
+            switch (e.Command)
+            {
+                case "testpancakestart":
+                    {
+                        if (e.Args.Count == 0) return;
+                        if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                        if (Int32.TryParse(e.Args[0], out int amount))
+                        {
+                            await StartRaffle(e.Name, amount);
+                        }
                     }
-                }
-                break;
+                    break;
 
-                case "pancake": {
-                    await EnterRaffle(e);
-                }
-                break;
+                case "pancake":
+                    {
+                        await EnterRaffle(e);
+                    }
+                    break;
             }
         }
     }
