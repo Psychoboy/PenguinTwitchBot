@@ -248,24 +248,27 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             _logger.LogInformation("Loading Subscribers");
             var subscribers = await _twitchService.GetAllSubscriptions();
-            foreach (var subscriber in subscribers)
+            await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var viewer = await GetViewer(subscriber.UserLogin);
-                if (viewer == null)
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                foreach (var subscriber in subscribers)
                 {
-                    viewer = new Viewer()
+                    var viewer = await GetViewer(subscriber.UserLogin);
+                    if (viewer == null)
                     {
-                        Username = subscriber.UserLogin,
-                        DisplayName = subscriber.UserName
-                    };
-                }
-                viewer.isSub = true;
-                // await _viewerData.InsertOrUpdate(viewer);
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        viewer = new Viewer()
+                        {
+                            Username = subscriber.UserLogin,
+                            DisplayName = subscriber.UserName
+                        };
+                    }
+                    viewer.isSub = true;
+                    // await _viewerData.InsertOrUpdate(viewer);
+
+
                     db.Viewers.Update(viewer);
                 }
+                await db.SaveChangesAsync();
             }
             _logger.LogInformation("Getting existing subscribers.");
             // var curSubscribers = await _viewerData.GetAllSubscribers();

@@ -35,6 +35,7 @@ namespace DotNetTwitchBot.Controllers
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await db.Followers.AddRangeAsync(followers);
+                await db.SaveChangesAsync();
             }
             return Ok();
         }

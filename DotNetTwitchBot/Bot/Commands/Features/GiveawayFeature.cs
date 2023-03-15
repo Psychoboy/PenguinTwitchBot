@@ -39,6 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await db.GiveawayEntries.ExecuteDeleteAsync();
+                await db.SaveChangesAsync();
             }
 
             // await _giveawayData
