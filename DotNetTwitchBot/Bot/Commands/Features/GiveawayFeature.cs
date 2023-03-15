@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models;
+using EFCore.BulkExtensions;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -65,15 +66,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
 
 
-        private async Task Enter(string sender, string displayName, string amount)
+        private async Task Enter(string sender, string amount)
         {
             amount = amount.ToLower();
             var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
-
             if (amount == "max" || amount == "all")
             {
                 amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
             }
+            var displayName = await _viewerFeature.GetDisplayName(sender);
             if (!Int64.TryParse(amount, out var points))
             {
                 await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
@@ -98,7 +99,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await _eventService.SendChatMessage("@{0}, Max entries is 1,000,000");
             }
 
-
             var entries = new GiveawayEntry[points];
             for (var i = 0; i < points; i++)
             {
@@ -107,29 +107,31 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     Username = sender
                 };
             }
-            // await _giveawayData.InsertAll(entries);
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+
+            using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await db.GiveawayEntries.AddRangeAsync(entries);
-                await db.SaveChangesAsync();
+                try
+                {
+                    db.BulkInsert(entries);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error bulk updating");
+                }
             }
-
-
-
             await _eventService.SendChatMessage($"@{sender}, you have bought {points} entries.");
         }
 
         private async Task Entries(string sender)
         {
-            // var entries = await _giveawayData.CountForUser(sender);
+
             var entries = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 entries = await db.GiveawayEntries.Where(x => x.Username.Equals(sender)).CountAsync();
             }
-            // var entries = await _applicationDbContext.GiveawayEntries.Where(x => x.Username.Equals(sender, StringComparison.CurrentCultureIgnoreCase)).CountAsync();
             await _eventService.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 
@@ -140,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "testenter":
                     {
                         if (e.Args.Count() == 0) return;
-                        await Enter(e.Name, e.DisplayName, e.Args.First());
+                        await Enter(e.Name, e.Args.First());
                         break;
                     }
                 case "testentries":

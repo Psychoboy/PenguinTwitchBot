@@ -69,7 +69,6 @@ internal class Program
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.TestAlerts));
 
         foreach (var cmd in commands)
         {
