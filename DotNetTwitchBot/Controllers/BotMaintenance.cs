@@ -14,24 +14,28 @@ namespace DotNetTwitchBot.Controllers
     {
         private ILogger<BotMaintenance> _logger;
         private TwitchService _twitchService;
-        private FollowData _followData;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public BotMaintenance(
-            ILogger<BotMaintenance> logger, 
-            TwitchService twitchService, 
-            FollowData followData
+            ILogger<BotMaintenance> logger,
+            TwitchService twitchService,
+            IServiceScopeFactory scopeFactory
             )
         {
             _logger = logger;
             _twitchService = twitchService;
-            _followData = followData;
+            _scopeFactory = scopeFactory;
         }
 
         [HttpGet("/updatefollows")]
         public async Task<ActionResult> UpdateFollows()
         {
             var followers = await _twitchService.GetAllFollows();
-            await _followData.InsertAll(followers);
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await db.Followers.AddRangeAsync(followers);
+            }
             return Ok();
         }
     }

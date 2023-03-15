@@ -1,3 +1,8 @@
+global using System.ComponentModel.DataAnnotations;
+global using System.ComponentModel.DataAnnotations.Schema;
+global using Microsoft.EntityFrameworkCore;
+global using DotNetTwitchBot.Bot.Models;
+global using DotNetTwitchBot.Bot.Core.Database;
 using System;
 using System.Runtime.InteropServices;
 using System.Drawing;
@@ -5,9 +10,9 @@ using System.Security.Cryptography.X509Certificates;
 using Quartz;
 using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Core.Database;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
+using Serilog.Filters;
 
 internal class Program
 {
@@ -22,8 +27,12 @@ internal class Program
         var path = builder.Configuration.GetValue<string>("Logging:FilePath");
         if (path == null) path = "";
         builder.Host.UseSerilog((ctx, lc) => lc
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
             .WriteTo.Console()
-            .WriteTo.File(path, rollingInterval: RollingInterval.Day)
+            .WriteTo.File(path, rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] ({SourceContext}.{Method}) {Message}{NewLine}{Exception}")
+            .Enrich.FromLogContext()
+
+
         );
 
         // Add services to the container.
@@ -32,11 +41,13 @@ internal class Program
         builder.Services.AddSingleton<TwitchService>();
 
         //Database
-        builder.Services.AddSingleton<IDatabase, Database>();
-        builder.Services.AddSingleton<GiveawayData>();
-        builder.Services.AddSingleton<TicketsData>();
-        builder.Services.AddSingleton<ViewerData>();
-        builder.Services.AddSingleton<FollowData>();
+        builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
+        // builder.Services.AddSingleton<GiveawayData>();
+        // builder.Services.AddSingleton<TicketsData>();
+        // builder.Services.AddSingleton<ViewerData>();
+        // builder.Services.AddSingleton<FollowData>();
+        // builder.Services.AddSingleton< >();
+        // builder.Services.AddScoped<ApplicationDbContext>();
 
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
@@ -83,10 +94,25 @@ internal class Program
         builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
         );
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        {
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        });
+
         // var section = builder.Configuration.GetSection("Database");
         // var test = section.GetValue<string>("DbLocation");
         var app = builder.Build();
 
+        if (!app.Environment.IsDevelopment())
+        {
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                dbContext.Database.Migrate();
+            }
+        }
         //Loads all the command stuff into memory
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
@@ -97,7 +123,7 @@ internal class Program
         }
 
 
-        await app.Services.GetRequiredService<IDatabase>().Backup();
+        await app.Services.GetRequiredService<IDatabaseTools>().Backup();
 
         app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 

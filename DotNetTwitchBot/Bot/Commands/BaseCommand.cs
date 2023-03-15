@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands
         protected bool IsCoolDownExpired(string user, string command)
         {
             if (
-                _globalCooldowns.ContainsKey(command) ||
+                _globalCooldowns.ContainsKey(command) &&
                 _globalCooldowns[command] > DateTime.Now)
             {
                 return false;
