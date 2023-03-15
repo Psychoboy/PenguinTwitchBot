@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core.Database;
+using MySqlConnector;
 using Quartz;
 
 namespace DotNetTwitchBot.Bot.ScheduledJobs
@@ -11,23 +12,19 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
     public class BackupDbJob : IJob
     {
         private readonly ILogger<BackupDbJob> _logger;
-        private readonly IDatabase _database;
+        private readonly IDatabaseTools _databaseTools;
 
-        public BackupDbJob(
-            ILogger<BackupDbJob> logger,
-            IDatabase database
-            )
+        public BackupDbJob(ILogger<BackupDbJob> logger, IDatabaseTools databaseTools)
         {
             _logger = logger;
-            _database = database;
-            
+            _databaseTools = databaseTools;
         }
 
         public async Task Execute(IJobExecutionContext context)
         {
             _logger.LogInformation("DB Backup Starting");
-            await _database.Backup();
-            _logger.LogInformation("DB Backup Complete");       
+            await _databaseTools.Backup();
+            _logger.LogInformation("DB Backup Complete");
         }
     }
 }

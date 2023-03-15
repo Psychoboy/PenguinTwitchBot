@@ -1,0 +1,4 @@
+To added a migration:
+dotnet ef migrations add MIGRATIONNAME
+To Update the DB:
+dotnet ef database update

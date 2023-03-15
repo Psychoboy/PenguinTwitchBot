@@ -5,11 +5,13 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Models
 {
-    public class GiveawayEntry
+    [Index(nameof(Username))]
+    public class ViewerTicket
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int? Id { get; set; }
         public string Username { get; set; } = "";
+        public long Points { get; set; } = 0;
     }
 }
