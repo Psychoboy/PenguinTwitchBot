@@ -136,6 +136,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
+        public async Task<string> GetDisplayName(string username)
+        {
+            var viewer = await GetViewer(username);
+            return viewer != null ? viewer.DisplayName : username;
+        }
+
         public async Task<bool> IsSubscriber(string username)
         {
             var viewer = await GetViewer(username);

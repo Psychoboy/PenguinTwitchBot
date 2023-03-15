@@ -58,7 +58,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (entry == null) return;
             _logger.LogInformation("Entry Id: {0} Username {1} selected", entry.Id, entry.Username);
             var isFollower = await _viewerFeature.IsFollower(entry.Username);
-            await _eventService.SendChatMessage(string.Format("{0} won the drawing and {1} following", entry.Username, isFollower ? "is" : "is not"));
+            var viewer = await _viewerFeature.GetViewer(entry.Username);
+            await _eventService.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.DisplayName : entry.Username, isFollower ? "is" : "is not"));
 
         }
 
@@ -75,20 +76,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             if (!Int64.TryParse(amount, out var points))
             {
-                await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", sender));
+                await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
                 return;
             }
             if (points == 0 || points > viewerPoints)
             {
-                await _eventService.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", sender));
+                await _eventService.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", displayName));
                 return;
             }
 
-            if (points < 0) { await _eventService.SendChatMessage(string.Format("@{0}, don't be dumb.", sender)); }
+            if (points < 0) { await _eventService.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName)); }
 
             if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
             {
-                await _eventService.SendChatMessage("@{0}, failed to enter giveaway. Please try again.");
+                await _eventService.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
                 return;
             }
 

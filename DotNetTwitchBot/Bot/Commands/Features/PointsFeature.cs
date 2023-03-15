@@ -190,15 +190,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (e.isMod && Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
-                            await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", e.TargetUser, amount, totalPoints));
+                            await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }
-                case "resetpoints":
+                case "testresetpoints":
                     {
-
+                        if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                        await ResetAllPoints();
                     }
                     break;
+            }
+        }
+
+        private async Task ResetAllPoints()
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await db.ViewerTickets.ExecuteDeleteAsync();
+                await db.SaveChangesAsync();
             }
         }
     }
