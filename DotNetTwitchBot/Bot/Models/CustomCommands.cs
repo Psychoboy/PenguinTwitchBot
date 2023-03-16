@@ -11,7 +11,9 @@ namespace DotNetTwitchBot.Bot.Models
         public enum Rank
         {
             Viewer,
+            Regular,
             Follower,
+            Vip,
             Subscriber,
             Moderator,
             Streamer
@@ -24,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Models
         public int UserCooldown { get; set; } = 5;
         public int GlobalCooldown { get; set; } = 5;
         public Rank MinimumRank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; } = 0;
 
     }
 }

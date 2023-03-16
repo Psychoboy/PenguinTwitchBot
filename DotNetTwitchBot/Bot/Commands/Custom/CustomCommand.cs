@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Net;
 using System.ComponentModel.Design;
 using System.Text.RegularExpressions;
@@ -47,6 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("offlineonly", OfflineOnly);
             CommandTags.Add("followage", FollowAge);
             CommandTags.Add("multicounter", MultiCounter);
+            CommandTags.Add("price", Price);
 
 
 
@@ -181,50 +183,56 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task processTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
         {
-            var message = commandText;
-            var outMessage = message;
+            // var message = commandText;
+            // var outMessage = message;
             var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             bool cancel = false;
             bool thisTagFound = false;
-            while (true)
+            var messages = commandText.Split("\n");
+            foreach (var oldMessage in messages)
             {
-                var matches = mainRegex.Matches(message);
-                if (matches.Count == 0) break;
-                foreach (Match match in matches)
+                var message = oldMessage;
+                if (string.IsNullOrWhiteSpace(message)) continue;
+                while (true)
                 {
-                    thisTagFound = false;
-                    var groups = match.Groups;
-                    var wholeMatch = groups[1];
-                    var tagName = groups[2];
-                    var tagArgs = groups[3];
-
-                    if (CommandTags.ContainsKey(tagName.Value.Trim()))
+                    var matches = mainRegex.Matches(message);
+                    if (matches.Count == 0) break;
+                    foreach (Match match in matches)
                     {
-                        thisTagFound = true;
-                        CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
-                        if (result.Cancel)
+                        thisTagFound = false;
+                        var groups = match.Groups;
+                        var wholeMatch = groups[1];
+                        var tagName = groups[2];
+                        var tagArgs = groups[3];
+
+                        if (CommandTags.ContainsKey(tagName.Value.Trim()))
                         {
-                            cancel = true;
-                            break;
+                            thisTagFound = true;
+                            CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
+                            if (result.Cancel)
+                            {
+                                cancel = true;
+                                break;
+                            }
+
+                            message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
+                        }
+                        if (!thisTagFound)
+                        {
+                            message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value.Substring(1, wholeMatch.Value.Length - 2) + "\\)");
                         }
 
-                        message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
                     }
-                    if (!thisTagFound)
-                    {
-                        message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value.Substring(1, wholeMatch.Value.Length - 2) + "\\)");
-                    }
+                    if (cancel) break;
 
                 }
-                if (cancel) break;
+                if (cancel) return;
 
-            }
-            if (cancel) return;
-
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                message = UnescapeTags(message);
-                await _eventService.SendChatMessage(message);
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    message = UnescapeTags(message);
+                    await _eventService.SendChatMessage(message);
+                }
             }
         }
 
@@ -410,6 +418,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 await db.SaveChangesAsync();
                 return new CustomCommandResult(counter.Amount.ToString());
             }
+        }
+
+        private async Task<CustomCommandResult> Price(CommandEventArgs eventArgs, string args)
+        {
+            return await Task.Run(() =>
+           {
+               return new CustomCommandResult();
+           });
         }
     }
 }
