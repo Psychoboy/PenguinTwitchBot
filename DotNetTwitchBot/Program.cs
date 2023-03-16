@@ -24,17 +24,29 @@ internal class Program
         var secretsFileLocation = section.GetValue<string>("SecretsConf");
         if (secretsFileLocation == null) throw new Exception("Invalid file configuration");
         builder.Configuration.AddJsonFile(secretsFileLocation);
-        var path = builder.Configuration.GetValue<string>("Logging:FilePath");
-        if (path == null) path = "";
-        builder.Host.UseSerilog((ctx, lc) => lc
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
-            .WriteTo.Console()
-            .WriteTo.File(path, rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] ({SourceContext}.{Method}) {Message}{NewLine}{Exception}")
-            .Enrich.FromLogContext()
+        // var path = builder.Configuration.GetValue<string>("Logging:FilePath");
+        // if (path == null) path = "";
+        // builder.Host.UseSerilog((ctx, lc) => lc
+        //     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+        //     .WriteTo.Console()
+        //     .WriteTo.File(path, rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] ({SourceContext}.{Method}) {Message}{NewLine}{Exception}")
+        //     .Enrich.FromLogContext()
 
 
-        );
+        // );
+        // builder.Host.UseSerilog((ctx, lc) => lc
+        //     .ReadFrom.Configuration(builder.Configuration)
+        // );
 
+
+        builder.Host.ConfigureLogging((context, loggingBuilder) =>
+        {
+            var logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext();
+            loggingBuilder.ClearProviders();
+            loggingBuilder.AddSerilog(logger.CreateLogger());
+        });
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<ServiceBackbone>();
