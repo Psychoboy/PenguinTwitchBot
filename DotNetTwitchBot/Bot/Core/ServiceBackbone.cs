@@ -22,7 +22,6 @@ namespace DotNetTwitchBot.Bot.Core
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
-        public event AsyncEventHandler<WhisperEventArgs>? WhisperEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
@@ -73,19 +72,27 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnWhisperCommand(WhisperCommand command)
         {
-            if (WhisperEvent != null)
+            if (CommandEvent != null)
             {
-                var eventArgs = new WhisperEventArgs()
+                if (!IsBroadcasterOrBot(command.WhisperMessage.Username)) { return; }
+                var eventArgs = new CommandEventArgs()
                 {
                     Arg = command.ArgumentsAsString,
                     Args = command.ArgumentsAsList,
                     Command = command.CommandText.ToLower(),
                     IsWhisper = true,
-                    Sender = command.WhisperMessage.Username
+                    Name = command.WhisperMessage.Username,
+                    DisplayName = command.WhisperMessage.DisplayName,
+                    isSub = true,
+                    isMod = true,
+                    isBroadcaster = true,
+                    TargetUser = command.ArgumentsAsList.Count > 0
+                        ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
+                        : ""
                 };
                 try
                 {
-                    await WhisperEvent(this, eventArgs);
+                    await CommandEvent(this, eventArgs);
                 }
                 catch (Exception e)
                 {
@@ -206,7 +213,5 @@ namespace DotNetTwitchBot.Bot.Core
                 await UserLeftEvent(this, new UserLeftEventArgs() { Username = username });
             }
         }
-
-
     }
 }

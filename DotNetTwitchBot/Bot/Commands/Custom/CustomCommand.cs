@@ -49,6 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("followage", FollowAge);
             CommandTags.Add("multicounter", MultiCounter);
             CommandTags.Add("price", Price);
+            CommandTags.Add("pointname", PointName);
 
 
 
@@ -125,6 +126,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     _logger.LogError(err, "Failed to add command");
                 }
 
+                return;
+            }
+
+            if (e.Command.Equals("refreshcommands"))
+            {
+                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                await LoadCommands();
                 return;
             }
 
@@ -426,6 +434,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
            {
                return new CustomCommandResult();
            });
+        }
+
+        private async Task<CustomCommandResult> PointName(CommandEventArgs eventArgs, string args)
+        {
+            return await Task.Run(() =>
+            {
+                return new CustomCommandResult("Pasties");
+            });
         }
     }
 }
