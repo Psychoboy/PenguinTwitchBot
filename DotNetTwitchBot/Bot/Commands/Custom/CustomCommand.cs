@@ -55,6 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("pointname", PointName);
             CommandTags.Add("channelname", ChannelName);
             CommandTags.Add("uptime", Uptime);
+            CommandTags.Add("customapinoresponse", CustomApiNoResponse);
 
 
 
@@ -407,6 +408,19 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return new CustomCommandResult(await result.Content.ReadAsStringAsync());
         }
 
+        private async Task<CustomCommandResult> CustomApiNoResponse(CommandEventArgs eventArgs, string args)
+        {
+            var httpClient = new HttpClient();
+            var request = new HttpRequestMessage()
+            {
+                RequestUri = new Uri(args),
+                Method = HttpMethod.Get
+            };
+            request.Headers.Add("Accept", "text/plain");
+            var result = await httpClient.SendAsync(request);
+            return new CustomCommandResult();
+        }
+
         private async Task<CustomCommandResult> OnlineOnly(CommandEventArgs eventArgs, string args)
         {
             return await Task.Run(() =>
@@ -437,7 +451,22 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task<CustomCommandResult> MultiCounter(CommandEventArgs eventArgs, string args)
         {
-            var counterName = args;
+            var counterRegex = new Regex(@"^(\S+)(?:\s(.*))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var match = counterRegex.Match(args);
+            var counterName = "";
+            var counterAlert = "";
+
+            if (match.Groups.Count > 0)
+            {
+                counterName = match.Groups[1].Value;
+                counterAlert = match.Groups[2].Value;
+            }
+            else
+            {
+                counterName = args;
+            }
+            var amount = 0;
+            //Fix counter here for alerts!
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -471,16 +500,25 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     {
                         if (eventArgs.Args.Count >= 2)
                         {
-                            if (Int32.TryParse(eventArgs.Args[1], out var amount))
+                            if (Int32.TryParse(eventArgs.Args[1], out var newAmount))
                             {
-                                counter.Amount = amount;
+                                counter.Amount = newAmount;
                             }
                         }
                     }
                 }
+                amount = counter.Amount;
                 await db.SaveChangesAsync();
-                return new CustomCommandResult(counter.Amount.ToString());
+
             }
+            counterAlert = counterAlert.Replace("\\(totalcount\\)", amount.ToString());
+            if (!string.IsNullOrWhiteSpace(counterAlert))
+            {
+                var alertImage = new AlertImage();
+                _sendAlerts.QueueAlert(alertImage.Generate(counterAlert));
+            }
+
+            return new CustomCommandResult(amount.ToString());
         }
 
         private async Task<CustomCommandResult> Price(CommandEventArgs eventArgs, string args)
