@@ -27,6 +27,7 @@ namespace DotNetTwitchBot.Bot.Models
         public int GlobalCooldown { get; set; } = 5;
         public Rank MinimumRank { get; set; } = Rank.Viewer;
         public int Cost { get; set; } = 0;
+        public bool Disabled { get; set; } = false;
 
     }
 }

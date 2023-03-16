@@ -19,7 +19,8 @@ namespace DotNetTwitchBot.Bot
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
         Timer _timer;
-        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration) {
+        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration)
+        {
 
             _logger = logger;
             _configuration = configuration;
@@ -27,12 +28,13 @@ namespace DotNetTwitchBot.Bot
             _twitchApi.Settings.AccessToken = _configuration["twitchAccessToken"];
             _twitchApi.Settings.Scopes = new List<AuthScopes>();
             _timer = new Timer();
-             _timer = new Timer(300000); //5 minutes
+            _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
-            
-            foreach(var authScope in Enum.GetValues(typeof(AuthScopes))) {
-                if((AuthScopes)authScope == AuthScopes.Any) continue;
+
+            foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
+            {
+                if ((AuthScopes)authScope == AuthScopes.Any) continue;
                 _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
             }
 
@@ -43,97 +45,136 @@ namespace DotNetTwitchBot.Bot
             await ValidateAndRefreshToken();
         }
 
-        public async Task<List<Subscription>> GetAllSubscriptions() {
+        public async Task<List<Subscription>> GetAllSubscriptions()
+        {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId();
-            if(userId == null) {
+            if (userId == null)
+            {
                 throw new Exception("Error getting user id.");
             }
 
             List<Subscription> subs = new List<Subscription>();
             var after = "";
-            while(true){
+            while (true)
+            {
                 var curSubs = await _twitchApi.Helix.Subscriptions.GetBroadcasterSubscriptionsAsync(userId, 100, after);
-                if(curSubs != null) {
+                if (curSubs != null)
+                {
                     subs.AddRange(curSubs.Data);
-                    if(string.IsNullOrEmpty(curSubs.Pagination.Cursor)) {
+                    if (string.IsNullOrEmpty(curSubs.Pagination.Cursor))
+                    {
                         break;
                     }
                     after = curSubs.Pagination.Cursor;
-                }    
+                }
             }
             return subs;
         }
 
-        public async Task<string?> GetBroadcasterUserId() {
+        public async Task<string?> GetBroadcasterUserId()
+        {
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{broadcaster},_configuration["twitchAccessToken"]);
-            
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
+
             return users.Users.FirstOrDefault()?.Id;
         }
 
-        public async Task<string?> GetUserId(string user) {
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string>{user},_configuration["twitchAccessToken"]);
+        public async Task<string?> GetUserId(string user)
+        {
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
             return users.Users.FirstOrDefault()?.Id;
         }
 
-        public async Task<Follower?> GetUserFollow(string user) {
+        public async Task<Follower?> GetUserFollow(string user)
+        {
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
-            if(userId == null) return null;
+            if (userId == null) return null;
             var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-            if(!response.Follows.Any()) {
+            if (!response.Follows.Any())
+            {
                 return null;
             }
             var firstFollower = response.Follows.First();
-            return new Follower(){
+            return new Follower()
+            {
                 Username = firstFollower.FromLogin,
                 DisplayName = firstFollower.FromLogin,
                 FollowDate = firstFollower.FollowedAt
             };
         }
 
-        public async Task<List<Follower>> GetAllFollows() {
+        public async Task<List<Follower>> GetAllFollows()
+        {
             await ValidateAndRefreshToken();
             var broadcasterId = await GetBroadcasterUserId();
             var after = "";
             List<Follower> followers = new List<Follower>();
-            while(true){
+            while (true)
+            {
                 var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(after, null, 100, null, broadcasterId, _configuration["twitchAccessToken"]);
-                followers.AddRange(response.Follows.Select(x => new Follower(){
+                followers.AddRange(response.Follows.Select(x => new Follower()
+                {
                     Username = x.FromLogin,
                     DisplayName = x.FromUserName,
                     FollowDate = x.FollowedAt
                 }));
                 after = response.Pagination.Cursor;
-                if(string.IsNullOrEmpty(response.Pagination.Cursor)) {
+                if (string.IsNullOrEmpty(response.Pagination.Cursor))
+                {
                     break;
                 }
             }
             return followers;
         }
 
-        public async Task<bool> IsStreamOnline() {
+        public async Task<bool> IsStreamOnline()
+        {
             var userId = await GetBroadcasterUserId();
-            if(userId == null) {
+            if (userId == null)
+            {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>(){userId});
-            if(streams.Streams == null) {
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId });
+            if (streams.Streams == null)
+            {
                 return false;
             }
 
             return streams.Streams.Count() > 0;
         }
 
-        public async Task SubscribeToAllTheStuffs(string sessionId) {
+        public async Task<DateTime> StreamStartedAt()
+        {
+            var userId = await GetBroadcasterUserId();
+            if (userId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId });
+            if (streams.Streams == null)
+            {
+                return DateTime.MinValue;
+            }
+            if (streams.Streams.Count() == 0)
+            {
+                return DateTime.MinValue;
+            }
+            var stream = streams.Streams.First();
+            var startTime = stream.StartedAt;
+            return startTime;
+        }
+
+        public async Task SubscribeToAllTheStuffs(string sessionId)
+        {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId();
-            if(userId == null) return;
+            if (userId == null) return;
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.follow", "2", 
+                "channel.follow", "2",
                 new Dictionary<string, string>{
                     {"broadcaster_user_id", userId},
                     {"moderator_user_id", userId}
@@ -143,7 +184,7 @@ namespace DotNetTwitchBot.Bot
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscribe", "1", 
+                "channel.subscribe", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
@@ -151,7 +192,7 @@ namespace DotNetTwitchBot.Bot
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.gift", "1", 
+                "channel.subscription.gift", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
@@ -159,7 +200,7 @@ namespace DotNetTwitchBot.Bot
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.message", "1", 
+                "channel.subscription.message", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
@@ -167,7 +208,7 @@ namespace DotNetTwitchBot.Bot
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.cheer", "1", 
+                "channel.cheer", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
@@ -202,28 +243,38 @@ namespace DotNetTwitchBot.Bot
             );
         }
 
-        public async Task ValidateAndRefreshToken() {
-            try {
+        public async Task ValidateAndRefreshToken()
+        {
+            try
+            {
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync();
-                if(validToken != null && validToken.ExpiresIn > 1200) {
+                if (validToken != null && validToken.ExpiresIn > 1200)
+                {
                     var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    AddOrUpdateAppSetting("expiresIn",validToken.ExpiresIn);
-                } else {
-                try{
-                    _logger.LogInformation("Refreshing Token");
-                    var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"], _configuration["twitchClientId"]);
-                    _configuration["twitchAccessToken"] = refreshToken.AccessToken;
-                    _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
-                    _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
-                    _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                    AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-                    AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                    AddOrUpdateAppSetting("expiresIn",refreshToken.ExpiresIn.ToString());
-                    } catch(Exception e){
+                    AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
+                }
+                else
+                {
+                    try
+                    {
+                        _logger.LogInformation("Refreshing Token");
+                        var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"], _configuration["twitchClientId"]);
+                        _configuration["twitchAccessToken"] = refreshToken.AccessToken;
+                        _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
+                        _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
+                        _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
+                        AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                        AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                        AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
+                    }
+                    catch (Exception e)
+                    {
                         _logger.LogError("Error refreshing token: {0}", e.Message);
                     }
                 }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error when validing/refreshing token");
             }
         }
@@ -233,7 +284,7 @@ namespace DotNetTwitchBot.Bot
             try
             {
                 var filePath = _configuration["Secrets:SecretsConf"]; //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
-                if(filePath == null) throw new Exception("Invalid file configuration");
+                if (filePath == null) throw new Exception("Invalid file configuration");
                 string json = File.ReadAllText(filePath);
                 dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
 
@@ -264,7 +315,7 @@ namespace DotNetTwitchBot.Bot
             else
             {
                 // we've got to the end of the tree, set the value
-                jsonObj[currentSection] = value; 
+                jsonObj[currentSection] = value;
             }
         }
     }

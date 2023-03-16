@@ -22,18 +22,21 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private ILogger<CustomCommand> _logger;
+        private TwitchService _twitchService;
 
         public CustomCommand(
             SendAlerts sendAlerts,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
+            TwitchService twitchService,
             ServiceBackbone eventService) : base(eventService)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _twitchService = twitchService;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -50,6 +53,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("multicounter", MultiCounter);
             CommandTags.Add("price", Price);
             CommandTags.Add("pointname", PointName);
+            CommandTags.Add("channelname", ChannelName);
+            CommandTags.Add("uptime", Uptime);
 
 
 
@@ -136,8 +141,58 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 return;
             }
 
+            if (e.Command.Equals("disablecommand"))
+            {
+                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!Commands.ContainsKey(e.Arg)) return;
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                    if (command == null)
+                    {
+                        await _eventService.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                        return;
+                    }
+                    command.Disabled = true;
+                    Commands[e.Arg].Disabled = true;
+                    db.Update(command);
+                    await db.SaveChangesAsync();
+                }
+                await _eventService.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                return;
+            }
+
+            if (e.Command.Equals("enablecommand"))
+            {
+                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!Commands.ContainsKey(e.Arg)) return;
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                    if (command == null)
+                    {
+                        await _eventService.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                        return;
+                    }
+                    command.Disabled = false;
+                    Commands[e.Arg].Disabled = false;
+                    db.Update(command);
+                    await db.SaveChangesAsync();
+                }
+                await _eventService.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                return;
+            }
+
+
             if (Commands.ContainsKey(e.Command))
             {
+                if (Commands[e.Command].Disabled)
+                {
+                    return;
+                }
+
                 if (!IsCoolDownExpired(e.Name, e.Command))
                 {
                     await _eventService.SendChatMessage(e.DisplayName, "That command is still on cooldown");
@@ -442,6 +497,23 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 return new CustomCommandResult("Pasties");
             });
+        }
+
+        private async Task<CustomCommandResult> ChannelName(CommandEventArgs eventArgs, string args)
+        {
+            return await Task.Run(() =>
+            {
+                return new CustomCommandResult("SuperPenguinTV");
+            });
+        }
+
+        private async Task<CustomCommandResult> Uptime(CommandEventArgs eventArgs, string args)
+        {
+            var streamTime = await _twitchService.StreamStartedAt();
+            if (streamTime == DateTime.MinValue) return new CustomCommandResult("Stream is offline");
+            var currentTime = DateTime.Now;
+            var totalTime = currentTime - streamTime;
+            return new CustomCommandResult(totalTime.ToString());
         }
     }
 }
