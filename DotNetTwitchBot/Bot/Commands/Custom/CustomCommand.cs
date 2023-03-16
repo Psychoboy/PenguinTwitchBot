@@ -9,26 +9,30 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class CustomCommand : BaseCommand
     {
         Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
-        Dictionary<string, string> Commands = new Dictionary<string, string>();
+        Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
         private SendAlerts _sendAlerts;
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
+        private ILogger<CustomCommand> _logger;
 
         public CustomCommand(
             SendAlerts sendAlerts,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
+            ILogger<CustomCommand> logger,
             ServiceBackbone eventService) : base(eventService)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
+            _logger = logger;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -44,25 +48,134 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("followage", FollowAge);
             CommandTags.Add("multicounter", MultiCounter);
 
+
+
             //Temporary add Test Commands
-            Commands.Add("testalert", "(alert bonghit.gif, 12, 1.0,color: white;font-size: 50px;font-family: Arial;width: 600px;word-wrap: break-word;-webkit-text-stroke-width: 1px;-webkit-text-stroke-color: black;text-shadow: black 1px 0 5px;,) sptvHype sptvHype sptvHype sptvHype");
-            Commands.Add("testsender", "(sender), Aegis: Buy more UEE BONDS!");
-            Commands.Add("testaudio", "(playsound AngryScottish)");
-            Commands.Add("testuseronly", "(useronly Super_Penguin_Bot) Should filter to SPB only.");
-            Commands.Add("testwritenew", "(writefile wheelspins.txt, false, ------------------------------)");
-            Commands.Add("testwriteappend", "(writefile wheelspins.txt, true, append)");
-            Commands.Add("testcurrenttime", "(currenttime)");
-            Commands.Add("testmultiple", "(writefile redeems.txt, true, (currenttime) (sender) customsfx) Only this should be left");
-            Commands.Add("testapitext", "(sender), (customapitext https://icanhazdadjoke.com/)");
-            Commands.Add("testfollowage", "(followage)");
-            Commands.Add("testcounter", "There has been (multicounter pubcrawldeath) pub crawl deaths sptvDrink");
+            // Commands.Add("testalert", "(alert bonghit.gif, 12, 1.0,color: white;font-size: 50px;font-family: Arial;width: 600px;word-wrap: break-word;-webkit-text-stroke-width: 1px;-webkit-text-stroke-color: black;text-shadow: black 1px 0 5px;,) sptvHype sptvHype sptvHype sptvHype");
+            // Commands.Add("testsender", "(sender), Aegis: Buy more UEE BONDS!");
+            // Commands.Add("testaudio", "(playsound AngryScottish)");
+            // Commands.Add("testuseronly", "(useronly Super_Penguin_Bot) Should filter to SPB only.");
+            // Commands.Add("testwritenew", "(writefile wheelspins.txt, false, ------------------------------)");
+            // Commands.Add("testwriteappend", "(writefile wheelspins.txt, true, append)");
+            // Commands.Add("testcurrenttime", "(currenttime)");
+            // Commands.Add("testmultiple", "(writefile redeems.txt, true, (currenttime) (sender) customsfx) Only this should be left");
+            // Commands.Add("testapitext", "(sender), (customapitext https://icanhazdadjoke.com/)");
+            // Commands.Add("testfollowage", "(followage)");
+            // Commands.Add("testcounter", "There has been (multicounter pubcrawldeath) pub crawl deaths sptvDrink");
+        }
+
+        public async Task LoadCommands()
+        {
+            _logger.LogInformation("Loading commands");
+            var count = 0;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                Commands.Clear();
+                var commands = await db.CustomCommands.ToListAsync();
+                foreach (var command in commands)
+                {
+                    Commands[command.CommandName] = command;
+                    count++;
+                }
+            }
+            _logger.LogInformation("Finished loading commands: {0}", count);
+        }
+
+        public async Task AddCommand(CustomCommands customCommand)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                if ((await db.CustomCommands.Where(x => x.CommandName.Equals(customCommand.CommandName)).FirstOrDefaultAsync()) != null)
+                {
+                    _logger.LogWarning("Command already exists");
+                    return;
+                }
+                await db.CustomCommands.AddAsync(customCommand);
+                Commands[customCommand.CommandName] = customCommand;
+                await db.SaveChangesAsync();
+            }
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
+            if (e.Command.Equals("addcommand"))
+            {
+                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                try
+                {
+                    var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
+                    if (newCommand != null)
+                    {
+                        await AddCommand(newCommand);
+                    }
+                    else
+                    {
+                        await _eventService.SendChatMessage("failed to add command");
+                        return;
+                    }
+                    await _eventService.SendChatMessage("Successfully added command");
+                    return;
+                }
+                catch (Exception err)
+                {
+                    _logger.LogError(err, "Failed to add command");
+                }
+
+                return;
+            }
+
             if (Commands.ContainsKey(e.Command))
             {
-                await processTagsAndSayMessage(e, Commands[e.Command]);
+                if (!IsCoolDownExpired(e.Name, e.Command))
+                {
+                    await _eventService.SendChatMessage(e.DisplayName, "That command is still on cooldown");
+                    return;
+                }
+                if (!_eventService.IsBroadcasterOrBot(e.Name))
+                {
+                    switch (Commands[e.Command].MinimumRank)
+                    {
+                        case CustomCommands.Rank.Viewer:
+                            break; //everyone gets this
+                        case CustomCommands.Rank.Follower:
+                            if (!(await _viewerFeature.IsFollower(e.Name)))
+                            {
+                                await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
+                                return;
+                            }
+                            break;
+                        case CustomCommands.Rank.Subscriber:
+                            if (!(await _viewerFeature.IsSubscriber(e.Name)))
+                            {
+                                await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
+                                return;
+                            }
+                            break;
+                        case CustomCommands.Rank.Moderator:
+                            if (!(await _viewerFeature.IsModerator(e.Name)))
+                            {
+                                await SendChatMessage(e.DisplayName, "only moderators can do that...");
+                                return;
+                            }
+                            break;
+                        case CustomCommands.Rank.Streamer:
+                            await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
+                            return;
+                    }
+                }
+            }
+
+            await processTagsAndSayMessage(e, Commands[e.Command].Response);
+
+            if (Commands[e.Command].GlobalCooldown > 0)
+            {
+                AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+            }
+            if (Commands[e.Command].UserCooldown > 0)
+            {
+                AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
             }
         }
 

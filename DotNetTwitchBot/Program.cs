@@ -117,6 +117,8 @@ internal class Program
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.UpdateSubscribers();
+        var customCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.CustomCommand>();
+        await customCommands.LoadCommands();
         foreach (var cmd in commands)
         {
             app.Services.GetRequiredService(cmd);
@@ -140,6 +142,7 @@ internal class Program
 
         app.UseRouting();
 
+
         app.UseAuthorization();
 
         var wsOptions = new WebSocketOptions
@@ -152,7 +155,10 @@ internal class Program
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
-
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
 
 
 

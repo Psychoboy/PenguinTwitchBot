@@ -158,6 +158,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewer.isSub;
         }
 
+        public async Task<bool> IsModerator(string username)
+        {
+            var viewer = await GetViewer(username);
+            if (viewer == null)
+            {
+                return false;
+            }
+            return viewer.isMod;
+        }
+
         private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
             if (e.Sender == null) return;
