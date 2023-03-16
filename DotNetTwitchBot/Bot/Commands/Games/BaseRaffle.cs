@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             }
 
             CurrentState = State.Running;
-            WinAmount = new Random().Next(Convert.ToInt32(amountToWin * 0.66), amountToWin);
+            WinAmount = Tools.CurrentThreadRandom.Next(Convert.ToInt32(amountToWin * 0.66), amountToWin);
             _startTime = DateTime.Now;
             _entered.Clear();
             _joinedSinceLastAnnounce = false;
@@ -84,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
         protected virtual void UpdateNumberOfWinners()
         {
-
+            //Does nothing and is only called my child classes.
         }
 
         private void RunRaffle()

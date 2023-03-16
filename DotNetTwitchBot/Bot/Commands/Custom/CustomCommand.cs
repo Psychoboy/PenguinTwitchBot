@@ -18,14 +18,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         Dictionary<string, string> Commands = new Dictionary<string, string>();
         private SendAlerts _sendAlerts;
         private ViewerFeature _viewerFeature;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public CustomCommand(
             SendAlerts sendAlerts,
             ViewerFeature viewerFeature,
+            IServiceScopeFactory scopeFactory,
             ServiceBackbone eventService) : base(eventService)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
+            _scopeFactory = scopeFactory;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -39,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("onlineonly", OnlineOnly);
             CommandTags.Add("offlineonly", OfflineOnly);
             CommandTags.Add("followage", FollowAge);
+            CommandTags.Add("multicounter", MultiCounter);
 
             //Temporary add Test Commands
             Commands.Add("testalert", "(alert bonghit.gif, 12, 1.0,color: white;font-size: 50px;font-family: Arial;width: 600px;word-wrap: break-word;-webkit-text-stroke-width: 1px;-webkit-text-stroke-color: black;text-shadow: black 1px 0 5px;,) sptvHype sptvHype sptvHype sptvHype");
@@ -51,6 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             Commands.Add("testmultiple", "(writefile redeems.txt, true, (currenttime) (sender) customsfx) Only this should be left");
             Commands.Add("testapitext", "(sender), (customapitext https://icanhazdadjoke.com/)");
             Commands.Add("testfollowage", "(followage)");
+            Commands.Add("testcounter", "There has been (multicounter pubcrawldeath) pub crawl deaths sptvDrink");
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -244,6 +249,54 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
             return new CustomCommandResult(string.Format("{0} has been following since {1} ({2} days ago).",
             follower.DisplayName, follower.FollowDate.ToLongDateString(), Convert.ToInt32((DateTime.Now - follower.FollowDate).TotalDays)));
+        }
+
+        private async Task<CustomCommandResult> MultiCounter(CommandEventArgs eventArgs, string args)
+        {
+            var counterName = args;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var counter = await db.Counters.Where(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync();
+                if (counter == null)
+                {
+                    counter = new Counter()
+                    {
+                        CounterName = counterName,
+                        Amount = 0
+                    };
+                    await db.Counters.AddAsync(counter);
+                }
+                if (eventArgs.Args.Count > 0 && (eventArgs.isBroadcaster || eventArgs.isMod))
+                {
+                    var modifier = eventArgs.Args[0];
+
+                    if (modifier.Equals("reset"))
+                    {
+                        counter.Amount = 0;
+                    }
+                    else if (modifier.Equals("+"))
+                    {
+                        counter.Amount++;
+                    }
+                    else if (modifier.Equals("-"))
+                    {
+                        counter.Amount--;
+                    }
+                    else if (modifier.Equals("set"))
+                    {
+                        if (eventArgs.Args.Count >= 2)
+                        {
+                            if (Int32.TryParse(eventArgs.Args[1], out var amount))
+                            {
+                                counter.Amount = amount;
+                            }
+                        }
+                    }
+                }
+                await db.SaveChangesAsync();
+                return new CustomCommandResult(counter.Amount.ToString());
+            }
         }
     }
 }

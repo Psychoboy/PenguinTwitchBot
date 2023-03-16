@@ -10,7 +10,6 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 {
     public class BaconRaffle : BaseRaffle
     {
-        Random _randNumber = new Random();
         public BaconRaffle(ServiceBackbone eventService, TicketsFeature ticketsFeature) : base(eventService, ticketsFeature, "sptvBacon", "!bacon", "bacon")
         {
         }
@@ -34,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     max = 5;
                     break;
             }
-            NumberOfWinners = _randNumber.Next(min, max);
+            NumberOfWinners = Tools.CurrentThreadRandom.Next(min, max);
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
