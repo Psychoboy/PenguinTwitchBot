@@ -95,6 +95,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<bool> IsFollower(string username)
         {
+            var follower = await GetFollowerAsync(username);
+            return follower != null;
+        }
+
+        public async Task<Follower?> GetFollowerAsync(string username)
+        {
             Follower? follower;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -103,18 +109,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             if (follower != null)
             {
-                return true;
+                return follower;
             }
 
             follower = await _twitchService.GetUserFollow(username);
-            if (follower == null) return false;
+            if (follower == null) return null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await db.Followers.AddAsync(follower);
                 await db.SaveChangesAsync();
             }
-            return true;
+            return follower;
         }
 
         public List<string> GetActiveViewers()
