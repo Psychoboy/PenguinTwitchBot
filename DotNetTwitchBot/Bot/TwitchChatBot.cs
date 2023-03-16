@@ -10,32 +10,34 @@ namespace DotNetTwitchBot.Bot
     {
         private readonly IConfiguration _configuration;
         private TwitchClient _twitchClient { get; set; }
-        private ServiceBackbone _eventService { get; set;}
+        private ServiceBackbone _eventService { get; set; }
 
         private TwitchService _twitchService;
         private readonly ILogger<TwitchChatBot> _logger;
 
         public TwitchChatBot(
             ILogger<TwitchChatBot> logger,
-             IConfiguration configuration, 
+             IConfiguration configuration,
              ServiceBackbone eventService,
-             TwitchService twitchService) {
+             TwitchService twitchService)
+        {
             _configuration = configuration;
             _logger = logger;
             _twitchClient = new TwitchClient();
             _eventService = eventService;
             _twitchService = twitchService;
             _eventService.SendMessageEvent += CommandService_OnSendMessage;
-            
+
         }
 
         private Task CommandService_OnSendMessage(object? sender, string e)
         {
             _twitchClient.SendMessage(_configuration["broadcaster"], e);
+            _logger.LogInformation("BOTCHATMSG: {0}", e);
             return Task.CompletedTask;
         }
 
-        public void Initialize() 
+        public void Initialize()
         {
             var credentials = new ConnectionCredentials(_configuration["botName"], _configuration["botTwitchOAuth"]);
             _twitchClient.Initialize(credentials, _configuration["broadcaster"]);
@@ -56,7 +58,7 @@ namespace DotNetTwitchBot.Bot
             _twitchClient.Connect();
         }
 
-       
+
 
         private async void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
@@ -86,7 +88,7 @@ namespace DotNetTwitchBot.Bot
             _logger.LogDebug("OnMessageReceived");
         }
 
-         private void OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
+        private void OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
         {
             _logger.LogDebug("OnWhisperReceived");
         }
@@ -121,16 +123,19 @@ namespace DotNetTwitchBot.Bot
         }
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
-            _logger.LogDebug("Bot left the channel ",e.Channel);
+            _logger.LogDebug("Bot left the channel ", e.Channel);
         }
 
         private async void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
         {
             _logger.LogInformation(string.Format("Joined {0}", e.Channel));
-            try{
+            try
+            {
                 _eventService.IsOnline = await _twitchService.IsStreamOnline();
                 // await _twitchService.GetAllSubscriptions();
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex.Message);
             }
             _logger.LogInformation($"Stream Is Online: {_eventService.IsOnline}");
@@ -139,7 +144,7 @@ namespace DotNetTwitchBot.Bot
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             await Task.Run(() => Initialize());
-            
+
         }
     }
 }

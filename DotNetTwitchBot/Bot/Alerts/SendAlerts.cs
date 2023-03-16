@@ -18,5 +18,10 @@ namespace DotNetTwitchBot.Bot.Alerts
         {
             _webSocketMessenger.AddToQueue(alert.Generate());
         }
+
+        public void QueueAlert(string alert)
+        {
+            _webSocketMessenger.AddToQueue(alert);
+        }
     }
 }

@@ -10,29 +10,33 @@ namespace DotNetTwitchBot.Bot.Notifications
 {
     public class WebSocketMessenger
     {
-        private ConcurrentQueue<string> _queue = new ConcurrentQueue<string>();
+        private BlockingCollection<string> _queue = new BlockingCollection<string>();
         ILogger<WebSocketMessenger> _logger;
 
-        public WebSocketMessenger(ILogger<WebSocketMessenger> logger) {
-                _logger = logger;
+        public WebSocketMessenger(ILogger<WebSocketMessenger> logger)
+        {
+            _logger = logger;
         }
 
-        public void AddToQueue(string message) {
-            _queue.Enqueue(message);
+        public void AddToQueue(string message)
+        {
+            _queue.Add(message);
 
         }
 
         public async Task ProcessQueue(WebSocket webSocket)
         {
-           while(!webSocket.CloseStatus.HasValue) {
-            while(_queue.Count > 0) {
-                string? result = "";
-                if(_queue.TryDequeue(out result)) {
-                    await SendMessageToSockets(webSocket, result);
+            while (!webSocket.CloseStatus.HasValue)
+            {
+                while (true)
+                {
+                    var result = _queue.Take();
+                    if (result != null)
+                    {
+                        await SendMessageToSockets(webSocket, result);
+                    }
                 }
             }
-            Thread.Sleep(250);
-           }
             _logger.LogInformation("Websocket closed: {0}", webSocket.CloseStatus.Value.ToString());
         }
 

@@ -64,6 +64,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
 
 
         //Add Alerts

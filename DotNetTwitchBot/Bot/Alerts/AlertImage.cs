@@ -21,5 +21,10 @@ namespace DotNetTwitchBot.Bot.Alerts
             return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false}}",
             FileName, Duration, Volume, CSS, Message);
         }
+
+        public override string Generate(string fullConfig)
+        {
+            return string.Format("{{\"alert_image\":\"{0}\",\"ignoreIsPlaying\":false}}", fullConfig);
+        }
     }
 }

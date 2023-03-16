@@ -13,12 +13,13 @@ namespace DotNetTwitchBot.Controllers
     {
         private WebSocketMessenger _webSocketMessenger;
 
-        public WebSocketController(WebSocketMessenger webSocketMessenger) {
+        public WebSocketController(WebSocketMessenger webSocketMessenger)
+        {
             _webSocketMessenger = webSocketMessenger;
         }
         public async Task Get()
         {
-            if (HttpContext.WebSockets.IsWebSocketRequest) 
+            if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                 // await Echo(webSocket);
