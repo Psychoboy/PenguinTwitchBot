@@ -56,21 +56,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("channelname", ChannelName);
             CommandTags.Add("uptime", Uptime);
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
-
-
-
-            //Temporary add Test Commands
-            // Commands.Add("testalert", "(alert bonghit.gif, 12, 1.0,color: white;font-size: 50px;font-family: Arial;width: 600px;word-wrap: break-word;-webkit-text-stroke-width: 1px;-webkit-text-stroke-color: black;text-shadow: black 1px 0 5px;,) sptvHype sptvHype sptvHype sptvHype");
-            // Commands.Add("testsender", "(sender), Aegis: Buy more UEE BONDS!");
-            // Commands.Add("testaudio", "(playsound AngryScottish)");
-            // Commands.Add("testuseronly", "(useronly Super_Penguin_Bot) Should filter to SPB only.");
-            // Commands.Add("testwritenew", "(writefile wheelspins.txt, false, ------------------------------)");
-            // Commands.Add("testwriteappend", "(writefile wheelspins.txt, true, append)");
-            // Commands.Add("testcurrenttime", "(currenttime)");
-            // Commands.Add("testmultiple", "(writefile redeems.txt, true, (currenttime) (sender) customsfx) Only this should be left");
-            // Commands.Add("testapitext", "(sender), (customapitext https://icanhazdadjoke.com/)");
-            // Commands.Add("testfollowage", "(followage)");
-            // Commands.Add("testcounter", "There has been (multicounter pubcrawldeath) pub crawl deaths sptvDrink");
         }
 
         public async Task LoadCommands()
@@ -118,14 +103,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     if (newCommand != null)
                     {
                         await AddCommand(newCommand);
+                        await _eventService.SendChatMessage("Successfully added command");
                     }
                     else
                     {
                         await _eventService.SendChatMessage("failed to add command");
-                        return;
                     }
-                    await _eventService.SendChatMessage("Successfully added command");
-                    return;
+
                 }
                 catch (Exception err)
                 {
@@ -203,30 +187,30 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     switch (Commands[e.Command].MinimumRank)
                     {
-                        case CustomCommands.Rank.Viewer:
+                        case Rank.Viewer:
                             break; //everyone gets this
-                        case CustomCommands.Rank.Follower:
+                        case Rank.Follower:
                             if (!(await _viewerFeature.IsFollower(e.Name)))
                             {
                                 await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
                                 return;
                             }
                             break;
-                        case CustomCommands.Rank.Subscriber:
+                        case Rank.Subscriber:
                             if (!(await _viewerFeature.IsSubscriber(e.Name)))
                             {
                                 await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
                                 return;
                             }
                             break;
-                        case CustomCommands.Rank.Moderator:
+                        case Rank.Moderator:
                             if (!(await _viewerFeature.IsModerator(e.Name)))
                             {
                                 await SendChatMessage(e.DisplayName, "only moderators can do that...");
                                 return;
                             }
                             break;
-                        case CustomCommands.Rank.Streamer:
+                        case Rank.Streamer:
                             await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
                             return;
                     }
@@ -247,8 +231,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task processTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
         {
-            // var message = commandText;
-            // var outMessage = message;
             var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             bool cancel = false;
             bool thisTagFound = false;

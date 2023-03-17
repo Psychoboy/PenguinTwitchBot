@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(CommandName))]
-    public class CustomCommands : BaseCommandProperties
+    public class AudioCommand : BaseCommandProperties
     {
-        public string Response { get; set; } = null!;
+        public string AudioFile { get; set; } = null!;
     }
 }

@@ -109,29 +109,6 @@ namespace DotNetTwitchBot.Bot.Notifications
 
             });
         }
-
-        // public async Task ProcessQueue(WebSocket webSocket)
-        // {
-        //     while (!webSocket.CloseStatus.HasValue)
-        //     {
-        //         while (true)
-        //         {
-        //             var result = _queue.Take();
-        //             if (result != null)
-        //             {
-        //                 await SendMessageToSockets(webSocket, result);
-        //             }
-        //         }
-        //     }
-        //     _logger.LogInformation("Websocket closed: {0}", webSocket.CloseStatus.Value.ToString());
-        // }
-
-        // private async Task SendMessageToSockets(WebSocket webSocket, string message)
-        // {
-        //     var bytes = Encoding.Default.GetBytes(message);
-        //     var arraySegment = new ArraySegment<byte>(bytes);
-        //     await webSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
-        // }
     }
 
     public class SocketConnection

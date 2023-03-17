@@ -18,5 +18,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerTicket> ViewerTickets { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
+        public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
     }
 }

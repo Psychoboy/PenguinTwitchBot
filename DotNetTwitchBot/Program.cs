@@ -59,6 +59,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
 
 
         //Add Alerts
@@ -111,6 +112,8 @@ internal class Program
         await viewerFeature.UpdateSubscribers();
         var customCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.CustomCommand>();
         await customCommands.LoadCommands();
+        var audioCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.AudioCommands>();
+        await audioCommands.LoadAudioCommands();
         foreach (var cmd in commands)
         {
             app.Services.GetRequiredService(cmd);
