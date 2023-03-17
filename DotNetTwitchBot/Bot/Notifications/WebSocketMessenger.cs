@@ -40,8 +40,8 @@ namespace DotNetTwitchBot.Bot.Notifications
 
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = _queue.Take();
-                if (result != null)
+
+                if (_queue.TryTake(out var result, 5000))
                 {
                     await SendMessageToSockets(result);
                 }
