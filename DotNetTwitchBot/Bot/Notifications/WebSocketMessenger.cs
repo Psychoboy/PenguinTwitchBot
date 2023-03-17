@@ -49,6 +49,19 @@ namespace DotNetTwitchBot.Bot.Notifications
             _logger.LogInformation("Websocket closed: {0}", id.ToString());
         }
 
+        public async Task CloseAllSockets()
+        {
+            IEnumerable<SocketConnection> sockets;
+            lock (websocketConnections)
+            {
+                sockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
+            }
+            foreach (var socket in sockets)
+            {
+                await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
+            }
+        }
+
         private async Task SendMessageToSockets(string message)
         {
             IEnumerable<SocketConnection> toSentTo;

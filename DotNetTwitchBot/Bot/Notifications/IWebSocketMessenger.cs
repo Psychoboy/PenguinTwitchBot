@@ -10,5 +10,7 @@ namespace DotNetTwitchBot.Bot.Notifications
     {
         void AddToQueue(string message);
         Task Handle(Guid id, WebSocket webSocket);
+
+        Task CloseAllSockets();
     }
 }

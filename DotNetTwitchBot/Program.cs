@@ -24,20 +24,6 @@ internal class Program
         var secretsFileLocation = section.GetValue<string>("SecretsConf");
         if (secretsFileLocation == null) throw new Exception("Invalid file configuration");
         builder.Configuration.AddJsonFile(secretsFileLocation);
-        // var path = builder.Configuration.GetValue<string>("Logging:FilePath");
-        // if (path == null) path = "";
-        // builder.Host.UseSerilog((ctx, lc) => lc
-        //     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
-        //     .WriteTo.Console()
-        //     .WriteTo.File(path, rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] ({SourceContext}.{Method}) {Message}{NewLine}{Exception}")
-        //     .Enrich.FromLogContext()
-
-
-        // );
-        // builder.Host.UseSerilog((ctx, lc) => lc
-        //     .ReadFrom.Configuration(builder.Configuration)
-        // );
-
 
         builder.Host.ConfigureLogging((context, loggingBuilder) =>
         {
@@ -54,18 +40,13 @@ internal class Program
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
-        // builder.Services.AddSingleton<GiveawayData>();
-        // builder.Services.AddSingleton<TicketsData>();
-        // builder.Services.AddSingleton<ViewerData>();
-        // builder.Services.AddSingleton<FollowData>();
-        // builder.Services.AddSingleton< >();
-        // builder.Services.AddScoped<ApplicationDbContext>();
 
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
+
         //Add Features Here:
         var commands = new List<Type>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
@@ -81,7 +62,6 @@ internal class Program
 
 
         //Add Alerts
-        // commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
 
         foreach (var cmd in commands)
@@ -103,6 +83,7 @@ internal class Program
                 .WithIdentity("BackupDb-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
             );
+            q.InterruptJobsOnShutdown = true;
         });
         builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
@@ -114,8 +95,6 @@ internal class Program
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         });
 
-        // var section = builder.Configuration.GetSection("Database");
-        // var test = section.GetValue<string>("DbLocation");
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -173,7 +152,19 @@ internal class Program
             endpoints.MapControllers();
         });
 
+        var logger = app.Logger;
+        var lifetime = app.Lifetime;
+        lifetime.ApplicationStarted.Register(() =>
+        {
+            logger.LogInformation("Application Starting");
+        });
 
+        var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
+        lifetime.ApplicationStopping.Register(async () =>
+        {
+            logger.LogInformation("Application trying to stop.");
+            await websocketMessenger.CloseAllSockets();
+        });
 
         app.Run(); //Start in future to read input
     }

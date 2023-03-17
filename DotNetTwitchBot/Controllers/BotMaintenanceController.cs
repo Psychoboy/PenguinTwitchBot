@@ -11,15 +11,15 @@ namespace DotNetTwitchBot.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class BotMaintenance : ControllerBase
+    public class BotMaintenanceController : ControllerBase
     {
-        private ILogger<BotMaintenance> _logger;
+        private ILogger<BotMaintenanceController> _logger;
         private TwitchService _twitchService;
         private CustomCommand _customCommand;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public BotMaintenance(
-            ILogger<BotMaintenance> logger,
+        public BotMaintenanceController(
+            ILogger<BotMaintenanceController> logger,
             TwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             CustomCommand customCommand
