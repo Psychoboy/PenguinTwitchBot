@@ -97,7 +97,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             if (!IsCoolDownExpired(e.Name, e.Command))
             {
-                await _eventService.SendChatMessage(e.DisplayName, "That command is still on cooldown");
+                await _eventService.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
                 return;
             }
 
