@@ -11,11 +11,11 @@ namespace DotNetTwitchBot.Controllers
     [Route("/ws")]
     public class WebSocketController : ControllerBase
     {
-        private WebSocketMessenger _webSocketMessenger;
+        private IWebSocketMessenger WebSocketMessenger { get; }
 
-        public WebSocketController(WebSocketMessenger webSocketMessenger)
+        public WebSocketController(IWebSocketMessenger webSocketMessenger)
         {
-            _webSocketMessenger = webSocketMessenger;
+            WebSocketMessenger = webSocketMessenger;
         }
         public async Task Get()
         {
@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Controllers
             {
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                 // await Echo(webSocket);
-                await _webSocketMessenger.ProcessQueue(webSocket);
+                await WebSocketMessenger.Handle(Guid.NewGuid(), webSocket);
             }
             else
             {

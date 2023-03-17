@@ -8,8 +8,8 @@ namespace DotNetTwitchBot.Bot.Alerts
 {
     public class SendAlerts
     {
-        private WebSocketMessenger _webSocketMessenger;
-        public SendAlerts(WebSocketMessenger webSocketMessenger)
+        private IWebSocketMessenger _webSocketMessenger;
+        public SendAlerts(IWebSocketMessenger webSocketMessenger)
         {
             _webSocketMessenger = webSocketMessenger;
         }

@@ -65,6 +65,7 @@ internal class Program
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
         //Add Features Here:
         var commands = new List<Type>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
@@ -80,7 +81,7 @@ internal class Program
 
 
         //Add Alerts
-        commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
+        // commands.Add(typeof(DotNetTwitchBot.Bot.Notifications.WebSocketMessenger));
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
 
         foreach (var cmd in commands)
