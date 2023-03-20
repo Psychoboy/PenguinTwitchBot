@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerPoint> ViewerPoints { get; set; } = null!;
         public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;
-        public DbSet<ViewerPointWithRank> ViewersTimeWithRank { get; set; } = null!;
+        public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;
         public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
 

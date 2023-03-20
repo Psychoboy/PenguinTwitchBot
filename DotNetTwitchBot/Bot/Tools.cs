@@ -10,12 +10,13 @@ namespace DotNetTwitchBot.Bot
 
         [ThreadStatic]
         private static Random? local;
-        public static Random CurrentThreadRandom 
+        public static Random CurrentThreadRandom
         {
-            get{ return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId)));}
+            get { return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
         }
 
-        public static void Shuffle<T>(this IList<T> list) {
+        public static void Shuffle<T>(this IList<T> list)
+        {
             int n = list.Count;
             while (n > 1)
             {
@@ -27,8 +28,24 @@ namespace DotNetTwitchBot.Bot
             }
         }
 
-        public static T RandomElement<T>(this IEnumerable<T> list) {
+        public static T RandomElement<T>(this IEnumerable<T> list)
+        {
             return list.ElementAt(CurrentThreadRandom.Next(list.Count()));
+        }
+
+        public static string ConvertToCompoundDuration(long seconds)
+        {
+            if (seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+            if (seconds == 0) return "0 sec";
+
+            TimeSpan span = TimeSpan.FromSeconds(seconds);
+            int[] parts = { span.Days / 7, span.Days % 7, span.Hours, span.Minutes, span.Seconds };
+            string[] units = { " wk", " d", " hr", " min", " sec" };
+
+            return string.Join(", ",
+                from index in Enumerable.Range(0, units.Length)
+                where parts[index] > 0
+                select parts[index] + units[index]);
         }
     }
 }

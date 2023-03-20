@@ -61,6 +61,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 await AddBasicUser(e.Username);
             }
+            else
+            {
+
+            }
+        }
+
+        private async Task UpdateLastSeen(Viewer viewer)
+        {
+            viewer.LastSeen = DateTime.Now;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Viewers.Update(viewer);
+                await db.SaveChangesAsync();
+            }
         }
 
         private async Task OnFollow(object? sender, FollowEventArgs e)
@@ -280,7 +295,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewer = new Viewer
                 {
                     DisplayName = name,
-                    Username = name
+                    Username = name,
+                    LastSeen = DateTime.Now
                 };
                 db.Update(viewer);
                 await db.SaveChangesAsync();

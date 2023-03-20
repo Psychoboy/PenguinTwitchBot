@@ -14,8 +14,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _intervalTimer;
+        private readonly ILogger<LoyaltyFeature> _logger;
 
         public LoyaltyFeature(
+            ILogger<LoyaltyFeature> logger,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone eventService
@@ -25,6 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _scopeFactory = scopeFactory;
             _intervalTimer = new Timer(timerCallback, this, 20000, 60000);
             _eventService.ChatMessageEvent += OnChangeMessage;
+            _logger = logger;
         }
 
         private async Task OnChangeMessage(object? sender, ChatMessageEventArgs e)
@@ -120,7 +123,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             switch (e.Command)
             {
                 case "testpasties":
-                    await SayPasties(e);
+                    await SayLoyalty(e);
                     break;
                 case "addpasties":
                     if (!e.isMod) return;
@@ -130,10 +133,46 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
-                        var totalPasties = GetUserPasties(e.TargetUser);
+                        var totalPasties = await GetUserPasties(e.TargetUser);
                     }
                     break;
 
+            }
+        }
+
+        private async Task<long> GetAndRemoveMaxPointsFromUser(string target, long max = 200000069)
+        {
+            var viewerPoints = await GetUserPasties(target);
+            var toRemove = 0L;
+            if (viewerPoints.Points > max)
+            {
+                toRemove = max;
+            }
+            else
+            {
+                toRemove = viewerPoints.Points;
+            }
+            if (!await RemovePointsFromUser(target, toRemove)) throw new Exception(string.Format("Failed to remove tickets for {0}", target));
+            return toRemove;
+        }
+
+        private async Task<bool> RemovePointsFromUser(string target, long points)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var viewerPoint = await db.ViewerPoints.FirstOrDefaultAsync(x => x.Username.Equals(target));
+                if (viewerPoint == null) return false;
+                if (viewerPoint.Points < points) return false;
+                viewerPoint.Points -= points;
+                if (viewerPoint.Points < 0)
+                {
+                    viewerPoint.Points = 0;
+                    _logger.LogWarning("User: {0} was about to go negative when attempting to remove {1} pasties.", target, points);
+                }
+                db.ViewerPoints.Update(viewerPoint);
+                await db.SaveChangesAsync();
+                return true;
             }
         }
 
@@ -156,14 +195,29 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.ViewerPoints.Update(viewerPoint);
                 await db.SaveChangesAsync();
             }
-
-            await _eventService.SendChatMessage(target, string.Format("You now have {0} pasties.", totalPoints));
         }
 
-        private async Task SayPasties(CommandEventArgs e)
+        private async Task SayLoyalty(CommandEventArgs e)
         {
             var pasties = await GetUserPastiesAndRank(e.Name);
-            await _eventService.SendChatMessage(e.DisplayName, string.Format("you have {0} pasties and rank {1}", pasties.Points, pasties.Ranking));
+            var time = await GetUserTimeAndRank(e.Name);
+            var messages = await GetUserMessagesAndRank(e.Name);
+            await _eventService.SendChatMessage(
+                e.DisplayName,
+                string.Format("Time: {0} - sptvBacon Pasties Position: [#{1}, {2}] - Messages Position: [#{3}, {4} Messages]",
+                Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points, messages.Ranking, messages.MessageCount));
+        }
+
+        private async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
+        {
+            ViewerMessageCountWithRank? viewerMessage;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                viewerMessage = await db.ViewerMessageCountWithRanks.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+            }
+
+            return viewerMessage == null ? new ViewerMessageCountWithRank() { Ranking = int.MaxValue } : viewerMessage;
         }
 
         private async Task<ViewerPoint> GetUserPasties(string Name)
@@ -187,7 +241,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewerPoints = await db.ViewerPointWithRanks.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
 
-            return viewerPoints == null ? new ViewerPointWithRank() : viewerPoints;
+            return viewerPoints == null ? new ViewerPointWithRank() { Ranking = int.MaxValue } : viewerPoints;
+        }
+
+        private async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
+        {
+            ViewerTimeWithRank? viewerTime;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                viewerTime = await db.ViewersTimeWithRank.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+            }
+            return viewerTime == null ? new ViewerTimeWithRank() { Ranking = int.MaxValue } : viewerTime;
         }
 
         private async Task<int> GetRank(string name)
