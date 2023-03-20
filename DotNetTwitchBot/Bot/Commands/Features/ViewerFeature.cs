@@ -47,23 +47,28 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _scopeFactory = scopeFactory;
         }
 
-        private Task OnUserLeft(object? sender, UserLeftEventArgs e)
+        private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
         {
             _users.Remove(e.Username);
-            return Task.CompletedTask;
+            await AddOrUpdateLastSeen(e.Username);
         }
 
         private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
         {
             _users.Add(e.Username);
-            var viewer = await GetViewer(e.Username);
+            await AddOrUpdateLastSeen(e.Username);
+        }
+
+        private async Task AddOrUpdateLastSeen(string username)
+        {
+            var viewer = await GetViewer(username);
             if (viewer == null)
             {
-                await AddBasicUser(e.Username);
+                await AddBasicUser(username);
             }
             else
             {
-
+                await UpdateLastSeen(viewer);
             }
         }
 
