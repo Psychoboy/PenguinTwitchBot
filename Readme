@@ -5,21 +5,21 @@ It's a Twitch Chat Bot I am working on for my personal Twitch Stream SuperPengui
 Feel free to fork and do what you wish with it.
 
 TODO:
-* !top commands
-* word filters
-* keywords
-* Pasty games:
-    * defuse
-    * ffa
-    * roulette
-    * steal
-    * heist
-    * kill
-    * slots
-    * steal
-* Pasty Tax
-* weather
-* Bonus handlers 
-    * On Sub
-    * On Bits
-* Music 
+- [x] top commands
+- [ ] word filters
+- [ ] keywords
+- [ ] Pasty games:
+    - [ ] defuse
+    - [ ] ffa
+    - [ ] roulette
+    - [ ] steal
+    - [ ] heist
+    - [ ] kill
+    - [ ] slots
+    - [ ] steal
+- [ ] Pasty Tax
+- [ ] weather
+- [ ] Bonus handlers 
+    - [ ] On Sub
+    - [ ] On Bits
+- [ ] Music 

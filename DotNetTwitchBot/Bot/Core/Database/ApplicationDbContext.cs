@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;
         public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
         public DbSet<DeathCounter> DeathCounters { get; set; } = null!;
+        public DbSet<KeywordType> Keywords { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -40,6 +41,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<ViewerMessageCountWithRank>()
             .ToView(nameof(ViewerMessageCountWithRanks))
             .HasKey(t => t.Id);
+
+            modelBuilder.Entity<KeywordType>().Ignore(c => c.Regex);
         }
     }
 }

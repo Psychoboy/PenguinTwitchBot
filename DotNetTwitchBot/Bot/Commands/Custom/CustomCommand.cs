@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     {
         Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
         Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
+        List<Models.KeywordType> Keywords = new List<KeywordType>();
         private SendAlerts _sendAlerts;
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -30,13 +31,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             TwitchService twitchService,
-            ServiceBackbone eventService) : base(eventService)
+            ServiceBackbone serviceBackbone) : base(serviceBackbone)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _twitchService = twitchService;
+            _serviceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -72,6 +74,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     Commands[command.CommandName] = command;
                     count++;
                 }
+
+                _logger.LogInformation("Loading keywords");
+                Keywords.Clear();
+                Keywords = await db.Keywords.ToListAsync();
+            }
+
+            foreach (var keyword in Keywords)
+            {
+                if (keyword.IsRegex)
+                {
+                    keyword.Regex = new Regex(keyword.Keyword);
+                }
             }
             _logger.LogInformation("Finished loading commands: {0}", count);
         }
@@ -90,6 +104,49 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 Commands[customCommand.CommandName] = customCommand;
                 await db.SaveChangesAsync();
             }
+        }
+
+        //To check for keywords
+        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        {
+            bool match = false;
+            foreach (var keyword in Keywords)
+            {
+                if (keyword.IsRegex)
+                {
+                    if (keyword.Regex.IsMatch(e.Message)) match = true;
+                }
+                else
+                {
+                    if (keyword.IsCaseSensitive)
+                    {
+                        if (e.Message.Contains(keyword.Keyword, StringComparison.CurrentCulture)) match = true;
+                    }
+                    else
+                    {
+                        if (e.Message.Contains(keyword.Keyword, StringComparison.CurrentCultureIgnoreCase)) match = true;
+                    }
+
+                }
+                if (match)
+                {
+                    var commandEventArgs = new CommandEventArgs
+                    {
+                        Arg = e.Message,
+                        Args = e.Message.Split(" ").ToList(),
+                        IsWhisper = false,
+                        Name = e.Sender,
+                        DisplayName = e.DisplayName,
+                        isSub = e.isSub,
+                        isMod = e.isBroadcaster || e.isMod,
+                        isVip = e.isVip,
+                        isBroadcaster = e.isBroadcaster,
+                    };
+                    await processTagsAndSayMessage(commandEventArgs, keyword.Response);
+                    break;
+                }
+            }
+
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
