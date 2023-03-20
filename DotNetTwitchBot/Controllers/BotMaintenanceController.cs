@@ -64,17 +64,50 @@ namespace DotNetTwitchBot.Controllers
             using (var reader = new StreamReader("data\\audiocommands.csv"))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                var records = csv.GetRecords<AudioImport>();
+                var records = csv.GetRecords<PhantomImport>();
                 foreach (var record in records)
                 {
                     var audioCommand = new AudioCommand
                     {
-                        CommandName = record.Variable,
-                        AudioFile = record.Value,
+                        CommandName = record.variable,
+                        AudioFile = record.value,
                         UserCooldown = -1,
                         GlobalCooldown = 60
                     };
                     await _audioCommands.AddAudioCommand(audioCommand);
+                }
+            }
+            return Ok();
+        }
+        [HttpGet("/lastseen")]
+        public async Task<ActionResult> ImportLastSeen()
+        {
+            using (var reader = new StreamReader("data\\lastseen.csv"))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                var records = csv.GetRecords<PhantomImport>();
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    foreach (var record in records)
+                    {
+
+
+                        var viewer = await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(record.variable));
+                        if (viewer == null)
+                        {
+                            viewer = new Viewer
+                            {
+                                DisplayName = record.variable,
+                                Username = record.variable
+                            };
+                        }
+                        var dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+                        dateTime = dateTime.AddMilliseconds(double.Parse(record.value));
+                        viewer.LastSeen = dateTime;
+                        db.Viewers.Update(viewer);
+                    }
+                    await db.SaveChangesAsync();
                 }
             }
             return Ok();

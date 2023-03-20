@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ILogger<ServiceBackbone> _logger;
         private IConfiguration _configuration;
         private string? RawBroadcasterName { get; set; }
-        private string? BotName { get; set; }
+        public string? BotName { get; set; }
 
         public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration)
         {

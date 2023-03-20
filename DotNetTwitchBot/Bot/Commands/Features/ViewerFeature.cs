@@ -162,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.Where(x => x.Username.Equals(username)).FirstOrDefaultAsync();
+                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username));
             }
         }
 

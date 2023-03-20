@@ -31,7 +31,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if (!e.Command.Equals("testdeath")) return;
+            var command = "death";
+            if (!e.Command.Equals(command)) return;
+            if (!IsCoolDownExpired(e.Name, command)) return;
             var game = await _twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))
             {
@@ -95,29 +97,29 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        private async Task<Counter> GetCounter(string counterName)
+        private async Task<Models.DeathCounter> GetCounter(string counterName)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var counter = await db.Counters.FirstOrDefaultAsync(x => x.CounterName.Equals(counterName));
+                var counter = await db.DeathCounters.FirstOrDefaultAsync(x => x.Game.Equals(counterName));
                 if (counter == null)
                 {
-                    counter = new Counter
+                    counter = new Models.DeathCounter
                     {
-                        CounterName = counterName
+                        Game = counterName
                     };
                 }
                 return counter;
             }
         }
 
-        private async Task UpdateCounter(Counter counter)
+        private async Task UpdateCounter(Models.DeathCounter counter)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Counters.Update(counter);
+                db.DeathCounters.Update(counter);
                 await db.SaveChangesAsync();
             }
         }

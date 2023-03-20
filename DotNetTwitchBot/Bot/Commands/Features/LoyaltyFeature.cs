@@ -204,7 +204,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var messages = await GetUserMessagesAndRank(e.Name);
             await _serviceBackbone.SendChatMessage(
                 e.DisplayName,
-                string.Format("Time: [{0}] - sptvBacon Pasties Position: [#{1}, {2}] - Messages Position: [#{3}, {4} Messages]",
+                string.Format("Time: [{0}] - sptvBacon Pasties: [#{1}, {2}] - Messages: [#{3}, {4} Messages]",
                 Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points, messages.Ranking, messages.MessageCount));
         }
 

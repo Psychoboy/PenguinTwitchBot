@@ -58,6 +58,8 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));

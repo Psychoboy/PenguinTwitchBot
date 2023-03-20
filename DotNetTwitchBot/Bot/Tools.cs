@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot
 
             TimeSpan span = TimeSpan.FromSeconds(seconds);
             int[] parts = { span.Days / 7, span.Days % 7, span.Hours, span.Minutes, span.Seconds };
-            string[] units = { " wk", " d", " hr", " min", " sec" };
+            string[] units = { "w", "d", "h", "m" };
 
             return string.Join(", ",
                 from index in Enumerable.Range(0, units.Length)
