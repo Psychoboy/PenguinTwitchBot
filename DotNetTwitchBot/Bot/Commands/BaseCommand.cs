@@ -7,22 +7,22 @@ namespace DotNetTwitchBot.Bot.Commands
     {
         Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
         Dictionary<string, DateTime> _globalCooldowns = new Dictionary<string, DateTime>();
-        public BaseCommand(ServiceBackbone eventService)
+        public BaseCommand(ServiceBackbone serviceBackbone)
         {
-            _eventService = eventService;
-            eventService.CommandEvent += OnCommand;
+            _serviceBackbone = serviceBackbone;
+            serviceBackbone.CommandEvent += OnCommand;
         }
 
-        protected ServiceBackbone _eventService { get; }
+        protected ServiceBackbone _serviceBackbone { get; }
 
         public async Task SendChatMessage(string message)
         {
-            await _eventService.SendChatMessage(message);
+            await _serviceBackbone.SendChatMessage(message);
         }
 
         public async Task SendChatMessage(string name, string message)
         {
-            await _eventService.SendChatMessage(name, message);
+            await _serviceBackbone.SendChatMessage(name, message);
         }
 
         public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }

@@ -96,18 +96,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             if (e.Command.Equals("addcommand"))
             {
-                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                 try
                 {
                     var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
                     if (newCommand != null)
                     {
                         await AddCommand(newCommand);
-                        await _eventService.SendChatMessage("Successfully added command");
+                        await _serviceBackbone.SendChatMessage("Successfully added command");
                     }
                     else
                     {
-                        await _eventService.SendChatMessage("failed to add command");
+                        await _serviceBackbone.SendChatMessage("failed to add command");
                     }
 
                 }
@@ -121,14 +121,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             if (e.Command.Equals("refreshcommands"))
             {
-                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                 await LoadCommands();
                 return;
             }
 
             if (e.Command.Equals("disablecommand"))
             {
-                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                 if (!Commands.ContainsKey(e.Arg)) return;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
@@ -136,7 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                     if (command == null)
                     {
-                        await _eventService.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                        await _serviceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
                         return;
                     }
                     command.Disabled = true;
@@ -144,13 +144,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     db.Update(command);
                     await db.SaveChangesAsync();
                 }
-                await _eventService.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                await _serviceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
                 return;
             }
 
             if (e.Command.Equals("enablecommand"))
             {
-                if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                 if (!Commands.ContainsKey(e.Arg)) return;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
@@ -158,7 +158,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                     if (command == null)
                     {
-                        await _eventService.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                        await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
                         return;
                     }
                     command.Disabled = false;
@@ -166,7 +166,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     db.Update(command);
                     await db.SaveChangesAsync();
                 }
-                await _eventService.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
                 return;
             }
 
@@ -180,10 +180,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 if (!IsCoolDownExpired(e.Name, e.Command))
                 {
-                    await _eventService.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
+                    await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
                     return;
                 }
-                if (!_eventService.IsBroadcasterOrBot(e.Name))
+                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
                 {
                     switch (Commands[e.Command].MinimumRank)
                     {
@@ -277,7 +277,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (!string.IsNullOrWhiteSpace(message))
                 {
                     message = UnescapeTags(message);
-                    await _eventService.SendChatMessage(message);
+                    await _serviceBackbone.SendChatMessage(message);
                 }
             }
         }
@@ -407,7 +407,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                return _eventService.IsOnline ? new CustomCommandResult() : new CustomCommandResult(true);
+                return _serviceBackbone.IsOnline ? new CustomCommandResult() : new CustomCommandResult(true);
             });
         }
 
@@ -415,7 +415,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                return _eventService.IsOnline ? new CustomCommandResult(true) : new CustomCommandResult();
+                return _serviceBackbone.IsOnline ? new CustomCommandResult(true) : new CustomCommandResult();
             });
         }
 

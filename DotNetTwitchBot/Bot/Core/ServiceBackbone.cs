@@ -10,14 +10,14 @@ namespace DotNetTwitchBot.Bot.Core
     {
         private ILogger<ServiceBackbone> _logger;
         private IConfiguration _configuration;
-        private string? BroadcasterName { get; set; }
+        private string? RawBroadcasterName { get; set; }
         private string? BotName { get; set; }
 
         public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
-            BroadcasterName = configuration["broadcaster"];
+            RawBroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
@@ -33,9 +33,10 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
 
         public bool IsOnline { get; set; } = false;
+        public string BroadcasterName { get { return RawBroadcasterName != null ? RawBroadcasterName : ""; } }
         public bool IsBroadcasterOrBot(string name)
         {
-            return (name.Equals(BroadcasterName, StringComparison.CurrentCultureIgnoreCase) ||
+            return (name.Equals(RawBroadcasterName, StringComparison.CurrentCultureIgnoreCase) ||
                     name.Equals(BotName, StringComparison.CurrentCultureIgnoreCase));
         }
 

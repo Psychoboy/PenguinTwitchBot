@@ -43,7 +43,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 case "testbaconstart":
                     {
                         if (e.Args.Count == 0) return;
-                        if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         if (Int32.TryParse(e.Args[0], out int amount))
                         {
                             await StartRaffle(e.Name, amount);

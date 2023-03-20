@@ -26,13 +26,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _intervalTimer = new Timer(timerCallback, this, 20000, 60000);
-            _eventService.ChatMessageEvent += OnChangeMessage;
+            _serviceBackbone.ChatMessageEvent += OnChangeMessage;
             _logger = logger;
         }
 
         private async Task OnChangeMessage(object? sender, ChatMessageEventArgs e)
         {
-            if (!_eventService.IsOnline) return;
+            if (!_serviceBackbone.IsOnline) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task UpdatePointsAndTime()
         {
-            if (!_eventService.IsOnline) return;
+            if (!_serviceBackbone.IsOnline) return;
             var currentViewers = _viewerFeature.GetCurrentViewers();
             var viewers = new List<Viewer>();
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -202,9 +202,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var pasties = await GetUserPastiesAndRank(e.Name);
             var time = await GetUserTimeAndRank(e.Name);
             var messages = await GetUserMessagesAndRank(e.Name);
-            await _eventService.SendChatMessage(
+            await _serviceBackbone.SendChatMessage(
                 e.DisplayName,
-                string.Format("Time: {0} - sptvBacon Pasties Position: [#{1}, {2}] - Messages Position: [#{3}, {4} Messages]",
+                string.Format("Time: [{0}] - sptvBacon Pasties Position: [#{1}, {2}] - Messages Position: [#{3}, {4} Messages]",
                 Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points, messages.Ranking, messages.MessageCount));
         }
 

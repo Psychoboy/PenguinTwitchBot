@@ -30,24 +30,29 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         protected override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch(e.Command){
-                case "addactivetest": {
-                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
-                    if(Int64.TryParse(e.Args[0], out long amount)) {
-                        _lastTicketsAdded = DateTime.Now;
-                        _ticketsToGiveOut += amount;
+            switch (e.Command)
+            {
+                case "addactivetest":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
+                        if (Int64.TryParse(e.Args[0], out long amount))
+                        {
+                            _lastTicketsAdded = DateTime.Now;
+                            _ticketsToGiveOut += amount;
+                        }
+                        break;
                     }
-                    break;
-                }
             }
             return Task.CompletedTask;
         }
 
-        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e){
-            if(_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now) {
-                    await _ticketsFeature.GiveTicketsToActiveUsers(_ticketsToGiveOut);
-                    await _eventService.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
-                    _ticketsToGiveOut = 0;
+        private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e)
+        {
+            if (_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now)
+            {
+                await _ticketsFeature.GiveTicketsToActiveUsers(_ticketsToGiveOut);
+                await _serviceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
+                _ticketsToGiveOut = 0;
             }
         }
     }

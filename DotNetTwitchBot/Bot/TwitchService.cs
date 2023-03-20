@@ -154,10 +154,6 @@ namespace DotNetTwitchBot.Bot
                 throw new Exception("Error getting stream status.");
             }
             var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId });
-            if (streams.Streams == null)
-            {
-                return DateTime.MinValue;
-            }
             if (streams.Streams.Count() == 0)
             {
                 return DateTime.MinValue;
@@ -165,6 +161,22 @@ namespace DotNetTwitchBot.Bot
             var stream = streams.Streams.First();
             var startTime = stream.StartedAt;
             return startTime;
+        }
+
+        public async Task<string> GetCurrentGame()
+        {
+            var userId = await GetBroadcasterUserId();
+            if (userId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+            if (channelInfo.Data.Length > 0)
+            {
+                return channelInfo.Data[0].GameName;
+            }
+
+            return "";
         }
 
         public async Task SubscribeToAllTheStuffs(string sessionId)

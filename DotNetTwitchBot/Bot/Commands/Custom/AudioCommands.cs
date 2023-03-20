@@ -97,11 +97,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             if (!IsCoolDownExpired(e.Name, e.Command))
             {
-                await _eventService.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
                 return;
             }
 
-            if (!_eventService.IsBroadcasterOrBot(e.Name))
+            if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
             {
                 switch (Commands[e.Command].MinimumRank)
                 {
@@ -156,7 +156,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task ToggleAudioCommandDisable(CommandEventArgs e, bool disabled)
         {
-            if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+            if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
             if (!Commands.ContainsKey(e.Arg)) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -164,7 +164,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var command = await db.AudioCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
-                    await _eventService.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                    await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
                     return;
                 }
                 command.Disabled = disabled;
@@ -172,29 +172,29 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 db.Update(command);
                 await db.SaveChangesAsync();
             }
-            await _eventService.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+            await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
         }
 
         private async Task RefreshAudio(string name)
         {
-            if (!_eventService.IsBroadcasterOrBot(name)) return;
+            if (!_serviceBackbone.IsBroadcasterOrBot(name)) return;
             await LoadAudioCommands();
         }
 
         private async Task AddAudioCommand(CommandEventArgs e)
         {
-            if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+            if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
             try
             {
                 var newAudioCommand = JsonSerializer.Deserialize<AudioCommand>(e.Arg);
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);
-                    await _eventService.SendChatMessage("Successfully added audio command");
+                    await _serviceBackbone.SendChatMessage("Successfully added audio command");
                 }
                 else
                 {
-                    await _eventService.SendChatMessage("Failed to add audio command");
+                    await _serviceBackbone.SendChatMessage("Failed to add audio command");
                 }
 
             }

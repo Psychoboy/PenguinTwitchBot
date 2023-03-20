@@ -160,7 +160,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             _logger.LogInformation("Currently a total of {0} viewers", viewers.Count());
 
-            if (_eventService.IsOnline)
+            if (_serviceBackbone.IsOnline)
             {
                 _logger.LogInformation("Starting to give  out tickets");
                 await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 5);
@@ -171,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task SayViewerTickets(CommandEventArgs e)
         {
             var points = await GetViewerTickets(e.Name);
-            await this._eventService.SendChatMessage(
+            await this._serviceBackbone.SendChatMessage(
                 string.Format("@{0}, you have {1} testpoints.",
                 e.DisplayName, points
                 ));
@@ -190,13 +190,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (e.isMod && Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
-                            await _eventService.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
+                            await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }
                 case "testresetpoints":
                     {
-                        if (!_eventService.IsBroadcasterOrBot(e.Name)) return;
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         await ResetAllPoints();
                     }
                     break;

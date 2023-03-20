@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class First : BaseCommand
     {
-        private List<string> ClaimedFirst {get;} = new List<string>();
+        private List<string> ClaimedFirst { get; } = new List<string>();
         private int MaxClaims = 60;
         private TicketsFeature _ticketsFeature;
 
@@ -25,17 +25,20 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch(e.Command) {
-                case "testfirst": {
-                    await giveFirst(e.Name);
+            switch (e.Command)
+            {
+                case "testfirst":
+                    {
+                        await giveFirst(e.Name);
 
-                }
-                break;
-                case "testresetfirst": {
-                    if(!_eventService.IsBroadcasterOrBot(e.Name)) return;
-                    ResetFirst();
-                }
-                break;
+                    }
+                    break;
+                case "testresetfirst":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                        ResetFirst();
+                    }
+                    break;
             }
         }
 
@@ -46,20 +49,22 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task giveFirst(string sender)
         {
-            if(!_eventService.IsOnline) {
+            if (!_serviceBackbone.IsOnline)
+            {
                 await SendChatMessage(sender, "Nice try, the stream is currently offline.");
                 return;
             }
 
-            if(ClaimedFirst.Count >= MaxClaims) {
+            if (ClaimedFirst.Count >= MaxClaims)
+            {
                 await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
                 return;
             }
 
-            if(ClaimedFirst.Contains(sender.ToLower())) return;
+            if (ClaimedFirst.Contains(sender.ToLower())) return;
 
             ClaimedFirst.Add(sender.ToLower());
-            var awardPoints = Tools.CurrentThreadRandom.Next(1,3);
+            var awardPoints = Tools.CurrentThreadRandom.Next(1, 3);
             await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }

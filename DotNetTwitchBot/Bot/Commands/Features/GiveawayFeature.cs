@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("Entry Id: {0} Username {1} selected", entry.Id, entry.Username);
             var isFollower = await _viewerFeature.IsFollower(entry.Username);
             var viewer = await _viewerFeature.GetViewer(entry.Username);
-            await _eventService.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.DisplayName : entry.Username, isFollower ? "is" : "is not"));
+            await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.DisplayName : entry.Username, isFollower ? "is" : "is not"));
 
         }
 
@@ -77,26 +77,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var displayName = await _viewerFeature.GetDisplayName(sender);
             if (!Int64.TryParse(amount, out var points))
             {
-                await _eventService.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
+                await _serviceBackbone.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
                 return;
             }
             if (points == 0 || points > viewerPoints)
             {
-                await _eventService.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", displayName));
+                await _serviceBackbone.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", displayName));
                 return;
             }
 
-            if (points < 0) { await _eventService.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName)); }
+            if (points < 0) { await _serviceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName)); }
 
             if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
             {
-                await _eventService.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
+                await _serviceBackbone.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
                 return;
             }
 
             if (points > 1000000)
             {
-                await _eventService.SendChatMessage("@{0}, Max entries is 1,000,000");
+                await _serviceBackbone.SendChatMessage("@{0}, Max entries is 1,000,000");
             }
 
             var entries = new GiveawayEntry[points];
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     _logger.LogError(e, "Error bulk updating");
                 }
             }
-            await _eventService.SendChatMessage($"@{sender}, you have bought {points} entries.");
+            await _serviceBackbone.SendChatMessage($"@{sender}, you have bought {points} entries.");
         }
 
         private async Task Entries(string sender)
@@ -132,7 +132,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 entries = await db.GiveawayEntries.Where(x => x.Username.Equals(sender)).CountAsync();
             }
-            await _eventService.SendChatMessage($"@{sender}, you have {entries} entries.");
+            await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
