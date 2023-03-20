@@ -64,6 +64,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.defuse));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));

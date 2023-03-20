@@ -156,7 +156,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return toRemove;
         }
 
-        private async Task<bool> RemovePointsFromUser(string target, long points)
+        public async Task<bool> RemovePointsFromUser(string target, long points)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -176,7 +176,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task AddPointsToViewer(string target, long points)
+        public async Task AddPointsToViewer(string target, long points)
         {
             long totalPoints = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -220,7 +220,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerMessage == null ? new ViewerMessageCountWithRank() { Ranking = int.MaxValue } : viewerMessage;
         }
 
-        private async Task<ViewerPoint> GetUserPasties(string Name)
+        public async Task<ViewerPoint> GetUserPasties(string Name)
         {
             ViewerPoint? viewerPoint;
             await using (var scope = _scopeFactory.CreateAsyncScope())
