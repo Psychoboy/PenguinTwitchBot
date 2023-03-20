@@ -6,7 +6,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 
-namespace DotNetTwitchBot.Bot.Commands.Games
+namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class WaffleRaffle : BaseRaffle
     {

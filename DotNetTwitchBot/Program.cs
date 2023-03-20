@@ -52,20 +52,18 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.WaffleRaffle));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.PancakeRaffle));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.BaconRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.Roulette));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature));
-
-
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
