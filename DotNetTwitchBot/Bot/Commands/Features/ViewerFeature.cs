@@ -53,10 +53,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        private Task OnUserJoined(object? sender, UserJoinedEventArgs e)
+        private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
         {
             _users.Add(e.Username);
-            return Task.CompletedTask;
+            var viewer = await GetViewer(e.Username);
+            if (viewer == null)
+            {
+                await AddBasicUser(e.Username);
+            }
         }
 
         private async Task OnFollow(object? sender, FollowEventArgs e)
@@ -251,16 +255,33 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     Username = e.Sender
                 };
             }
-
-            viewer.isMod = e.isMod;
-            viewer.isSub = e.isSub;
-            viewer.isVip = e.isVip;
-            viewer.isBroadcaster = e.isBroadcaster;
+            if (viewer.DisplayName != e.DisplayName) viewer.DisplayName = e.DisplayName;
+            if (viewer.isMod != e.isMod) viewer.isMod = e.isMod;
+            if (viewer.isSub != e.isSub) viewer.isSub = e.isSub;
+            if (viewer.isVip != e.isVip) viewer.isVip = e.isVip;
+            if (viewer.isBroadcaster != e.isBroadcaster) viewer.isBroadcaster = e.isBroadcaster;
             viewer.LastSeen = DateTime.Now;
             //await _viewerData.InsertOrUpdate(viewer);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Update(viewer);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        private async Task AddBasicUser(string name)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var viewer = await db.Viewers.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                if (viewer != null) return;
+                viewer = new Viewer
+                {
+                    DisplayName = name,
+                    Username = name
+                };
                 db.Update(viewer);
                 await db.SaveChangesAsync();
             }

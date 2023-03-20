@@ -3,6 +3,7 @@ using System;
 using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230320030727_AddedPastiesTableRemoveRank")]
+    partial class AddedPastiesTableRemoveRank
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -186,24 +189,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("Viewers");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCount", b =>
-                {
-                    b.Property<int?>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<long>("MessageCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ViewerMessageCounts");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerPoint", b =>
                 {
                     b.Property<int?>("Id")
@@ -220,28 +205,6 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ViewerPoints");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerPointWithRank", b =>
-                {
-                    b.Property<int?>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<long>("Points")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewerPointWithRanks", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTicket", b =>
@@ -262,46 +225,6 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("Username");
 
                     b.ToTable("ViewerTickets");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTime", b =>
-                {
-                    b.Property<int?>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<long>("Time")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ViewersTime");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTimeWithRank", b =>
-                {
-                    b.Property<int?>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<long>("Time")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewersTimeWithRank", (string)null);
                 });
 #pragma warning restore 612, 618
         }

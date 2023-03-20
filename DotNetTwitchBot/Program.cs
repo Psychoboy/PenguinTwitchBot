@@ -60,6 +60,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Games.Roulette));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature));
 
 
         //Add Alerts

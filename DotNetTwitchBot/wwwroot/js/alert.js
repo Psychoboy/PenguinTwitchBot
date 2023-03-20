@@ -432,7 +432,7 @@ function getWebSocket() {
 // var stateLabel = document.getElementById("stateLabel");
 // var sendMessage = document.getElementById("sendMessage");
 // var sendButton = document.getElementById("sendButton");
-var testBody = document.getElementById("testBody");
+// var testBody = document.getElementById("testBody");
 //var closeButton = document.getElementById("closeButton");
 var socket;
 
