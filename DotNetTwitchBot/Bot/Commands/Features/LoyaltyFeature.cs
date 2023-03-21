@@ -124,11 +124,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch (e.Command)
             {
-                case "testpasties":
+                case "pasties":
                     await SayLoyalty(e);
                     break;
-                case "testgift":
-                case "testgive":
+                case "gift":
+                case "give":
                     await GiftPasties(e);
                     break;
                 case "addpasties":
@@ -243,7 +243,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await _serviceBackbone.SendChatMessage(
                 e.DisplayName,
                 string.Format("Time: [{0}] - sptvBacon Pasties: [#{1}, {2}] - Messages: [#{3}, {4} Messages]",
-                Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points, messages.Ranking, messages.MessageCount));
+                Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points.ToString("N0"), messages.Ranking, messages.MessageCount.ToString("N0")));
         }
 
         private async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)

@@ -7,9 +7,9 @@ Feel free to fork and do what you wish with it.
 TODO:
  - = code implemented need move data
  x = complete
-- [-] Pasties
-- [-] Watch time
-- [-] Messages in chat
+- [X] Pasties
+- [X] Watch time
+- [X] Messages in chat
 - [-] Keywords
 - [x] Lastseen
 - [-] Death Counters
@@ -35,4 +35,12 @@ TODO:
     - [ ] On Sub
     - [ ] On Bits
 - [ ] Music (https://developers.google.com/youtube/iframe_api_reference)
+- [ ] Blacklist
+- [ ] Timers
+- [ ] Chat Alerts
+    - [ ] Follower
+    - [ ] Subscriber
+    - [ ] Clip
+    - [ ] Raid
+    - [ ] Bits
 - [ ] Discord Stuff (There is more then 1 thing here to do)

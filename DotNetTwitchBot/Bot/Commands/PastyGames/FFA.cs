@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private Timer _joinTimer;
         private LoyaltyFeature _loyaltyFeature;
         private ViewerFeature _viewFeature;
-        string Command = "testffa";
+        string Command = "ffa";
 
         enum State
         {

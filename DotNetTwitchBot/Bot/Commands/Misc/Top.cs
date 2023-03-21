@@ -23,13 +23,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             switch (e.Command)
             {
-                case "testtop10":
+                case "top10":
                     await SayTopN(10);
                     break;
-                case "testtop5":
+                case "top5":
                     await SayTopN(5);
                     break;
-                case "testtoptime":
+                case "toptime":
                     break;
             }
         }

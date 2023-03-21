@@ -31,10 +31,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             switch (e.Command)
             {
-                case "testgamble":
+                case "gamble":
                     await HandleGamble(e);
                     break;
-                case "testjackpot":
+                case "jackpot":
                     var jackpot = await GetJackpot();
                     await _serviceBackbone.SendChatMessage(e.DisplayName,
                     string.Format("The current jackpot is {0}", jackpot.ToString("N0")));
