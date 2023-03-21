@@ -30,6 +30,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger = logger;
         }
 
+        public const Int64 MaxBet = 200000069;
+
         private async Task OnChangeMessage(object? sender, ChatMessageEventArgs e)
         {
             if (!_serviceBackbone.IsOnline) return;
@@ -129,7 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     if (!e.isMod) return;
                     if (e.Args.Count < 2) return;
                     if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
-                    if (Int64.TryParse(e.Args[1], out var points))
+                    if (Int32.TryParse(e.Args[1], out var points))
                     {
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
@@ -141,7 +143,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task<long> GetAndRemoveMaxPointsFromUser(string target, long max = 200000069)
+        public async Task<Int64> GetAndRemoveMaxPointsFromUser(string target, Int64 max = MaxBet)
         {
             var viewerPoints = await GetUserPasties(target);
             var toRemove = 0L;
@@ -151,7 +153,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             else
             {
-                toRemove = viewerPoints.Points;
+                toRemove = Convert.ToInt32(viewerPoints.Points);
             }
             if (!await RemovePointsFromUser(target, toRemove)) throw new Exception(string.Format("Failed to remove tickets for {0}", target));
             return toRemove;

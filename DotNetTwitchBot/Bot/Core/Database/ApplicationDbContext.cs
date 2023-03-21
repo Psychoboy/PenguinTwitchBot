@@ -27,6 +27,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
         public DbSet<DeathCounter> DeathCounters { get; set; } = null!;
         public DbSet<KeywordType> Keywords { get; set; } = null!;
+        public DbSet<Setting> Settings { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
