@@ -179,20 +179,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await _serviceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", e.DisplayName, amount, e.TargetUser));
         }
 
-        public async Task<Int64> GetAndRemoveMaxPointsFromUser(string target, Int64 max = MaxBet)
+        public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max = MaxBet)
         {
             var viewerPoints = await GetUserPasties(target);
-            var toRemove = 0L;
+            var maxPoints = 0L;
             if (viewerPoints.Points > max)
             {
-                toRemove = max;
+                maxPoints = max;
             }
             else
             {
-                toRemove = Convert.ToInt32(viewerPoints.Points);
+                maxPoints = Convert.ToInt64(viewerPoints.Points);
             }
-            if (!await RemovePointsFromUser(target, toRemove)) throw new Exception(string.Format("Failed to remove tickets for {0}", target));
-            return toRemove;
+            return maxPoints;
         }
 
         public async Task<bool> RemovePointsFromUser(string target, long points)

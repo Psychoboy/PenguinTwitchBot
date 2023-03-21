@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
-                amount = await _loyaltyFeature.GetAndRemoveMaxPointsFromUser(e.Name);
+                amount = await _loyaltyFeature.GetMaxPointsFromUser(e.Name);
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {

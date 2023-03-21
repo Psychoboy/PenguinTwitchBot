@@ -69,6 +69,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Gamble));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));

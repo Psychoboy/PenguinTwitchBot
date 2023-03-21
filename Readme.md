@@ -21,7 +21,7 @@ TODO:
     - [X] ffa
     - [X] roulette
     - [X] steal
-    - [ ] heist
+    - [X] heist
     - [ ] kill
     - [ ] slots
     - [X] Gift pasties
@@ -34,4 +34,4 @@ TODO:
 - [ ] Bonus handlers 
     - [ ] On Sub
     - [ ] On Bits
-- [ ] Music 
+- [ ] Music (https://developers.google.com/youtube/iframe_api_reference)

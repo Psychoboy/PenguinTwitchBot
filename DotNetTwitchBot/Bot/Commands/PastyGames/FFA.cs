@@ -102,14 +102,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _serviceBackbone.SendChatMessage(string.Format("{0} is starting a FFA battle! Type !ffa to join now!", e.DisplayName));
                 GameState = State.Running;
+                _joinTimer.Change(JoinTime * 1000, Timeout.Infinite);
             }
             else
             {
                 await _serviceBackbone.SendChatMessage(string.Format("{0} joined the FFA", e.DisplayName));
             }
             Entered.Add(e.Name);
-            _joinTimer.Change(JoinTime * 1000, Timeout.Infinite);
-
         }
     }
 }
