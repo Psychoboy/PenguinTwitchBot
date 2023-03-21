@@ -7,6 +7,6 @@ namespace DotNetTwitchBot.Bot.Events
 {
     public class SubscriptionEventArgs
     {
-        public string? Sender {get;set;}
+        public string? Sender { get; set; }
     }
 }

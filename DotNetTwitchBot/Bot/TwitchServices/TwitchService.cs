@@ -10,7 +10,7 @@ using TwitchLib.Api.Helix.Models.Subscriptions;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
-namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class TwitchService
     {

@@ -7,8 +7,8 @@ namespace DotNetTwitchBot.Bot.Events
 {
     public class ChannelPointRedeemEventArgs
     {
-        public string Sender {get;set;} = "";
-        public string Title {get;set;} = "";
-        public string UserInput {get;set;} = "";
+        public string Sender { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string UserInput { get; set; } = "";
     }
 }

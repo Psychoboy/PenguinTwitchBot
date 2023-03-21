@@ -9,20 +9,20 @@ using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class defuse : BaseCommand
+    public class Defuse : BaseCommand
     {
         public List<string> Wires = new List<string> { "red", "blue", "yellow" };
         public int Cost = 500;
         public int Cooldown = 10;
         private LoyaltyFeature _loyaltyFeature;
-        private ILogger<defuse> _logger;
+        private ILogger<Defuse> _logger;
         private SendAlerts _sendAlerts;
 
-        public defuse(
+        public Defuse(
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
             SendAlerts sendAlerts,
-            ILogger<defuse> logger
+            ILogger<Defuse> logger
             ) : base(serviceBackbone)
         {
             _loyaltyFeature = loyaltyFeature;

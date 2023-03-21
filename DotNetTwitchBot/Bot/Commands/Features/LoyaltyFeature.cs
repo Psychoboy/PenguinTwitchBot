@@ -134,6 +134,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
                         var totalPasties = await GetUserPasties(e.TargetUser);
+                        await _serviceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
                     }
                     break;
 

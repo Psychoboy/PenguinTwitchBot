@@ -11,6 +11,7 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using System.Text.Json;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {

@@ -5,7 +5,7 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 
-namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class TwitchWebsocketHostedService : IHostedService
     {
@@ -15,9 +15,9 @@ namespace DotNetTwitchBot.Bot
         private ServiceBackbone _eventService;
 
         public TwitchWebsocketHostedService(
-            ILogger<TwitchWebsocketHostedService> logger, 
-            ServiceBackbone eventService, 
-            EventSubWebsocketClient eventSubWebsocketClient, 
+            ILogger<TwitchWebsocketHostedService> logger,
+            ServiceBackbone eventService,
+            EventSubWebsocketClient eventSubWebsocketClient,
             TwitchService twitchService)
         {
             _logger = logger;
@@ -59,7 +59,8 @@ namespace DotNetTwitchBot.Bot
             await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
         }
 
-        private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e) {
+        private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
+        {
             _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserName);
         }
 
@@ -71,10 +72,10 @@ namespace DotNetTwitchBot.Bot
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             _logger.LogInformation("onChannelSubscription: {0}", e.Notification.Payload.Event.UserName);
-            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);   
+            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
         }
-        
-         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
+
+        private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
             _logger.LogInformation("OnChannelSubscriptionEnd: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserName);
@@ -112,39 +113,50 @@ namespace DotNetTwitchBot.Bot
 
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
-            try {
+            try
+            {
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
                 bool fullConnect = false;
                 _logger.LogWarning("Websocket Disconnected");
                 var delayCounter = 1.0;
-                while(!await _eventSubWebsocketClient.ReconnectAsync()) {
+                while (!await _eventSubWebsocketClient.ReconnectAsync())
+                {
                     delayCounter = (delayCounter * 2);
-                    if(delayCounter > 60.0) delayCounter = 60.0;
+                    if (delayCounter > 60.0) delayCounter = 60.0;
                     _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
-                    await Task.Delay((int)delayCounter * 1000);   
-                    if(stopwatch.Elapsed.TotalSeconds >=30.0 ){
+                    await Task.Delay((int)delayCounter * 1000);
+                    if (stopwatch.Elapsed.TotalSeconds >= 30.0)
+                    {
                         fullConnect = true;
                         break;
-                    }             
+                    }
                 }
-                if(fullConnect) {
+                if (fullConnect)
+                {
                     await Reconnect();
                 }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
             }
         }
 
-        private async Task Reconnect() {
-            try {
+        private async Task Reconnect()
+        {
+            try
+            {
                 var delayCounter = 1.0;
-                while(!await _eventSubWebsocketClient.ConnectAsync()) {
+                while (!await _eventSubWebsocketClient.ConnectAsync())
+                {
                     delayCounter = (delayCounter * 2);
-                    if(delayCounter > 60.0) delayCounter = 60.0;
+                    if (delayCounter > 60.0) delayCounter = 60.0;
                     _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
                 }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
             }
         }
@@ -152,7 +164,7 @@ namespace DotNetTwitchBot.Bot
         private async void OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)
         {
             _logger.LogInformation("Websocket connected");
-            if(e.IsRequestedReconnect) return;
+            if (e.IsRequestedReconnect) return;
             await _twitchService.SubscribeToAllTheStuffs(_eventSubWebsocketClient.SessionId);
             _logger.LogInformation("Subscribed to events");
         }

@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.AspNetCore.Mvc;
 using CsvHelper;
 using DotNetTwitchBot.MaintenanceObjects;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Controllers
 {

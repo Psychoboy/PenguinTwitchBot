@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {

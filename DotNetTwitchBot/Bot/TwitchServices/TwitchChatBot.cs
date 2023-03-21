@@ -4,7 +4,7 @@ using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 
-namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class TwitchChatBot : BackgroundService
     {

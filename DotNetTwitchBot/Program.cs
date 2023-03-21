@@ -13,6 +13,7 @@ using DotNetTwitchBot.Bot.Core;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
 using Serilog.Filters;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 internal class Program
 {
@@ -64,7 +65,8 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.defuse));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
