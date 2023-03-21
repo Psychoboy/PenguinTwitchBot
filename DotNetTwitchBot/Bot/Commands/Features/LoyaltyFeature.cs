@@ -127,6 +127,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "testpasties":
                     await SayLoyalty(e);
                     break;
+                case "testgift":
+                case "testgive":
+                    await GiftPasties(e);
+                    break;
                 case "addpasties":
                     if (!e.isMod) return;
                     if (e.Args.Count < 2) return;
@@ -141,6 +145,38 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     break;
 
             }
+        }
+
+        private async Task GiftPasties(CommandEventArgs e)
+        {
+            if (e.Args.Count < 2 || e.TargetUser.Equals(e.Name))
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
+                return;
+            }
+
+            var amount = 0L;
+            if (!Int64.TryParse(e.Args[1], out amount))
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
+                return;
+            }
+
+            var target = await _viewerFeature.GetViewer(e.TargetUser);
+            if (target == null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
+                return;
+            }
+
+            if (!(await RemovePointsFromUser(e.Name, amount)))
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
+                return;
+            }
+
+            await AddPointsToViewer(e.TargetUser, amount);
+            await _serviceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", e.DisplayName, amount, e.TargetUser));
         }
 
         public async Task<Int64> GetAndRemoveMaxPointsFromUser(string target, Int64 max = MaxBet)
