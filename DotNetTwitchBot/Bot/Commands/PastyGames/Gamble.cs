@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var jackpotSetting = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("jackpot"));
                 if (jackpotSetting == null)
                 {
-                    jackpotSetting = new Setting { Name = "jackpot", LongSetting = 0 };
+                    jackpotSetting = new Setting { Name = "jackpot", LongSetting = 0, DataType = Setting.DataTypeEnum.Long };
                 }
                 jackpotSetting.LongSetting = jackpot;
                 db.Settings.Update(jackpotSetting);
