@@ -70,6 +70,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Gamble));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));

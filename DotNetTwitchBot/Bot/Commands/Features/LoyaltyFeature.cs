@@ -132,7 +132,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     await GiftPasties(e);
                     break;
                 case "addpasties":
-                    if (!e.isMod) return;
+                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     if (e.Args.Count < 2) return;
                     if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
                     if (Int32.TryParse(e.Args[1], out var points))
