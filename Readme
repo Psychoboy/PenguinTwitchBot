@@ -19,13 +19,18 @@ TODO:
 - [ ] Pasty games:
     - [X] defuse
     - [X] ffa
-    - [ ] roulette
+    - [X] roulette
     - [ ] steal
     - [ ] heist
     - [ ] kill
     - [ ] slots
     - [ ] steal
+    - [ ] Slots
+    - [ ] Kill
 - [ ] Pasty Tax
+- [ ] Greeting system
+- [ ] Quote System
+- [ ] Rank/Title system
 - [ ] weather
 - [ ] Bonus handlers 
     - [ ] On Sub
