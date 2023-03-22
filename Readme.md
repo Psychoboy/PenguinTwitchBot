@@ -15,7 +15,6 @@ TODO:
 - [-] Death Counters
 - [x] top commands
 - [ ] word filters
-- [-] keywords
 - [X] Pasty games:
     - [X] defuse
     - [X] ffa
@@ -24,6 +23,7 @@ TODO:
     - [X] heist
     - [X] slots
     - [X] Gift pasties
+    - [ ] Boss
 - [ ] Pasty Tax
 - [ ] Greeting system
 - [ ] Quote System
@@ -44,3 +44,31 @@ TODO:
     - [ ] Raid
     - [ ] Bits
 - [ ] Discord Stuff (There is more then 1 thing here to do)
+
+
+FULL Implemented Commands:
+- Generic Custom Commands
+- Generic Audio Commands
+- !pasties
+- !gift TARGET AMOUNT
+- !give TARGET AMOUNT
+- !addpasties (only works for streamer)
+- !death
+    Modifiers (should only work for streamer)
+    - +
+    - -
+    - reset
+    - set
+- !lastseen TARGET
+- !top10
+- !top5
+- !defuse
+- !ffa
+- !gamble
+- !jackpot
+- !heist
+- !slot
+- !slots
+- !steal
+All the "Ticket" commands are currently in a "test" state until current giveaway is over
+

@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = "teststeal";
+            var command = "steal";
             if (!e.Command.Equals(command)) return;
             if (!IsCoolDownExpired(e.Name, command)) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))

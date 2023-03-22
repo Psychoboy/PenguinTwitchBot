@@ -26,12 +26,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = "slot";
-            if (!e.Command.Equals(command) && e.Command.Equals(command + "s")) return;
-            if (!IsCoolDownExpired(e.Name, command)) return;
+            switch (e.Command)
+            {
+                case "slot":
+                case "slots":
+                    if (!IsCoolDownExpired(e.Name, "slot")) return;
 
-            await CalculateResult(e);
-            AddCoolDown(e.Name, command, 10);
+                    await CalculateResult(e);
+                    AddCoolDown(e.Name, "slot", 10);
+                    break;
+            }
         }
 
         private int GetEmoteKey()
