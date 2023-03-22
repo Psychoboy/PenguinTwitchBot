@@ -10,9 +10,9 @@ TODO:
 - [X] Pasties
 - [X] Watch time
 - [X] Messages in chat
-- [-] Keywords
+- [X] Keywords
 - [x] Lastseen
-- [-] Death Counters
+- [X] Death Counters
 - [x] top commands
 - [ ] word filters
 - [X] Pasty games:
