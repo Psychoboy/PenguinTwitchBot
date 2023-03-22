@@ -103,7 +103,11 @@ internal class Program
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: System.TimeSpan.FromSeconds(15),
+                errorNumbersToAdd: null
+            ));
         });
 
         var app = builder.Build();
