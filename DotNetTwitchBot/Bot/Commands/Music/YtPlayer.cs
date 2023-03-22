@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private IHubContext<YtHub> _hubContext;
         private YouTubeService _youtubeService;
         private List<Song> Requests = new List<Song>();
-        private List<Song> BackupSongs = new List<Song>();
+        private MusicPlaylist BackupPlaylist = new MusicPlaylist();
         private PlayerState State = PlayerState.UnStarted;
         enum PlayerState
         {
@@ -35,8 +35,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         ) : base(serviceBackbone)
         {
             _hubContext = hubContext;
-            // _configuration = configuration;
-            // ApiKey = _configuration["youtubeApi"];
             _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = configuration["youtubeApi"],
@@ -52,11 +50,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 Requests.RemoveAt(0);
                 return song.SongId;
             }
-            if (BackupSongs.Count == 0)
+
+            if (BackupPlaylist.Songs.Count == 0)
             {
                 await LoadBackupList();
             }
-            var randomSong = BackupSongs[Tools.CurrentThreadRandom.Next(BackupSongs.Count)].SongId;
+            var randomSong = BackupPlaylist.Songs[Tools.CurrentThreadRandom.Next(BackupPlaylist.Songs.Count)].SongId;
             return randomSong;
         }
 
@@ -64,10 +63,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             var song = await GetSong("ZyhrYis509A");
             if (song != null)
-                BackupSongs.Add(song);
+                BackupPlaylist.Songs.Add(song);
             song = await GetSong("EAwWPadFsOA");
             if (song != null)
-                BackupSongs.Add(song);
+                BackupPlaylist.Songs.Add(song);
         }
 
         public async void UpdateState(int state)

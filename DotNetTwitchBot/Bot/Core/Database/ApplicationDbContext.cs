@@ -28,6 +28,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<DeathCounter> DeathCounters { get; set; } = null!;
         public DbSet<KeywordType> Keywords { get; set; } = null!;
         public DbSet<Setting> Settings { get; set; } = null!;
+        public DbSet<MusicPlaylist> Playlists { get; set; } = null!;
+        public DbSet<Song> Songs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
