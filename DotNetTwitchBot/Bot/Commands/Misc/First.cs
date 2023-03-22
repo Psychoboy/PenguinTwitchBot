@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (ClaimedFirst.Contains(sender.ToLower())) return;
 
             ClaimedFirst.Add(sender.ToLower());
-            var awardPoints = Tools.CurrentThreadRandom.Next(1, 3);
+            var awardPoints = Tools.CurrentThreadRandom.Next(1, 4);
             await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }

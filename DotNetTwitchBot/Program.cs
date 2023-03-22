@@ -14,7 +14,6 @@ using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
 using Serilog.Filters;
 using DotNetTwitchBot.Bot.TwitchServices;
-using DotNetTwitchBot.Hubs;
 
 internal class Program
 {
@@ -48,7 +47,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Misc.IYtPlayer, DotNetTwitchBot.Bot.Commands.Misc.YtPlayer>();
+        //builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Music.YtPlayer>();
 
         //Add Features Here:
         var commands = new List<Type>();
@@ -73,6 +72,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
@@ -187,7 +187,7 @@ internal class Program
             await websocketMessenger.CloseAllSockets();
         });
 
-        app.MapHub<YtHub>("/ythub");
+        app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.Run(); //Start in future to read input
     }
 }
