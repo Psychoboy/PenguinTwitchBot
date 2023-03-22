@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Models
 {
-    // [Index(nameof(Id), IsUnique =true)]
     [Index(nameof(Username))]
     public class Follower
     {

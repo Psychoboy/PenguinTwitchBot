@@ -273,17 +273,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             return;
                     }
                 }
-            }
+                await processTagsAndSayMessage(e, Commands[e.Command].Response);
 
-            await processTagsAndSayMessage(e, Commands[e.Command].Response);
-
-            if (Commands[e.Command].GlobalCooldown > 0)
-            {
-                AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
-            }
-            if (Commands[e.Command].UserCooldown > 0)
-            {
-                AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                if (Commands[e.Command].GlobalCooldown > 0)
+                {
+                    AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                }
+                if (Commands[e.Command].UserCooldown > 0)
+                {
+                    AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                }
             }
         }
 
