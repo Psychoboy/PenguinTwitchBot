@@ -154,7 +154,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var pay = Convert.ToInt64(participant.Bet * 1.5);
                 await _loyaltyFeature.AddPointsToViewer(participant.Name, pay);
-                var formattedName = string.Format("{0} ({1})", participant.DisplayName, participant.Bet + pay);
+                var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                 maxlength += formattedName.Length;
                 payouts.Add(formattedName);
             }
