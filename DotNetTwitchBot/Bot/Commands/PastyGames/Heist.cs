@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
-        private string Command = "testheist";
+        private string Command = "heist";
 
         enum State
         {
