@@ -87,16 +87,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
 
             if (points < 0) { await _serviceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName)); }
+            var enteredTickets = await GetEntriesCount(sender);
+            if (points + enteredTickets > 1000000)
+            {
+                points = 1000000 - points;
+                await _serviceBackbone.SendChatMessage(displayName, string.Format("Max entries is 1,000,000, so entering {0} instead to max you out.", points));
+                if (points == 0)
+                {
+                    return;
+                }
+            }
 
             if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
             {
                 await _serviceBackbone.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
                 return;
-            }
-
-            if (points > 1000000)
-            {
-                await _serviceBackbone.SendChatMessage("@{0}, Max entries is 1,000,000");
             }
 
             var entries = new GiveawayEntry[points];
@@ -123,15 +128,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await _serviceBackbone.SendChatMessage($"@{sender}, you have bought {points} entries.");
         }
 
-        private async Task Entries(string sender)
+        private async Task<int> GetEntriesCount(string sender)
         {
-
             var entries = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 entries = await db.GiveawayEntries.Where(x => x.Username.Equals(sender)).CountAsync();
             }
+            return entries;
+        }
+
+        private async Task Entries(string sender)
+        {
+            var entries = await GetEntriesCount(sender);
             await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 
