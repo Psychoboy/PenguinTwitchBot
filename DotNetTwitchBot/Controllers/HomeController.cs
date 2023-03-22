@@ -23,6 +23,11 @@ namespace DotNetTwitchBot.Controllers
             return View();
         }
 
+        public IActionResult YtPlayer()
+        {
+            return View();
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

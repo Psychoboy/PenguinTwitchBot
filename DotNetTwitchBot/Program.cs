@@ -14,6 +14,7 @@ using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
 using Serilog.Filters;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Hubs;
 
 internal class Program
 {
@@ -110,6 +111,8 @@ internal class Program
             ));
         });
 
+        builder.Services.AddSignalR();
+
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -183,6 +186,7 @@ internal class Program
             await websocketMessenger.CloseAllSockets();
         });
 
+        app.MapHub<YtHub>("/ythub");
         app.Run(); //Start in future to read input
     }
 }
