@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int? Id { get; set; }
+        public Int64? Id { get; set; }
         public string Username { get; set; } = "";
     }
 }
