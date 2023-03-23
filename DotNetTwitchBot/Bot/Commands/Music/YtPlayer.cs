@@ -113,7 +113,32 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 case "testsr":
                     await SongRequest(e);
                     break;
+                case "testpriority":
+                    await MovePriority(e);
+                    break;
             }
+        }
+
+        private async Task MovePriority(CommandEventArgs e)
+        {
+            if (IsCoolDownExpired(e.Name, e.Command))
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "!priority is still on cooldown for you.");
+                return;
+            }
+
+            foreach (var song in Requests)
+            {
+                if (song.RequestedBy.Equals(e.DisplayName))
+                {
+                    Requests.Remove(song);
+                    Requests.Insert(0, song);
+                    await _serviceBackbone.SendChatMessage(e.DisplayName, "{0} was moved to next song.");
+                    AddCoolDown(e.Name, e.Command, 60 * 30);
+                    return;
+                }
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
         }
 
         private async Task SongRequest(CommandEventArgs e)
