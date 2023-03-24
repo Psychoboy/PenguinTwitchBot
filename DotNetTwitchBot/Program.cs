@@ -186,7 +186,10 @@ internal class Program
             logger.LogInformation("Application trying to stop.");
             await websocketMessenger.CloseAllSockets();
         });
-
+        AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
+        {
+            logger.LogError(eventArgs.Exception, "Global Exception Caught");
+        };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.Run(); //Start in future to read input
     }
