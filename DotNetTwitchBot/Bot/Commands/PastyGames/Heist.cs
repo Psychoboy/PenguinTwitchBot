@@ -118,6 +118,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 _logger.LogError("State was null, state should never be null!");
                 return;
             }
+
             var heist = (Heist)state;
             await heist.RunStory();
         }

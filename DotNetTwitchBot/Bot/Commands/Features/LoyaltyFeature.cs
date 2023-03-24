@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
-            _intervalTimer = new Timer(timerCallback, this, 20000, 60000);
+            _intervalTimer = new Timer(timerCallback, this, 60000, 60000);
             _serviceBackbone.ChatMessageEvent += OnChangeMessage;
             _logger = logger;
         }
@@ -60,6 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _logger.LogError("State was null, state should never be null!");
                 return;
             }
+            _logger.LogInformation("Doing Loyalty");
             var feature = (LoyaltyFeature)state;
             try
             {
@@ -69,6 +70,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 _logger.LogError(e, "Failed to update timer");
             }
+            _logger.LogInformation("Finished Loyalty");
         }
 
         private async Task UpdatePointsAndTime()
