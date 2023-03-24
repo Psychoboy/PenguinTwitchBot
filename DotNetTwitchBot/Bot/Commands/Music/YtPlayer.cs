@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
     public class YtPlayer : BaseCommand
     {
         private IHubContext<YtHub> _hubContext;
+        private IServiceScopeFactory _scopeFactory;
         private YouTubeService _youtubeService;
         private List<Song> Requests = new List<Song>();
         private MusicPlaylist BackupPlaylist = new MusicPlaylist();
@@ -31,10 +32,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public YtPlayer(
             IConfiguration configuration,
             IHubContext<YtHub> hubContext,
+            IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone
         ) : base(serviceBackbone)
         {
             _hubContext = hubContext;
+            _scopeFactory = scopeFactory;
             _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = configuration["youtubeApi"],
@@ -61,6 +64,30 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task LoadBackupList()
         {
+
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
+                if (lastPlaylist != null)
+                {
+                    var playList = await db.Playlists.FirstOrDefaultAsync(x => x.Id == lastPlaylist.IntSetting);
+                    if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
+                    {
+                        BackupPlaylist = playList;
+                        return;
+                    }
+                }
+                {
+                    var playList = await db.Playlists.LastOrDefaultAsync();
+                    if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
+                    {
+                        BackupPlaylist = playList;
+                        return;
+                    }
+                }
+            }
+
             var song = await GetSong("ZyhrYis509A");
             if (song != null)
                 BackupPlaylist.Songs.Add(song);
@@ -116,7 +143,28 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 case "testpriority":
                     await MovePriority(e);
                     break;
+                case "testimportpl":
+                    await ImportPlaylist(e);
+                    break;
+                case "testloadpl":
+                    await LoadPlaylist(e);
+                    break;
             }
+        }
+
+        private Task LoadPlaylist(CommandEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task ImportPlaylist(CommandEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task ImportPl(CommandEventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private async Task MovePriority(CommandEventArgs e)

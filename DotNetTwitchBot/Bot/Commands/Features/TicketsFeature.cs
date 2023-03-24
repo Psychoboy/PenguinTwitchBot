@@ -180,7 +180,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch (e.Command)
             {
-                case "testpoints":
+                case "special":
                     {
                         await SayViewerTickets(e);
                         break;

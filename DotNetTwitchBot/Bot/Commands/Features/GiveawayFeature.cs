@@ -39,13 +39,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch (e.Command)
             {
-                case "testenter":
+                case "giveme":
                     {
                         if (e.Args.Count() == 0) return;
                         await Enter(e.Name, e.Args.First());
                         break;
                     }
-                case "testentries":
+                case "entries":
                     {
                         await Entries(e.Name);
                         break;
@@ -68,8 +68,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         await Reset();
                         break;
                     }
-                case "testprize":
+                case "antares":
                     {
+                        await _serviceBackbone.SendChatMessage(e.DisplayName, "Doing a special giveaway tonight for an antares! Do !special to see how many tickets you have then do !giveme # replacing # with the number of tickets or use all/max. Winner MUST be a follower and whisper me before next stream to claim.");
                         break;
                     }
             }
@@ -101,19 +102,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task Draw()
         {
-            // GiveawayEntry? entry = null;
-            // await using (var scope = _scopeFactory.CreateAsyncScope())
-            // {
-            //     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            //     var count = await db.GiveawayEntries.CountAsync();
-            //     var randomIndex = Tools.CurrentThreadRandom.Next(count);
-            //     entry = await db.GiveawayEntries.OrderBy(p => Guid.NewGuid()).Skip(randomIndex).Take(1).FirstOrDefaultAsync();
-            // }
-            // if (entry == null) return;
-            // _logger.LogInformation("Entry Id: {0} Username {1} selected", entry.Id, entry.Username);
-            // var isFollower = await _viewerFeature.IsFollower(entry.Username);
-            // var viewer = await _viewerFeature.GetViewer(entry.Username);
-            // await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.DisplayName : entry.Username, isFollower ? "is" : "is not"));
             if (Tickets.Count == 0)
             {
                 await _serviceBackbone.SendChatMessage("Closing Giveaway prior to drawing ticket");
@@ -148,7 +136,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 return;
             }
 
-            if (points < 0) { await _serviceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName)); }
+            if (points < 0)
+            {
+                await _serviceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName));
+                return;
+            }
 
             var enteredTickets = await GetEntriesCount(sender);
             if (points + enteredTickets > 1000000)
