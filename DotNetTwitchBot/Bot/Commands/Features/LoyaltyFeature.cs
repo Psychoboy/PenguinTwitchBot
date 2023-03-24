@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly Timer _intervalTimer;
+        private Timer _intervalTimer;
         private readonly ILogger<LoyaltyFeature> _logger;
 
         public LoyaltyFeature(
@@ -55,9 +55,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void timerCallback(object? state)
         {
-            if (state == null) return;
+            if (state == null)
+            {
+                _logger.LogError("State was null, state should never be null!");
+                return;
+            }
             var feature = (LoyaltyFeature)state;
-            await feature.UpdatePointsAndTime();
+            try
+            {
+                await feature.UpdatePointsAndTime();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to update timer");
+            }
         }
 
         private async Task UpdatePointsAndTime()
@@ -67,55 +78,62 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var viewers = new List<Viewer>();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                foreach (var viewerName in currentViewers)
+                try
                 {
-                    var viewer = await db.Viewers.Where(x => x.Username.Equals(viewerName)).FirstOrDefaultAsync();
-                    if (viewer == null)
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    foreach (var viewerName in currentViewers)
                     {
-                        continue;
+                        var viewer = await db.Viewers.Where(x => x.Username.Equals(viewerName)).FirstOrDefaultAsync();
+                        if (viewer == null)
+                        {
+                            continue;
+                        }
+                        viewers.Add(viewer);
                     }
-                    viewers.Add(viewer);
-                }
 
-                //Give points
-                //var viewerPoints = await db.ViewerPoints.Where(x => viewers.Any(y => y.Username.Equals(x.Username))).ToListAsync();
-                var viewerNames = viewers.Select(x => x.Username);
-                var missingViewerNames = viewerNames.ToList();
-                var viewerPoints = await db.ViewerPoints.Where(x => viewerNames.Contains(x.Username)).ToListAsync();
-                foreach (var viewerPoint in viewerPoints)
-                {
-                    viewerPoint.Points += 5;
-                    missingViewerNames.Remove(viewerPoint.Username);
-                }
-                foreach (var missingViewerName in missingViewerNames)
-                {
-                    viewerPoints.Add(new ViewerPoint
+                    //Give points
+                    //var viewerPoints = await db.ViewerPoints.Where(x => viewers.Any(y => y.Username.Equals(x.Username))).ToListAsync();
+                    var viewerNames = viewers.Select(x => x.Username);
+                    var missingViewerNames = viewerNames.ToList();
+                    var viewerPoints = await db.ViewerPoints.Where(x => viewerNames.Contains(x.Username)).ToListAsync();
+                    foreach (var viewerPoint in viewerPoints)
                     {
-                        Username = missingViewerName,
-                        Points = 5
-                    });
-                }
-                db.ViewerPoints.UpdateRange(viewerPoints);
-
-                missingViewerNames = viewerNames.ToList();
-                var viewersTime = await db.ViewersTime.Where(x => viewerNames.Contains(x.Username)).ToListAsync();
-                foreach (var viewerTime in viewersTime)
-                {
-                    viewerTime.Time += 60;
-                    missingViewerNames.Remove(viewerTime.Username);
-                }
-                foreach (var missingViewerName in missingViewerNames)
-                {
-                    viewersTime.Add(new ViewerTime
+                        viewerPoint.Points += 5;
+                        missingViewerNames.Remove(viewerPoint.Username);
+                    }
+                    foreach (var missingViewerName in missingViewerNames)
                     {
-                        Username = missingViewerName,
-                        Time = 60
-                    });
-                }
+                        viewerPoints.Add(new ViewerPoint
+                        {
+                            Username = missingViewerName,
+                            Points = 5
+                        });
+                    }
+                    db.ViewerPoints.UpdateRange(viewerPoints);
 
-                db.ViewersTime.UpdateRange(viewersTime);
-                await db.SaveChangesAsync();
+                    missingViewerNames = viewerNames.ToList();
+                    var viewersTime = await db.ViewersTime.Where(x => viewerNames.Contains(x.Username)).ToListAsync();
+                    foreach (var viewerTime in viewersTime)
+                    {
+                        viewerTime.Time += 60;
+                        missingViewerNames.Remove(viewerTime.Username);
+                    }
+                    foreach (var missingViewerName in missingViewerNames)
+                    {
+                        viewersTime.Add(new ViewerTime
+                        {
+                            Username = missingViewerName,
+                            Time = 60
+                        });
+                    }
+
+                    db.ViewersTime.UpdateRange(viewersTime);
+                    await db.SaveChangesAsync();
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Failed to update timer");
+                }
             }
 
         }

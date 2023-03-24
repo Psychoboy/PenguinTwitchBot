@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private List<Participant> Survivors = new List<Participant>();
         private List<Participant> Caught = new List<Participant>();
         private Timer JoinTimer;
-
+        private ILogger<Heist> _logger;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
         private string Command = "heist";
@@ -41,18 +41,24 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Heist(
             LoyaltyFeature loyaltyFeature,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone
+            ServiceBackbone serviceBackbone,
+            ILogger<Heist> logger
             ) : base(serviceBackbone)
         {
             _loyaltyFeature = loyaltyFeature;
             _viewerFeature = viewerFeature;
             JoinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
+            _logger = logger;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (!e.Command.Equals(Command)) return;
-            if (!IsCoolDownExpired(e.Name, e.Command)) return;
+            if (!IsCoolDownExpired(e.Name, e.Command))
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "!heist is still on cooldown");
+                return;
+            }
             if (GameState == State.Finishing)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you can not join the heist now.");
@@ -95,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _serviceBackbone.SendChatMessage(string.Format("{0} is trying to get a team together for some serious heist business! use \"!heist AMOUNT/ALL/MAX\" to join!", e.DisplayName));
                 GameState = State.Running;
-                JoinTimer.Change(JoinTime * 1000, Timeout.Infinite);
+                JoinTimer.Change(JoinTime * 1000, JoinTime * 1000);
             }
             Entered.Add(new Participant
             {
@@ -107,7 +113,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async void JoinTimerCallback(object? state)
         {
-            if (state == null) return;
+            if (state == null)
+            {
+                _logger.LogError("State was null, state should never be null!");
+                return;
+            }
             var heist = (Heist)state;
             await heist.RunStory();
         }
@@ -115,73 +125,103 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private async Task RunStory()
         {
             GameState = State.Finishing;
-            switch (CurrentStoryPart)
+            try
             {
-                case 0:
-                    CalculateResult();
-                    await _serviceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! SHARK");
-                    JoinTimer.Change(5000, 5000);
-                    break;
-                case 1:
-                    await _serviceBackbone.SendChatMessage("Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
-                    break;
-                case 2:
-                    if (Caught.Count > 0)
-                    {
-                        await _serviceBackbone.SendChatMessage(string.Format("Look out! Charlie SHARK captured {0}", GetCaughtNames()));
-                    }
-                    break;
-                case 3:
-                    if (Survivors.Count > 0)
-                    {
-                        await _serviceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sharkS and grab some of those precious pasties!", GetWinnerNames()));
-                    }
-                    break;
-                default:
-                    await EndHeist();
-                    break;
+                switch (CurrentStoryPart)
+                {
+                    case 0:
+                        CalculateResult();
+                        await _serviceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! SHARK");
+                        JoinTimer.Change(5000, 5000);
+                        CurrentStoryPart++;
+                        return;
+
+                    case 1:
+                        await _serviceBackbone.SendChatMessage("Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
+                        CurrentStoryPart++;
+                        return;
+
+                    case 2:
+                        if (Caught.Count > 0)
+                        {
+                            await _serviceBackbone.SendChatMessage(string.Format("Look out! Charlie SHARK captured {0}", GetCaughtNames()));
+                        }
+                        CurrentStoryPart++;
+                        return;
+
+                    case 3:
+                        if (Survivors.Count > 0)
+                        {
+                            await _serviceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sharkS and grab some of those precious pasties!", GetWinnerNames()));
+                        }
+                        CurrentStoryPart++;
+                        return;
+                }
+
             }
-            CurrentStoryPart++;
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed finishing heist");
+                await EndHeist();
+            }
+            await EndHeist();
         }
 
 
         private async Task EndHeist()
         {
-            JoinTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            var maxlength = 0;
-            var payouts = new List<string>();
-            foreach (var participant in Survivors)
+            try
             {
-                var pay = Convert.ToInt64(participant.Bet * 1.5);
-                await _loyaltyFeature.AddPointsToViewer(participant.Name, pay);
-                var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
-                maxlength += formattedName.Length;
-                payouts.Add(formattedName);
-            }
+                JoinTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                var maxlength = 0;
+                var payouts = new List<string>();
+                foreach (var participant in Survivors)
+                {
+                    var pay = Convert.ToInt64(participant.Bet * 1.5);
+                    await _loyaltyFeature.AddPointsToViewer(participant.Name, pay);
+                    var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
+                    maxlength += formattedName.Length;
+                    payouts.Add(formattedName);
+                }
 
-            if (payouts.Count == 0)
-            {
-                await _serviceBackbone.SendChatMessage("The heist ended! There are no survivors.");
+                if (payouts.Count == 0)
+                {
+                    await _serviceBackbone.SendChatMessage("The heist ended! There are no survivors.");
+                }
+                else if (((maxlength + 14) + "superpenguintv".Length) > 512)
+                {
+                    await _serviceBackbone.SendChatMessage(string.Format("The heist ended with {0} survivor(s) and {1} death(s).", Survivors.Count, Caught.Count));
+                }
+                else
+                {
+                    await _serviceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(",", payouts)));
+                }
+                CleanUp();
             }
-            else if (((maxlength + 14) + "superpenguintv".Length) > 512)
+            catch (Exception e)
             {
-                await _serviceBackbone.SendChatMessage(string.Format("The heist ended with {0} survivor(s) and {1} death(s).", Survivors.Count, Caught.Count));
+                _logger.LogError(e, "Failed Ending heist");
+                CleanUp();
             }
-            else
-            {
-                await _serviceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(",", payouts)));
-            }
-            CleanUp();
         }
 
         private void CleanUp()
         {
-            Entered.Clear();
-            Survivors.Clear();
-            Caught.Clear();
-            GameState = State.NotRunning;
-            CurrentStoryPart = 0;
-            AddGlobalCooldown(Command, Cooldown);
+            try
+            {
+                Entered.Clear();
+                Survivors.Clear();
+                Caught.Clear();
+                GameState = State.NotRunning;
+                CurrentStoryPart = 0;
+                AddGlobalCooldown(Command, Cooldown);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed Cleaning heist");
+                GameState = State.NotRunning;
+                CurrentStoryPart = 0;
+            }
         }
 
         private string GetWinnerNames()

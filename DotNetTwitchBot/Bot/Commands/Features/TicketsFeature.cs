@@ -124,7 +124,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.ViewerTickets.Update(viewerPoints);
                 await db.SaveChangesAsync();
             }
-            _logger.LogInformation("Gave points to {0}", viewer);
+            // _logger.LogInformation("Gave points to {0}", viewer);
             return viewerPoints.Points;
         }
 
