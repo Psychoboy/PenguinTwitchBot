@@ -60,7 +60,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _logger.LogError("State was null, state should never be null!");
                 return;
             }
-            _logger.LogInformation("Doing Loyalty");
             var feature = (LoyaltyFeature)state;
             try
             {
@@ -70,7 +69,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 _logger.LogError(e, "Failed to update timer");
             }
-            _logger.LogInformation("Finished Loyalty");
         }
 
         private async Task UpdatePointsAndTime()
