@@ -21,8 +21,10 @@ namespace DotNetTwitchBot.Bot.Core
             BotName = configuration["botName"];
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
+        public delegate Task AsyncEventHandler<TEventArgs, TEventArgs2>(object? sender, TEventArgs e, TEventArgs2 e2);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
+        public event AsyncEventHandler<String, String>? SendWhisperMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
@@ -115,6 +117,14 @@ namespace DotNetTwitchBot.Bot.Core
             if (SendMessageEvent != null)
             {
                 await SendMessageEvent(this, string.Format("@{0}, {1}", name, message));
+            }
+        }
+
+        public async Task SendWhisperMessage(string name, string message)
+        {
+            if (SendWhisperMessageEvent != null)
+            {
+                await SendWhisperMessageEvent(this, name, message);
             }
         }
 

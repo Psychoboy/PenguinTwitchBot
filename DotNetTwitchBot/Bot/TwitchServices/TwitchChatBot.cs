@@ -27,13 +27,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventService = eventService;
             _twitchService = twitchService;
             _eventService.SendMessageEvent += CommandService_OnSendMessage;
+            _eventService.SendWhisperMessageEvent += CommandService_OnWhisperMessage;
 
         }
+
+
 
         private Task CommandService_OnSendMessage(object? sender, string e)
         {
             _twitchClient.SendMessage(_configuration["broadcaster"], e);
             _logger.LogInformation("BOTCHATMSG: {0}", e);
+            return Task.CompletedTask;
+        }
+
+        private Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
+        {
+            _twitchClient.SendWhisper(e, e2);
+            _logger.LogInformation("BOTWHISPERMSG: {0}", e + ": " + e2);
             return Task.CompletedTask;
         }
 
