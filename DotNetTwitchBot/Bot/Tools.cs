@@ -15,6 +15,11 @@ namespace DotNetTwitchBot.Bot
             get { return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
         }
 
+        public static int RandomRange(int min, int max)
+        {
+            return CurrentThreadRandom.Next(min, max + 1);
+        }
+
         public static void Shuffle<T>(this IList<T> list)
         {
             int n = list.Count;
