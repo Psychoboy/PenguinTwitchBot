@@ -190,6 +190,10 @@ internal class Program
         });
         AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
+            if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException))
+            {
+                return; //Ignore
+            }
             logger.LogError(eventArgs.Exception, "Global Exception Caught");
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");

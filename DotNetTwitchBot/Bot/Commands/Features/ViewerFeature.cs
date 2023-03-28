@@ -363,7 +363,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (e.Command.Equals("tw"))
             {
-                await _twitchBotService.TestWhisper(e.Name, "Test Whisper Message");
+                await _twitchBotService.SendWhisper(e.Name, "Test Whisper Message");
             }
             // return Task.CompletedTask;
         }

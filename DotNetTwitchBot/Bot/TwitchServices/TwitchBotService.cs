@@ -16,11 +16,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     public class TwitchBotService
     {
         private readonly TwitchAPI _twitchApi = new TwitchAPI();
-        private ILogger<TwitchService> _logger;
+        private ILogger<TwitchBotService> _logger;
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
         Timer _timer;
-        public TwitchBotService(ILogger<TwitchService> logger, IConfiguration configuration)
+        public TwitchBotService(ILogger<TwitchBotService> logger, IConfiguration configuration)
         {
 
             _logger = logger;
@@ -41,15 +41,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         }
 
-        public async Task TestWhisper(string target, string message)
+        public async Task SendWhisper(string target, string message)
         {
-            await ValidateAndRefreshBotToken();
-            var botId = await GetBotUserId();
-            if (botId == null) return;
-            var userId = await GetUserId(target);
-            if (userId == null) return;
-            var accessToken = _configuration["twitchBotAccessToken"];
-            await _twitchApi.Helix.Whispers.SendWhisperAsync(botId, userId, message, true, accessToken);
+            try
+            {
+                await ValidateAndRefreshBotToken();
+                var botId = await GetBotUserId();
+                if (botId == null) return;
+                var userId = await GetUserId(target);
+                if (userId == null) return;
+                var accessToken = _configuration["twitchBotAccessToken"];
+                await _twitchApi.Helix.Whispers.SendWhisperAsync(botId, userId, message, true, accessToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending whisper");
+            }
         }
 
         public async Task<string?> GetBotUserId()
