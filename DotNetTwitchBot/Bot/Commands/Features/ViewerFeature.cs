@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         //private ViewerData _viewerData;
         // private FollowData _followData;
         private TwitchService _twitchService;
+        private readonly TwitchBotService _twitchBotService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -27,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ServiceBackbone eventService,
             // ViewerData viewerData,
             TwitchService twitchService,
+            TwitchBotService twitchBotService,
             // FollowData followData
             // ApplicationDbContext applicationDbContext
             IServiceScopeFactory scopeFactory
@@ -45,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             // _followData = followData;
             // _applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
             _twitchService = twitchService;
+            _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
         }
 
@@ -356,9 +359,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
         }
 
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            return Task.CompletedTask;
+            if (e.Command.Equals("tw"))
+            {
+                await _twitchBotService.TestWhisper(e.Name, "Test Whisper Message");
+            }
+            // return Task.CompletedTask;
         }
     }
 }

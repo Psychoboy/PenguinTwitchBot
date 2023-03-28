@@ -1,3 +1,4 @@
+using System.Reflection.Emit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,6 +44,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await ValidateAndRefreshToken();
+            // await ValidateAndRefreshBotToken();
         }
 
         public async Task<List<Subscription>> GetAllSubscriptions()
@@ -58,7 +60,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var after = "";
             while (true)
             {
-                var curSubs = await _twitchApi.Helix.Subscriptions.GetBroadcasterSubscriptionsAsync(userId, 100, after);
+                var curSubs = await _twitchApi.Helix.Subscriptions.GetBroadcasterSubscriptionsAsync(userId, 100, after, accessToken: _configuration["twitchAccessToken"]);
                 if (curSubs != null)
                 {
                     subs.AddRange(curSubs.Data);
@@ -77,6 +79,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
+
+            return users.Users.FirstOrDefault()?.Id;
+        }
+
+        public async Task<string?> GetBotUserId()
+        {
+            var broadcaster = _configuration["botName"];
+            if (broadcaster == null) return null;
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchBotAccessToken"]);
 
             return users.Users.FirstOrDefault()?.Id;
         }
@@ -137,7 +148,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId });
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
             if (streams.Streams == null)
             {
                 return false;
@@ -153,7 +164,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId });
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
             if (streams.Streams.Count() == 0)
             {
                 return DateTime.MinValue;
@@ -162,6 +173,17 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var startTime = stream.StartedAt;
             return startTime;
         }
+
+        // public async Task TestWhisper(string target, string message)
+        // {
+        //     await ValidateAndRefreshBotToken();
+        //     var botId = await GetBotUserId();
+        //     if (botId == null) return;
+        //     var userId = await GetUserId(target);
+        //     if (userId == null) return;
+        //     var accessToken = _configuration["twitchBotAccessToken"];
+        //     await _twitchApi.Helix.Whispers.SendWhisperAsync(botId, userId, message, true, accessToken);
+        // }
 
         public async Task<string> GetCurrentGame()
         {
@@ -192,7 +214,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     {"moderator_user_id", userId}
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -200,7 +222,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -208,7 +230,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -216,7 +238,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -224,7 +246,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -233,7 +255,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -242,7 +264,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -251,7 +273,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
-                sessionId
+                sessionId, accessToken: _configuration["twitchAccessToken"]
             );
         }
 
@@ -259,7 +281,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             try
             {
-                var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync();
+                var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
                     var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
@@ -290,6 +312,43 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex, "Error when validing/refreshing token");
             }
         }
+
+        public async Task ValidateAndRefreshBotToken()
+        {
+            try
+            {
+                var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchBotAccessToken"]);
+                if (validToken != null && validToken.ExpiresIn > 1200)
+                {
+                    var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
+                    AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
+                }
+                else
+                {
+                    try
+                    {
+                        _logger.LogInformation("Refreshing Bot Token");
+                        var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchBotRefreshToken"], _configuration["twitchBotClientSecret"], _configuration["twitchBotClientId"]);
+                        _configuration["twitchBotAccessToken"] = refreshToken.AccessToken;
+                        _configuration["botExpiresIn"] = refreshToken.ExpiresIn.ToString();
+                        _configuration["twitchBotRefreshToken"] = refreshToken.RefreshToken;
+                        //_twitchApi.Settings.AccessToken = refreshToken.AccessToken;
+                        AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
+                        AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
+                        AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError("Error refreshing bot token: {0}", e.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error when validing/refreshing bot token");
+            }
+        }
+
 
         public void AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {

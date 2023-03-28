@@ -38,6 +38,7 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
+        builder.Services.AddSingleton<TwitchBotService>();
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
