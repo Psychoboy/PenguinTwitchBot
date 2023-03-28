@@ -7,6 +7,9 @@ using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Timers;
+using Timer = System.Timers.Timer;
+
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -22,6 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly TwitchBotService _twitchBotService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private Timer _timer;
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
@@ -49,6 +53,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _twitchService = twitchService;
             _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
+            _timer = new Timer();
+            _timer = new Timer(900000); //15 minutes
+            _timer.Elapsed += OnTimerElapsed;
+            _timer.Start();
+        }
+
+        private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
+        {
+            await UpdateSubscribers();
         }
 
         private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
@@ -158,7 +171,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetCurrentViewers()
         {
-            return _users.ToList();
+            var users = _users.ToList();
+            var activeViewers = GetActiveViewers();
+            users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
+            return users.ToList();
         }
 
         public async Task<Viewer?> GetViewer(string username)
@@ -209,7 +225,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.Sender == null) return;
             _logger.LogInformation("{0} Unsubscribed", e.Sender);
             await RemoveSubscription(e.Sender);
-            updateLastActive(e.Sender);
+            // updateLastActive(e.Sender);
         }
 
         private async Task AddSubscription(string username)

@@ -225,6 +225,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
+            // await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            //     "channel.subscribe.end", "1",
+            //     new Dictionary<string, string>{{"broadcaster_user_id", userId},
+            //     },
+            //     TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+            //     sessionId, accessToken: _configuration["twitchAccessToken"]
+            // );
+
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.gift", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
