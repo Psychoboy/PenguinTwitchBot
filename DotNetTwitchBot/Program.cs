@@ -190,7 +190,8 @@ internal class Program
         });
         AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
-            if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException))
+            if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
+                eventArgs.Exception.GetType() == typeof(System.IO.IOException))
             {
                 return; //Ignore
             }
