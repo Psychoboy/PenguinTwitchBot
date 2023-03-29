@@ -15,10 +15,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
     {
         private IHubContext<YtHub> _hubContext;
         private IServiceScopeFactory _scopeFactory;
+        private ILogger<YtPlayer> _logger;
         private YouTubeService _youtubeService;
         private List<Song> Requests = new List<Song>();
         private MusicPlaylist BackupPlaylist = new MusicPlaylist();
         private PlayerState State = PlayerState.UnStarted;
+        private Song? LastSong = null;
+        private Song? CurrentSong = null;
+        private Song? NextSong = null;
+        private List<string> SkipVotes = new List<string>();
         enum PlayerState
         {
             UnStarted = -1,
@@ -31,6 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public YtPlayer(
             IConfiguration configuration,
+            ILogger<YtPlayer> logger,
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone
@@ -38,6 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
+            _logger = logger;
             _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = configuration["youtubeApi"],
@@ -51,6 +58,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 var song = Requests.First();
                 Requests.RemoveAt(0);
+                LastSong = CurrentSong;
+                CurrentSong = song;
+                NextSong = Requests.FirstOrDefault();
+                SkipVotes.Clear();
+
                 return song.SongId;
             }
 
@@ -58,8 +70,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 await LoadBackupList();
             }
-            var randomSong = BackupPlaylist.Songs[Tools.CurrentThreadRandom.Next(BackupPlaylist.Songs.Count)].SongId;
-            return randomSong;
+            var randomSong = Tools.RandomElement(BackupPlaylist.Songs);
+            LastSong = CurrentSong;
+            CurrentSong = randomSong;
+            NextSong = null;
+            SkipVotes.Clear();
+            return randomSong.SongId;
         }
 
         private async Task LoadBackupList()
@@ -71,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
                 if (lastPlaylist != null)
                 {
-                    var playList = await db.Playlists.FirstOrDefaultAsync(x => x.Id == lastPlaylist.IntSetting);
+                    var playList = await db.Playlists.Include(x => x.Songs).FirstOrDefaultAsync(x => x.Id == lastPlaylist.IntSetting);
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
@@ -79,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     }
                 }
                 {
-                    var playList = await db.Playlists.LastOrDefaultAsync();
+                    var playList = await db.Playlists.Include(x => x.Songs).OrderBy(x => x.Id).LastOrDefaultAsync();
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
@@ -131,40 +147,199 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             switch (e.Command)
             {
-                case "testnextsong":
-                    await PlayNextSong();
+                case "lastsong":
+                    await SayLastSong(e);
                     break;
-                case "testpause":
-                    await Pause();
+                case "song":
+                case "currentsong":
+                    await SaySong(e);
                     break;
-                case "testsr":
+                case "nextsong":
+                    await SayNextSong(e);
+                    break;
+
+
+                case "skip":
+                case "voteskip":
+                    await VoteSkipSong(e);
+                    break;
+                case "veto":
+                    if (e.isMod || e.isBroadcaster)
+                    {
+                        await PlayNextSong();
+                    }
+                    break;
+                case "pause":
+                    if (e.isBroadcaster)
+                    {
+                        await Pause();
+                    }
+                    break;
+                case "sr":
                     await SongRequest(e);
                     break;
-                case "testpriority":
+                case "priority":
                     await MovePriority(e);
                     break;
-                case "testimportpl":
+                case "importpl":
+                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                    if (e.Args.Count < 2) return;
                     await ImportPlaylist(e);
                     break;
                 case "testloadpl":
+                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     await LoadPlaylist(e);
                     break;
             }
         }
 
-        private Task LoadPlaylist(CommandEventArgs e)
+        private async Task VoteSkipSong(CommandEventArgs e)
         {
-            throw new NotImplementedException();
+            if (SkipVotes.Contains(e.Name))
+            {
+                return;
+            }
+            SkipVotes.Add(e.Name);
+            if (SkipVotes.Count >= 3)
+            {
+                await _serviceBackbone.SendChatMessage($"{e.DisplayName} voted to skip the song and was the 3rd vote. Skipping song.");
+                await PlayNextSong();
+                return;
+            }
+
+            await _serviceBackbone.SendChatMessage($"{e.DisplayName} is trying to skip the current song. {3 - SkipVotes.Count} more votes needed.");
         }
 
-        private Task ImportPlaylist(CommandEventArgs e)
+        private async Task SayNextSong(CommandEventArgs e)
         {
-            throw new NotImplementedException();
+            var nextSong = NextSong;
+            if (nextSong == null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
+                return;
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId}");
         }
 
-        private Task ImportPl(CommandEventArgs e)
+        private async Task SaySong(CommandEventArgs e)
         {
-            throw new NotImplementedException();
+            var currentSong = CurrentSong;
+            if (currentSong == null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
+                return;
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The current song was [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId}");
+        }
+
+        private async Task SayLastSong(CommandEventArgs e)
+        {
+            var lastSong = LastSong;
+            if (lastSong == null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
+                return;
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId}");
+        }
+
+        private async Task LoadPlaylist(CommandEventArgs e)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(e.Arg));
+                if (playList == null)
+                {
+                    await _serviceBackbone.SendChatMessage("No playlist found");
+                    return;
+                }
+                BackupPlaylist = playList;
+                var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
+                if (lastPlaylist == null)
+                {
+                    lastPlaylist = new Setting
+                    {
+                        Name = "LastSongList",
+                        IntSetting = playList.Id ?? default(int)
+                    };
+                }
+            }
+        }
+
+        private async Task ImportPlaylist(CommandEventArgs e)
+        {
+            try
+            {
+                await _serviceBackbone.SendChatMessage("Importing Playlist");
+                var playListName = e.Args[0];
+                var playListFile = e.Args[1];
+                if (string.IsNullOrEmpty(playListFile) || string.IsNullOrWhiteSpace(playListName))
+                {
+                    await _serviceBackbone.SendChatMessage("Invalid playlist name or file name");
+                    return;
+                }
+
+                if (File.Exists($"Playlists/{playListFile}") == false)
+                {
+                    await _serviceBackbone.SendChatMessage("File doesn't exists");
+                    return;
+                }
+
+                var songLinks = await File.ReadAllLinesAsync($"Playlists/{playListFile}");
+                if (songLinks.Length <= 1)
+                {
+                    await _serviceBackbone.SendChatMessage("No songs in playlist");
+                    return;
+                }
+
+                MusicPlaylist? playList;
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(playListName));
+                    if (playList == null)
+                    {
+                        playList = new MusicPlaylist()
+                        {
+                            Name = playListName
+                        };
+                    }
+                }
+
+                foreach (var songLink in songLinks)
+                {
+                    var songId = await GetSongId(songLink);
+                    if (string.IsNullOrWhiteSpace(songId))
+                    {
+                        continue;
+                    }
+                    var song = await GetSong(songId);
+                    if (song == null)
+                    {
+                        continue;
+                    }
+                    if (playList.Songs.Where(x => x.SongId.Equals(song.SongId)).FirstOrDefault() != null)
+                    {
+                        continue;
+                    }
+                    playList.Songs.Add(song);
+                }
+
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    db.Playlists.Update(playList);
+                    await db.SaveChangesAsync();
+                }
+                await _serviceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs} songs");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to import");
+                await _serviceBackbone.SendChatMessage("Failed to import playlist");
+            }
+
         }
 
         private async Task MovePriority(CommandEventArgs e)
@@ -196,18 +371,23 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
                 return;
             }
-            var client = new HttpClient();
-            var httpRequest = new HttpRequestMessage()
+            var searchResult = await GetSongId(e.Arg);
+            if (string.IsNullOrWhiteSpace(searchResult))
             {
-                RequestUri = new Uri(string.Format("https://beta.decapi.me/youtube/videoid?search={0}", e.Arg)),
-                Method = HttpMethod.Get
-            };
-            var searchResponse = await client.SendAsync(httpRequest);
-            var searchResult = await searchResponse.Content.ReadAsStringAsync();
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
+                return;
+            }
+
+            if (Requests.Where(x => x.SongId.Equals(searchResult)).FirstOrDefault() != null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
+                return;
+            }
+
             var song = await GetSong(searchResult);
             if (song == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or issue finding your song request"));
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
                 return;
             }
             if (song.Duration > new TimeSpan(0, 10, 0))
@@ -218,8 +398,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             song.RequestedBy = e.DisplayName;
             Requests.Add(song);
+            if (NextSong == null)
+            {
+                NextSong = song;
+            }
 
-            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}", song.Title, Requests.Count));
+            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Select(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+        }
+
+        private async Task<string> GetSongId(string searchTerm)
+        {
+            var client = new HttpClient();
+            var httpRequest = new HttpRequestMessage()
+            {
+                RequestUri = new Uri(string.Format("https://beta.decapi.me/youtube/videoid?search={0}", searchTerm)),
+                Method = HttpMethod.Get
+            };
+            var searchResponse = await client.SendAsync(httpRequest);
+            var searchResult = await searchResponse.Content.ReadAsStringAsync();
+            return searchResult;
         }
 
         private async Task<Song?> GetSong(string youtubeId)

@@ -16,5 +16,7 @@ namespace DotNetTwitchBot.Bot.Events
         public bool isMod { get; set; }
         public bool isVip { get; set; }
         public bool isBroadcaster { get; set; }
+        public bool isDiscord { get; set; } = false;
+        public string DiscordMention { get; set; } = "";
     }
 }

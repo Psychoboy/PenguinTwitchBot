@@ -23,6 +23,7 @@ TODO:
     - [X] heist
     - [X] slots
     - [X] Gift pasties
+    - [X] Roll
     - [ ] Boss
 - [ ] Pasty Tax
 - [ ] Greeting system
@@ -31,10 +32,10 @@ TODO:
 - [ ] weather
 - [ ] kill command
 - [ ] Shoutout system
-- [ ] Bonus handlers 
-    - [ ] On Sub
-    - [ ] On Bits
-- [ ] Music (https://developers.google.com/youtube/iframe_api_reference)
+- [X] Bonus handlers 
+    - [X] On Sub
+    - [X] On Bits
+- [X] Music
 - [ ] Blacklist
 - [ ] Timers
 - [ ] Chat Alerts

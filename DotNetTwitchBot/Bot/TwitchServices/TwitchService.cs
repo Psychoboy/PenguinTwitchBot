@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private ILogger<TwitchService> _logger;
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
+        static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
         Timer _timer;
         private SettingsFileManager _settingsFileManager;
 
@@ -291,6 +292,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task ValidateAndRefreshToken()
         {
+            await semaphoreSlim.WaitAsync();
             try
             {
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchAccessToken"]);
@@ -304,6 +306,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     try
                     {
                         _logger.LogInformation("Refreshing Token");
+
                         var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"], _configuration["twitchClientSecret"], _configuration["twitchClientId"]);
                         _configuration["twitchAccessToken"] = refreshToken.AccessToken;
                         _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
@@ -322,6 +325,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error when validing/refreshing token");
+            }
+            finally
+            {
+                semaphoreSlim.Release();
             }
         }
 

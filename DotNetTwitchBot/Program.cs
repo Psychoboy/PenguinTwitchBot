@@ -40,6 +40,7 @@ internal class Program
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
+        builder.Services.AddSingleton<DiscordService>();
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
@@ -130,6 +131,8 @@ internal class Program
         }
         //Loads all the command stuff into memory
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
+        app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
+
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.UpdateSubscribers();
         var customCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.CustomCommand>();
