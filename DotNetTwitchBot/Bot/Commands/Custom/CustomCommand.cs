@@ -286,61 +286,78 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
+        public string CustomCommandResponse(string command)
+        {
+            return Commands[command].Response;
+        }
+
+
+
+        public async Task<CustomCommandResult> ProcessTags(CommandEventArgs eventArgs, string originalText)
+        {
+
+            var message = originalText;
+            var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
+            var cancel = false;
+            while (true)
+            {
+                bool thisTagFound = false;
+                var matches = mainRegex.Matches(message);
+                if (matches.Count == 0) break;
+                foreach (Match match in matches)
+                {
+                    thisTagFound = false;
+                    var groups = match.Groups;
+                    var wholeMatch = groups[1];
+                    var tagName = groups[2];
+                    var tagArgs = groups[3];
+
+                    if (CommandTags.ContainsKey(tagName.Value.Trim()))
+                    {
+                        thisTagFound = true;
+                        CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
+                        if (result.Cancel)
+                        {
+                            cancel = true;
+                            break;
+                        }
+
+                        message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
+                    }
+                    if (!thisTagFound)
+                    {
+                        message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value.Substring(1, wholeMatch.Value.Length - 2) + "\\)");
+                    }
+
+                }
+                if (cancel) return new CustomCommandResult(cancel);
+            }
+            return new CustomCommandResult(message);
+        }
+
         private async Task processTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
         {
             var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            bool cancel = false;
-            bool thisTagFound = false;
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
             {
                 var message = oldMessage;
                 if (string.IsNullOrWhiteSpace(message)) continue;
-                while (true)
+
+                var result = await ProcessTags(eventArgs, message);
+                if (result.Cancel) return;
+
+                if (!string.IsNullOrWhiteSpace(result.Message))
                 {
-                    var matches = mainRegex.Matches(message);
-                    if (matches.Count == 0) break;
-                    foreach (Match match in matches)
-                    {
-                        thisTagFound = false;
-                        var groups = match.Groups;
-                        var wholeMatch = groups[1];
-                        var tagName = groups[2];
-                        var tagArgs = groups[3];
-
-                        if (CommandTags.ContainsKey(tagName.Value.Trim()))
-                        {
-                            thisTagFound = true;
-                            CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
-                            if (result.Cancel)
-                            {
-                                cancel = true;
-                                break;
-                            }
-
-                            message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
-                        }
-                        if (!thisTagFound)
-                        {
-                            message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value.Substring(1, wholeMatch.Value.Length - 2) + "\\)");
-                        }
-
-                    }
-                    if (cancel) break;
-
-                }
-                if (cancel) return;
-
-                if (!string.IsNullOrWhiteSpace(message))
-                {
-                    message = UnescapeTags(message);
+                    message = UnescapeTagsInMessages(result.Message);
                     await _serviceBackbone.SendChatMessage(message);
                 }
             }
         }
 
 
-        private string UnescapeTags(string args)
+        public string UnescapeTagsInMessages(string args)
         {
             var regex = new Regex(@"\\([\\()])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             //var result = regex.Replace(args,)
@@ -381,7 +398,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                return new CustomCommandResult(string.Format("@{0}, ", eventArgs.DisplayName));
+                if (eventArgs.isDiscord)
+                {
+                    return new CustomCommandResult(eventArgs.DiscordMention);
+                }
+                else
+                {
+                    return new CustomCommandResult(string.Format("@{0}, ", eventArgs.DisplayName));
+                }
             });
         }
 
