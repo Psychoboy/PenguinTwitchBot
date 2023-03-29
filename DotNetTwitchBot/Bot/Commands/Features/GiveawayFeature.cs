@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch (e.Command)
             {
-                case "giveme":
+                case "enter":
                     {
                         if (e.Args.Count() == 0) return;
                         await Enter(e.Name, e.Args.First());
@@ -50,29 +50,25 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         await Entries(e.Name);
                         break;
                     }
-                case "testdraw":
+                case "draw":
                     {
                         if (!e.isBroadcaster) return;
                         await Draw();
                         break;
                     }
-                case "testclose":
+                case "close":
                     {
                         if (!e.isBroadcaster) return;
                         await Close();
                         break;
                     }
-                case "testresetdraw":
+                case "resetdraw":
                     {
                         if (!e.isBroadcaster) return;
                         await Reset();
                         break;
                     }
-                case "antares":
-                    {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, "Doing a special giveaway tonight for an antares! Do !special to see how many tickets you have then do !giveme # replacing # with the number of tickets or use all/max. Winner MUST be a follower and whisper me before next stream to claim.");
-                        break;
-                    }
+
             }
         }
 

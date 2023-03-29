@@ -172,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var points = await GetViewerTickets(e.Name);
             await this._serviceBackbone.SendChatMessage(
-                string.Format("@{0}, you have {1} testpoints.",
+                string.Format("@{0}, you have {1} tickets.",
                 e.DisplayName, points
                 ));
         }
@@ -180,21 +180,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             switch (e.Command)
             {
-                case "special":
+                case "t":
+                case "tickets":
                     {
                         await SayViewerTickets(e);
                         break;
                     }
-                case "givepoints":
+                case "givetickets":
                     {
-                        if (e.isMod && Int64.TryParse(e.Args[1], out long amount))
+                        if (e.isBroadcaster && Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
                             await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }
-                case "testresetpoints":
+                case "resettickets":
                     {
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         await ResetAllPoints();
