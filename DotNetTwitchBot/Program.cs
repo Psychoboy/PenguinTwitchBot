@@ -36,6 +36,7 @@ internal class Program
         });
         // Add services to the container.
         builder.Services.AddControllersWithViews();
+        builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
@@ -48,6 +49,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
+
         //builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Music.YtPlayer>();
 
         //Add Features Here:

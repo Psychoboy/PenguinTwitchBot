@@ -20,10 +20,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
         Timer _timer;
-        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration)
+        private SettingsFileManager _settingsFileManager;
+
+        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
 
             _logger = logger;
+            _settingsFileManager = settingsFileManager;
             _configuration = configuration;
             _twitchApi.Settings.ClientId = _configuration["twitchClientId"];
             _twitchApi.Settings.AccessToken = _configuration["twitchAccessToken"];
@@ -32,6 +35,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
+
 
             foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
             {
@@ -293,7 +297,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
                     var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
+                    _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
                 }
                 else
                 {
@@ -305,9 +309,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
                         _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
                         _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                        AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-                        AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                        AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
+                        _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                        _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                        _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
                     }
                     catch (Exception e)
                     {
@@ -321,81 +325,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task ValidateAndRefreshBotToken()
-        {
-            try
-            {
-                var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchBotAccessToken"]);
-                if (validToken != null && validToken.ExpiresIn > 1200)
-                {
-                    var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
-                }
-                else
-                {
-                    try
-                    {
-                        _logger.LogInformation("Refreshing Bot Token");
-                        var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(_configuration["twitchBotRefreshToken"], _configuration["twitchBotClientSecret"], _configuration["twitchBotClientId"]);
-                        _configuration["twitchBotAccessToken"] = refreshToken.AccessToken;
-                        _configuration["botExpiresIn"] = refreshToken.ExpiresIn.ToString();
-                        _configuration["twitchBotRefreshToken"] = refreshToken.RefreshToken;
-                        //_twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                        AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
-                        AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
-                        AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError("Error refreshing bot token: {0}", e.Message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error when validing/refreshing bot token");
-            }
-        }
 
-
-        public void AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
-        {
-            try
-            {
-                var filePath = _configuration["Secrets:SecretsConf"]; //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
-                if (filePath == null) throw new Exception("Invalid file configuration");
-                string json = File.ReadAllText(filePath);
-                dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
-
-                SetValueRecursively(sectionPathKey, jsonObj, value);
-
-                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
-                File.WriteAllText(filePath, output);
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating settings");
-            }
-        }
-
-        private void SetValueRecursively<T>(string sectionPathKey, dynamic jsonObj, T value)
-        {
-            // split the string at the first ':' character
-            var remainingSections = sectionPathKey.Split(":", 2);
-
-            var currentSection = remainingSections[0];
-            if (remainingSections.Length > 1)
-            {
-                // continue with the process, moving down the tree
-                var nextSection = remainingSections[1];
-                SetValueRecursively(nextSection, jsonObj[currentSection], value);
-            }
-            else
-            {
-                // we've got to the end of the tree, set the value
-                jsonObj[currentSection] = value;
-            }
-        }
     }
 }
