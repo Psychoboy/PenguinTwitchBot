@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             switch (e.Command)
             {
-                case "testpancakestart":
+                case "pancakeraffle":
                     {
                         if (e.Args.Count == 0) return;
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;

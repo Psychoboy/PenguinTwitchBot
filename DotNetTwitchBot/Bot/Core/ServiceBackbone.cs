@@ -42,6 +42,21 @@ namespace DotNetTwitchBot.Bot.Core
                     name.Equals(BotName, StringComparison.CurrentCultureIgnoreCase));
         }
 
+        public async Task RunCommand(CommandEventArgs args)
+        {
+            if (CommandEvent != null)
+            {
+                try
+                {
+                    await CommandEvent(this, args);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogCritical("Command Failure {0}", e);
+                }
+            }
+        }
+
         public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
         {
             if (CommandEvent != null)

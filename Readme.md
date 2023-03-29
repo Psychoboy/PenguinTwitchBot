@@ -15,6 +15,7 @@ TODO:
 - [X] Death Counters
 - [x] top commands
 - [ ] word filters
+- [-] Keywords
 - [X] Pasty games:
     - [X] defuse
     - [X] ffa
@@ -29,10 +30,10 @@ TODO:
 - [ ] Greeting system
 - [ ] Quote System
 - [ ] Rank/Title system
-- [ ] weather
+- [ ] Weather
 - [ ] kill command
 - [ ] Shoutout system
-- [X] Bonus handlers 
+- [-] Bonus handlers 
     - [X] On Sub
     - [X] On Bits
 - [X] Music
@@ -44,7 +45,9 @@ TODO:
     - [ ] Clip
     - [ ] Raid
     - [ ] Bits
-- [ ] Discord Stuff (There is more then 1 thing here to do)
+- [ ] Discord Stuff
+    [-] Commands
+    [ ] Live notification
 
 
 FULL Implemented Commands:

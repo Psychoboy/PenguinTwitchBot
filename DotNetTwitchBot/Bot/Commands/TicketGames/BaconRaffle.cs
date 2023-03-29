@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             switch (e.Command)
             {
-                case "testbaconstart":
+                case "raffle":
                     {
                         if (e.Args.Count == 0) return;
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
