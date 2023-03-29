@@ -42,6 +42,10 @@ internal class Program
         builder.Services.AddSingleton<TwitchBotService>();
         builder.Services.AddSingleton<DiscordService>();
 
+        builder.Services.AddRazorPages();
+        builder.Services.AddServerSideBlazor();
+        builder.Services.AddSingleton<DotNetTwitchBot.Data.WeatherForecastService>();
+
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
@@ -204,6 +208,9 @@ internal class Program
             logger.LogError(eventArgs.Exception, "Global Exception Caught");
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
+
+        app.MapBlazorHub();
+        app.MapFallbackToPage("/_Host");
         app.Run(); //Start in future to read input
     }
 }

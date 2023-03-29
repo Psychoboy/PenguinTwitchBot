@@ -1,0 +1,28 @@
+@page
+@model DotNetTwitchBot.Pages.YTPlayer
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Music Player</title>
+    <link href="~/css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+    <style>
+        body {
+            background-color: black;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main">
+        <h1>@ViewData["Title"]</h1>
+
+        <div id="player" style="background-color: rgb(49, 49, 49);"></div>
+    </div>
+</body>
+<script src="~/js/signalr/dist/browser/signalr.js"></script>
+<script src="~/js/ytplayer.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.1.min.js"
+    integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9"
+    crossorigin="anonymous"></script>

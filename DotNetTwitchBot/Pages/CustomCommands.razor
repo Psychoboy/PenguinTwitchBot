@@ -1,0 +1,52 @@
+@page "/customcommands"
+@inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+
+<PageTitle>Custom Commands</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+@if (commands == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>Response</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var command in commands)
+            {
+                <tr>
+                    <td>@command.Key</td>
+                    <td>@command.Value</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="btn btn-primary" @onclick="ReloadCommands">Reload Commands</button>
+}
+
+@code {
+    private Dictionary<string, string>? commands;
+    protected override Task OnInitializedAsync()
+    {
+        commands = CustomCommand.GetCustomCommands();
+        return Task.CompletedTask;
+    }
+
+    private async void ReloadCommands()
+    {
+        await CustomCommand.LoadCommands();
+        commands = CustomCommand.GetCustomCommands();
+        StateHasChanged();
+    }
+}
