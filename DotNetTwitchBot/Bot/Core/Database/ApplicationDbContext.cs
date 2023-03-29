@@ -30,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Setting> Settings { get; set; } = null!;
         public DbSet<MusicPlaylist> Playlists { get; set; } = null!;
         public DbSet<Song> Songs { get; set; } = null!;
+        public DbSet<QuoteType> Quotes { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
