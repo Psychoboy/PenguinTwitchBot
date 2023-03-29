@@ -13,6 +13,16 @@ html {
   min-height: 100%;
 }
 
+.navbar {
+  background-color: rgb(36, 35, 35) !important;
+  color: white !important;
+}
+
+/* .nav-link {
+  color: white !important;
+} */
+
 body {
   margin-bottom: 60px;
+  background-color: rgb(36, 35, 35);
 }
