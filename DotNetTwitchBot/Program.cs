@@ -44,7 +44,6 @@ internal class Program
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
-        builder.Services.AddSingleton<DotNetTwitchBot.Data.WeatherForecastService>();
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
