@@ -53,7 +53,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _twitchService = twitchService;
             _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
-            _timer = new Timer();
             _timer = new Timer(900000); //15 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
@@ -61,6 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+
             await UpdateSubscribers();
         }
 

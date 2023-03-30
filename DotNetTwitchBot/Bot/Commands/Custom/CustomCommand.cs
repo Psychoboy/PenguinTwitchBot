@@ -61,14 +61,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
         }
 
-        public Dictionary<string, string> GetCustomCommands()
+        public Dictionary<string, CustomCommands> GetCustomCommands()
         {
-            var commands = new Dictionary<string, string>();
-            foreach (var command in Commands)
-            {
-                commands[command.Key] = command.Value.Response;
-            }
-            return commands;
+            return Commands;
         }
 
         public async Task LoadCommands()

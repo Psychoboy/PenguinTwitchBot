@@ -44,7 +44,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task HandleGamble(CommandEventArgs e)
         {
-            if (!IsCoolDownExpired(e.Name, e.Command)) return;
+            if (!IsCoolDownExpired(e.Name, e.Command))
+            {
+                await SendChatMessage(e.DisplayName, $"{e.Command} is on cooldown");
+                return;
+            }
+
             if (e.Args.Count == 0)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName,

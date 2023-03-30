@@ -27,13 +27,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             switch (e.Command)
             {
-                case "testfirst":
+                case "first":
                     {
                         await giveFirst(e.Name);
 
                     }
                     break;
-                case "testresetfirst":
+                case "resetfirst":
                     {
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         ResetFirst();

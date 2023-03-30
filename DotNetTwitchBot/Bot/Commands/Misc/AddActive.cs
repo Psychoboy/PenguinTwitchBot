@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             switch (e.Command)
             {
-                case "addactivetest":
+                case "addactive":
                     {
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
                         if (Int64.TryParse(e.Args[0], out long amount))

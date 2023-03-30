@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             switch (e.Command)
             {
-                case "testroulette":
+                case "roulette":
                     {
                         if (!IsCoolDownExpired(e.Name, e.Command)) return;
                         if (e.Args.Count == 0)

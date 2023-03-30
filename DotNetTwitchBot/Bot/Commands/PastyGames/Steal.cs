@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var userPasties = await _loyaltyFeature.GetUserPasties(e.Name);
             if (userPasties.Points < StealMax)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough tickets to steal, you need a minimum of {0}", StealMax));
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
                 return;
             }
 

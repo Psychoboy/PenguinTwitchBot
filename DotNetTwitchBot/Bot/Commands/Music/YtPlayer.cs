@@ -175,6 +175,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         await Pause();
                     }
                     break;
+                case "wrongsong":
+                    await WrongSong(e);
+                    break;
                 case "sr":
                     await SongRequest(e);
                     break;
@@ -191,6 +194,18 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await LoadPlaylist(e);
                     break;
             }
+        }
+
+        private async Task WrongSong(CommandEventArgs e)
+        {
+            var song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).FirstOrDefault();
+            if (song != null)
+            {
+                Requests.Remove(song);
+                await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
+                return;
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
         }
 
         private async Task VoteSkipSong(CommandEventArgs e)
