@@ -259,7 +259,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     viewerTime.Time += timeToAdd;
                     db.ViewersTime.Update(viewerTime);
                     await db.SaveChangesAsync();
-                    _logger.LogInformation($"Added time to {viewer} {viewerTime.Time}");
                 }
                 catch (Exception ex)
                 {
