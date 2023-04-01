@@ -158,7 +158,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var viewers = _viewerFeature.GetCurrentViewers();
 
-            _logger.LogInformation("Currently a total of {0} viewers", viewers.Count());
+            _logger.LogInformation("(Tickets) Currently a total of {0} viewers", viewers.Count());
 
             if (_serviceBackbone.IsOnline)
             {

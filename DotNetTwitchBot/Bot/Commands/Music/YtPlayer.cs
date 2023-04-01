@@ -418,7 +418,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 NextSong = song;
             }
 
-            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Select(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task<string> GetSongId(string searchTerm)

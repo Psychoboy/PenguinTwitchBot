@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.CurrentThreadRandom.Next(0, WinMessages.Count)];
-            await _serviceBackbone.SendChatMessage(message + randomLoseMessage);
+            await _serviceBackbone.SendChatMessage(string.Format(message + randomLoseMessage, e.DisplayName));
         }
 
         private static List<long> LoadPrizes()

@@ -25,13 +25,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var command = "lastseen";
             if (!e.Command.Equals(command)) return;
             if (!IsCoolDownExpired(e.Name, command)) return;
-            if (string.IsNullOrWhiteSpace(e.Arg)) return;
+            if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
 
-            var viewer = await _viewerFeature.GetViewer(e.Arg);
+            var viewer = await _viewerFeature.GetViewer(e.TargetUser);
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)
             {
                 var seconds = Convert.ToInt32((DateTime.Now - viewer.LastSeen).TotalSeconds);
-                await SendChatMessage(e.DisplayName, string.Format("{0} was last seen {1} ago", viewer.DisplayName, Tools.ConvertToCompoundDuration(seconds)));
+                await SendChatMessage(e.DisplayName, $"{viewer.DisplayName} was last seen {Tools.ConvertToCompoundDuration(seconds)} ago");
             }
             else
             {

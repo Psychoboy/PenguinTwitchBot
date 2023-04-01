@@ -617,7 +617,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             var streamTime = await _twitchService.StreamStartedAt();
             if (streamTime == DateTime.MinValue) return new CustomCommandResult("Stream is offline");
-            var currentTime = DateTime.Now;
+            var currentTime = DateTime.UtcNow;
             var totalTime = currentTime - streamTime;
             return new CustomCommandResult(totalTime.ToString());
         }

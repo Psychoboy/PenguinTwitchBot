@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,8 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class ViewerFeature : BaseCommand
     {
-        private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
-        private HashSet<string> _users = new HashSet<string>();
+        private ConcurrentDictionary<string, DateTime> _usersLastActive = new ConcurrentDictionary<string, DateTime>();
+        private ConcurrentDictionary<string, byte> _users = new ConcurrentDictionary<string, byte>();
         // private ApplicationDbContext _applicationDbContext;
 
         //private ViewerData _viewerData;
@@ -66,13 +67,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
         {
-            _users.Remove(e.Username);
+            _users.Remove(e.Username, out byte doNotCare);
             await AddOrUpdateLastSeen(e.Username);
         }
 
         private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
         {
-            _users.Add(e.Username);
+            _users[e.Username] = default(byte);
             await AddOrUpdateLastSeen(e.Username);
         }
 
@@ -171,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetCurrentViewers()
         {
-            var users = _users.ToList();
+            var users = _users.Select(x => x.Key).ToList();
             var activeViewers = GetActiveViewers();
             users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
             return users.ToList();

@@ -161,7 +161,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var username = e.Name;
             if (_entered.Exists(x => x.ToLower().Equals(username.ToLower())))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, alreadyJoined);
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.DisplayName));
                 return;
             }
             _entered.Add(username);

@@ -29,11 +29,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
-            _intervalTimer = new Timer(6000);
+            _intervalTimer = new Timer(60000);
             _intervalTimer.Elapsed += ElapseTimer;
             _intervalTimer.Start();
 
-            _serviceBackbone.ChatMessageEvent += OnChangeMessage;
+            _serviceBackbone.ChatMessageEvent += OnChatMessage;
             _logger = logger;
         }
 
@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public const Int64 MaxBet = 200000069;
 
-        private async Task OnChangeMessage(object? sender, ChatMessageEventArgs e)
+        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             if (!_serviceBackbone.IsOnline) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -84,9 +84,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task UpdatePointsAndTime()
         {
-            if (!_serviceBackbone.IsOnline) return;
             var currentViewers = _viewerFeature.GetCurrentViewers();
-            var activeViewers = _viewerFeature.GetActiveViewers();
+            _logger.LogInformation("(Loyalty) Currently a total of {0} viewers", currentViewers.Count());
+            if (!_serviceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
                 try
@@ -107,14 +107,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     _logger.LogError(ex, "Couldn't add time");
                 }
                 finally { }
-                if (!activeViewers.Contains(viewer))
-                {
-                    if (await _viewerFeature.IsSubscriber(viewer))
-                    {
-                        activeViewers.Add(viewer);
-                    }
-                }
             }
+            var activeViewers = _viewerFeature.GetActiveViewers();
             foreach (var viewer in activeViewers)
             {
                 await AddPointsToViewer(viewer, 10);
@@ -262,7 +256,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         };
 
                     }
-                    viewerTime.Time += 60;
+                    viewerTime.Time += timeToAdd;
                     db.ViewersTime.Update(viewerTime);
                     await db.SaveChangesAsync();
                     _logger.LogInformation($"Added time to {viewer} {viewerTime.Time}");
