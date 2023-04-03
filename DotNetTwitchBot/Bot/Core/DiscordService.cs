@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Core
         private async Task MessageReceived(SocketMessage arg)
         {
             var message = await arg.Channel.GetMessageAsync(arg.Id);
-            _logger.LogInformation($"[DISCORD] [#{Tools.CleanInput(message.Channel.Name)}] {Tools.CleanInput(message.Author.ToString())}: {Tools.CleanInput(message.Content)}");
+            _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {message.Author.ToString()}: {message.Content}");
         }
 
         private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
