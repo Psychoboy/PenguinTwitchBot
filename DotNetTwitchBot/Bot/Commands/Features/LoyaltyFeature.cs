@@ -85,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task UpdatePointsAndTime()
         {
             var currentViewers = _viewerFeature.GetCurrentViewers();
-            _logger.LogInformation("(Loyalty) Currently a total of {0} viewers", currentViewers.Count());
+            //_logger.LogInformation("(Loyalty) Currently a total of {0} viewers", currentViewers.Count());
             if (!_serviceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {

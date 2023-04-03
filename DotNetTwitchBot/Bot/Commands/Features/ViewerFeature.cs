@@ -331,7 +331,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task UpdateSubscribers()
         {
-            _logger.LogInformation("Loading Subscribers");
+            //_logger.LogInformation("Loading Subscribers");
             var subscribers = await _twitchService.GetAllSubscriptions();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -355,7 +355,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 await db.SaveChangesAsync();
             }
-            _logger.LogInformation("Getting existing subscribers.");
+            //_logger.LogInformation("Getting existing subscribers.");
             // var curSubscribers = await _viewerData.GetAllSubscribers();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -373,7 +373,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await db.SaveChangesAsync();
             }
 
-            _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
+            //_logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)

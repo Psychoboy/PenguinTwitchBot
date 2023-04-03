@@ -200,7 +200,10 @@ internal class Program
         AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
             if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
-                eventArgs.Exception.GetType() == typeof(System.IO.IOException))
+                eventArgs.Exception.GetType() == typeof(System.IO.IOException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException))
             {
                 return; //Ignore
             }

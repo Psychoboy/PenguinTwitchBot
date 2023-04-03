@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Core
         private DiscordSocketClient _client;
         private ILogger<DiscordService> _logger;
         private CustomCommand _customCommands;
+        private List<ulong> _streamingIds = new List<ulong>();
 
         public ulong ServerId { get; }
 
@@ -31,8 +32,36 @@ namespace DotNetTwitchBot.Bot.Core
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;
+            _client.GuildMemberUpdated += GuildMemberUpdated;
+            _client.MessageReceived += MessageReceived;
+
             ServerId = Convert.ToUInt64(configuration["discordServerId"]);
             Initialize(configuration["discordToken"]);
+        }
+
+        private async Task MessageReceived(SocketMessage arg)
+        {
+            var message = await arg.Channel.GetMessageAsync(arg.Id);
+            _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {message.Author.ToString()}: {message.Content}");
+        }
+
+        private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
+        {
+            if (arg2.IsStreaming && !_streamingIds.Contains(arg2.Id))
+            {
+                _logger.LogInformation($"User {arg2.Nickname} started streaming.");
+                _streamingIds.Add(arg2.Id);
+            }
+            else if (!arg2.IsStreaming && _streamingIds.Contains(arg2.Id))
+            {
+                _logger.LogInformation($"User {arg2.Nickname} stopped streaming.");
+                _streamingIds.Remove(arg2.Id);
+            }
+            else
+            {
+                _logger.LogInformation($"User {arg2.Nickname} updated.");
+            }
+            return Task.CompletedTask;
         }
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
