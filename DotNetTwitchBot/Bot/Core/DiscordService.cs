@@ -41,8 +41,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task MessageReceived(SocketMessage arg)
         {
+            if (arg.Type != MessageType.Default) return;
+            if (arg.Author is IGuildUser == false) return;
+            var user = arg.Author as IGuildUser;
             var message = await arg.Channel.GetMessageAsync(arg.Id);
-            _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {message.Author.ToString()}: {message.Content}");
+            if (string.IsNullOrWhiteSpace(message.Content.Trim())) return;
+            _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {user?.DisplayName}: {message.Content}");
         }
 
         private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
