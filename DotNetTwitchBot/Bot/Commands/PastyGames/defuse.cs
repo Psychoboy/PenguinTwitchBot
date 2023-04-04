@@ -17,10 +17,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private LoyaltyFeature _loyaltyFeature;
         private ILogger<Defuse> _logger;
         private SendAlerts _sendAlerts;
+        private ViewerFeature _viewerFeature;
 
         public Defuse(
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
+            ViewerFeature viewerFeature,
             SendAlerts sendAlerts,
             ILogger<Defuse> logger
             ) : base(serviceBackbone)
@@ -28,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _loyaltyFeature = loyaltyFeature;
             _logger = logger;
             _sendAlerts = sendAlerts;
+            _viewerFeature = viewerFeature;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -57,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 _logger.LogError("Couldn't choose a wire for defuse");
                 return;
             }
-            var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", e.DisplayName, e.Arg);
+            var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", await _viewerFeature.GetNameWithTitle(e.Name), e.Arg);
             if (chosenWire.Equals(e.Arg, StringComparison.CurrentCultureIgnoreCase))
             {
                 var multiplier = 3;

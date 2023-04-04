@@ -8,6 +8,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using Microsoft.AspNetCore.SignalR;
 using Google.Apis.YouTube.v3;
+using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
@@ -417,8 +418,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 NextSong = song;
             }
-
-            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            
+            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task<string> GetSongId(string searchTerm)

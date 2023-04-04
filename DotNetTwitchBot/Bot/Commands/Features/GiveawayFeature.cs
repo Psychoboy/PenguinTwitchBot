@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var winningTicket = Tools.RandomElement(Tickets); //Tickets[Tools.CurrentThreadRandom.Next(Tickets.Count)];
             var viewer = await _viewerFeature.GetViewer(winningTicket);
             var isFollower = await _viewerFeature.IsFollower(winningTicket);
-            await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.DisplayName : winningTicket, isFollower ? "is" : "is not"));
+            await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.NameWithTitle() : winningTicket, isFollower ? "is" : "is not"));
         }
 
 

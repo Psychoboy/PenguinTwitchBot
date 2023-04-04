@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Core
         private DiscordSocketClient _client;
         private ILogger<DiscordService> _logger;
         private CustomCommand _customCommands;
-        private List<ulong> _streamingIds = new List<ulong>();
+        private ConcurrentDictionary<ulong, byte> _streamingIds = new ConcurrentDictionary<ulong, byte>();
 
         public ulong ServerId { get; }
 
@@ -27,16 +28,46 @@ namespace DotNetTwitchBot.Bot.Core
         {
             _logger = logger;
             _customCommands = customCommands;
-            _client = new DiscordSocketClient();
+            var config = new DiscordSocketConfig()
+            {
+                GatewayIntents = GatewayIntents.All | GatewayIntents.GuildPresences
+            };
+            _client = new DiscordSocketClient(config);
             _client.Log += LogAsync;
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;
-            _client.GuildMemberUpdated += GuildMemberUpdated;
+            //_client.GuildMemberUpdated += GuildMemberUpdated;
+            _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
 
             ServerId = Convert.ToUInt64(configuration["discordServerId"]);
             Initialize(configuration["discordToken"]);
+        }
+
+        private Task PresenceUpdated(SocketUser arg1, SocketPresence arg2, SocketPresence arg3)
+        {
+            if (arg1 is IGuildUser == false) return Task.CompletedTask;
+            try
+            {
+                var user = (IGuildUser)arg1;
+
+                if (user.IsStreaming && !_streamingIds.Keys.Contains(user.Id))
+                {
+                    _logger.LogInformation($"User {user.DisplayName} started streaming.");
+                    _streamingIds[user.Id] = default(byte);
+                }
+                else if (!user.IsStreaming && _streamingIds.Keys.Contains(user.Id))
+                {
+                    _logger.LogInformation($"User {user.DisplayName} stopped streaming.");
+                    _streamingIds.Remove(user.Id, out var doNotCare);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error with PrecenceUpdated");
+            }
+            return Task.CompletedTask;
         }
 
         private async Task MessageReceived(SocketMessage arg)
@@ -49,24 +80,10 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {user?.DisplayName}: {message.Content}");
         }
 
-        private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
-        {
-            if (arg2.IsStreaming && !_streamingIds.Contains(arg2.Id))
-            {
-                _logger.LogInformation($"User {arg2.Nickname} started streaming.");
-                _streamingIds.Add(arg2.Id);
-            }
-            else if (!arg2.IsStreaming && _streamingIds.Contains(arg2.Id))
-            {
-                _logger.LogInformation($"User {arg2.Nickname} stopped streaming.");
-                _streamingIds.Remove(arg2.Id);
-            }
-            else
-            {
-                _logger.LogInformation($"User {arg2.Nickname} updated.");
-            }
-            return Task.CompletedTask;
-        }
+        // private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
+        // {
+
+        // }
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
         {

@@ -10,15 +10,17 @@ namespace DotNetTwitchBot.Bot.Core
     {
         private ILogger<ServiceBackbone> _logger;
         private IConfiguration _configuration;
+        private readonly IServiceScopeFactory _scopeFactory;
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
 
-        public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration)
+        public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
             _configuration = configuration;
             RawBroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
+            _scopeFactory = scopeFactory;
         }
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public delegate Task AsyncEventHandler<TEventArgs, TEventArgs2>(object? sender, TEventArgs e, TEventArgs2 e2);
@@ -132,6 +134,18 @@ namespace DotNetTwitchBot.Bot.Core
             if (SendMessageEvent != null)
             {
                 await SendMessageEvent(this, string.Format("@{0}, {1}", name, message));
+            }
+        }
+        public async Task SendChatMessageWithTitle(string viewerName, string message)
+        {
+            if (SendMessageEvent != null)
+            {
+                using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
+                    var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
+                    await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
+                }
             }
         }
 

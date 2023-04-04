@@ -183,7 +183,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username));
+                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username.ToLower()));
             }
         }
 
@@ -191,6 +191,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var viewer = await GetViewer(username);
             return viewer != null ? viewer.DisplayName : username;
+        }
+
+        public async Task<string> GetNameWithTitle(string username)
+        {
+            var viewer = await GetViewer(username);
+            return viewer != null ? viewer.NameWithTitle() : username;
         }
 
         public async Task<bool> IsSubscriber(string username)

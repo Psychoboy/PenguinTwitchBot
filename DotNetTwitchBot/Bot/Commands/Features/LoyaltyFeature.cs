@@ -173,7 +173,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
 
             await AddPointsToViewer(e.TargetUser, amount);
-            await _serviceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", e.DisplayName, amount, e.TargetUser));
+            await _serviceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
         public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max = MaxBet)
@@ -273,10 +273,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var pasties = await GetUserPastiesAndRank(e.Name);
             var time = await GetUserTimeAndRank(e.Name);
             var messages = await GetUserMessagesAndRank(e.Name);
-            await _serviceBackbone.SendChatMessage(
-                e.DisplayName,
-                string.Format("Time: [{0}] - sptvBacon Pasties: [#{1}, {2}] - Messages: [#{3}, {4} Messages]",
-                Tools.ConvertToCompoundDuration(time.Time), pasties.Ranking, pasties.Points.ToString("N0"), messages.Ranking, messages.MessageCount.ToString("N0")));
+            await _serviceBackbone.SendChatMessage($"{await _viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points.ToString("N0")}] - Messages: [#{messages.Ranking}, {messages.MessageCount.ToString("N0")} Messages]");
         }
 
         private async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
