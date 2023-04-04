@@ -337,49 +337,48 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task UpdateSubscribers()
         {
-            //_logger.LogInformation("Loading Subscribers");
-            var subscribers = await _twitchService.GetAllSubscriptions();
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            try
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                foreach (var subscriber in subscribers)
+                var subscribers = await _twitchService.GetAllSubscriptions();
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var viewer = await GetViewer(subscriber.UserLogin);
-                    if (viewer == null)
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    foreach (var subscriber in subscribers)
                     {
-                        viewer = new Viewer()
+                        var viewer = await GetViewer(subscriber.UserLogin);
+                        if (viewer == null)
                         {
-                            Username = subscriber.UserLogin,
-                            DisplayName = subscriber.UserName
-                        };
+                            viewer = new Viewer()
+                            {
+                                Username = subscriber.UserLogin,
+                                DisplayName = subscriber.UserName
+                            };
+                        }
+                        viewer.isSub = true;
+                        db.Viewers.Update(viewer);
                     }
-                    viewer.isSub = true;
-                    // await _viewerData.InsertOrUpdate(viewer);
-
-
-                    db.Viewers.Update(viewer);
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
-            }
-            //_logger.LogInformation("Getting existing subscribers.");
-            // var curSubscribers = await _viewerData.GetAllSubscribers();
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var curSubscribers = await db.Viewers.Where(x => x.isSub == true).ToListAsync();
-                foreach (var curSubscriber in curSubscribers)
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var curSubscribers = await db.Viewers.Where(x => x.isSub == true).ToListAsync();
+                    foreach (var curSubscriber in curSubscribers)
                     {
-                        _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
-                        curSubscriber.isSub = false;
-                        db.Viewers.Update(curSubscriber);
+                        if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
+                        {
+                            _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
+                            curSubscriber.isSub = false;
+                            db.Viewers.Update(curSubscriber);
+                        }
                     }
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
             }
-
-            //_logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating subscribers");
+            }
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)

@@ -30,14 +30,14 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             var config = new DiscordSocketConfig()
             {
-                GatewayIntents = GatewayIntents.All | GatewayIntents.GuildPresences
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
+                AlwaysDownloadUsers = true
             };
             _client = new DiscordSocketClient(config);
             _client.Log += LogAsync;
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;
-            //_client.GuildMemberUpdated += GuildMemberUpdated;
             _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
 
@@ -45,27 +45,25 @@ namespace DotNetTwitchBot.Bot.Core
             Initialize(configuration["discordToken"]);
         }
 
-        private Task PresenceUpdated(SocketUser arg1, SocketPresence arg2, SocketPresence arg3)
+        private Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
         {
             if (arg1 is IGuildUser == false) return Task.CompletedTask;
             try
             {
+                if (before == null || after == null || before.Activities == null || after.Activities == null) return Task.CompletedTask;
                 var user = (IGuildUser)arg1;
-
-                if (user.IsStreaming && !_streamingIds.Keys.Contains(user.Id))
+                if (before.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any() && after.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0)
                 {
-                    _logger.LogInformation($"User {user.DisplayName} started streaming.");
-                    _streamingIds[user.Id] = default(byte);
+                    UserStreaming(user, false);
                 }
-                else if (!user.IsStreaming && _streamingIds.Keys.Contains(user.Id))
+                else if (before.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0 && after.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
                 {
-                    _logger.LogInformation($"User {user.DisplayName} stopped streaming.");
-                    _streamingIds.Remove(user.Id, out var doNotCare);
+                    UserStreaming(user, true);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error with PrecenceUpdated");
+                _logger.LogError(ex, "Error with PresenceUpdated");
             }
             return Task.CompletedTask;
         }
@@ -80,17 +78,8 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {user?.DisplayName}: {message.Content}");
         }
 
-        // private Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> arg1, SocketGuildUser arg2)
-        // {
-
-        // }
-
         private async Task SlashCommandHandler(SocketSlashCommand arg)
         {
-            // arg.RespondWithModalAsync
-            // var channel = await arg.User.CreateDMChannelAsync();
-
-            // await channel.SendMessageAsync($"{arg.User.Mention} this worked.");
             var eventArgs = new CommandEventArgs
             {
                 Command = arg.CommandName,
@@ -109,7 +98,17 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task OnReady()
         {
-            var guild = _client.GetGuild(ServerId);
+            IGuild guild = _client.GetGuild(ServerId);
+            await guild.DownloadUsersAsync(); //Load all users
+            var users = await guild.GetUsersAsync();
+            foreach (var user in users)
+            {
+                var activities = user.Activities;
+                if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                {
+                    UserStreaming(user, true);
+                }
+            }
 
             var guildCommand = new SlashCommandBuilder();
             guildCommand.WithName("gib");
@@ -123,7 +122,18 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogError(exception, "Error creating command");
             }
             _logger.LogInformation("Discord Bot is ready.");
-            // return Task.CompletedTask;
+        }
+
+        private void UserStreaming(IGuildUser user, bool isStreaming)
+        {
+            if (isStreaming)
+            {
+                _logger.LogInformation($"User {user.DisplayName} started streaming.");
+            }
+            else
+            {
+                _logger.LogInformation($"User {user.DisplayName} stopped streaming.");
+            }
         }
 
         private Task Connected()
