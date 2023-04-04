@@ -80,6 +80,23 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
         {
+            // if (arg.CommandName.Equals("testembed"))
+            // {
+            //     IGuild guild = _client.GetGuild(ServerId);
+            //     var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            //     var embed = new EmbedBuilder()
+            //         .WithColor(100, 65, 164)
+            //         .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
+            //         .WithTitle("SuperPenguinTV has just went live on Twitch!")
+            //         .AddField("Now Playing", "Game goes here")
+            //         .AddField("Stream Title", "Stream title goes here")
+            //         .WithUrl("https://twitch.tv/SuperPenguinTV")
+            //         .WithCurrentTimestamp()
+            //         .WithFooter("Twitch").Build();
+            //     await channel.SendMessageAsync("testmessage", embed: embed);
+
+            //     return;
+            // }
             var eventArgs = new CommandEventArgs
             {
                 Command = arg.CommandName,
@@ -87,7 +104,7 @@ namespace DotNetTwitchBot.Bot.Core
                 isDiscord = true
             };
 
-
+            if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
             var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
             var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
             if (message != null && message.Cancel == false && message.Message.Length > 0)
@@ -109,18 +126,32 @@ namespace DotNetTwitchBot.Bot.Core
                     UserStreaming(user, true);
                 }
             }
-
-            var guildCommand = new SlashCommandBuilder();
-            guildCommand.WithName("gib");
-            guildCommand.WithDescription("Gib Stuff");
-            try
             {
-                await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                var guildCommand = new SlashCommandBuilder();
+                guildCommand.WithName("gib");
+                guildCommand.WithDescription("Gib Stuff");
+                try
+                {
+                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                }
+                catch (HttpException exception)
+                {
+                    _logger.LogError(exception, "Error creating command");
+                }
             }
-            catch (HttpException exception)
-            {
-                _logger.LogError(exception, "Error creating command");
-            }
+            // {
+            //     var guildCommand = new SlashCommandBuilder();
+            //     guildCommand.WithName("testembed");
+            //     guildCommand.WithDescription("test Stuff");
+            //     try
+            //     {
+            //         await guild.CreateApplicationCommandAsync(guildCommand.Build());
+            //     }
+            //     catch (HttpException exception)
+            //     {
+            //         _logger.LogError(exception, "Error creating command");
+            //     }
+            // }
             _logger.LogInformation("Discord Bot is ready.");
         }
 

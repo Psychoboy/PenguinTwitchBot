@@ -309,7 +309,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return Commands[command].Response;
         }
 
-
+        public bool CustomCommandExists(string command)
+        {
+            return Commands.ContainsKey(command);
+        }
 
         public async Task<CustomCommandResult> ProcessTags(CommandEventArgs eventArgs, string originalText)
         {
