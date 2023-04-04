@@ -25,6 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IServiceScopeFactory _scopeFactory;
         private ILogger<CustomCommand> _logger;
         private TwitchService _twitchService;
+        private LoyaltyFeature _loyaltyFeature;
 
         public CustomCommand(
             SendAlerts sendAlerts,
@@ -32,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             TwitchService twitchService,
+            LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone) : base(serviceBackbone)
         {
             _sendAlerts = sendAlerts;
@@ -39,6 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _scopeFactory = scopeFactory;
             _logger = logger;
             _twitchService = twitchService;
+            _loyaltyFeature = loyaltyFeature;
             _serviceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
@@ -278,6 +281,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             return;
                     }
                 }
+                if (Commands[e.Command].Cost > 0)
+                {
+                    if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                    {
+                        await _serviceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                        return;
+                    }
+                }
+
+
                 await processTagsAndSayMessage(e, Commands[e.Command].Response);
 
                 if (Commands[e.Command].GlobalCooldown > 0)

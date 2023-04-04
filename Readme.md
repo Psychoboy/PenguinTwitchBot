@@ -29,7 +29,7 @@ TODO:
 - [ ] Pasty Tax
 - [ ] Greeting system
 - [X] Quote System
-- [ ] Rank/Title system
+- [X] Rank/Title system
 - [ ] Weather
 - [ ] kill command
 - [ ] Shoutout system
