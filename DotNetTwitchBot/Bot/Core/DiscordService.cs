@@ -18,8 +18,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ILogger<DiscordService> _logger;
         private CustomCommand _customCommands;
         private ConcurrentDictionary<ulong, byte> _streamingIds = new ConcurrentDictionary<ulong, byte>();
-
-        public ulong ServerId { get; }
+        private DiscordSettings _settings;
 
         public DiscordService(
             CustomCommand customCommands,
@@ -41,31 +40,35 @@ namespace DotNetTwitchBot.Bot.Core
             _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
 
-            ServerId = Convert.ToUInt64(configuration["discordServerId"]);
-            Initialize(configuration["discordToken"]);
+            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
+            if (settings == null)
+            {
+                throw new Exception("Invalid Configuration. Discord settings missing.");
+            }
+            _settings = settings;
+            Initialize(settings.DiscordToken);
         }
 
-        private Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
+        private async Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
         {
-            if (arg1 is IGuildUser == false) return Task.CompletedTask;
+            if (arg1 is IGuildUser == false) return;
             try
             {
-                if (before == null || after == null || before.Activities == null || after.Activities == null) return Task.CompletedTask;
+                if (before == null || after == null || before.Activities == null || after.Activities == null) return;
                 var user = (IGuildUser)arg1;
                 if (before.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any() && after.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0)
                 {
-                    UserStreaming(user, false);
+                    await UserStreaming(user, false);
                 }
                 else if (before.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0 && after.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
                 {
-                    UserStreaming(user, true);
+                    await UserStreaming(user, true);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error with PresenceUpdated");
             }
-            return Task.CompletedTask;
         }
 
         private async Task MessageReceived(SocketMessage arg)
@@ -80,23 +83,6 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
         {
-            // if (arg.CommandName.Equals("testembed"))
-            // {
-            //     IGuild guild = _client.GetGuild(ServerId);
-            //     var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
-            //     var embed = new EmbedBuilder()
-            //         .WithColor(100, 65, 164)
-            //         .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
-            //         .WithTitle("SuperPenguinTV has just went live on Twitch!")
-            //         .AddField("Now Playing", "Game goes here")
-            //         .AddField("Stream Title", "Stream title goes here")
-            //         .WithUrl("https://twitch.tv/SuperPenguinTV")
-            //         .WithCurrentTimestamp()
-            //         .WithFooter("Twitch").Build();
-            //     await channel.SendMessageAsync("testmessage", embed: embed);
-
-            //     return;
-            // }
             var eventArgs = new CommandEventArgs
             {
                 Command = arg.CommandName,
@@ -115,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task OnReady()
         {
-            IGuild guild = _client.GetGuild(ServerId);
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
             await guild.DownloadUsersAsync(); //Load all users
             var users = await guild.GetUsersAsync();
             foreach (var user in users)
@@ -123,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Core
                 var activities = user.Activities;
                 if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
                 {
-                    UserStreaming(user, true);
+                    await UserStreaming(user, true);
                 }
             }
             {
@@ -139,31 +125,26 @@ namespace DotNetTwitchBot.Bot.Core
                     _logger.LogError(exception, "Error creating command");
                 }
             }
-            // {
-            //     var guildCommand = new SlashCommandBuilder();
-            //     guildCommand.WithName("testembed");
-            //     guildCommand.WithDescription("test Stuff");
-            //     try
-            //     {
-            //         await guild.CreateApplicationCommandAsync(guildCommand.Build());
-            //     }
-            //     catch (HttpException exception)
-            //     {
-            //         _logger.LogError(exception, "Error creating command");
-            //     }
-            // }
             _logger.LogInformation("Discord Bot is ready.");
         }
 
-        private void UserStreaming(IGuildUser user, bool isStreaming)
+        private async Task UserStreaming(IGuildUser user, bool isStreaming)
         {
             if (isStreaming)
             {
                 _logger.LogInformation($"User {user.DisplayName} started streaming.");
+                if (_settings.RoleIdToAssignMemberWhenLive != 0)
+                {
+                    await user.AddRoleAsync(_settings.RoleIdToAssignMemberWhenLive);
+                }
             }
             else
             {
                 _logger.LogInformation($"User {user.DisplayName} stopped streaming.");
+                if (_settings.RoleIdToAssignMemberWhenLive != 0)
+                {
+                    await user.RemoveRoleAsync(_settings.RoleIdToAssignMemberWhenLive);
+                }
             }
         }
 
@@ -178,11 +159,6 @@ namespace DotNetTwitchBot.Bot.Core
             await _client.LoginAsync(TokenType.Bot, discordToken);
             await _client.StartAsync();
         }
-
-        // private async Task RegisterCommands()
-        // {
-
-        // }
 
         public async Task LogAsync(LogMessage message)
         {

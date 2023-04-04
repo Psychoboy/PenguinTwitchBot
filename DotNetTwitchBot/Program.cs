@@ -123,6 +123,9 @@ internal class Program
 
         builder.Services.AddSignalR();
 
+
+        builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
+
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
