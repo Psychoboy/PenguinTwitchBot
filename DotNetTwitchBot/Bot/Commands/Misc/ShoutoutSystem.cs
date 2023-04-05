@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var userId = await _twitchService.GetUserId(name);
             if(userId == null) return;
             var game = await _twitchService.GetCurrentGame(userId);
-
+            if(string.IsNullOrWhiteSpace(game)) game = "Some boring game";
             message = message.Replace("(name)", name).Replace("(game)", game);
             await _serviceBackbone.SendChatMessage(message);
             await _twitchService.ShoutoutStreamer(userId);
