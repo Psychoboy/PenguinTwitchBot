@@ -28,7 +28,8 @@ TODO:
     - [X] Roll
     - [ ] Boss
 - [ ] Pasty Tax
-- [ ] Shoutout/Greeting system
+- [X] Shoutout
+- [X] Auto Shout system
 - [X] Quote System
 - [X] Rank/Title system
 - [X] Weather

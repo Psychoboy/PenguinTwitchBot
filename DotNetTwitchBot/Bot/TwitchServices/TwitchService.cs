@@ -10,6 +10,7 @@ using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using TwitchLib.Api.Core.Exceptions;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -91,7 +92,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var broadcaster = _configuration["botName"];
             if (broadcaster == null) return null;
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchBotAccessToken"]);
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
 
             return users.Users.FirstOrDefault()?.Id;
         }
@@ -238,6 +239,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
+            return await GetCurrentGame(userId);
+        }
+
+        public async Task<string> GetCurrentGame(string userId)
+        {
             var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
             if (channelInfo.Data.Length > 0)
             {
@@ -286,6 +292,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 throw new Exception("Error getting stream status.");
             }
             var response = await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+        }
+
+        public async Task ShoutoutStreamer(string userId)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                throw new Exception("Error getting broadcaster id.");
+            }
+            var botId = await GetBotUserId();
+            try{
+            await _twitchApi.Helix.Chat.SendShoutoutAsync(broadcasterId, userId, broadcasterId, _configuration["twitchAccessToken"]);
+            } catch (HttpResponseException ex){
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing shoutout: {0}", error);
+            }
         }
 
         public async Task SubscribeToAllTheStuffs(string sessionId)

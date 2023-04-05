@@ -1,0 +1,70 @@
+@page "/autoshoutouts"
+@inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
+<PageTitle>Auto Shoutouts</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+<button class="btn btn-primary" @onclick="ReloadShoutouts">Reload Shoutouts</button>
+@if(autoShoutouts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else 
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Response</th>
+                <th>Last Shoutout</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var shoutout in autoShoutouts)
+            {
+                <tr>
+                    <td>@shoutout.Name</td>
+                    <td>@shoutout.CustomMessage</td>
+                    <td>@shoutout.LastShoutout</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    
+    <div>
+        <input placeholder="Name" @bind="Name" />
+        <input placeholder="response" @bind="Message" />
+        <button class="btn btn-primary" @onclick="AddShoutout">Add Shoutout</button>
+    </div>
+}
+@code {
+    private List<DotNetTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
+    private string? Name;
+    private string? Message;
+    protected override async Task OnInitializedAsync(){
+        autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
+    }
+
+    private async Task ReloadShoutouts()
+    {
+        autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
+        StateHasChanged();
+    }
+
+    private async Task AddShoutout()
+    {
+        if(!string.IsNullOrWhiteSpace(Name)){
+            var autoShoutout = new DotNetTwitchBot.Bot.Models.AutoShoutout
+            {
+                Name = Name,
+                CustomMessage = Message
+            };
+            await ShoutoutSystem.AddAutoShoutout(autoShoutout);
+            await ReloadShoutouts();
+        }
+    }
+
+}
