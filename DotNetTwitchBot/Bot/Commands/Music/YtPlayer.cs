@@ -8,6 +8,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using Microsoft.AspNetCore.SignalR;
 using Google.Apis.YouTube.v3;
+using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
@@ -175,6 +176,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         await Pause();
                     }
                     break;
+                case "wrongsong":
+                    await WrongSong(e);
+                    break;
                 case "sr":
                     await SongRequest(e);
                     break;
@@ -191,6 +195,18 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await LoadPlaylist(e);
                     break;
             }
+        }
+
+        private async Task WrongSong(CommandEventArgs e)
+        {
+            var song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).FirstOrDefault();
+            if (song != null)
+            {
+                Requests.Remove(song);
+                await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
+                return;
+            }
+            await _serviceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
         }
 
         private async Task VoteSkipSong(CommandEventArgs e)
@@ -402,8 +418,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 NextSong = song;
             }
-
-            await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Select(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            
+            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task<string> GetSongId(string searchTerm)

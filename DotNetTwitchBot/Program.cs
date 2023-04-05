@@ -42,6 +42,9 @@ internal class Program
         builder.Services.AddSingleton<TwitchBotService>();
         builder.Services.AddSingleton<DiscordService>();
 
+        builder.Services.AddRazorPages();
+        builder.Services.AddServerSideBlazor();
+
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
@@ -120,6 +123,9 @@ internal class Program
 
         builder.Services.AddSignalR();
 
+
+        builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
+
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -197,13 +203,19 @@ internal class Program
         AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
             if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
-                eventArgs.Exception.GetType() == typeof(System.IO.IOException))
+                eventArgs.Exception.GetType() == typeof(System.IO.IOException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException))
             {
                 return; //Ignore
             }
             logger.LogError(eventArgs.Exception, "Global Exception Caught");
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
+
+        app.MapBlazorHub();
+        app.MapFallbackToPage("/_Host");
         app.Run(); //Start in future to read input
     }
 }

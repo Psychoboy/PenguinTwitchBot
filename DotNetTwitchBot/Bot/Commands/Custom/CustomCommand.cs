@@ -25,6 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IServiceScopeFactory _scopeFactory;
         private ILogger<CustomCommand> _logger;
         private TwitchService _twitchService;
+        private LoyaltyFeature _loyaltyFeature;
 
         public CustomCommand(
             SendAlerts sendAlerts,
@@ -32,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             TwitchService twitchService,
+            LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone) : base(serviceBackbone)
         {
             _sendAlerts = sendAlerts;
@@ -39,6 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _scopeFactory = scopeFactory;
             _logger = logger;
             _twitchService = twitchService;
+            _loyaltyFeature = loyaltyFeature;
             _serviceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
@@ -59,6 +62,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("channelname", ChannelName);
             CommandTags.Add("uptime", Uptime);
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
+        }
+
+        public Dictionary<string, CustomCommands> GetCustomCommands()
+        {
+            return Commands;
         }
 
         public async Task LoadCommands()
@@ -273,6 +281,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             return;
                     }
                 }
+                if (Commands[e.Command].Cost > 0)
+                {
+                    if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                    {
+                        await _serviceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                        return;
+                    }
+                }
+
+
                 await processTagsAndSayMessage(e, Commands[e.Command].Response);
 
                 if (Commands[e.Command].GlobalCooldown > 0)
@@ -291,7 +309,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return Commands[command].Response;
         }
 
-
+        public bool CustomCommandExists(string command)
+        {
+            return Commands.ContainsKey(command);
+        }
 
         public async Task<CustomCommandResult> ProcessTags(CommandEventArgs eventArgs, string originalText)
         {
@@ -612,7 +633,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             var streamTime = await _twitchService.StreamStartedAt();
             if (streamTime == DateTime.MinValue) return new CustomCommandResult("Stream is offline");
-            var currentTime = DateTime.Now;
+            var currentTime = DateTime.UtcNow;
             var totalTime = currentTime - streamTime;
             return new CustomCommandResult(totalTime.ToString());
         }

@@ -158,7 +158,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var viewers = _viewerFeature.GetCurrentViewers();
 
-            _logger.LogInformation("Currently a total of {0} viewers", viewers.Count());
+            // _logger.LogInformation("(Tickets) Currently a total of {0} viewers", viewers.Count());
 
             if (_serviceBackbone.IsOnline)
             {
@@ -191,7 +191,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (e.isBroadcaster && Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
-                            await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} test points, {0} now has {2} test points.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
+                            await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }

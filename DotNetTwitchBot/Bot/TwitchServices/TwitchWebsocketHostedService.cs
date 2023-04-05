@@ -41,16 +41,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventService = eventService;
         }
 
-        private void OnStreamOffline(object? sender, StreamOfflineArgs e)
+        private async void OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
             _logger.LogInformation($"Stream is offline");
             _eventService.IsOnline = false;
+            await _eventService.OnStreamEnded();
         }
 
-        private void OnStreamOnline(object? sender, StreamOnlineArgs e)
+        private async void OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
             _logger.LogInformation($"Stream is online");
             _eventService.IsOnline = true;
+            await _eventService.OnStreamStarted();
         }
 
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)

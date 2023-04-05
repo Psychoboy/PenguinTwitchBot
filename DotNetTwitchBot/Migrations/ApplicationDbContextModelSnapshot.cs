@@ -322,6 +322,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<DateTime>("LastSeen")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("varchar(255)");

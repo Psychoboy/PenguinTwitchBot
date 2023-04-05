@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot
@@ -54,6 +55,22 @@ namespace DotNetTwitchBot.Bot
                 from index in Enumerable.Range(0, units.Length)
                 where parts[index] > 0
                 select parts[index] + units[index]);
+        }
+        public static string CleanInput(string? strIn)
+        {
+            // Replace invalid characters with empty strings.
+            if (string.IsNullOrWhiteSpace(strIn)) return "";
+            try
+            {
+                return Regex.Replace(strIn, @"[^\w\.@-]", "",
+                                     RegexOptions.None, TimeSpan.FromSeconds(1.5));
+            }
+            // If we timeout when replacing invalid characters,
+            // we should return Empty.
+            catch (RegexMatchTimeoutException)
+            {
+                return String.Empty;
+            }
         }
     }
 }

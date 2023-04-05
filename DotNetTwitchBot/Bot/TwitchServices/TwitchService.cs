@@ -206,6 +206,37 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return "";
         }
 
+        public async Task<string> GetStreamTitle()
+        {
+            var userId = await GetBroadcasterUserId();
+            if (userId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+            if (channelInfo.Data.Length > 0)
+            {
+                return channelInfo.Data[0].Title;
+            }
+            return "";
+        }
+
+        public async Task<string> GetStreamThumbnail()
+        {
+            var userId = await GetBroadcasterUserId();
+            if (userId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var streamInfo = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string> { userId });
+            if (streamInfo.Streams.Count() > 0)
+            {
+                var stream = streamInfo.Streams.First();
+                return stream.ThumbnailUrl;
+            }
+            return "";
+        }
+
         public async Task SubscribeToAllTheStuffs(string sessionId)
         {
             await ValidateAndRefreshToken();

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,8 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class ViewerFeature : BaseCommand
     {
-        private Dictionary<string, DateTime> _usersLastActive = new Dictionary<string, DateTime>();
-        private HashSet<string> _users = new HashSet<string>();
+        private ConcurrentDictionary<string, DateTime> _usersLastActive = new ConcurrentDictionary<string, DateTime>();
+        private ConcurrentDictionary<string, byte> _users = new ConcurrentDictionary<string, byte>();
         // private ApplicationDbContext _applicationDbContext;
 
         //private ViewerData _viewerData;
@@ -53,7 +54,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _twitchService = twitchService;
             _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
-            _timer = new Timer();
             _timer = new Timer(900000); //15 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
@@ -61,18 +61,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
+
             await UpdateSubscribers();
         }
 
         private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
         {
-            _users.Remove(e.Username);
+            _users.Remove(e.Username, out byte doNotCare);
             await AddOrUpdateLastSeen(e.Username);
         }
 
         private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
         {
-            _users.Add(e.Username);
+            _users[e.Username] = default(byte);
             await AddOrUpdateLastSeen(e.Username);
         }
 
@@ -171,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetCurrentViewers()
         {
-            var users = _users.ToList();
+            var users = _users.Select(x => x.Key).ToList();
             var activeViewers = GetActiveViewers();
             users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
             return users.ToList();
@@ -182,7 +183,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username));
+                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username.ToLower()));
             }
         }
 
@@ -190,6 +191,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var viewer = await GetViewer(username);
             return viewer != null ? viewer.DisplayName : username;
+        }
+
+        public async Task<string> GetNameWithTitle(string username)
+        {
+            var viewer = await GetViewer(username);
+            return viewer != null ? viewer.NameWithTitle() : username;
         }
 
         public async Task<bool> IsSubscriber(string username)
@@ -330,49 +337,48 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task UpdateSubscribers()
         {
-            _logger.LogInformation("Loading Subscribers");
-            var subscribers = await _twitchService.GetAllSubscriptions();
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            try
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                foreach (var subscriber in subscribers)
+                var subscribers = await _twitchService.GetAllSubscriptions();
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var viewer = await GetViewer(subscriber.UserLogin);
-                    if (viewer == null)
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    foreach (var subscriber in subscribers)
                     {
-                        viewer = new Viewer()
+                        var viewer = await GetViewer(subscriber.UserLogin);
+                        if (viewer == null)
                         {
-                            Username = subscriber.UserLogin,
-                            DisplayName = subscriber.UserName
-                        };
+                            viewer = new Viewer()
+                            {
+                                Username = subscriber.UserLogin,
+                                DisplayName = subscriber.UserName
+                            };
+                        }
+                        viewer.isSub = true;
+                        db.Viewers.Update(viewer);
                     }
-                    viewer.isSub = true;
-                    // await _viewerData.InsertOrUpdate(viewer);
-
-
-                    db.Viewers.Update(viewer);
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
-            }
-            _logger.LogInformation("Getting existing subscribers.");
-            // var curSubscribers = await _viewerData.GetAllSubscribers();
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var curSubscribers = await db.Viewers.Where(x => x.isSub == true).ToListAsync();
-                foreach (var curSubscriber in curSubscribers)
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var curSubscribers = await db.Viewers.Where(x => x.isSub == true).ToListAsync();
+                    foreach (var curSubscriber in curSubscribers)
                     {
-                        _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
-                        curSubscriber.isSub = false;
-                        db.Viewers.Update(curSubscriber);
+                        if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
+                        {
+                            _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
+                            curSubscriber.isSub = false;
+                            db.Viewers.Update(curSubscriber);
+                        }
                     }
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
             }
-
-            _logger.LogInformation("Done updating subscribers, Total: {0}", subscribers.Count);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating subscribers");
+            }
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)

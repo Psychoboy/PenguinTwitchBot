@@ -1,0 +1,87 @@
+@page "/customcommands"
+@inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+
+<PageTitle>Custom Commands</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+@if (commands == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>Response</th>
+                <th>Disabled</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var command in commands)
+            {
+                <tr>
+                    <td>@command.Key</td>
+                    <td>@command.Value.Response</td>
+                    <td>@command.Value.Disabled</td>
+                    <td><button>Edit</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="btn btn-primary" @onclick="ReloadCommands">Reload Commands</button>
+    <div>
+        <input placeholder="Name" @bind="commandName" />
+        <input placeholder="response" @bind="commandResponse" />
+        <input placeholder="User CD" @bind="commandUserCd" />
+        <input placeholder="Global CD" @bind="commandGlobalCd" />
+        <button class="btn btn-primary" @onclick="AddCommand">Add Command</button>
+    </div>
+
+}
+
+@code {
+    private Dictionary<string, DotNetTwitchBot.Bot.Models.CustomCommands>? commands;
+    private string? commandName;
+    private string? commandResponse;
+    private string? commandUserCd;
+    private string? commandGlobalCd;
+    protected override Task OnInitializedAsync()
+    {
+        commands = CustomCommand.GetCustomCommands();
+        return Task.CompletedTask;
+    }
+
+    private async Task ReloadCommands()
+    {
+        await CustomCommand.LoadCommands();
+        commands = CustomCommand.GetCustomCommands();
+        StateHasChanged();
+    }
+
+    private async Task AddCommand()
+    {
+        if (!string.IsNullOrWhiteSpace(commandName) &&
+        !string.IsNullOrWhiteSpace(commandResponse) &&
+        !string.IsNullOrWhiteSpace(commandUserCd) &&
+        !string.IsNullOrWhiteSpace(commandGlobalCd))
+        {
+            var command = new DotNetTwitchBot.Bot.Models.CustomCommands
+                {
+                    CommandName = commandName,
+                    UserCooldown = Int32.Parse(commandUserCd),
+                    GlobalCooldown = Int32.Parse(commandGlobalCd),
+                    Response = commandResponse
+                };
+            await CustomCommand.AddCommand(command);
+            await ReloadCommands();
+        }
+    }
+}
