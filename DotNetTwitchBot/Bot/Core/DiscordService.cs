@@ -8,6 +8,7 @@ using Discord.Net;
 using Discord.WebSocket;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.TwitchServices;
 using Serilog.Events;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -16,17 +17,24 @@ namespace DotNetTwitchBot.Bot.Core
     {
         private DiscordSocketClient _client;
         private ILogger<DiscordService> _logger;
+        private ServiceBackbone _serviceBackbone;
         private CustomCommand _customCommands;
+        private TwitchService _twitchService;
         private ConcurrentDictionary<ulong, byte> _streamingIds = new ConcurrentDictionary<ulong, byte>();
         private DiscordSettings _settings;
 
         public DiscordService(
             CustomCommand customCommands,
             ILogger<DiscordService> logger,
+            ServiceBackbone serviceBackbone,
+            TwitchService twitchService,
             IConfiguration configuration)
         {
             _logger = logger;
+            _serviceBackbone = serviceBackbone;
+            _serviceBackbone.StreamStarted += OnStreamStarted;
             _customCommands = customCommands;
+            _twitchService = twitchService;
             var config = new DiscordSocketConfig()
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
@@ -48,6 +56,48 @@ namespace DotNetTwitchBot.Bot.Core
             _settings = settings;
             Initialize(settings.DiscordToken);
         }
+
+        private Task OnStreamStarted(object? sender)
+        {
+            Task.Run(AnnounceLive);
+            return Task.CompletedTask;
+        }
+
+        private async void AnnounceLive()
+        {
+            try
+            {
+                await Task.Delay(60000); //Delay to generate thumbnail
+                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+
+                // COMMENTED FOR TESTING
+                //var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
+                var channel = (IMessageChannel)await guild.GetChannelAsync(911807868775313468);
+                var embed = new EmbedBuilder()
+                    .WithColor(100, 65, 164)
+                    .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
+                    .WithTitle("SuperPenguinTV has just went live on Twitch!")
+                    .AddField("Now Playing", await _twitchService.GetCurrentGame())
+                    .AddField("Stream Title", await _twitchService.GetStreamTitle())
+                    .WithUrl("https://twitch.tv/SuperPenguinTV")
+                    .WithImageUrl(await _twitchService.GetStreamThumbnail())
+                    .WithCurrentTimestamp()
+                    .WithFooter("Twitch").Build();
+                var message = "";
+                //Commented for testing
+                // if (_settings.PingRoleWhenLive != 0)
+                // {
+                //     message += $"<@{_settings.PingRoleWhenLive}> ";
+                // }
+                message += "FOR TESTING - NOTIFICATION REMOVED - SuperPenguinTV just went LIVE on Twitch!";
+                await channel.SendMessageAsync(message, embed: embed);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error broadcasting live.");
+            }
+        }
+
 
         private async Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
         {

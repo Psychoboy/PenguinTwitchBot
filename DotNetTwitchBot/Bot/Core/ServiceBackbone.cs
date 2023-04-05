@@ -22,6 +22,8 @@ namespace DotNetTwitchBot.Bot.Core
             BotName = configuration["botName"];
             _scopeFactory = scopeFactory;
         }
+
+        public delegate Task AsyncEventHandler(object? sender);
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
         public delegate Task AsyncEventHandler<TEventArgs, TEventArgs2>(object? sender, TEventArgs e, TEventArgs2 e2);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
@@ -35,6 +37,8 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
+        public event AsyncEventHandler? StreamStarted;
+        public event AsyncEventHandler? StreamEnded;
 
         public bool IsOnline { get; set; } = false;
         public string BroadcasterName { get { return RawBroadcasterName != null ? RawBroadcasterName : ""; } }
@@ -164,6 +168,36 @@ namespace DotNetTwitchBot.Bot.Core
         //             });
         //     }
         // }
+
+        public async Task OnStreamStarted()
+        {
+            if (StreamStarted != null)
+            {
+                try
+                {
+                    await StreamStarted(this);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error firing StreamStarted");
+                }
+            }
+        }
+
+        public async Task OnStreamEnded()
+        {
+            if (StreamEnded != null)
+            {
+                try
+                {
+                    await StreamEnded(this);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error firing StreamEnded");
+                }
+            }
+        }
 
         public async Task OnCheer(ChannelCheer ev)
         {
