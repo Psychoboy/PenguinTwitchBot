@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class LoyaltyFeature : BaseCommand
     {
         private ViewerFeature _viewerFeature;
+        private readonly TicketsFeature _ticketsFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private Timer _intervalTimer;
         private readonly ILogger<LoyaltyFeature> _logger;
@@ -24,18 +25,90 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<LoyaltyFeature> logger,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone eventService
+            ServiceBackbone eventService,
+            TicketsFeature ticketsFeature
             ) : base(eventService)
         {
             _viewerFeature = viewerFeature;
+            _ticketsFeature = ticketsFeature;
             _scopeFactory = scopeFactory;
             _intervalTimer = new Timer(60000);
             _intervalTimer.Elapsed += ElapseTimer;
             _intervalTimer.Start();
 
             _serviceBackbone.ChatMessageEvent += OnChatMessage;
+
+            //Loyalty Stuff
+            _serviceBackbone.SubscriptionEvent += OnSubscription;
+            _serviceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
+            _serviceBackbone.CheerEvent += OnCheer;
+
             _logger = logger;
         }
+
+
+
+        private async Task OnCheer(object? sender, CheerEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous)
+            {
+                await _serviceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
+                return;
+            }
+            try
+            {
+                await _serviceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
+                var ticketsToAward = (int)Math.Floor((double)e.Amount / 100);
+                if (ticketsToAward < 1) return;
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, ticketsToAward);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error OnCheer");
+            }
+        }
+
+        private async Task OnSubScriptionGift(object? sender, SubscriptionGiftEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Name)) return;
+            try
+            {
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, 5 * e.GiftAmount);
+                var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
+                if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
+                {
+                    message += $" They have gifted a total of {e.TotalGifted} subs to the channel!";
+                }
+                await _serviceBackbone.SendChatMessage(message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error when processing gift subscription for {user}", e.Name);
+            }
+        }
+
+        private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Name)) return;
+            if (e.IsGift) return;
+            try
+            {
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, 5);
+                if (e.Length == null || e.Length == 1)
+                {
+                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                }
+                else
+                {
+                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Length} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error when processing subscription for {user}", e.Name);
+            }
+        }
+
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {

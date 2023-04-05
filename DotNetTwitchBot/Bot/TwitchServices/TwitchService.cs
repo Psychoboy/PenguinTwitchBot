@@ -84,7 +84,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
-
             return users.Users.FirstOrDefault()?.Id;
         }
 
@@ -101,6 +100,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
             return users.Users.FirstOrDefault()?.Id;
+        }
+
+        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUser(string user)
+        {
+            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
+            return users.Users.FirstOrDefault();
         }
 
         public async Task<Follower?> GetUserFollow(string user)
@@ -162,6 +167,27 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return streams.Streams.Count() > 0;
         }
 
+        public async Task<bool> IsStreamOnline(string userId)
+        {
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+            if (streams.Streams == null)
+            {
+                return false;
+            }
+
+            return streams.Streams.Count() > 0;
+        }
+
+        public async Task<List<string>> AreStreamsOnline(List<string> userIds)
+        {
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: userIds, first: 100, accessToken: _configuration["twitchAccessToken"]);
+            if (streams.Streams == null)
+            {
+                return new List<string>();
+            }
+            return streams.Streams.Select(x => x.UserId).ToList();
+        }
+
         public async Task<DateTime> StreamStartedAt()
         {
             var userId = await GetBroadcasterUserId();
@@ -177,6 +203,21 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var stream = streams.Streams.First();
             var startTime = stream.StartedAt;
             return startTime;
+        }
+
+        public async Task<int> GetViewerCount()
+        {
+            var userId = await GetBroadcasterUserId();
+            if (userId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+            if (streams.Streams.Count() == 0)
+            {
+                return 0;
+            }
+            return streams.Streams.First().ViewerCount;
         }
 
         // public async Task TestWhisper(string target, string message)
@@ -228,13 +269,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streamInfo = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string> { userId });
+            var streamInfo = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string> { userId }, accessToken: _configuration["twitchAccessToken"]);
             if (streamInfo.Streams.Count() > 0)
             {
                 var stream = streamInfo.Streams.First();
                 return stream.ThumbnailUrl;
             }
             return "";
+        }
+
+        public async Task RaidStreamer(string userId)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                throw new Exception("Error getting stream status.");
+            }
+            var response = await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
         }
 
         public async Task SubscribeToAllTheStuffs(string sessionId)
@@ -319,6 +370,17 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.raid",
+                "1",
+                new Dictionary<string, string>{{"to_broadcaster_user_id", userId},
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId, accessToken: _configuration["twitchAccessToken"]
+            );
+
+            // Maybe do a from also and switch this handling raid events
         }
 
         public async Task ValidateAndRefreshToken()

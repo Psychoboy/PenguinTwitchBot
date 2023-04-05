@@ -32,11 +32,13 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
-        public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEndEvent;
+        public event AsyncEventHandler<SubscriptionGiftEventArgs>? SubscriptionGiftEvent;
+        public event AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;
         public event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         public event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
+        public event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
 
@@ -161,14 +163,6 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        // public async Task OnCheer(string sender) {
-        //     if(CheerEvent != null) {
-        //         await CheerEvent(this, new CheerEventArgs(){
-        //             Sender = sender
-        //             });
-        //     }
-        // }
-
         public async Task OnStreamStarted()
         {
             if (StreamStarted != null)
@@ -205,7 +199,8 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 await CheerEvent(this, new CheerEventArgs()
                 {
-                    Sender = ev.UserName,
+                    Name = ev.UserLogin,
+                    DisplayName = ev.UserName,
                     Amount = ev.Bits,
                     Message = ev.Message,
                     IsAnonymous = ev.IsAnonymous
@@ -226,6 +221,21 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
+        public async Task OnIncomingRaid(RaidEventArgs args)
+        {
+            if (IncomingRaidEvent != null)
+            {
+                try
+                {
+                    await IncomingRaidEvent(this, args);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error In OnIncomingRaid");
+                }
+            }
+        }
+
         public async Task OnChatMessage(TwitchLib.Client.Models.ChatMessage message)
         {
             if (ChatMessageEvent != null)
@@ -243,11 +253,19 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnSubscription(string sender)
+        public async Task OnSubscription(SubscriptionEventArgs eventArgs)
         {
             if (SubscriptionEvent != null)
             {
-                await SubscriptionEvent(this, new SubscriptionEventArgs() { Sender = sender });
+                await SubscriptionEvent(this, eventArgs);
+            }
+        }
+
+        public async Task OnSubscriptionGift(SubscriptionGiftEventArgs eventArgs)
+        {
+            if (SubscriptionGiftEvent != null)
+            {
+                await SubscriptionGiftEvent(this, eventArgs);
             }
         }
 
@@ -255,7 +273,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (SubscriptionEndEvent != null)
             {
-                await SubscriptionEndEvent(this, new SubscriptionEventArgs() { Sender = userName });
+                await SubscriptionEndEvent(this, new SubscriptionEndEventArgs() { Name = userName });
             }
         }
 

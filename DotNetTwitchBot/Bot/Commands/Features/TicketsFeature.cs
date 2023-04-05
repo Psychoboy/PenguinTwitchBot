@@ -25,12 +25,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
-            ServiceBackbone eventService,
+            ServiceBackbone serviceBackbone,
             // TicketsData ticketsData, 
             // ApplicationDbContext applicationDbContext,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature)
-            : base(eventService)
+            : base(serviceBackbone)
         {
             _logger = logger;
 
@@ -42,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _autoPointsTimer.Start();
 
         }
+
 
         public async Task GiveTicketsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount)
         {

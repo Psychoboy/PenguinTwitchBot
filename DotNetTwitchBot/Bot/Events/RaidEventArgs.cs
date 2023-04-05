@@ -5,11 +5,10 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Events
 {
-    public class SubscriptionEventArgs
+    public class RaidEventArgs
     {
         public string Name { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
-        public int? Length { get; set; } = null;
-        public bool IsGift { get; set; } = false;
+        public int NumberOfViewers { get; set; }
     }
 }

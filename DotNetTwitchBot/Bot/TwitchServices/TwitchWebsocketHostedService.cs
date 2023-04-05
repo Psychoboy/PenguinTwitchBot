@@ -34,11 +34,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+            _eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
             _twitchService = twitchService;
             _eventService = eventService;
+        }
+
+        private async void OnChannelRaid(object? sender, ChannelRaidArgs e)
+        {
+            _logger.LogInformation("OnChannelRaid from {0}", e.Notification.Payload.Event.FromBroadcasterUserName);
+            await _eventService.OnIncomingRaid(new Events.RaidEventArgs
+            {
+                Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
+                DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
+                NumberOfViewers = e.Notification.Payload.Event.Viewers
+            });
         }
 
         private async void OnStreamOffline(object? sender, StreamOfflineArgs e)
@@ -58,33 +70,47 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
             _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
-            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            {
+                Name = e.Notification.Payload.Event.UserLogin,
+                DisplayName = e.Notification.Payload.Event.UserName,
+                Length = e.Notification.Payload.Event.StreakMonths
+            });
         }
 
-        private void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
+        private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
             _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
+            {
+                Name = e.Notification.Payload.Event.UserLogin,
+                DisplayName = e.Notification.Payload.Event.UserName,
+                GiftAmount = e.Notification.Payload.Event.Total,
+                TotalGifted = e.Notification.Payload.Event.CumulativeTotal
+            });
         }
-
-        // private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
-        // {
-        //     // await _eventService.OnSubscription(e.Notification.Payload.Event.);
-        // }
 
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
-            _logger.LogInformation("onChannelSubscription: {0}", e.Notification.Payload.Event.UserName);
-            await _eventService.OnSubscription(e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1}", e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift);
+
+            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            {
+                Name = e.Notification.Payload.Event.UserLogin,
+                DisplayName = e.Notification.Payload.Event.UserName,
+                IsGift = e.Notification.Payload.Event.IsGift
+            });
         }
 
         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
             _logger.LogInformation("OnChannelSubscriptionEnd: {0}", e.Notification.Payload.Event.UserName);
-            await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserName);
+            await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
+            _logger.LogInformation("OnChannelCheer: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnCheer(e.Notification.Payload.Event);
         }
 

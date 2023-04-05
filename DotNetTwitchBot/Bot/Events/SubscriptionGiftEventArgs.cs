@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Events
 {
-    public class SubscriptionEventArgs
+    public class SubscriptionGiftEventArgs
     {
-        public string Name { get; set; } = null!;
+        public string? Name { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
-        public int? Length { get; set; } = null;
-        public bool IsGift { get; set; } = false;
+        public int GiftAmount { get; set; }
+        public int? TotalGifted { get; internal set; }
     }
 }

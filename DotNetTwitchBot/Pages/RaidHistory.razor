@@ -1,0 +1,72 @@
+@page "/raidhistory"
+@inject DotNetTwitchBot.Bot.Commands.Misc.RaidTracker RaidTracker
+
+<PageTitle>Raid History</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+@if (raidHistory == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Display Name</th>
+                <th>Is Online</th>
+                <th>Incoming raids</th>
+                <th>Incoming Viewer Per</th>
+                <th>Outgoing raids</th>
+                <th>Outgoing Viewer Per</th>
+                <th>Raid?</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in raidHistory)
+            {
+                <tr>
+                    <td>@item.DisplayName</td>
+                    <td>@item.IsOnline</td>
+                    <td>@item.TotalIncomingRaids</td>
+                    @if (item.TotalIncomingRaids > 0)
+                    {
+                        <td>@(item.TotalIncomingRaidViewers / item.TotalIncomingRaids)</td>
+                    }
+                    else
+                    {
+                        <td>0</td>
+                    }
+                    <td>@item.TotalOutgoingRaids</td>
+                    @if (@item.TotalOutgoingRaids > 0)
+                    {
+                        <td>@(item.TotalOutGoingRaidViewers / item.TotalOutgoingRaids)</td>
+                    }
+                    else
+                    {
+                        <td>0</td>
+                    }
+                    <td><button class="btn btn-primary btn-xs" data-id="@item.Name" @onclick="() => Raid(item)">Raid</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<RaidHistoryEntry>? raidHistory;
+
+    protected override async Task OnInitializedAsync()
+    {
+        raidHistory = await RaidTracker.GetHistory();
+    }
+
+    private async Task Raid(RaidHistoryEntry item)
+    {
+        await RaidTracker.Raid(item.Name);
+    }
+}

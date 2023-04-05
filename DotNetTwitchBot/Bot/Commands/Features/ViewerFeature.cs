@@ -104,34 +104,40 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnFollow(object? sender, FollowEventArgs e)
         {
             _logger.LogInformation("{0} Followed.", e.DisplayName);
+            await _serviceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
             updateLastActive(e.Username);
             await AddFollow(e);
         }
 
         private async Task AddFollow(FollowEventArgs args)
         {
-            // var follower = await _followData.GetFollower(args.Username);
-            Follower? follower;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            try
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                follower = await db.Followers.Where(x => x.Username.Equals(args.Username)).FirstOrDefaultAsync();
-            }
-            if (follower == null)
-            {
-                follower = new Follower()
-                {
-                    Username = args.Username,
-                    DisplayName = args.DisplayName,
-                    FollowDate = args.FollowDate
-                };
-                //await _followData.Insert(follower);
+                Follower? follower;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    await db.Followers.AddAsync(follower);
-                    await db.SaveChangesAsync();
+                    follower = await db.Followers.Where(x => x.Username.Equals(args.Username)).FirstOrDefaultAsync();
                 }
+                if (follower == null)
+                {
+                    follower = new Follower()
+                    {
+                        Username = args.Username,
+                        DisplayName = args.DisplayName,
+                        FollowDate = args.FollowDate
+                    };
+                    await using (var scope = _scopeFactory.CreateAsyncScope())
+                    {
+                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        await db.Followers.AddAsync(follower);
+                        await db.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding follow");
             }
         }
 
@@ -221,17 +227,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
-            if (e.Sender == null) return;
-            _logger.LogInformation("{0} Subscribed.", e.Sender);
-            await AddSubscription(e.Sender);
-            updateLastActive(e.Sender);
+            if (e.Name == null) return;
+            _logger.LogInformation("{0} Subscribed.", e.Name);
+            await AddSubscription(e.Name);
+            updateLastActive(e.Name);
         }
 
-        private async Task OnSubscriptionEnd(object? sender, SubscriptionEventArgs e)
+        private async Task OnSubscriptionEnd(object? sender, SubscriptionEndEventArgs e)
         {
-            if (e.Sender == null) return;
-            _logger.LogInformation("{0} Unsubscribed", e.Sender);
-            await RemoveSubscription(e.Sender);
+            if (e.Name == null) return;
+            _logger.LogInformation("{0} Unsubscribed", e.Name);
+            await RemoveSubscription(e.Name);
             // updateLastActive(e.Sender);
         }
 
@@ -268,12 +274,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (!e.IsAnonymous)
             {
-                updateLastActive(e.Sender);
-                _logger.LogInformation("{0} cheered {1} bits with message {2}", e.Sender, e.Amount, e.Message);
-            }
-            else
-            {
-                _logger.LogInformation("Anonymous User cheered {0} bits", e.Amount);
+                updateLastActive(e.Name);
             }
             return Task.CompletedTask;
         }
