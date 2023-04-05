@@ -43,14 +43,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
-            _logger.LogInformation($"Stream is offline");
+            _logger.LogInformation("Stream is offline");
             _eventService.IsOnline = false;
             await _eventService.OnStreamEnded();
         }
 
         private async void OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
-            _logger.LogInformation($"Stream is online");
+            _logger.LogInformation("Stream is online");
             _eventService.IsOnline = true;
             await _eventService.OnStreamStarted();
         }
@@ -110,7 +110,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private void OnWebsocketReconnected(object? sender, EventArgs e)
         {
-            _logger.LogWarning($"Websocket {_eventSubWebsocketClient.SessionId} reconnected");
+            _logger.LogWarning("Websocket {SessionId} reconnected", _eventSubWebsocketClient.SessionId);
         }
 
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)

@@ -148,7 +148,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 _logger.LogError(ex.Message);
             }
-            _logger.LogInformation($"Stream Is Online: {_eventService.IsOnline}");
+            _logger.LogInformation("Stream Is Online: {IsOnline}", _eventService.IsOnline);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

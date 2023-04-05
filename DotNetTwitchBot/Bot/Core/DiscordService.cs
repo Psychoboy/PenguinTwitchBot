@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Core
             var user = arg.Author as IGuildUser;
             var message = await arg.Channel.GetMessageAsync(arg.Id);
             if (string.IsNullOrWhiteSpace(message.Content.Trim())) return;
-            _logger.LogInformation($"[DISCORD] [#{message.Channel.Name}] {user?.DisplayName}: {message.Content}");
+            _logger.LogInformation("[DISCORD] [#{MessageChannelName}] {UserDisplayName}: {MessageContent}", message.Channel.Name, user?.DisplayName, message.Content);
         }
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
@@ -182,7 +182,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (isStreaming)
             {
-                _logger.LogInformation($"User {user.DisplayName} started streaming.");
+                _logger.LogInformation("User {DisplayName} started streaming.", user.DisplayName);
                 if (_settings.RoleIdToAssignMemberWhenLive != 0)
                 {
                     await user.AddRoleAsync(_settings.RoleIdToAssignMemberWhenLive);
@@ -190,7 +190,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
             else
             {
-                _logger.LogInformation($"User {user.DisplayName} stopped streaming.");
+                _logger.LogInformation("User {DisplayName} stopped streaming.", user.DisplayName);
                 if (_settings.RoleIdToAssignMemberWhenLive != 0)
                 {
                     await user.RemoveRoleAsync(_settings.RoleIdToAssignMemberWhenLive);
