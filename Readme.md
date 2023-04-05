@@ -6,6 +6,7 @@ Feel free to fork and do what you wish with it.
 
 TODO:
  - = code implemented need move data
+ / = in Testing
  x = complete
 - [X] Pasties
 - [X] Watch time
@@ -27,25 +28,27 @@ TODO:
     - [X] Roll
     - [ ] Boss
 - [ ] Pasty Tax
-- [ ] Greeting system
+- [ ] Shoutout/Greeting system
 - [X] Quote System
 - [X] Rank/Title system
 - [ ] Weather
 - [ ] kill command
-- [ ] Shoutout system
-- [-] Bonus handlers 
+- [X] Bonus handlers 
     - [X] On Sub
     - [X] On Bits
 - [X] Music
 - [ ] Blacklist
 - [ ] Timers
-- [ ] Chat Alerts
-    - [ ] Follower
-    - [ ] Subscriber
+- [X] Raid Tracker
+- [X] Chat Alerts
+    - [X] Follower
+    - [X] Subscriber
     - [ ] Clip
-    - [ ] Raid
-    - [ ] Bits
+    - [X] Raid
+    - [X] Bits
+- [ ] Migrate visual alerts from SE to new Bot
 - [ ] Discord Stuff
-    - [-] Commands
-    - [ ] Live notification
+    - [X] Commands
+    - [/] Live notification (In testing)
+    - [X] Add/Remove Live Streaming role as people stream on twitch
 
