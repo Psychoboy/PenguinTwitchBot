@@ -31,7 +31,7 @@ TODO:
 - [ ] Shoutout/Greeting system
 - [X] Quote System
 - [X] Rank/Title system
-- [ ] Weather
+- [X] Weather
 - [ ] kill command
 - [X] Bonus handlers 
     - [X] On Sub

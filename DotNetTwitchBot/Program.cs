@@ -73,6 +73,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.RaidTracker));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Weather));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse));

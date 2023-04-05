@@ -20,6 +20,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ServiceBackbone _serviceBackbone;
         private CustomCommand _customCommands;
         private TwitchService _twitchService;
+        private IServiceScopeFactory _scopeFactory;
         private ConcurrentDictionary<ulong, byte> _streamingIds = new ConcurrentDictionary<ulong, byte>();
         private DiscordSettings _settings;
 
@@ -28,6 +29,7 @@ namespace DotNetTwitchBot.Bot.Core
             ILogger<DiscordService> logger,
             ServiceBackbone serviceBackbone,
             TwitchService twitchService,
+            IServiceScopeFactory scopeFactory,
             IConfiguration configuration)
         {
             _logger = logger;
@@ -35,6 +37,7 @@ namespace DotNetTwitchBot.Bot.Core
             _serviceBackbone.StreamStarted += OnStreamStarted;
             _customCommands = customCommands;
             _twitchService = twitchService;
+            _scopeFactory = scopeFactory;
             var config = new DiscordSocketConfig()
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
@@ -140,6 +143,29 @@ namespace DotNetTwitchBot.Bot.Core
                 isDiscord = true
             };
 
+            if (arg.CommandName.Equals("weather"))
+            {
+                var options = arg.Data.Options;
+                var loc = "";
+                if (options.Any())
+                {
+                    loc = options.First().Value.ToString();
+                }
+                try
+                {
+                    await using (var scope = _scopeFactory.CreateAsyncScope())
+                    {
+                        var weather = scope.ServiceProvider.GetRequiredService<Commands.Misc.Weather>();
+                        await arg.RespondAsync(await weather.GetWeather(loc));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting weather");
+                }
+                return;
+            }
+
             if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
             var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
             var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
@@ -166,6 +192,20 @@ namespace DotNetTwitchBot.Bot.Core
                 var guildCommand = new SlashCommandBuilder();
                 guildCommand.WithName("gib");
                 guildCommand.WithDescription("Gib Stuff");
+                try
+                {
+                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                }
+                catch (HttpException exception)
+                {
+                    _logger.LogError(exception, "Error creating command");
+                }
+            }
+            {
+                var guildCommand = new SlashCommandBuilder();
+                guildCommand.WithName("weather");
+                guildCommand.WithDescription("Get current weather");
+                guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
                 try
                 {
                     await guild.CreateApplicationCommandAsync(guildCommand.Build());
