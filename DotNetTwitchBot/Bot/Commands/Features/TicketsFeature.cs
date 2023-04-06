@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<long> GiveTicketsToViewer(string viewer, long amount)
         {
-            //var viewerPoints = await _ticketsData.FindOne(viewer);
+            if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) return 0;
             ViewerTicket? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {

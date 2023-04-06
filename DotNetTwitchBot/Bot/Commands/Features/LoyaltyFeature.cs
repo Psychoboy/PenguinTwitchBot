@@ -162,6 +162,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (!_serviceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
+                if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) continue;
                 try
                 {
                     await AddPointsToViewer(viewer, 5);
