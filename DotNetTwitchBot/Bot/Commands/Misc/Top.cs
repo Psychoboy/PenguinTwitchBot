@@ -24,17 +24,22 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             switch (e.Command)
             {
                 case "top10":
-                    await SayTopN(10);
+                    await SayPointsTopN(10);
                     break;
                 case "top5":
-                    await SayTopN(5);
+                    await SayPointsTopN(5);
                     break;
                 case "toptime":
+                    await SayTimeTopN(5);
+                    break;
+                case "toptickets":
+                case "topticket":
+                    await SayTicketsTopN(5);
                     break;
             }
         }
 
-        private async Task SayTopN(int topN)
+        private async Task SayPointsTopN(int topN)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -45,6 +50,34 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var rank = 1;
                 var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
                 await _serviceBackbone.SendChatMessage(string.Format("Top {0} in Pasties: {1}", topN, names));
+            }
+        }
+
+        private async Task SayTimeTopN(int topN)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var broadcasterName = _serviceBackbone.BroadcasterName;
+                var botName = _serviceBackbone.BotName == null ? "" : _serviceBackbone.BotName;
+                var top = db.ViewersTimeWithRank.Where(x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username)).OrderBy(x => x.Ranking).Take(topN).ToList();
+                var rank = 1;
+                var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + Tools.ConvertToCompoundDuration(x.Time)));
+                await _serviceBackbone.SendChatMessage(string.Format("Top {0} in Time: {1}", topN, names));
+            }
+        }
+
+        private async Task SayTicketsTopN(int topN)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var broadcasterName = _serviceBackbone.BroadcasterName;
+                var botName = _serviceBackbone.BotName == null ? "" : _serviceBackbone.BotName;
+                var top = db.ViewerTicketWithRanks.Where(x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username)).OrderBy(x => x.Ranking).Take(topN).ToList();
+                var rank = 1;
+                var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
+                await _serviceBackbone.SendChatMessage(string.Format("Top {0} in Tickets: {1}", topN, names));
             }
         }
     }

@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<GiveawayEntry> GiveawayEntries { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<ViewerTicket> ViewerTickets { get; set; } = null!;
+        public DbSet<ViewerTicketWithRanks> ViewerTicketWithRanks { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
@@ -34,9 +35,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Song> Songs { get; set; } = null!;
         public DbSet<QuoteType> Quotes { get; set; } = null!;
         public DbSet<RaidHistoryEntry> RaidHistory { get; set; } = null!;
-        public DbSet<AutoShoutout> AutoShoutouts {get;set;} = null!;
-        public DbSet<TimerGroup> TimerGroups {get;set;} = null!;
-        public DbSet<TimerMessage> TimerMessages {get;set;} = null!;
+        public DbSet<AutoShoutout> AutoShoutouts { get; set; } = null!;
+        public DbSet<TimerGroup> TimerGroups { get; set; } = null!;
+        public DbSet<TimerMessage> TimerMessages { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
