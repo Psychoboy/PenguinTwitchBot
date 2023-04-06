@@ -39,7 +39,7 @@ TODO:
     - [X] On Bits
 - [X] Music
 - [ ] Blacklist
-- [ ] Timers
+- [X] Timers
 - [X] Raid Tracker
 - [X] Chat Alerts
     - [X] Follower
