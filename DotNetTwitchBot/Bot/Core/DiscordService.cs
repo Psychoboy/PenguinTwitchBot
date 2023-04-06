@@ -90,7 +90,8 @@ namespace DotNetTwitchBot.Bot.Core
                 //Commented for testing
                 // if (_settings.PingRoleWhenLive != 0)
                 // {
-                //     message += $"<@{_settings.PingRoleWhenLive}> ";
+                //       var role = guild.GetRole(_settings.PingRoleWhenLive);
+                //     message += role.Mention;;
                 // }
                 message += "FOR TESTING - NOTIFICATION REMOVED - SuperPenguinTV just went LIVE on Twitch!";
                 await channel.SendMessageAsync(message, embed: embed);
