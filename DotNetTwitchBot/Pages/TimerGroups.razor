@@ -1,0 +1,96 @@
+@page "/timergroups"
+@inject DotNetTwitchBot.Bot.Commands.Misc.Timers Timers
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Timers</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+@if (timerGroups == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Active</th>
+                <th>Min Time</th>
+                <th>Max Time</th>
+                <th>Min Messages</th>
+                <th>Last Run</th>
+                <th>Next Run</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in timerGroups)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Active</td>
+                    <td>@item.IntervalMinimum</td>
+                    <td>@item.IntervalMaximum</td>
+                    <td>@item.MinimumMessages</td>
+                    <td>@item.LastRun</td>
+                    <td>@item.NextRun</td>
+                    <td><button class="btn btn-primary btn-xs" data-id="@item.Name" @onclick="() => Edit(item)">Edit</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div>
+        <input placeholder="Name" @bind="Name" />
+        <input placeholder="response" @bind="MinTime" />
+        <input placeholder="response" @bind="MaxTime" />
+        <input placeholder="response" @bind="MinMessages" />
+        <button class="btn btn-primary" @onclick="AddTimerGroup">Add Timer Group</button>
+    </div>
+}
+
+@code {
+    private List<DotNetTwitchBot.Bot.Models.Timers.TimerGroup>? timerGroups;
+
+    private string? Name;
+    private int MinTime = 15;
+    private int MaxTime = 25;
+    private int MinMessages = 15;
+
+    protected override async Task OnInitializedAsync()
+    {
+        timerGroups = await Timers.GetTimerGroupsAsync();
+    }
+
+    private void Edit(DotNetTwitchBot.Bot.Models.Timers.TimerGroup item)
+    {
+        navigationManager.NavigateTo($"/timermessages/{item.Id}");
+    }
+
+    private async Task AddTimerGroup()
+    {
+        if (string.IsNullOrWhiteSpace(Name) == false &&
+        MinTime != 0 &&
+        MaxTime != 0 &&
+        MinMessages != 0
+        )
+        {
+            var timerGroup = new DotNetTwitchBot.Bot.Models.Timers.TimerGroup
+                {
+                    IntervalMinimum = MinTime,
+                    IntervalMaximum = MaxTime,
+                    MinimumMessages = MinMessages,
+                    Name = Name
+                };
+            await Timers.AddTimerGroup(timerGroup);
+            timerGroups = await Timers.GetTimerGroupsAsync();
+            StateHasChanged();
+        }
+    }
+}

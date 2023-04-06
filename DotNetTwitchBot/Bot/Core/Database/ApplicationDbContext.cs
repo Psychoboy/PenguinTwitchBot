@@ -1,7 +1,9 @@
+using System.Timers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
@@ -33,6 +35,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<QuoteType> Quotes { get; set; } = null!;
         public DbSet<RaidHistoryEntry> RaidHistory { get; set; } = null!;
         public DbSet<AutoShoutout> AutoShoutouts {get;set;} = null!;
+        public DbSet<TimerGroup> TimerGroups {get;set;} = null!;
+        public DbSet<TimerMessage> TimerMessages {get;set;} = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

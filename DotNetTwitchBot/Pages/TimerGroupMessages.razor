@@ -1,0 +1,77 @@
+@page "/timermessages/{id:int}"
+@inject DotNetTwitchBot.Bot.Commands.Misc.Timers Timers
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>Timer Group Edit</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+@if (timerGroup == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Message</th>
+                <th>Enabled</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in timerGroup.Messages)
+            {
+                <tr>
+                    <td>@item.Message</td>
+                    <td>@item.Enabled</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Toggle(item)">Toggle</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div>
+        <input placeholder="Message" @bind="Message" />
+        <button class="btn btn-primary" @onclick="AddMessage">Add Message</button>
+    </div>
+}
+@code
+{
+    [Parameter]
+    public int id { get; set; }
+
+    private string? Message;
+    private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? timerGroup;
+    protected override async void OnParametersSet()
+    {
+        timerGroup = await Timers.GetTimerGroupAsync(id);
+        StateHasChanged();
+    }
+
+    private async Task Toggle(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
+    {
+        message.Enabled = !message.Enabled;
+        await Timers.UpdateTimerMessage(message);
+        timerGroup = await Timers.GetTimerGroupAsync(id);
+        StateHasChanged();
+    }
+
+    private async Task AddMessage()
+    {
+        if (timerGroup != null && string.IsNullOrWhiteSpace(Message) == false)
+        {
+            var message = new DotNetTwitchBot.Bot.Models.Timers.TimerMessage
+                {
+                    Message = Message,
+                    Enabled = true
+                };
+            timerGroup.Messages.Add(message);
+            await Timers.UpdateTimerGroup(timerGroup);
+            StateHasChanged();
+        }
+    }
+}

@@ -75,6 +75,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.RaidTracker));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Weather));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Timers));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse));
