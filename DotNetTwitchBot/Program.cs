@@ -80,6 +80,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist));
 
