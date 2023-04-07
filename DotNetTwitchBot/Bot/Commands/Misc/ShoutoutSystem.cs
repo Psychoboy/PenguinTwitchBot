@@ -13,6 +13,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private IServiceScopeFactory _scopeFactory;
         private TwitchService _twitchService;
         private ILogger<ShoutoutSystem> _logger;
+        private DateTime LastShoutOut = DateTime.Now;
+        private Dictionary<string, DateTime> UserLastShoutout = new Dictionary<string, DateTime>();
 
         public ShoutoutSystem(
             ILogger<ShoutoutSystem> logger,
@@ -90,7 +92,16 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
             message = message.Replace("(name)", name).Replace("(game)", game);
             await _serviceBackbone.SendChatMessage(message);
-            await _twitchService.ShoutoutStreamer(userId);
+            if (LastShoutOut.AddMinutes(2) < DateTime.Now)
+            {
+                if (UserLastShoutout.ContainsKey(userId))
+                {
+                    if (UserLastShoutout[userId].AddMinutes(60) > DateTime.Now) return;
+                }
+                UserLastShoutout[userId] = DateTime.Now;
+                await _twitchService.ShoutoutStreamer(userId);
+            }
+
 
         }
 

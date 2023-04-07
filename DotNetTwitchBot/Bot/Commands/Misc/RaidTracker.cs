@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,7 +103,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     var raidHistory = await db.RaidHistory.Where(x => x.Name.Equals(e.Name)).FirstOrDefaultAsync();
                     if (raidHistory == null)
                     {
-                        var userId = await _twitchService.GetUserId(e.Name);
+                        string? userId = "";
+                        userId = await _twitchService.GetUserId(e.Name);
                         if (userId == null)
                         {
                             _logger.LogWarning("Didn't save raid from {DisplayName} because we couldn't get the users ID.", e.DisplayName);

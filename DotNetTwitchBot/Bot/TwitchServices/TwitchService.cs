@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection.Emit;
 using System;
 using System.Collections.Generic;
@@ -21,6 +22,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
         static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
+        ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?>();
         Timer _timer;
         private SettingsFileManager _settingsFileManager;
 
@@ -84,29 +86,41 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
-            return users.Users.FirstOrDefault()?.Id;
+            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
+            // return users.Users.FirstOrDefault()?.Id;
+            return await GetUserId(broadcaster);
         }
 
         public async Task<string?> GetBotUserId()
         {
-            var broadcaster = _configuration["botName"];
-            if (broadcaster == null) return null;
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
+            var bot = _configuration["botName"];
+            if (bot == null) return null;
+            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
 
-            return users.Users.FirstOrDefault()?.Id;
+            // return users.Users.FirstOrDefault()?.Id;
+            return await GetUserId(bot);
         }
 
         public async Task<string?> GetUserId(string user)
         {
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
-            return users.Users.FirstOrDefault()?.Id;
+            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
+            // return users.Users.FirstOrDefault()?.Id;
+            return (await GetUser(user))?.Id;
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUser(string user)
         {
+            if (UserCache.ContainsKey(user))
+            {
+                if (UserCache[user] != null)
+                {
+                    return UserCache[user];
+                }
+            }
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
-            return users.Users.FirstOrDefault();
+            var userObj = users.Users.FirstOrDefault();
+            UserCache[user] = userObj;
+            return userObj;
         }
 
         public async Task<Follower?> GetUserFollow(string user)
@@ -114,42 +128,27 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
             if (userId == null) return null;
-            var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-            if (!response.Follows.Any())
+            try
             {
-                return null;
-            }
-            var firstFollower = response.Follows.First();
-            return new Follower()
-            {
-                Username = firstFollower.FromLogin,
-                DisplayName = firstFollower.FromLogin,
-                FollowDate = firstFollower.FollowedAt
-            };
-        }
-
-        public async Task<List<Follower>> GetAllFollows()
-        {
-            await ValidateAndRefreshToken();
-            var broadcasterId = await GetBroadcasterUserId();
-            var after = "";
-            List<Follower> followers = new List<Follower>();
-            while (true)
-            {
-                var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(after, null, 100, null, broadcasterId, _configuration["twitchAccessToken"]);
-                followers.AddRange(response.Follows.Select(x => new Follower()
+                var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
+                if (!response.Follows.Any())
                 {
-                    Username = x.FromLogin,
-                    DisplayName = x.FromUserName,
-                    FollowDate = x.FollowedAt
-                }));
-                after = response.Pagination.Cursor;
-                if (string.IsNullOrEmpty(response.Pagination.Cursor))
-                {
-                    break;
+                    return null;
                 }
+                var firstFollower = response.Follows.First();
+                return new Follower()
+                {
+                    Username = firstFollower.FromLogin,
+                    DisplayName = firstFollower.FromLogin,
+                    FollowDate = firstFollower.FollowedAt
+                };
             }
-            return followers;
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+            }
+            return null;
         }
 
         public async Task<bool> IsStreamOnline()
@@ -159,34 +158,61 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
-            if (streams.Streams == null)
+            try
             {
-                return false;
-            }
+                var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+                if (streams.Streams == null)
+                {
+                    return false;
+                }
 
-            return streams.Streams.Count() > 0;
+                return streams.Streams.Count() > 0;
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+            }
+            return false;
         }
 
         public async Task<bool> IsStreamOnline(string userId)
         {
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
-            if (streams.Streams == null)
+            try
             {
-                return false;
-            }
+                var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+                if (streams.Streams == null)
+                {
+                    return false;
+                }
 
-            return streams.Streams.Count() > 0;
+                return streams.Streams.Count() > 0;
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing IsStreamOnline(userId): {0}", error);
+            }
+            return false;
         }
 
         public async Task<List<string>> AreStreamsOnline(List<string> userIds)
         {
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: userIds, first: 100, accessToken: _configuration["twitchAccessToken"]);
-            if (streams.Streams == null)
+            try
             {
-                return new List<string>();
+                var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: userIds, first: 100, accessToken: _configuration["twitchAccessToken"]);
+                if (streams.Streams == null)
+                {
+                    return new List<string>();
+                }
+                return streams.Streams.Select(x => x.UserId).ToList();
             }
-            return streams.Streams.Select(x => x.UserId).ToList();
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing AreStreamsOnline: {0}", error);
+            }
+            return new List<string>();
         }
 
         public async Task<DateTime> StreamStartedAt()
@@ -196,14 +222,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
-            if (streams.Streams.Count() == 0)
+            try
             {
-                return DateTime.MinValue;
+                var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+                if (streams.Streams.Count() == 0)
+                {
+                    return DateTime.MinValue;
+                }
+                var stream = streams.Streams.First();
+                var startTime = stream.StartedAt;
+                return startTime;
             }
-            var stream = streams.Streams.First();
-            var startTime = stream.StartedAt;
-            return startTime;
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing getting stream started at: {0}", error);
+            }
+            return DateTime.MinValue;
         }
 
         public async Task<int> GetViewerCount()
@@ -213,24 +248,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
-            if (streams.Streams.Count() == 0)
+            try
             {
-                return 0;
+                var streams = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string>() { userId }, accessToken: _configuration["twitchAccessToken"]);
+                if (streams.Streams.Count() == 0)
+                {
+                    return 0;
+                }
+                return streams.Streams.First().ViewerCount;
             }
-            return streams.Streams.First().ViewerCount;
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing getting viewer count: {0}", error);
+            }
+            return 0;
         }
-
-        // public async Task TestWhisper(string target, string message)
-        // {
-        //     await ValidateAndRefreshBotToken();
-        //     var botId = await GetBotUserId();
-        //     if (botId == null) return;
-        //     var userId = await GetUserId(target);
-        //     if (userId == null) return;
-        //     var accessToken = _configuration["twitchBotAccessToken"];
-        //     await _twitchApi.Helix.Whispers.SendWhisperAsync(botId, userId, message, true, accessToken);
-        // }
 
         public async Task<string> GetCurrentGame()
         {
@@ -244,12 +277,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<string> GetCurrentGame(string userId)
         {
-            var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
-            if (channelInfo.Data.Length > 0)
+            try
             {
-                return channelInfo.Data[0].GameName;
+                var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+                if (channelInfo.Data.Length > 0)
+                {
+                    return channelInfo.Data[0].GameName;
+                }
             }
-
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Getting current game: {0}", error);
+            }
             return "";
         }
 
@@ -260,10 +300,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
-            if (channelInfo.Data.Length > 0)
+            try
             {
-                return channelInfo.Data[0].Title;
+                var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+                if (channelInfo.Data.Length > 0)
+                {
+                    return channelInfo.Data[0].Title;
+                }
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Getting stream title: {0}", error);
             }
             return "";
         }
@@ -275,11 +323,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var streamInfo = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string> { userId }, accessToken: _configuration["twitchAccessToken"]);
-            if (streamInfo.Streams.Count() > 0)
+            try
             {
-                var stream = streamInfo.Streams.First();
-                return stream.ThumbnailUrl;
+                var streamInfo = await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: new List<string> { userId }, accessToken: _configuration["twitchAccessToken"]);
+                if (streamInfo.Streams.Count() > 0)
+                {
+                    var stream = streamInfo.Streams.First();
+                    return stream.ThumbnailUrl;
+                }
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Getting Thumbnail: {0}", error);
             }
             return "";
         }
@@ -291,7 +347,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 throw new Exception("Error getting stream status.");
             }
-            var response = await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+            try
+            {
+                var response = await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Raid: {0}", error);
+            }
         }
 
         public async Task ShoutoutStreamer(string userId)
@@ -302,9 +366,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 throw new Exception("Error getting broadcaster id.");
             }
             var botId = await GetBotUserId();
-            try{
-            await _twitchApi.Helix.Chat.SendShoutoutAsync(broadcasterId, userId, broadcasterId, _configuration["twitchAccessToken"]);
-            } catch (HttpResponseException ex){
+            try
+            {
+                await _twitchApi.Helix.Chat.SendShoutoutAsync(broadcasterId, userId, broadcasterId, _configuration["twitchAccessToken"]);
+            }
+            catch (HttpResponseException ex)
+            {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing shoutout: {0}", error);
             }

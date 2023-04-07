@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _twitchService = twitchService;
             _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
-            _timer = new Timer(900000); //15 minutes
+            _timer = new Timer(TimeSpan.FromHours(1).TotalMilliseconds); //30 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
         }

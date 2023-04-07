@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             _logger = logger;
             _serviceBackbone = serviceBackbone;
-            _serviceBackbone.StreamStarted += OnStreamStarted;
+            _serviceBackbone.StreamStarted += StreamStarted;
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
@@ -60,22 +60,23 @@ namespace DotNetTwitchBot.Bot.Core
             Initialize(settings.DiscordToken);
         }
 
-        private Task OnStreamStarted(object? sender)
+        private async Task StreamStarted(object? sender)
         {
-            Task.Run(AnnounceLive);
-            return Task.CompletedTask;
+            _logger.LogInformation("[DISCORD] Stream Is online - Announcing soon");
+            await AnnounceLive();
+
         }
 
-        private async void AnnounceLive()
+        private async Task AnnounceLive()
         {
             try
             {
-                await Task.Delay(60000); //Delay to generate thumbnail
+                _logger.LogInformation("[DISCORD] Waiting 30 seconds to do announcement");
+                await Task.Delay(30000); //Delay to generate thumbnail
+                _logger.LogInformation("[DISCORD] Doing announcement");
                 IGuild guild = _client.GetGuild(_settings.DiscordServerId);
 
-                // COMMENTED FOR TESTING
-                //var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
-                var channel = (IMessageChannel)await guild.GetChannelAsync(911807868775313468);
+                var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
                     .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
@@ -87,19 +88,19 @@ namespace DotNetTwitchBot.Bot.Core
                     .WithCurrentTimestamp()
                     .WithFooter("Twitch").Build();
                 var message = "";
-                //Commented for testing
-                // if (_settings.PingRoleWhenLive != 0)
-                // {
-                //       var role = guild.GetRole(_settings.PingRoleWhenLive);
-                //     message += role.Mention;;
-                // }
-                message += "FOR TESTING - NOTIFICATION REMOVED - SuperPenguinTV just went LIVE on Twitch!";
+
+                if (_settings.PingRoleWhenLive != 0)
+                {
+                    var role = guild.GetRole(_settings.PingRoleWhenLive);
+                    message += role.Mention; ;
+                }
                 await channel.SendMessageAsync(message, embed: embed);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error broadcasting live.");
             }
+            _logger.LogInformation("[DISCORD] Did announcement");
         }
 
 
