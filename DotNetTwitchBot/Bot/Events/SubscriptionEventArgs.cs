@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Events
     {
         public string Name { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
-        public int? Length { get; set; } = null;
+        public int? Count { get; set; } = null;
         public bool IsGift { get; set; } = false;
     }
 }

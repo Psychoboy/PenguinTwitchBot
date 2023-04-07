@@ -94,14 +94,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, 5);
-                if (e.Length == null || e.Length == 1)
+                if (e.Count != null && e.Count > 0)
                 {
-                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
                 }
                 else
                 {
-                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Length} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
                 }
+
             }
             catch (Exception ex)
             {

@@ -1,9 +1,11 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using DotNetTwitchBot.Bot.Core;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
+using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -11,6 +13,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
+        private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
         private TwitchService _twitchService;
         private ServiceBackbone _eventService;
 
@@ -42,8 +45,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventService = eventService;
         }
 
+
         private async void OnChannelRaid(object? sender, ChannelRaidArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
+
             _logger.LogInformation("OnChannelRaid from {0}", e.Notification.Payload.Event.FromBroadcasterUserName);
             await _eventService.OnIncomingRaid(new Events.RaidEventArgs
             {
@@ -51,6 +57,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
                 NumberOfViewers = e.Notification.Payload.Event.Viewers
             });
+        }
+
+        private bool DidProcessMessage(EventSubMetadata metadata)
+        {
+            if (MessageIds.Contains(metadata.MessageId))
+            {
+                return true;
+            }
+            else
+            {
+                MessageIds.Add(metadata.MessageId);
+                return false;
+            }
         }
 
         private async void OnStreamOffline(object? sender, StreamOfflineArgs e)
@@ -69,17 +88,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
-                Length = e.Notification.Payload.Event.StreakMonths
+                Count = e.Notification.Payload.Event.CumulativeTotal
             });
         }
 
         private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
             {
@@ -92,6 +113,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1}", e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift);
 
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
@@ -104,18 +126,21 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionEnd: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelCheer: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnCheer(e.Notification.Payload.Event);
         }
 
         private async void OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             await _eventService.OnChannelPointRedeem(
                 e.Notification.Payload.Event.UserName,
                 e.Notification.Payload.Event.Reward.Title,
@@ -125,6 +150,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelFollow: {0}", e.Notification.Payload.Event.UserName);
             await _eventService.OnFollow(e.Notification.Payload.Event);
         }

@@ -27,7 +27,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
         }
 
-        public async Task<List<AutoShoutout>> GetAutoShoutoutsAsync() {
+        public async Task<List<AutoShoutout>> GetAutoShoutoutsAsync()
+        {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -35,12 +36,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task AddAutoShoutout(AutoShoutout autoShoutout) {
+        public async Task AddAutoShoutout(AutoShoutout autoShoutout)
+        {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var autoShoutExists = await db.AutoShoutouts.Where(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
-                if(autoShoutExists != null)
+                if (autoShoutExists != null)
                 {
                     _logger.LogWarning("{0} autoshoutout already exists.", autoShoutout.Name);
                     return;
@@ -52,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            if(_serviceBackbone.IsOnline == false) return;
+            if (_serviceBackbone.IsOnline == false) return;
             var name = e.Sender;
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -61,7 +63,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var beforeTime = DateTime.Now.AddHours(-12);
                 autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
             }
-            if(autoShoutout != null) {
+            if (autoShoutout != null)
+            {
                 await Shoutout(name);
             }
         }
@@ -77,23 +80,23 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             await UpdateLastShoutout(autoShoutout);
             var message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";
-            if(autoShoutout != null && !string.IsNullOrWhiteSpace(autoShoutout.CustomMessage))
+            if (autoShoutout != null && !string.IsNullOrWhiteSpace(autoShoutout.CustomMessage))
             {
                 message = autoShoutout.CustomMessage;
             }
             var userId = await _twitchService.GetUserId(name);
-            if(userId == null) return;
+            if (userId == null) return;
             var game = await _twitchService.GetCurrentGame(userId);
-            if(string.IsNullOrWhiteSpace(game)) game = "Some boring game";
+            if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
             message = message.Replace("(name)", name).Replace("(game)", game);
             await _serviceBackbone.SendChatMessage(message);
             await _twitchService.ShoutoutStreamer(userId);
-            
+
         }
 
         private async Task UpdateLastShoutout(AutoShoutout? autoShoutout)
         {
-            if(autoShoutout == null) return;
+            if (autoShoutout == null) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -105,18 +108,21 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if(_serviceBackbone.IsOnline == false) return;
-            switch (e.Command){
+            if (_serviceBackbone.IsOnline == false) return;
+            switch (e.Command)
+            {
                 case "so":
                 case "shoutout":
-                if(e.isMod == false && e.isBroadcaster == false && e.isVip == false){
-                    return;
-                }
-                if(e.Args.Any() == false) {
-                    return;
-                }
-                await Shoutout(e.Args.First());
-                break;
+                    if (e.isMod == false && e.isBroadcaster == false && e.isVip == false)
+                    {
+                        return;
+                    }
+                    if (e.Args.Any() == false)
+                    {
+                        return;
+                    }
+                    await Shoutout(e.TargetUser);
+                    break;
             }
         }
     }

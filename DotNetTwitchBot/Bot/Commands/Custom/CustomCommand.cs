@@ -590,10 +590,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             }
                         }
                     }
+                    await db.SaveChangesAsync();
+                    await WriteCounterFile(counterName, counter.Amount);
                 }
                 amount = counter.Amount;
-                await db.SaveChangesAsync();
-
             }
             counterAlert = counterAlert.Replace("\\(totalcount\\)", amount.ToString());
             if (!string.IsNullOrWhiteSpace(counterAlert))
@@ -603,6 +603,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
 
             return new CustomCommandResult(amount.ToString());
+        }
+
+        private async Task WriteCounterFile(string counterName, int amount)
+        {
+            if (!Directory.Exists("Data/counters"))
+            {
+                Directory.CreateDirectory("Data/counters");
+            }
+            await File.WriteAllTextAsync($"Data/counters/{counterName}.txt", amount.ToString());
+            await File.WriteAllTextAsync($"Data/counters/{counterName}-full.txt", counterName + ": " + amount.ToString());
         }
 
         private async Task<CustomCommandResult> Price(CommandEventArgs eventArgs, string args)
@@ -635,7 +645,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (streamTime == DateTime.MinValue) return new CustomCommandResult("Stream is offline");
             var currentTime = DateTime.UtcNow;
             var totalTime = currentTime - streamTime;
-            return new CustomCommandResult(totalTime.ToString());
+            return new CustomCommandResult(totalTime.ToString(@"hh\:mm\:ss"));
         }
     }
 }

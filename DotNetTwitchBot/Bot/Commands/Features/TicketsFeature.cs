@@ -142,6 +142,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerPoints == null ? 0 : viewerPoints.Points;
         }
 
+        public async Task<ViewerTicketWithRanks?> GetViewerTicketsWithRank(string viewer)
+        {
+            ViewerTicketWithRanks? viewerTickets;
+            // var viewerPoints = await _applicationDbContext.ViewerTickets.Where(x => x.Username.Equals(viewer, StringComparison.CurrentCultureIgnoreCase)).FirstAsync();
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                viewerTickets = await db.ViewerTicketWithRanks.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
+            }
+            return viewerTickets;
+        }
+
         public async Task<bool> RemoveTicketsFromViewer(string viewer, long amount)
         {
             try
@@ -171,11 +183,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task SayViewerTickets(CommandEventArgs e)
         {
-            var points = await GetViewerTickets(e.Name);
-            await this._serviceBackbone.SendChatMessage(
-                string.Format("@{0}, you have {1} tickets.",
-                e.DisplayName, points
-                ));
+            var tickets = await GetViewerTicketsWithRank(e.Name);
+            if (tickets == null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
+            }
+            else
+            {
+                await _serviceBackbone.SendChatMessage(
+                    string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}",
+                    e.DisplayName, tickets.Points, tickets.Ranking
+                    ));
+            }
         }
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
