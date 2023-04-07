@@ -70,6 +70,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         private async Task ChatMessage(object? sender, ChatMessageEventArgs e)
         {
             bool match = false;
+            if (e.isMod || e.isBroadcaster) return;
             foreach (var wordFilter in _blackList)
             {
                 if (wordFilter.IsRegex)
