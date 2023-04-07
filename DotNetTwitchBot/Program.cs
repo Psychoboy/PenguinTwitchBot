@@ -208,13 +208,14 @@ internal class Program
         {
             if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
                 eventArgs.Exception.GetType() == typeof(System.IO.IOException) ||
-                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException))
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException))
             {
                 return; //Ignore
             }
-            logger.LogError(eventArgs.Exception, "Global Exception Caught");
+            logger.LogDebug(eventArgs.Exception, "Global Exception Caught");
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
 
