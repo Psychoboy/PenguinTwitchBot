@@ -1,5 +1,6 @@
 @page "/customcommands"
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Custom Commands</PageTitle>
 <style type="text/css">
@@ -31,7 +32,7 @@ else
                     <td>@command.Key</td>
                     <td>@command.Value.Response</td>
                     <td>@command.Value.Disabled</td>
-                    <td><button>Edit</button></td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(command.Value)">Edit</button></td>
                 </tr>
             }
         </tbody>
@@ -83,5 +84,10 @@ else
             await CustomCommand.AddCommand(command);
             await ReloadCommands();
         }
+    }
+
+    private void Edit(DotNetTwitchBot.Bot.Models.CustomCommands item)
+    {
+        navigationManager.NavigateTo($"/editcommand/{item.Id}");
     }
 }

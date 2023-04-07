@@ -3,16 +3,11 @@ global using System.ComponentModel.DataAnnotations.Schema;
 global using Microsoft.EntityFrameworkCore;
 global using DotNetTwitchBot.Bot.Models;
 global using DotNetTwitchBot.Bot.Core.Database;
-using System;
-using System.Runtime.InteropServices;
-using System.Drawing;
-using System.Security.Cryptography.X509Certificates;
 using Quartz;
-using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
-using Serilog.Filters;
+
 using DotNetTwitchBot.Bot.TwitchServices;
 
 internal class Program
@@ -86,6 +81,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
@@ -150,6 +146,8 @@ internal class Program
         await customCommands.LoadCommands();
         var audioCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.AudioCommands>();
         await audioCommands.LoadAudioCommands();
+        var blacklist = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.Blacklist>();
+        await blacklist.LoadBlacklist();
         foreach (var cmd in commands)
         {
             app.Services.GetRequiredService(cmd);

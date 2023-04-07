@@ -1,0 +1,57 @@
+@page "/editcommand/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Edit Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+@if (customCommand == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="customCommand" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="customCommand" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.CustomCommands? customCommand { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        customCommand = await CustomCommand.GetCustomCommand(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (customCommand == null) return;
+        await CustomCommand.SaveCommand(customCommand);
+        await CustomCommand.LoadCommands();
+        navigationManager.NavigateTo($"/customcommands");
+    }
+}

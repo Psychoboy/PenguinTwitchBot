@@ -1,0 +1,64 @@
+@page "/blacklist"
+@using DotNetTwitchBot.Bot.Models;
+@inject DotNetTwitchBot.Bot.Commands.Moderation.Blacklist BlacklistApi
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Blacklist</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+@if (wordFilters == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Phrase</th>
+                <th>Message</th>
+                <th>Length</th>
+                <th>Is Regex</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var wordFilter in wordFilters)
+            {
+                <tr>
+                    <td>@wordFilter.Phrase</td>
+                    <td>@wordFilter.Message</td>
+                    <td>@wordFilter.TimeOutLength</td>
+                    <td>@wordFilter.IsRegex</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(wordFilter)">Edit</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-primary" @onclick="() => CreateFilter()">Add Blacklist</button>
+}
+
+@code {
+    private List<WordFilter>? wordFilters;
+
+    protected override Task OnInitializedAsync()
+    {
+        wordFilters = BlacklistApi.GetBlackList();
+        return Task.CompletedTask;
+    }
+
+    public void Edit(WordFilter item)
+    {
+        navigationManager.NavigateTo($"/editwordfilter/{item.Id}");
+    }
+
+    public void CreateFilter()
+    {
+        navigationManager.NavigateTo($"/editwordfilter/0");
+    }
+}

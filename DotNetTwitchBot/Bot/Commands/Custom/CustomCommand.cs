@@ -69,6 +69,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return Commands;
         }
 
+        public async Task<CustomCommands?> GetCustomCommand(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.CustomCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
+            }
+        }
+
         public async Task LoadCommands()
         {
             _logger.LogInformation("Loading commands");
@@ -111,6 +120,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 await db.CustomCommands.AddAsync(customCommand);
                 Commands[customCommand.CommandName] = customCommand;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        public async Task SaveCommand(CustomCommands customCommand)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.CustomCommands.Update(customCommand);
                 await db.SaveChangesAsync();
             }
         }

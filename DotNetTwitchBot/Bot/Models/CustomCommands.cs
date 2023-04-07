@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Models
     [Index(nameof(CommandName))]
     public class CustomCommands : BaseCommandProperties
     {
+        [DataType(DataType.MultilineText)]
         public string Response { get; set; } = null!;
     }
 }

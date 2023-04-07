@@ -377,6 +377,36 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        public async Task TimeoutUser(string name, int length, string reason)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                _logger.LogError("Error getting broadcaster id.");
+                return;
+            }
+            var userId = await GetUserId(name);
+            if (userId == null)
+            {
+                _logger.LogError("Error getting user id.");
+                return;
+            }
+            try
+            {
+                var banUserRequest = new TwitchLib.Api.Helix.Models.Moderation.BanUser.BanUserRequest
+                {
+                    UserId = userId,
+                    Reason = reason,
+                    Duration = length
+                };
+                await _twitchApi.Helix.Moderation.BanUserAsync(broadcasterId, broadcasterId, banUserRequest);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error timing out user");
+            }
+        }
+
         public async Task SubscribeToAllTheStuffs(string sessionId)
         {
             await ValidateAndRefreshToken();

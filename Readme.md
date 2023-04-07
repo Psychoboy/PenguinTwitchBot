@@ -15,7 +15,7 @@ TODO:
 - [x] Lastseen
 - [X] Death Counters
 - [x] top commands
-- [ ] word filters
+- [X] word filters
 - [X] Keywords
 - [X] Pasty games:
     - [X] defuse
@@ -38,7 +38,7 @@ TODO:
     - [X] On Sub
     - [X] On Bits
 - [X] Music
-- [ ] Blacklist
+- [X] Blacklist
 - [X] Timers
 - [X] Raid Tracker
 - [X] Chat Alerts

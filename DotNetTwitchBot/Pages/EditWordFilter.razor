@@ -1,0 +1,65 @@
+@page "/editwordfilter/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Models;
+@inject DotNetTwitchBot.Bot.Commands.Moderation.Blacklist Blacklist
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Edit Word Filter</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (wordFilter == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="wordFilter" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="wordFilter" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+     [Parameter]
+    public int id { get; set; }
+    private WordFilter? wordFilter { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        if (id == 0)
+        {
+            wordFilter = new();
+        }
+        else
+        {
+            wordFilter = await Blacklist.GetWordFilter(id);
+        }
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if(wordFilter == null) return;
+        await Blacklist.UpdateBlacklist(wordFilter);
+        await Blacklist.LoadBlacklist();
+        navigationManager.NavigateTo($"/blacklist");
+    }
+}

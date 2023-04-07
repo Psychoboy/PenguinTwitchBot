@@ -38,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<AutoShoutout> AutoShoutouts { get; set; } = null!;
         public DbSet<TimerGroup> TimerGroups { get; set; } = null!;
         public DbSet<TimerMessage> TimerMessages { get; set; } = null!;
+        public DbSet<WordFilter> WordFilters { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

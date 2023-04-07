@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public abstract class BaseCommand : IHostedService
+    public abstract class BaseCommand //: IHostedService
     {
         Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
         Dictionary<string, DateTime> _globalCooldowns = new Dictionary<string, DateTime>();
@@ -25,8 +25,8 @@ namespace DotNetTwitchBot.Bot.Commands
             await _serviceBackbone.SendChatMessage(name, message);
         }
 
-        public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
-        public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
+        // public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
+        // public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 
         protected abstract Task OnCommand(object? sender, CommandEventArgs e);
 
