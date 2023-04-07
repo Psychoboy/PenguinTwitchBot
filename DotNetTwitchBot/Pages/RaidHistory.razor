@@ -21,8 +21,10 @@ else
                 <th>Is Online</th>
                 <th>Incoming raids</th>
                 <th>Incoming Viewer Per</th>
+                <th>Last Incoming</th>
                 <th>Outgoing raids</th>
                 <th>Outgoing Viewer Per</th>
+                <th>Last Outgoing</th>
                 <th>Raid?</th>
             </tr>
         </thead>
@@ -41,6 +43,7 @@ else
                     {
                         <td>0</td>
                     }
+                    <td>@item.LastIncomingRaid</td>
                     <td>@item.TotalOutgoingRaids</td>
                     @if (@item.TotalOutgoingRaids > 0)
                     {
@@ -50,7 +53,9 @@ else
                     {
                         <td>0</td>
                     }
-                    <td><button class="btn btn-primary btn-xs" data-id="@item.Name" @onclick="() => Raid(item)">Raid</button></td>
+                    <td>@item.LastOutgoingRaid</td>
+                    <td><button class="btn btn-primary btn-xs" data-id="@item.Name" @onclick="() => Raid(item)">Raid</button>
+                    </td>
                 </tr>
             }
         </tbody>
