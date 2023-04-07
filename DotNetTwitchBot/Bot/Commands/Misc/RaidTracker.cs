@@ -117,6 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     }
                     raidHistory.TotalIncomingRaids++;
                     raidHistory.TotalIncomingRaidViewers += e.NumberOfViewers;
+                    raidHistory.LastIncomingRaid = DateTime.Now;
                     db.RaidHistory.Update(raidHistory);
                     await db.SaveChangesAsync();
                 }
@@ -173,6 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     }
                     raidHistory.TotalOutgoingRaids++;
                     raidHistory.TotalOutGoingRaidViewers += await _twitchService.GetViewerCount();
+                    raidHistory.LastOutgoingRaid = DateTime.Now;
                     db.RaidHistory.Update(raidHistory);
                     await db.SaveChangesAsync();
                 }

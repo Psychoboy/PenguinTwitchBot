@@ -53,6 +53,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
             .ToView(nameof(ViewerMessageCountWithRanks))
             .HasKey(t => t.Id);
 
+            modelBuilder.Entity<ViewerTicketWithRanks>()
+            .ToView(nameof(ViewerTicketWithRanks))
+            .HasKey(t => t.Id);
+
             modelBuilder.Entity<KeywordType>().Ignore(c => c.Regex);
         }
     }
