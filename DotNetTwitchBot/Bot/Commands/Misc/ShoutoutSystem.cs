@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            if (_serviceBackbone.IsOnline == false) return;
+
             var name = e.Sender;
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -99,6 +99,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     if (UserLastShoutout[userId].AddMinutes(60) > DateTime.Now) return;
                 }
                 UserLastShoutout[userId] = DateTime.Now;
+                if (_serviceBackbone.IsOnline == false) return;
                 await _twitchService.ShoutoutStreamer(userId);
             }
 
@@ -119,7 +120,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if (_serviceBackbone.IsOnline == false) return;
             switch (e.Command)
             {
                 case "so":
