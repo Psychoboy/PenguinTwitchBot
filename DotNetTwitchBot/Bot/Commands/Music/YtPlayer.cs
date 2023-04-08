@@ -190,7 +190,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (e.Args.Count < 2) return;
                     await ImportPlaylist(e);
                     break;
-                case "testloadpl":
+                case "loadpl":
                     if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     await LoadPlaylist(e);
                     break;
@@ -418,7 +418,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 NextSong = song;
             }
-            
+
             await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
@@ -427,7 +427,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var client = new HttpClient();
             var httpRequest = new HttpRequestMessage()
             {
-                RequestUri = new Uri(string.Format("https://beta.decapi.me/youtube/videoid?search={0}", searchTerm)),
+                RequestUri = new Uri(string.Format("https://beta.decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm))),
                 Method = HttpMethod.Get
             };
             var searchResponse = await client.SendAsync(httpRequest);

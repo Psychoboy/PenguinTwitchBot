@@ -407,6 +407,26 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        public async Task Announcement(string message)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                _logger.LogError("Error getting broadcaster id.");
+                return;
+            }
+
+            try
+            {
+                await _twitchApi.Helix.Chat.SendChatAnnouncementAsync(broadcasterId, broadcasterId, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error doing announcement");
+            }
+
+        }
+
         public async Task SubscribeToAllTheStuffs(string sessionId)
         {
             await ValidateAndRefreshToken();

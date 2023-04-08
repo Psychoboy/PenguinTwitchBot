@@ -78,7 +78,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var beforeTime = DateTime.Now.AddHours(-12);
-                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
+                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name.ToLower()) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
             }
             await UpdateLastShoutout(autoShoutout);
             var message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";

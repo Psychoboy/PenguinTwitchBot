@@ -31,6 +31,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _intervalTimer.Elapsed += ElapseTimer;
             _intervalTimer.Start();
             serviceBackbone.ChatMessageEvent += OnChatMessage;
+            serviceBackbone.CommandEvent += CommandMessage;
+        }
+
+        private Task CommandMessage(object? sender, CommandEventArgs e)
+        {
+            MessageCounter++;
+            return Task.CompletedTask;
         }
 
         private Task OnChatMessage(object? sender, ChatMessageEventArgs e)

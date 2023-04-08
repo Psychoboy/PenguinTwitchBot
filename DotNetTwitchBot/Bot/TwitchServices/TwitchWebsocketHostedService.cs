@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
         private TwitchService _twitchService;
         private ServiceBackbone _eventService;
+        private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
@@ -90,6 +91,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
+            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -114,7 +117,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1}", e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift);
+
+            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
+            , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
+
+            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
 
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
@@ -127,8 +135,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionEnd: {0}", e.Notification.Payload.Event.UserName);
+
+            _logger.LogInformation("OnChannelSubscriptionEnd: {0} Type: {1}", e.Notification.Payload.Event.UserName, e.Notification.Metadata.SubscriptionType);
             await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+        }
+
+        private bool CheckIfExistsAndAddSubCache(string name)
+        {
+            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddMinutes(-5)) return true;
+            SubCache[name] = DateTime.Now;
+            return false;
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)

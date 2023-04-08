@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -12,15 +13,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
+        private TwitchService _twitchServices;
 
         public Gamble(
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
+            TwitchServices.TwitchService twitchServices,
             ServiceBackbone serviceBackbone
             ) : base(serviceBackbone)
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
+            _twitchServices = twitchServices;
         }
 
         public int JackPotNumber { get; } = 69;
@@ -91,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     jackpot = JackpotDefault;
                 }
                 await updateJackpot(jackpot, true);
-                await _serviceBackbone.SendChatMessage(string.Format("/announce {0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
+                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
             }
             else if (value > WinRange)

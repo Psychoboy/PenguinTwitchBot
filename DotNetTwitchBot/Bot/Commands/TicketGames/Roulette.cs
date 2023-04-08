@@ -66,29 +66,30 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         }
 
                         AddCoolDown(e.Name, e.Command, 30);
-                        if (Tools.CurrentThreadRandom.Next(100) > MustBeatValue)
+                        var value = Tools.CurrentThreadRandom.Next(100);
+                        if (value > MustBeatValue)
                         {
                             await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToBet);
                             var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
-                            string.Format(maxBet ? AllInWinMessage : WinMessage, e.DisplayName, amountToBet, totalPoints));
+                            string.Format(maxBet ? AllInWinMessage : WinMessage, e.DisplayName, amountToBet, totalPoints, value));
                         }
                         else
                         {
                             await _ticketsFeature.RemoveTicketsFromViewer(e.Name, amountToBet);
                             var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
-                            string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.DisplayName, amountToBet, totalPoints));
+                            string.Format(maxBet ? AllInLoseMessage : LoseMessage, e.DisplayName, amountToBet, totalPoints, value));
                         }
                     }
                     break;
             }
         }
 
-        private string WinMessage = "{0} won {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan";
-        private string LoseMessage = "{0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan";
-        private string AllInWinMessage = "PogChamp {0} went all in and won {1:n0} tickets PogChamp they now have {2:n0} tickets FeelsGoodMan";
-        private string AllInLoseMessage = "{0} went all in and lost every single one of their {1:n0} tickets LUL";
+        private string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan";
+        private string LoseMessage = "rolled a {3} and {0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan";
+        private string AllInWinMessage = "PogChamp rolled {3} {0} went all in and won {1:n0} tickets PogChamp they now have {2:n0} tickets FeelsGoodMan";
+        private string AllInLoseMessage = "rolled {3} and {0} went all in and lost every single one of their {1:n0} tickets LUL";
 
     }
 }
