@@ -66,6 +66,30 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
+        public async Task SaveAudioCommand(AudioCommand audioCommand)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.AudioCommands.Update(audioCommand);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        public Dictionary<string, AudioCommand> GetAudioCommands()
+        {
+            return Commands;
+        }
+
+        public async Task<AudioCommand?> GetAudioCommand(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.AudioCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
+            }
+        }
+
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (e.Command.Equals("addaudiocommand"))

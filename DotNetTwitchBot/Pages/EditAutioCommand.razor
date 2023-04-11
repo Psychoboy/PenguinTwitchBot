@@ -1,0 +1,57 @@
+@page "/editaudiocommand/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Edit Audio Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+@if (audioCommand == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="audioCommand" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="audioCommand" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.AudioCommand? audioCommand { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        audioCommand = await AudioCommands.GetAudioCommand(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (audioCommand == null) return;
+        await AudioCommands.SaveAudioCommand(audioCommand);
+        await AudioCommands.LoadAudioCommands();
+        navigationManager.NavigateTo($"/audiocommands");
+    }
+}
