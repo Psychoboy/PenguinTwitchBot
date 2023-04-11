@@ -189,11 +189,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 stopwatch.Start();
                 bool fullConnect = false;
                 _logger.LogWarning("Websocket Disconnected");
-                var delayCounter = 1.0;
+                var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ReconnectAsync())
                 {
                     delayCounter = (delayCounter * 2);
-                    if (delayCounter > 60.0) delayCounter = 60.0;
+                    if (delayCounter > 60) delayCounter = 60;
                     _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
                     await Task.Delay((int)delayCounter * 1000);
                     if (stopwatch.Elapsed.TotalSeconds >= 30.0)
@@ -222,7 +222,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 {
                     delayCounter = (delayCounter * 2);
                     if (delayCounter > 300) delayCounter = 300;
-                    Thread.Sleep(delayCounter);
+                    Thread.Sleep(delayCounter * 1000);
                     _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
                 }
             }
