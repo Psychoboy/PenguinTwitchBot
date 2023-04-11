@@ -179,7 +179,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 foreach (var participant in Survivors)
                 {
                     var pay = Convert.ToInt64(participant.Bet * 1.5);
-                    await _loyaltyFeature.AddPointsToViewer(participant.Name, pay);
+                    await _loyaltyFeature.AddPointsToViewer(participant.Name, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                     maxlength += formattedName.Length;
                     payouts.Add(formattedName);
@@ -239,8 +239,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             foreach (var participant in Entered)
             {
-                var result = Tools.CurrentThreadRandom.Next(0, 100);
-                if (result > 48)
+                var result = Tools.RandomRange(1, 100); //Tools.CurrentThreadRandom.Next(0, 100);
+                if (result > 40)
                 {
                     Survivors.Add(participant);
                 }

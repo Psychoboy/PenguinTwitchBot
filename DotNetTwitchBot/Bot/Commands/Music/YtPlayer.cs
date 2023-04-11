@@ -360,7 +360,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task MovePriority(CommandEventArgs e)
         {
-            if (IsCoolDownExpired(e.Name, e.Command))
+            if (!IsCoolDownExpired(e.Name, e.Command))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "!priority is still on cooldown for you.");
                 return;

@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommand
     {
-        private int MustBeatValue = 50;
+        private int MustBeatValue = 48;
         private TicketsFeature _ticketsFeature;
         public Roulette(
             ServiceBackbone eventService,

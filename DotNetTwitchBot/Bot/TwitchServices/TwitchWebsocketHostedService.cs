@@ -217,11 +217,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             try
             {
-                var delayCounter = 1.0;
+                var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ConnectAsync())
                 {
                     delayCounter = (delayCounter * 2);
-                    if (delayCounter > 60.0) delayCounter = 60.0;
+                    if (delayCounter > 300) delayCounter = 300;
+                    Thread.Sleep(delayCounter);
                     _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
                 }
             }
