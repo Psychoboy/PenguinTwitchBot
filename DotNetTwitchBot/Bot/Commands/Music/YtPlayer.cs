@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private ILogger<YtPlayer> _logger;
         private YouTubeService _youtubeService;
         private List<Song> Requests = new List<Song>();
+        private readonly object RequestsLock = new object();
         private MusicPlaylist BackupPlaylist = new MusicPlaylist();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
@@ -55,16 +56,19 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public async Task<string> GetNextSong()
         {
-            if (Requests.Count > 0)
+            lock (RequestsLock)
             {
-                var song = Requests.First();
-                Requests.RemoveAt(0);
-                LastSong = CurrentSong;
-                CurrentSong = song;
-                NextSong = Requests.FirstOrDefault();
-                SkipVotes.Clear();
+                if (Requests.Count > 0)
+                {
+                    var song = Requests.First();
+                    Requests.RemoveAt(0);
+                    LastSong = CurrentSong;
+                    CurrentSong = song;
+                    NextSong = Requests.FirstOrDefault();
+                    SkipVotes.Clear();
 
-                return song.SongId;
+                    return song.SongId;
+                }
             }
 
             if (BackupPlaylist.Songs.Count == 0)
@@ -116,6 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async void UpdateState(int state)
         {
             this.State = (PlayerState)state;
+            _logger.LogInformation($"Player State {this.State}");
             if (this.State == PlayerState.Ended)
             {
                 await PlayNextSong();
@@ -199,10 +204,17 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task WrongSong(CommandEventArgs e)
         {
-            var song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).FirstOrDefault();
+            Song? song;
+            lock (RequestsLock)
+            {
+                song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).FirstOrDefault();
+            }
             if (song != null)
             {
-                Requests.Remove(song);
+                lock (RequestsLock)
+                {
+                    Requests.Remove(song);
+                }
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
                 return;
             }
@@ -365,13 +377,21 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "!priority is still on cooldown for you.");
                 return;
             }
-
-            foreach (var song in Requests)
+            List<Song> backwardsRequest = new List<Song>();
+            lock (RequestsLock)
+            {
+                backwardsRequest = Requests.ToList();
+            }
+            backwardsRequest.Reverse();
+            foreach (var song in backwardsRequest)
             {
                 if (song.RequestedBy.Equals(e.DisplayName))
                 {
-                    Requests.Remove(song);
-                    Requests.Insert(0, song);
+                    lock (RequestsLock)
+                    {
+                        Requests.Remove(song);
+                        Requests.Insert(0, song);
+                    }
                     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
                     NextSong = song;
                     AddCoolDown(e.Name, e.Command, 60 * 30);
@@ -383,7 +403,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task SongRequest(CommandEventArgs e)
         {
-            if (Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).Count() >= 30)
+            var songsInQueue = 0;
+            lock (RequestsLock)
+            {
+                songsInQueue = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).Count();
+            }
+            if (songsInQueue >= 30)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
                 return;
@@ -394,17 +419,20 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
                 return;
             }
-
-            if (Requests.Where(x => x.SongId.Equals(searchResult)).FirstOrDefault() != null)
+            Song? songInQueue = null;
+            lock (RequestsLock)
+            {
+                songInQueue = Requests.Where(x => x.SongId.Equals(searchResult)).FirstOrDefault();
+            }
+            if (songInQueue != null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
                 return;
             }
 
-            var song = await GetSong(searchResult);
+            var song = await GetSong(searchResult, e.DisplayName);
             if (song == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
                 return;
             }
             if (song.Duration > new TimeSpan(0, 10, 0))
@@ -414,7 +442,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
 
             song.RequestedBy = e.DisplayName;
-            Requests.Add(song);
+            lock (RequestsLock)
+            {
+                Requests.Add(song);
+            }
             if (NextSong == null)
             {
                 NextSong = song;
@@ -436,7 +467,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return searchResult;
         }
 
-        private async Task<Song?> GetSong(string youtubeId)
+        private async Task<Song?> GetSong(string youtubeId, string? displayName = null)
         {
             var ytRequest = _youtubeService.Videos.List("snippet,contentDetails");
             ytRequest.Id = youtubeId;
@@ -446,20 +477,31 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 var item = ytResponse.Items.First();
                 TimeSpan length = new TimeSpan();
+                if (item.ContentDetails.ContentRating.YtRating.Equals("ytAgeRestricted"))
+                {
+                    await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    return null;
+                }
                 if (item.AgeGating != null && item.AgeGating.Restricted == true)
                 {
+                    await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;
                 }
                 if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
                 {
                     length = new TimeSpan((int)duration.Hours, (int)duration.Minutes, (int)duration.Seconds);
                 }
+
                 return new Song
                 {
                     Title = item.Snippet.Title,
                     Duration = length,
                     SongId = youtubeId
                 };
+            }
+            if (displayName != null)
+            {
+                await _serviceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
             }
             return null;
         }

@@ -8,6 +8,7 @@ connection.start().then(function () {
 });
 function playNextVideo() {
     connection.invoke("PlayNextVideo").catch(function (err) {
+        playNextVideo();
         return console.error(err.toString());
     });
 }

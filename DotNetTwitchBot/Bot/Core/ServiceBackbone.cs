@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ILogger<ServiceBackbone> _logger;
         private IConfiguration _configuration;
         private readonly IServiceScopeFactory _scopeFactory;
+        static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
 
@@ -56,11 +57,16 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 try
                 {
+                    await _semaphoreSlim.WaitAsync();
                     await CommandEvent(this, args);
                 }
                 catch (Exception e)
                 {
                     _logger.LogCritical("Command Failure {0}", e);
+                }
+                finally
+                {
+                    _semaphoreSlim.Release();
                 }
             }
         }
