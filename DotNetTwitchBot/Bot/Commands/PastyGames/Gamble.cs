@@ -84,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var jackpot = await GetJackpot();
 
             await _loyaltyFeature.RemovePointsFromUser(e.Name, amount);
-            var value = Tools.CurrentThreadRandom.Next(1, 100 + 1);
+            var value = Tools.Next(1, 100 + 1);
             if (value == JackPotNumber)
             {
                 var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -10,16 +11,30 @@ namespace DotNetTwitchBot.Bot
     public static class Tools
     {
 
-        [ThreadStatic]
-        private static Random? local;
-        public static Random CurrentThreadRandom
+        // [ThreadStatic]
+        // private static Random? local;
+
+        // public static Random CurrentThreadRandom
+        // {
+        //     get { return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
+        // }
+
+        public static int Next(int max)
         {
-            get { return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
+            return RandomNumberGenerator.GetInt32(max);
         }
+
+        public static int Next(int min, int max)
+        {
+            return RandomNumberGenerator.GetInt32(min, max);
+        }
+
 
         public static int RandomRange(int min, int max)
         {
-            return CurrentThreadRandom.Next(min, max + 1);
+            //return CurrentThreadRandom.Next(min, max + 1);
+            //return TrueRandom.NextRange(min, max);
+            return RandomNumberGenerator.GetInt32(min, max + 1);
         }
 
         public static void Shuffle<T>(this IList<T> list)
@@ -28,7 +43,7 @@ namespace DotNetTwitchBot.Bot
             while (n > 1)
             {
                 n--;
-                int k = CurrentThreadRandom.Next(n + 1);
+                int k = RandomNumberGenerator.GetInt32(n + 1); //TrueRandom.Next(n); //CurrentThreadRandom.Next(n + 1);
                 T value = list[k];
                 list[k] = list[n];
                 list[n] = value;
@@ -40,7 +55,7 @@ namespace DotNetTwitchBot.Bot
 #pragma warning disable CS8603 //disable the possible null warning
             if (list.Count() == 0) return default(T);
 #pragma warning restore CS8603
-            return list.ElementAt(CurrentThreadRandom.Next(list.Count()));
+            return list.ElementAt(RandomNumberGenerator.GetInt32(list.Count()));
         }
 
         public static string ConvertToCompoundDuration(long seconds)

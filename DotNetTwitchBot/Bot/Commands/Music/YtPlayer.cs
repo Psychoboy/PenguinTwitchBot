@@ -372,7 +372,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     Requests.Remove(song);
                     Requests.Insert(0, song);
-                    await _serviceBackbone.SendChatMessage(e.DisplayName, "{0} was moved to next song.");
+                    await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
                     AddCoolDown(e.Name, e.Command, 60 * 30);
                     return;
                 }
@@ -445,6 +445,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 var item = ytResponse.Items.First();
                 TimeSpan length = new TimeSpan();
+                if (item.AgeGating != null && item.AgeGating.Restricted == true)
+                {
+                    return null;
+                }
                 if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
                 {
                     length = new TimeSpan((int)duration.Hours, (int)duration.Minutes, (int)duration.Seconds);

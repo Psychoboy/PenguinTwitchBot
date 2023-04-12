@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var multiplier = 3;
                 var min = Cost * multiplier - Cost / multiplier;
                 var max = Cost * multiplier + Cost / multiplier;
-                var value = Tools.CurrentThreadRandom.Next(min, max + 1);
+                var value = Tools.Next(min, max + 1);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, value);
                 await _serviceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
                 _sendAlerts.QueueAlert("defuse.gif,8");

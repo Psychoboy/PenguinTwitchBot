@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
 
             CurrentState = State.Running;
-            WinAmount = Tools.CurrentThreadRandom.Next(Convert.ToInt32(amountToWin * 0.66), amountToWin + 1);
+            WinAmount = Tools.Next(Convert.ToInt32(amountToWin * 0.66), amountToWin + 1);
             _startTime = DateTime.Now;
             _entered.Clear();
             _joinedSinceLastAnnounce = false;

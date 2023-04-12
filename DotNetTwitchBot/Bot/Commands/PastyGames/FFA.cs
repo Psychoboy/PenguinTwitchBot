@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return;
             }
 
-            var winnerIndex = Tools.CurrentThreadRandom.Next(0, Entered.Count - 1);
+            var winnerIndex = Tools.Next(0, Entered.Count - 1);
             var winner = Entered[winnerIndex];
             var winnings = Entered.Count * Cost;
             await _serviceBackbone.SendChatMessage(string.Format("The dust finally settled and the last one standing is {0}", await _viewFeature.GetNameWithTitle(winner)));

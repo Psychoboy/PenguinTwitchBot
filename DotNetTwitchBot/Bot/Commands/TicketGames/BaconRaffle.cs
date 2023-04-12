@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     max = 5;
                     break;
             }
-            NumberOfWinners = Tools.CurrentThreadRandom.Next(min, max + 1);
+            NumberOfWinners = Tools.Next(min, max + 1);
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)

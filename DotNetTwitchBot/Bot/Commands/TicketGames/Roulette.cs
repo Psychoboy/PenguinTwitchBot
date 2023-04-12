@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         }
 
                         AddCoolDown(e.Name, e.Command, 30);
-                        var value = Tools.CurrentThreadRandom.Next(100);
+                        var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {
                             await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToBet);

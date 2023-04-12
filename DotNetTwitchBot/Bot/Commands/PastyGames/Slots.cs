@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private int GetEmoteKey()
         {
-            var key = Tools.CurrentThreadRandom.Next(1, 1000);
+            var key = Tools.Next(1, 1000);
             switch (key)
             {
                 case <= 75:
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (e1 == e2 && e2 == e3)
             {
                 message += string.Format("+{0} pasties. ", Prizes[e1]);
-                var randomMessage = WinMessages[Tools.CurrentThreadRandom.Next(0, WinMessages.Count)];
+                var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
                 message += string.Format(randomMessage, e.DisplayName);
                 await _serviceBackbone.SendChatMessage(message);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, Prizes[e1]);
@@ -76,13 +76,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var prize = e1 == e2 ? Convert.ToInt64(Prizes[e1] * 0.3) : Convert.ToInt64(Prizes[e3] * 0.3);
                 message += string.Format("+{0} pasties. ", prize);
-                var randomMessage = WinMessages[Tools.CurrentThreadRandom.Next(0, WinMessages.Count)];
+                var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
                 message += string.Format(randomMessage, e.DisplayName);
                 await _serviceBackbone.SendChatMessage(message);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, prize);
                 return;
             }
-            var randomLoseMessage = LoseMessages[Tools.CurrentThreadRandom.Next(0, WinMessages.Count)];
+            var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
             await _serviceBackbone.SendChatMessage(string.Format(message + randomLoseMessage, e.DisplayName));
         }
 

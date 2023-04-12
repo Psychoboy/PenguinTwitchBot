@@ -221,7 +221,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 while (!await _eventSubWebsocketClient.ConnectAsync())
                 {
                     delayCounter = (delayCounter * 2);
-                    if (delayCounter > 300) delayCounter = 300;
+                    if (delayCounter > 300)
+                    {
+                        return;
+                    }
                     await Task.Delay(delayCounter * 1000);
                     _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
                 }
@@ -231,6 +234,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
             }
         }
+
 
         private async void OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)
         {
