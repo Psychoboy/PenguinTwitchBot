@@ -77,6 +77,10 @@ namespace DotNetTwitchBot.Bot.Core
                 IGuild guild = _client.GetGuild(_settings.DiscordServerId);
 
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
+                var imageUrl = await _twitchService.GetStreamThumbnail();
+                //https://static-cdn.jtvnw.net/previews-ttv/live_user_superpenguintv-{width}x{height}.jpg
+                imageUrl = imageUrl.Replace("{width}", "1920").Replace("height", "1080");
+                _logger.LogInformation("Thumbnail Url: {0}", imageUrl);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
                     .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
@@ -84,7 +88,7 @@ namespace DotNetTwitchBot.Bot.Core
                     .AddField("Now Playing", await _twitchService.GetCurrentGame())
                     .AddField("Stream Title", await _twitchService.GetStreamTitle())
                     .WithUrl("https://twitch.tv/SuperPenguinTV")
-                    .WithImageUrl(await _twitchService.GetStreamThumbnail())
+                    .WithImageUrl(imageUrl)
                     .WithCurrentTimestamp()
                     .WithFooter("Twitch").Build();
                 var message = "";
