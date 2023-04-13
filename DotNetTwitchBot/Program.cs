@@ -61,6 +61,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.Roulette));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.DuelGame));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter));
