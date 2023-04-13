@@ -93,11 +93,16 @@ namespace DotNetTwitchBot.Bot.Core
                 };
                 try
                 {
+                    await _semaphoreSlim.WaitAsync();
                     await CommandEvent(this, eventArgs);
                 }
                 catch (Exception e)
                 {
                     _logger.LogCritical("Command Failure {0}", e);
+                }
+                finally
+                {
+                    _semaphoreSlim.Release();
                 }
             }
         }
