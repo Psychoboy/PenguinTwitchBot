@@ -149,6 +149,16 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await _hubContext.Clients.All.SendAsync("PlayVideo", await GetNextSong());
         }
 
+        public async Task SongError(object errorCode)
+        {
+            _logger.LogWarning("Error with song {0}", errorCode);
+            if (CurrentSong != null)
+            {
+                await _serviceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
+            }
+            await PlayNextSong();
+        }
+
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
@@ -435,9 +445,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 return;
             }
-            if (song.Duration > new TimeSpan(0, 10, 0))
+            if (song.Duration > new TimeSpan(0, 10, 0) || song.Duration == new TimeSpan(0, 0, 0))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Your song is to long. Max is 10 minutes and yours is: {0:c}", song.Duration));
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Your song is to long or is live. Max is 10 minutes and yours is: {0:c}", song.Duration));
                 return;
             }
 
@@ -477,7 +487,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 var item = ytResponse.Items.First();
                 TimeSpan length = new TimeSpan();
-                if (item.ContentDetails.ContentRating.YtRating.Equals("ytAgeRestricted"))
+                if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
                 {
                     await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;

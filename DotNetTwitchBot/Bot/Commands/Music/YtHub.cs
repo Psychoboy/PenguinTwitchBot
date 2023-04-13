@@ -33,5 +33,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             await _ytPlayer.LoadNextSong();
         }
+
+        public async Task SongError(object errorCode)
+        {
+            await _ytPlayer.SongError(errorCode);
+        }
     }
 }

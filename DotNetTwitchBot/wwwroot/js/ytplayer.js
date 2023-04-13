@@ -8,7 +8,6 @@ connection.start().then(function () {
 });
 function playNextVideo() {
     connection.invoke("PlayNextVideo").catch(function (err) {
-        playNextVideo();
         return console.error(err.toString());
     });
 }
@@ -21,6 +20,12 @@ function updateState(state) {
 
 function loadNextSong() {
     connection.invoke("LoadNextSong").catch(function (err) {
+        return console.error(err.toString());
+    });
+}
+
+function songError(event) {
+    connection.invoke("SongError", event.data).catch(function (err) {
         return console.error(err.toString());
     });
 }
@@ -62,7 +67,9 @@ function onYouTubeIframeAPIReady() {
         },
         events: {
             'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onError': songError
+
         }
     });
 }
