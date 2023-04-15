@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 case "roulette":
                     {
+                        if (_serviceBackbone.IsOnline == false) return;
                         if (!IsCoolDownExpired(e.Name, e.Command)) return;
                         if (e.Args.Count == 0)
                         {

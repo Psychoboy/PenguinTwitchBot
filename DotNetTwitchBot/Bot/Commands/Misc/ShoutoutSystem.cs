@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-
+            if (_serviceBackbone.IsOnline == false) return;
             var name = e.Sender;
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())

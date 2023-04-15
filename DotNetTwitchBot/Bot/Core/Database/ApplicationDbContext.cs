@@ -33,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Setting> Settings { get; set; } = null!;
         public DbSet<MusicPlaylist> Playlists { get; set; } = null!;
         public DbSet<Song> Songs { get; set; } = null!;
+        public DbSet<SongRequestViewItem> SongRequestViewItems { get; set; } = null!;
         public DbSet<QuoteType> Quotes { get; set; } = null!;
         public DbSet<RaidHistoryEntry> RaidHistory { get; set; } = null!;
         public DbSet<AutoShoutout> AutoShoutouts { get; set; } = null!;
@@ -59,6 +60,15 @@ namespace DotNetTwitchBot.Bot.Core.Database
             .HasKey(t => t.Id);
 
             modelBuilder.Entity<KeywordType>().Ignore(c => c.Regex);
+
+            modelBuilder.Entity<SongRequestViewItem>()
+            .HasKey(c => c.Id);
+
+            modelBuilder.Entity<SongRequestViewItem>()
+            .Property(c => c.Id)
+            .ValueGeneratedNever();
+
+
         }
     }
 }

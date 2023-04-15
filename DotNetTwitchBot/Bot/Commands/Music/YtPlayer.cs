@@ -56,20 +56,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public async Task<string> GetNextSong()
         {
+            Song? song = null;
             lock (RequestsLock)
             {
                 if (Requests.Count > 0)
                 {
-                    var song = Requests.First();
+                    song = Requests.First();
                     Requests.RemoveAt(0);
                     LastSong = CurrentSong;
                     CurrentSong = song;
                     NextSong = Requests.FirstOrDefault();
                     SkipVotes.Clear();
-
-                    return song.SongId;
                 }
             }
+            if (song != null)
+            {
+                await UpdateDbState();
+                return song.SongId;
+            }
+
 
             if (BackupPlaylist.Songs.Count == 0)
             {
@@ -225,6 +230,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     Requests.Remove(song);
                 }
+                await UpdateDbState();
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
                 return;
             }
@@ -405,6 +411,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
                     NextSong = song;
                     AddCoolDown(e.Name, e.Command, 60 * 30);
+                    await UpdateDbState();
                     return;
                 }
             }
@@ -456,6 +463,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 Requests.Add(song);
             }
+            await UpdateDbState();
             if (NextSong == null)
             {
                 NextSong = song;
@@ -516,6 +524,52 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return null;
         }
 
-
+        private async Task UpdateDbState()
+        {
+            List<Song> requests = new List<Song>();
+            lock (RequestsLock)
+            {
+                requests = Requests.ToList();
+            }
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var id = 1;
+                if (requests.Count == 0)
+                {
+                    db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
+                    await db.SaveChangesAsync();
+                    return;
+                }
+                foreach (var request in requests)
+                {
+                    bool newRecord = false;
+                    var item = await db.SongRequestViewItems.Where(x => x.Id == id).FirstOrDefaultAsync();
+                    if (item == null)
+                    {
+                        item = new SongRequestViewItem
+                        {
+                            Id = id
+                        };
+                        newRecord = true;
+                    }
+                    item.Duration = request.Duration;
+                    item.RequestedBy = request.RequestedBy;
+                    item.SongId = request.SongId;
+                    item.Title = request.Title;
+                    if (newRecord)
+                    {
+                        db.Add(item);
+                    }
+                    else
+                    {
+                        db.Update(item);
+                    }
+                    id++;
+                }
+                db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Where(x => x.Id >= id));
+                await db.SaveChangesAsync();
+            }
+        }
     }
 }

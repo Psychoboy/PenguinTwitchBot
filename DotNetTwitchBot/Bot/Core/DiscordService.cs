@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Core
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var imageUrl = await _twitchService.GetStreamThumbnail();
                 //https://static-cdn.jtvnw.net/previews-ttv/live_user_superpenguintv-{width}x{height}.jpg
-                imageUrl = imageUrl.Replace("{width}", "1920").Replace("height", "1080");
+                imageUrl = imageUrl.Replace("{width}", "1920").Replace("{height}", "1080");
                 _logger.LogInformation("Thumbnail Url: {0}", imageUrl);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
