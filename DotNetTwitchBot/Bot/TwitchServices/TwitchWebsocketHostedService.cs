@@ -218,7 +218,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 var delayCounter = 1;
-                while (!await _eventSubWebsocketClient.ConnectAsync())
+                while (!await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
                 {
                     delayCounter = (delayCounter * 2);
                     if (delayCounter > 300)
@@ -247,7 +247,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await _eventSubWebsocketClient.ConnectAsync();
+            await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
             _logger.LogInformation("Websocket Connected.");
         }
 
