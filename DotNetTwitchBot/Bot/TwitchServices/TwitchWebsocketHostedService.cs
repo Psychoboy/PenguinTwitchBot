@@ -6,6 +6,8 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets.Core.Models;
+using TwitchLib.PubSub;
+using TwitchLib.PubSub.Events;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -14,14 +16,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
+        private TwitchPubSub? _twitchPubSub;
         private TwitchService _twitchService;
         private ServiceBackbone _eventService;
+        private IConfiguration _configuration;
         private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
             ServiceBackbone eventService,
+             IConfiguration configuration,
             EventSubWebsocketClient eventSubWebsocketClient,
+
+            // TwitchPubSub twitchPubSub,
             TwitchService twitchService)
         {
             _logger = logger;
@@ -42,9 +49,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
+            _configuration = configuration;
+
+            // _twitchPubSub = twitchPubSub;
+            // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
+
             _twitchService = twitchService;
             _eventService = eventService;
         }
+
 
 
         private async void OnChannelRaid(object? sender, ChannelRaidArgs e)
@@ -249,6 +262,35 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
             _logger.LogInformation("Websocket Connected.");
+            try
+            {
+                _twitchPubSub = new TwitchPubSub();
+                _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
+                _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
+                _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
+                _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
+                _twitchPubSub.Connect();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error connecting to twitchpub");
+            }
+        }
+
+        private void OnPubSubListenResponse(object? sender, OnListenResponseArgs e)
+        {
+            _logger.LogInformation("Listen Successful: {0} Error {1} Topic: {2}", e.Response.Successful, e.Response.Error, e.Topic);
+        }
+
+        private void OnPubSubSubscription(object? sender, OnChannelSubscriptionArgs e)
+        {
+            _logger.LogInformation("Pub Sub Subscription {0} {1} Months: {2} IsGift: {3}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
+        }
+
+        private void OnPubSubConnect(object? sender, EventArgs e)
+        {
+            _logger.LogInformation("PubSub Connected");
+            _twitchPubSub?.SendTopics(_configuration["twitchAccessToken"]);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
