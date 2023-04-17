@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return;
             }
 
-            var chosenWire = Tools.RandomElement(Wires);
+            var chosenWire = Wires.RandomElement();
             if (chosenWire == null)
             {
                 _logger.LogError("Couldn't choose a wire for defuse");

@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Tax : BaseCommand
     {
-        private static bool ShouldRun = false;
+        // private static bool ShouldRun = false;
         // private static bool DidRun = false;
         Timer _taxTimer;
         private IServiceScopeFactory _scopeFactory;
@@ -24,9 +24,23 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
             _taxTimer.Elapsed += Elapsed;
-            _taxTimer.Start();
+            // _taxTimer.Start();
             _scopeFactory = scopeFactory;
+            _serviceBackbone.StreamEnded += OnStreamEnded;
+            _serviceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
+        }
+
+        private Task OnStreamStarted(object? sender)
+        {
+            _taxTimer.Stop();
+            return Task.CompletedTask;
+        }
+
+        private Task OnStreamEnded(object? sender)
+        {
+            _taxTimer.Start();
+            return Task.CompletedTask;
         }
 
         private async void Elapsed(object? sender, ElapsedEventArgs e)
@@ -35,13 +49,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 if (_serviceBackbone.IsOnline)
                 {
-                    ShouldRun = true;
                     return;
                 };
 
-                if (ShouldRun == false) return;
-
-                ShouldRun = false;
+                _taxTimer.Stop();
                 _logger.LogInformation("Processing Tax");
                 List<Viewer>? viewers;
                 await using (var scope = _scopeFactory.CreateAsyncScope())

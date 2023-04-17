@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 await LoadBackupList();
             }
-            var randomSong = Tools.RandomElement(BackupPlaylist.Songs);
+            var randomSong = BackupPlaylist.Songs.RandomElement();
             LastSong = CurrentSong;
             CurrentSong = randomSong;
             NextSong = null;
@@ -469,7 +469,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 NextSong = song;
             }
 
-            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in count.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task<string> GetSongId(string searchTerm)
