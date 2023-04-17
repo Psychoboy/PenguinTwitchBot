@@ -151,6 +151,43 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return null;
         }
 
+        public async Task<bool> IsUserSub(string user)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            var userId = await GetUserId(user);
+            if (userId == null) return false;
+            try
+            {
+                var response = await _twitchApi.Helix.Subscriptions.CheckUserSubscriptionAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+                if (response == null) return false;
+                return response.Data.Any();
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+            }
+            return false;
+        }
+
+        public async Task<bool> IsUserMod(string user)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            var userId = await GetUserId(user);
+            if (userId == null) return false;
+            try
+            {
+                var response = await _twitchApi.Helix.Moderation.GetModeratorsAsync(broadcasterId, new List<string> { userId });
+                return response.Data.Any();
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+            }
+            return false;
+        }
+
         public async Task<bool> IsStreamOnline()
         {
             var userId = await GetBroadcasterUserId();

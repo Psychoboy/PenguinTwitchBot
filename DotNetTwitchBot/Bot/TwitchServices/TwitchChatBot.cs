@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
@@ -13,12 +14,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private ServiceBackbone _eventService { get; set; }
 
         private TwitchService _twitchService;
+        private TwitchBotService _twitchBotService;
         private readonly ILogger<TwitchChatBot> _logger;
 
         public TwitchChatBot(
             ILogger<TwitchChatBot> logger,
              IConfiguration configuration,
              ServiceBackbone eventService,
+             TwitchBotService twitchBotService,
              TwitchService twitchService)
         {
             _configuration = configuration;
@@ -26,6 +29,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _twitchClient = new TwitchClient();
             _eventService = eventService;
             _twitchService = twitchService;
+            _twitchBotService = twitchBotService;
             _eventService.SendMessageEvent += CommandService_OnSendMessage;
             _eventService.SendWhisperMessageEvent += CommandService_OnWhisperMessage;
 
@@ -40,11 +44,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return Task.CompletedTask;
         }
 
-        private Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
+        private async Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
         {
-            _twitchClient.SendWhisper(e, e2);
+            //_twitchClient.SendWhisper(e, e2);
+            await _twitchBotService.SendWhisper(e, e2);
             _logger.LogInformation("BOTWHISPERMSG: {0}", e + ": " + e2);
-            return Task.CompletedTask;
         }
 
         public void Initialize()
@@ -129,7 +133,21 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         }
         private async void OnWhisperCommandReceived(object? sender, OnWhisperCommandReceivedArgs e)
         {
-            await _eventService.OnWhisperCommand(e.Command);
+            var command = new CommandEventArgs()
+            {
+                Arg = e.Command.ArgumentsAsString,
+                Args = e.Command.ArgumentsAsList,
+                Command = e.Command.CommandText.ToLower(),
+                IsWhisper = true,
+                Name = e.Command.WhisperMessage.Username,
+                DisplayName = e.Command.WhisperMessage.DisplayName,
+                isSub = await _twitchService.IsUserSub(e.Command.WhisperMessage.Username),
+                isMod = await _twitchService.IsUserMod(e.Command.WhisperMessage.Username),
+                TargetUser = e.Command.ArgumentsAsList.Count > 0
+                        ? e.Command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
+                        : ""
+            };
+            await _eventService.OnWhisperCommand(command);
         }
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {

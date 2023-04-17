@@ -10,6 +10,7 @@ using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using TwitchLib.Api.Core.Exceptions;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -56,6 +57,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (userId == null) return;
                 var accessToken = _configuration["twitchBotAccessToken"];
                 await _twitchApi.Helix.Whispers.SendWhisperAsync(botId, userId, message, true, accessToken);
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error Sending Whisper: {0}", error);
             }
             catch (Exception ex)
             {

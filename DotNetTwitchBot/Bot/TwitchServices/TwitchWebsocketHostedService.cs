@@ -22,8 +22,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private IConfiguration _configuration;
         private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
 
+        private int PubSubReconnectDelay = 2;
+
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
+            ILogger<TwitchPubSub> tbsLogger,
             ServiceBackbone eventService,
              IConfiguration configuration,
             EventSubWebsocketClient eventSubWebsocketClient,
@@ -50,6 +53,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
             _configuration = configuration;
+
+            _twitchPubSub = new TwitchPubSub(tbsLogger);
+            _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
+            _twitchPubSub.OnPubSubServiceClosed += OnPubSubDisconnect;
+            _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
+            _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
 
             // _twitchPubSub = twitchPubSub;
             // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
@@ -264,18 +273,17 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("Websocket Connected.");
             try
             {
-                _twitchPubSub = new TwitchPubSub();
-                _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
-                _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
-                _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
-                _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
-                _twitchPubSub.Connect();
+
+                _twitchPubSub?.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
+                _twitchPubSub?.Connect();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error connecting to twitchpub");
             }
         }
+
+
 
         private void OnPubSubListenResponse(object? sender, OnListenResponseArgs e)
         {
@@ -290,7 +298,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private void OnPubSubConnect(object? sender, EventArgs e)
         {
             _logger.LogInformation("PubSub Connected");
+            PubSubReconnectDelay = 2;
             _twitchPubSub?.SendTopics(_configuration["twitchAccessToken"]);
+        }
+
+        private void OnPubSubDisconnect(object? sender, EventArgs e)
+        {
+            Thread.Sleep(PubSubReconnectDelay * 1000);
+            _twitchPubSub?.Connect();
+            PubSubReconnectDelay += PubSubReconnectDelay * 2;
+            if (PubSubReconnectDelay > 300) PubSubReconnectDelay = 300;
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

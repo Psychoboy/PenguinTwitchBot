@@ -107,34 +107,57 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnWhisperCommand(WhisperCommand command)
+        private List<string> AllowedWhisperCommands
+        {
+            get
+            {
+                return new List<string>
+                {
+                    "entries"
+                };
+            }
+        }
+
+        public async Task OnWhisperCommand(CommandEventArgs command)
         {
             if (CommandEvent != null)
             {
-                if (!IsBroadcasterOrBot(command.WhisperMessage.Username)) { return; }
-                var eventArgs = new CommandEventArgs()
+                if (IsBroadcasterOrBot(command.Name) || AllowedWhisperCommands.Contains(command.Command))
                 {
-                    Arg = command.ArgumentsAsString,
-                    Args = command.ArgumentsAsList,
-                    Command = command.CommandText.ToLower(),
-                    IsWhisper = true,
-                    Name = command.WhisperMessage.Username,
-                    DisplayName = command.WhisperMessage.DisplayName,
-                    isSub = true,
-                    isMod = true,
-                    isBroadcaster = true,
-                    TargetUser = command.ArgumentsAsList.Count > 0
-                        ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
-                        : ""
-                };
-                try
-                {
-                    await CommandEvent(this, eventArgs);
+                    command.isBroadcaster = IsBroadcasterOrBot(command.Name);
+                    try
+                    {
+                        await CommandEvent(this, command);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogCritical("Whisper Failure {0}", e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    _logger.LogCritical("Whisper Failure {0}", e);
-                }
+                // if (!IsBroadcasterOrBot(command.WhisperMessage.Username)) { return; }
+                // var eventArgs = new CommandEventArgs()
+                // {
+                //     Arg = command.ArgumentsAsString,
+                //     Args = command.ArgumentsAsList,
+                //     Command = command.CommandText.ToLower(),
+                //     IsWhisper = true,
+                //     Name = command.WhisperMessage.Username,
+                //     DisplayName = command.WhisperMessage.DisplayName,
+                //     isSub = true,
+                //     isMod = true,
+                //     isBroadcaster = true,
+                //     TargetUser = command.ArgumentsAsList.Count > 0
+                //         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
+                //         : ""
+                // };
+                // try
+                // {
+                //     await CommandEvent(this, command);
+                // }
+                // catch (Exception e)
+                // {
+                //     _logger.LogCritical("Whisper Failure {0}", e);
+                // }
             }
         }
 

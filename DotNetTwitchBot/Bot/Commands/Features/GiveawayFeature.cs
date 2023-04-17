@@ -192,10 +192,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task Entries(string sender)
         {
             var entries = await GetEntriesCount(sender);
-            await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
+            await _serviceBackbone.SendWhisperMessage(sender, $"You have {entries} entries");
+            // await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
-
-
-
     }
 }
