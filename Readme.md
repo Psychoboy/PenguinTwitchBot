@@ -48,8 +48,8 @@ TODO:
     - [X] Raid
     - [X] Bits
 - [ ] Migrate visual alerts from SE to new Bot
-- [ ] Discord Stuff
+- [X] Discord Stuff
     - [X] Commands
-    - [/] Live notification (In testing)
+    - [X] Live notification
     - [X] Add/Remove Live Streaming role as people stream on twitch
 
