@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Notifications
         private BlockingCollection<string> _queue = new BlockingCollection<string>();
         public List<SocketConnection> websocketConnections = new List<SocketConnection>();
         ILogger<WebSocketMessenger> _logger;
+        private bool Paused = false;
 
         public WebSocketMessenger(ILogger<WebSocketMessenger> logger)
         {
@@ -43,7 +44,10 @@ namespace DotNetTwitchBot.Bot.Notifications
 
                 if (_queue.TryTake(out var result, 5000))
                 {
-                    await SendMessageToSockets(result);
+                    if (Paused == false)
+                    {
+                        await SendMessageToSockets(result);
+                    }
                 }
             }
             _logger.LogInformation("Websocket closed: {0}", id.ToString());
@@ -109,6 +113,19 @@ namespace DotNetTwitchBot.Bot.Notifications
 
             });
         }
+
+        public void Pause()
+        {
+            Paused = true;
+            _queue.Clear();
+        }
+
+        public void Resume()
+        {
+            Paused = false;
+        }
+
+        public bool IsPaused { get { return Paused; } }
     }
 
     public class SocketConnection

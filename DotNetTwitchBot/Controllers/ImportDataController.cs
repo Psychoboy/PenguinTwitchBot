@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CsvHelper;
 using DotNetTwitchBot.Bot.Commands.Misc;
+using DotNetTwitchBot.MaintenanceObjects;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetTwitchBot.Controllers
@@ -19,25 +20,20 @@ namespace DotNetTwitchBot.Controllers
         {
             _scopeFactory = scopeFactory;
         }
-        [HttpGet("/importquotes")]
+        [HttpGet("/importpastsubs")]
         public async Task<ActionResult> ImportQuotes()
         {
-            using (var reader = new StreamReader("data\\quotes.csv"))
+            using (var reader = new StreamReader("data\\pastsubs.csv"))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             using (var scope = _scopeFactory.CreateScope())
             {
-                var quoteSystem = scope.ServiceProvider.GetRequiredService<QuoteSystem>();
-                var records = csv.GetRecords<TempQuote>();
-                foreach (var record in records)
+                var tracker = scope.ServiceProvider.GetRequiredService<Bot.Core.SubscriptionTracker>();
+                var records = csv.GetRecords<PhantomImport>().ToList();
+                var names = records.Select(x => x.variable).ToList(); ;
+                var missingNames = await tracker.MissingSubs(names);
+                foreach (var missingName in missingNames)
                 {
-                    var quote = new QuoteType
-                    {
-                        CreatedOn = DateTime.Parse(record.createdDate),
-                        CreatedBy = record.createdBy,
-                        Game = record.game,
-                        Quote = record.quote
-                    };
-                    await quoteSystem.AddQuote(quote);
+                    await tracker.AddOrUpdateSubHistory(missingName);
                 }
                 return Ok();
             }

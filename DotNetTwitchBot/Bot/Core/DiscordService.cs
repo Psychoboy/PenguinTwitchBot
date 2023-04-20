@@ -172,12 +172,43 @@ namespace DotNetTwitchBot.Bot.Core
                 return;
             }
 
+            if (arg.CommandName.Equals("dadjoke"))
+            {
+                try
+                {
+                    await DoDadJoke(arg);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error running dadjoke");
+                }
+
+                return;
+            }
+
             if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
             var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
             var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
             if (message != null && message.Cancel == false && message.Message.Length > 0)
             {
                 await arg.RespondAsync(message.Message);
+            }
+        }
+
+        private async Task DoDadJoke(SocketSlashCommand arg)
+        {
+            var httpClient = new HttpClient();
+            var request = new HttpRequestMessage()
+            {
+                RequestUri = new Uri("https://icanhazdadjoke.com/"),
+                Method = HttpMethod.Get
+            };
+            request.Headers.Add("Accept", "text/plain");
+            var result = await httpClient.SendAsync(request);
+            if (result.IsSuccessStatusCode)
+            {
+                var joke = await result.Content.ReadAsStringAsync();
+                await arg.RespondAsync(joke);
             }
         }
 
@@ -198,6 +229,19 @@ namespace DotNetTwitchBot.Bot.Core
                 var guildCommand = new SlashCommandBuilder();
                 guildCommand.WithName("gib");
                 guildCommand.WithDescription("Gib Stuff");
+                try
+                {
+                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                }
+                catch (HttpException exception)
+                {
+                    _logger.LogError(exception, "Error creating command");
+                }
+            }
+            {
+                var guildCommand = new SlashCommandBuilder();
+                guildCommand.WithName("dadjoke");
+                guildCommand.WithDescription("Get a dad joke");
                 try
                 {
                     await guild.CreateApplicationCommandAsync(guildCommand.Build());

@@ -1,9 +1,30 @@
 ﻿@page "/"
+@inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
 
 <PageTitle>Index</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
 
-<h1>Hello, world!</h1>
+    }
+</style>
 
-Welcome to your new app.
+<div>
+    <button class="btn btn-primary btn-xs" @onclick="PauseAlerts">Pause Alerts</button>
+</div>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<div>
+    <button class="btn btn-primary btn-xs" @onclick="ResumeAlerts">Resume Alerts</button>
+</div>
+
+@code {
+    private async Task PauseAlerts()
+    {
+        await Admin.PauseAlerts();
+    }
+
+    private async Task ResumeAlerts()
+    {
+        await Admin.ResumeAlerts();
+    }
+}

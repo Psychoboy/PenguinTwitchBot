@@ -31,7 +31,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
             ServiceBackbone eventService,
-            // ViewerData viewerData,
             TwitchService twitchService,
             TwitchBotService twitchBotService,
             // FollowData followData
@@ -360,6 +359,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                     await db.SaveChangesAsync();
                 }
+
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var subTracker = scope.ServiceProvider.GetRequiredService<SubscriptionTracker>();
+                    var missingNames = await subTracker.MissingSubs(subscribers.Select(x => x.UserLogin));
+                    foreach (var missingName in missingNames)
+                    {
+                        await subTracker.AddOrUpdateSubHistory(missingName);
+                    }
+                }
+
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

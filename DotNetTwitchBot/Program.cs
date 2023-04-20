@@ -48,7 +48,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
-
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
         //builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Music.YtPlayer>();
 
         //Add Features Here:
@@ -84,6 +84,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer));
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist));
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin));
 
         //Add Alerts
         commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));

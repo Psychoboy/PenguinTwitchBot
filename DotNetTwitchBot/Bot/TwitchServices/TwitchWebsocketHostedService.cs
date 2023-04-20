@@ -16,21 +16,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
-        private TwitchPubSub? _twitchPubSub;
+        private TwitchPubSub _twitchPubSub;
         private TwitchService _twitchService;
         private ServiceBackbone _eventService;
+        private SubscriptionTracker _subscriptionHistory;
         private IConfiguration _configuration;
         private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
-
-        private int PubSubReconnectDelay = 2;
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
             ILogger<TwitchPubSub> tbsLogger,
             ServiceBackbone eventService,
-             IConfiguration configuration,
+            IConfiguration configuration,
             EventSubWebsocketClient eventSubWebsocketClient,
-
+            SubscriptionTracker subscriptionHistory,
             // TwitchPubSub twitchPubSub,
             TwitchService twitchService)
         {
@@ -60,11 +59,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
             _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
 
-            // _twitchPubSub = twitchPubSub;
-            // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
-
             _twitchService = twitchService;
             _eventService = eventService;
+            _subscriptionHistory = subscriptionHistory;
         }
 
 
@@ -109,18 +106,45 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await _eventService.OnStreamStarted();
         }
 
-        private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
+        private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
+            , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
+
+            if (await _subscriptionHistory.ExistingSub(e.Notification.Payload.Event.UserLogin))
+            {
+                _logger.LogInformation("Previous sub so skipping notification.");
+                return;
+            }
+
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
             SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
-                Count = e.Notification.Payload.Event.CumulativeTotal
+                IsGift = e.Notification.Payload.Event.IsGift
             });
+            await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+        }
+
+        private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
+        {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
+            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
+
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
+
+            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
+            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            {
+                Name = e.Notification.Payload.Event.UserLogin,
+                DisplayName = e.Notification.Payload.Event.UserName,
+                Count = e.Notification.Payload.Event.CumulativeTotal,
+                IsRenewal = true
+            });
+            await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
         }
 
         private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
@@ -136,23 +160,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             });
         }
 
-        private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
-        {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-
-            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
-            , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
-
-            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
-
-            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
-            {
-                Name = e.Notification.Payload.Event.UserLogin,
-                DisplayName = e.Notification.Payload.Event.UserName,
-                IsGift = e.Notification.Payload.Event.IsGift
-            });
-        }
 
         private async void OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
@@ -274,8 +281,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
 
-                _twitchPubSub?.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
-                _twitchPubSub?.Connect();
+                _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
+                _twitchPubSub.Connect();
             }
             catch (Exception ex)
             {
@@ -298,16 +305,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private void OnPubSubConnect(object? sender, EventArgs e)
         {
             _logger.LogInformation("PubSub Connected");
-            PubSubReconnectDelay = 2;
-            _twitchPubSub?.SendTopics(_configuration["twitchAccessToken"]);
+            _twitchPubSub.SendTopics(_configuration["twitchAccessToken"]);
         }
 
         private void OnPubSubDisconnect(object? sender, EventArgs e)
         {
-            Thread.Sleep(PubSubReconnectDelay * 1000);
-            _twitchPubSub?.Connect();
-            PubSubReconnectDelay += PubSubReconnectDelay * 2;
-            if (PubSubReconnectDelay > 300) PubSubReconnectDelay = 300;
+            _logger.LogInformation("PubSub Disconnected");
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

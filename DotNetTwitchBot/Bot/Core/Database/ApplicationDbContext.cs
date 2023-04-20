@@ -40,6 +40,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<TimerGroup> TimerGroups { get; set; } = null!;
         public DbSet<TimerMessage> TimerMessages { get; set; } = null!;
         public DbSet<WordFilter> WordFilters { get; set; } = null!;
+        public DbSet<SubscriptionHistory> SubscriptionHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
