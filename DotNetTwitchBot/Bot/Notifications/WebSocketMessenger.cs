@@ -23,6 +23,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
         public void AddToQueue(string message)
         {
+            if (Paused) return;
             _queue.Add(message);
 
         }
