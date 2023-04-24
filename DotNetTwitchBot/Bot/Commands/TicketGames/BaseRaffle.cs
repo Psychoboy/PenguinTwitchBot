@@ -57,6 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             if (CurrentState != State.NotRunning)
             {
                 await _serviceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, "name"));
+                return;
             }
 
             CurrentState = State.Running;
@@ -161,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var username = e.Name;
             if (_entered.Exists(x => x.ToLower().Equals(username.ToLower())))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.DisplayName));
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.Command));
                 return;
             }
             _entered.Add(username);

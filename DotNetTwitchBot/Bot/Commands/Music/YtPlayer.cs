@@ -105,7 +105,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     }
                 }
                 {
-                    var playList = await db.Playlists.Include(x => x.Songs).OrderBy(x => x.Id).LastOrDefaultAsync();
+                    var playList = await db.Playlists.Include(x => x.Songs).OrderBy(x => x.Id).FirstOrDefaultAsync();
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
@@ -162,6 +162,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await _serviceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
             }
             await PlayNextSong();
+        }
+
+        public MusicPlaylist CurrentPlaylist { get { return BackupPlaylist; } }
+        public async Task<List<MusicPlaylist>> Playlists()
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Playlists.ToListAsync();
+            }
+        }
+
+        public async Task<MusicPlaylist> GetPlayList(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Playlists.Include(x => x.Songs).Where(x => x.Id == id).FirstAsync();
+            }
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -222,7 +241,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             Song? song;
             lock (RequestsLock)
             {
-                song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).FirstOrDefault();
+                song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).LastOrDefault();
             }
             if (song != null)
             {
@@ -289,10 +308,29 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task LoadPlaylist(CommandEventArgs e)
         {
+            await LoadPlayList(e.Arg);
+        }
+
+        public async Task LoadPlayList(string name)
+        {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(e.Arg));
+                var playListId = await db.Playlists.Where(y => y.Name.Equals(name)).Select(x => x.Id).FirstOrDefaultAsync();
+                if (playListId != null)
+                {
+                    await LoadPlayList((int)playListId);
+                }
+            }
+
+        }
+
+        public async Task LoadPlayList(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var playList = await db.Playlists.Include(x => x.Songs).FirstOrDefaultAsync(x => x.Id == id);
                 if (playList == null)
                 {
                     await _serviceBackbone.SendChatMessage("No playlist found");
@@ -308,7 +346,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         IntSetting = playList.Id ?? default(int)
                     };
                 }
+                // await _serviceBackbone.SendChatMessage($"Loaded playlist {0}", playList.Name);
+                db.Settings.Update(lastPlaylist);
+                await db.SaveChangesAsync();
             }
+            await _serviceBackbone.SendChatMessage($"{BackupPlaylist.Name} loaded with {BackupPlaylist.Songs.Count} songs");
         }
 
         private async Task ImportPlaylist(CommandEventArgs e)
@@ -468,6 +510,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 NextSong = song;
             }
+            if (e.IsWhisper) return;
 
             await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }

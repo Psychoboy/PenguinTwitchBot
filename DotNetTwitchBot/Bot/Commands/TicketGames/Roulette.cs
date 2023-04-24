@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             return;
                         }
 
-                        AddCoolDown(e.Name, e.Command, 30);
+                        AddCoolDown(e.Name, e.Command, 30 * 60);
                         var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {

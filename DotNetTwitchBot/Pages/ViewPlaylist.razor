@@ -1,0 +1,57 @@
+@page "/viewplaylist/{id:int}"
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+
+<PageTitle>View Playlist</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (musicPlaylist == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Song</th>
+                <th>Length</th>
+                <th>Song Id</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var song in musicPlaylist.Songs)
+            {
+                <tr>
+                    <td>@song.Title</td>
+                    <td>@song.Duration</td>
+                    <td>@song.SongId</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private MusicPlaylist? musicPlaylist { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        musicPlaylist = await YtPlayer.GetPlayList(id);
+        StateHasChanged();
+    }
+}

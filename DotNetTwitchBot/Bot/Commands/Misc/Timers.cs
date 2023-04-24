@@ -133,7 +133,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             try
             {
                 if (group.Messages.Where(x => x.Enabled == true).Any() == false) return;
-                var message = group.Messages.Where(x => x.Enabled == true).RandomElement();
+                var message = group.Messages.Where(x => x.Enabled == true).ToList().RandomElement(_logger);
                 await SendMessage(message);
 
             }

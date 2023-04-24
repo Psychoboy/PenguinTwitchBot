@@ -1,0 +1,58 @@
+@page "/playlists"
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Playlists</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+@if (musicPlaylists == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>View</th>
+                <th>Load</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var playlist in musicPlaylists)
+            {
+                <tr>
+                    <td>@playlist.Name</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => ViewList(playlist)">View</button></td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => StartPlaylist(playlist)">Load</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+@code {
+    private List<MusicPlaylist>? musicPlaylists;
+
+    protected override async Task OnInitializedAsync()
+    {
+        musicPlaylists = await YtPlayer.Playlists();
+    }
+
+    private void ViewList(MusicPlaylist musicPlaylist)
+    {
+        navigationManager.NavigateTo($"/viewplaylist/{musicPlaylist.Id}");
+    }
+
+    private async Task StartPlaylist(MusicPlaylist musicPlaylist)
+    {
+        if (musicPlaylist != null && musicPlaylist.Id != null)
+        {
+            await YtPlayer.LoadPlayList((int)musicPlaylist.Id);
+        }
+    }
+}
