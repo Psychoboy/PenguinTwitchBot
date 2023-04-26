@@ -72,6 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (song != null)
             {
                 await UpdateDbState();
+                await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
                 return song.SongId;
             }
 
@@ -85,7 +86,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             CurrentSong = randomSong;
             NextSong = null;
             SkipVotes.Clear();
+            await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
             return randomSong.SongId;
+        }
+
+        public Song? GetCurrentSong()
+        {
+            return this.CurrentSong;
         }
 
         private async Task LoadBackupList()
@@ -101,6 +108,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
+                        await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
                 }
@@ -109,6 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
+                        await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
                 }
@@ -164,7 +173,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await PlayNextSong();
         }
 
-        public MusicPlaylist CurrentPlaylist { get { return BackupPlaylist; } }
+        public MusicPlaylist CurrentPlaylist()
+        {
+            return this.BackupPlaylist;
+        }
         public async Task<List<MusicPlaylist>> Playlists()
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -233,7 +245,51 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     await LoadPlaylist(e);
                     break;
+
+                case "steal":
+                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                    await StealCurrentSong();
+                    break;
             }
+        }
+
+        public async Task RemoveSong(Song song)
+        {
+            if (BackupPlaylist.Songs.Count == 0) return;
+            if (BackupPlaylist.Songs.Contains(song) == false)
+            {
+                await _serviceBackbone.SendChatMessage("Song is not in the list.");
+                return;
+            }
+
+            BackupPlaylist.Songs.Remove(song);
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Playlists.Update(BackupPlaylist);
+                await db.SaveChangesAsync();
+            }
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+        }
+
+        public async Task StealCurrentSong()
+        {
+            if (BackupPlaylist.Songs.Count == 0) return;
+            if (CurrentSong == null) return;
+            if (BackupPlaylist.Songs.Where(x => x.SongId.Equals(CurrentSong.SongId)).Any())
+            {
+                await _serviceBackbone.SendChatMessage("Song is already in the list.");
+                return;
+            }
+            CurrentSong.Id = null;
+            BackupPlaylist.Songs.Add(CurrentSong);
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Playlists.Update(BackupPlaylist);
+                await db.SaveChangesAsync();
+            }
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
         }
 
         private async Task WrongSong(CommandEventArgs e)
@@ -350,7 +406,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 db.Settings.Update(lastPlaylist);
                 await db.SaveChangesAsync();
             }
-            await _serviceBackbone.SendChatMessage($"{BackupPlaylist.Name} loaded with {BackupPlaylist.Songs.Count} songs");
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+            //await _serviceBackbone.SendChatMessage($"{BackupPlaylist.Name} loaded with {BackupPlaylist.Songs.Count} songs");
         }
 
         private async Task ImportPlaylist(CommandEventArgs e)

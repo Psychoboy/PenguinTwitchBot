@@ -1,14 +1,20 @@
-@page "/playlists"
+@page "/musicplayer"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
-@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-
-<PageTitle>Playlists</PageTitle>
+@implements IAsyncDisposable
 <style type="text/css">
     .white-text {
         color: white;
 
     }
 </style>
+@if (currentSong != null)
+{
+    <div>Current Song: @currentSong.Title</div>
+    <div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
+}
+<div id="player" style="background-color: rgb(49, 49, 49);"></div>
 @if (musicPlaylists == null)
 {
     <p><em>Loading...</em></p>
@@ -27,7 +33,6 @@ else
             {
                 <tr>
                     <td>@playlist.Name</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => ViewList(playlist)">View</button></td>
                     <td><button class="btn btn-primary btn-xs" @onclick="() => StartPlaylist(playlist)">Load</button></td>
                 </tr>
             }
@@ -48,6 +53,7 @@ else
                 <th>Title</th>
                 <th>Length</th>
                 <th>Song Id</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -57,6 +63,7 @@ else
                     <td>@song.Title</td>
                     <td>@song.Duration</td>
                     <td>@song.SongId</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSong(song)">Remove</button></td>
                 </tr>
             }
         </tbody>
@@ -65,16 +72,29 @@ else
 @code {
     private List<MusicPlaylist>? musicPlaylists;
     private MusicPlaylist? currentPlayList;
+    private Song? currentSong;
+    private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = YtPlayer.CurrentPlaylist();
-    }
+        currentSong = YtPlayer.GetCurrentSong();
+        hubConnection = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
-    private void ViewList(MusicPlaylist musicPlaylist)
-    {
-        navigationManager.NavigateTo($"/viewplaylist/{musicPlaylist.Id}");
+        hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
+        {
+            currentSong = song;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<MusicPlaylist>("UpdateCurrentPlaylist", (playlist) =>
+        {
+            currentPlayList = playlist;
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
     }
 
     private async Task StartPlaylist(MusicPlaylist musicPlaylist)
@@ -82,7 +102,23 @@ else
         if (musicPlaylist != null && musicPlaylist.Id != null)
         {
             await YtPlayer.LoadPlayList((int)musicPlaylist.Id);
-            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveSong(Song song)
+    {
+        await YtPlayer.RemoveSong(song);
+    }
+
+    private async Task StealSong()
+    {
+        await YtPlayer.StealCurrentSong();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
         }
     }
 }
