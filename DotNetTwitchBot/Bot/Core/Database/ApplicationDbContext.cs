@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Models.Timers;
+using DotNetTwitchBot.Bot.Models.Giveaway;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
@@ -16,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         }
         public DbSet<Follower> Followers { get; set; } = null!;
         public DbSet<GiveawayEntry> GiveawayEntries { get; set; } = null!;
+        public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<ViewerTicket> ViewerTickets { get; set; } = null!;
         public DbSet<ViewerTicketWithRanks> ViewerTicketWithRanks { get; set; } = null!;

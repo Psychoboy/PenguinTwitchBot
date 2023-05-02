@@ -1,0 +1,92 @@
+@page "/giveaway"
+@using Microsoft.AspNetCore.SignalR.Client
+@using DotNetTwitchBot.Bot.Models.Giveaway
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject NavigationManager Navigation
+
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+<div>
+    <h1>Prize</h1>
+    <h2>@prize</h2>
+</div>
+<hr />
+<div>
+    <h1>Winners</h1>
+    @foreach (var winner in winners)
+    {
+        <div>
+            <h2>@winner</h2>
+        </div>
+    }
+</div>
+<div>
+    <button class="btn btn-primary btn-xs" @onclick="() => Close()">Close</button>
+</div>
+<div>
+    <button class="btn btn-primary btn-xs" @onclick="() => Draw()">Draw</button>
+</div>
+<hr />
+<div>
+    <h1>Past Winners</h1>
+    @if (pastWinners == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <table class="table white-text">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Prize</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var winner in pastWinners)
+                {
+                    <tr>
+                        <td>@winner.Username</td>
+                        <td>@winner.Prize</td>
+                        <td>@winner.WinningDate.ToShortDateString()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<string> winners = new List<string>();
+    private List<GiveawayWinner>? pastWinners;
+    private string prize = "";
+    private HubConnection? hubConnection;
+    protected override async Task OnInitializedAsync()
+    {
+        pastWinners = await GiveawayFeature.PastWinners();
+        prize = await GiveawayFeature.GetPrize();
+        hubConnection = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
+        hubConnection.On<List<string>>("Winners", (Winners) =>
+        {
+            winners = Winners;
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
+    }
+
+    private async Task Draw()
+    {
+        await GiveawayFeature.Draw();
+    }
+
+    private async Task Close()
+    {
+        await GiveawayFeature.Close();
+    }
+}

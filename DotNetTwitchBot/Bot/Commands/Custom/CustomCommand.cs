@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private ILogger<CustomCommand> _logger;
         private TwitchService _twitchService;
         private LoyaltyFeature _loyaltyFeature;
+        private GiveawayFeature _giveawayFeature;
 
         public CustomCommand(
             SendAlerts sendAlerts,
@@ -34,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ILogger<CustomCommand> logger,
             TwitchService twitchService,
             LoyaltyFeature loyaltyFeature,
+            GiveawayFeature giveawayFeature,
             ServiceBackbone serviceBackbone) : base(serviceBackbone)
         {
             _sendAlerts = sendAlerts;
@@ -42,6 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _logger = logger;
             _twitchService = twitchService;
             _loyaltyFeature = loyaltyFeature;
+            _giveawayFeature = giveawayFeature;
             _serviceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
@@ -62,6 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("channelname", ChannelName);
             CommandTags.Add("uptime", Uptime);
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
+            CommandTags.Add("GiveawayPrize", GiveawayPrize);
         }
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
@@ -656,6 +660,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 return new CustomCommandResult("SuperPenguinTV");
             });
+        }
+
+        private async Task<CustomCommandResult> GiveawayPrize(CommandEventArgs eventArgs, string args)
+        {
+            var prize = await _giveawayFeature.GetPrize();
+            return new CustomCommandResult(prize);
         }
 
         private async Task<CustomCommandResult> Uptime(CommandEventArgs eventArgs, string args)

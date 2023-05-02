@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events;
-using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.Models.Giveaway;
 using EFCore.BulkExtensions;
+using Microsoft.AspNetCore.SignalR;
+using DotNetTwitchBot.Bot.Hubs;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -18,13 +20,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private TicketsFeature _ticketsFeature;
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IHubContext<GiveawayHub> _hubContext;
         private List<string> Tickets = new List<string>();
+        private List<string> Winners = new List<string>();
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature,
+            IHubContext<GiveawayHub> hubContext,
             IServiceScopeFactory scopeFactory
             ) : base(eventService)
         {
@@ -33,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _ticketsFeature = ticketsFeature;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
+            _hubContext = hubContext;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -68,11 +74,53 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         await Reset();
                         break;
                     }
+                case "setprize":
+                    {
+                        if (!e.isBroadcaster) return;
+                        await SetPrize(e.Arg);
+                        break;
+                    }
 
             }
         }
 
-        private async Task Close()
+        public async Task<string> GetPrize()
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var prize = await db.Settings.Where(x => x.Name.Equals("GiveawayPrize")).FirstOrDefaultAsync();
+                if (prize == null)
+                {
+                    return "No Prize";
+                }
+                else
+                {
+                    return prize.StringSetting;
+                }
+            }
+        }
+
+        private async Task SetPrize(string arg)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var prize = await db.Settings.Where(x => x.Name.Equals("GiveawayPrize")).FirstOrDefaultAsync();
+                if (prize == null)
+                {
+                    prize = new Setting()
+                    {
+                        Name = "GiveawayPrize"
+                    };
+                }
+                prize.StringSetting = arg;
+                db.Update(prize);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        public async Task Close()
         {
             Tickets.Clear();
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -86,7 +134,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task Reset()
+        public async Task Reset()
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -96,7 +144,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task Draw()
+        public async Task Draw()
         {
             if (Tickets.Count == 0)
             {
@@ -108,8 +156,37 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var viewer = await _viewerFeature.GetViewer(winningTicket);
             var isFollower = await _viewerFeature.IsFollower(winningTicket);
             await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.NameWithTitle() : winningTicket, isFollower ? "is" : "is not"));
+            await AddWinner(viewer);
         }
 
+        public async Task<List<GiveawayWinner>> PastWinners()
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.GiveawayWinners.OrderByDescending(x => x.WinningDate).ToListAsync();
+            }
+        }
+
+        private async Task AddWinner(Viewer? viewer)
+        {
+            if (viewer == null) return;
+
+            Winners.Add(viewer.DisplayName);
+            await _hubContext.Clients.All.SendAsync("Winners", Winners);
+            var prize = await GetPrize();
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var winner = new GiveawayWinner()
+                {
+                    Username = viewer.DisplayName,
+                    Prize = prize
+                };
+                db.GiveawayWinners.Add(winner);
+                await db.SaveChangesAsync();
+            }
+        }
 
 
         private async Task Enter(string sender, string amount)
