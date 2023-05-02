@@ -44,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Core
                 AlwaysDownloadUsers = true
             };
             _client = new DiscordSocketClient(config);
-            _client.Log += LogAsync;
+            // _client.Log += LogAsync;
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;

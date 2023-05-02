@@ -78,7 +78,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         musicPlaylists = await YtPlayer.Playlists();
-        currentPlayList = YtPlayer.CurrentPlaylist();
+        currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();

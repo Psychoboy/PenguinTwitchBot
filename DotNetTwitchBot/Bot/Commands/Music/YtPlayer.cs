@@ -87,6 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             NextSong = null;
             SkipVotes.Clear();
             await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
+            await UpdateDbState();
             return randomSong.SongId;
         }
 
@@ -108,6 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
+                        await UpdateDbState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
@@ -117,6 +119,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
+                        await UpdateDbState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
@@ -173,8 +176,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await PlayNextSong();
         }
 
-        public MusicPlaylist CurrentPlaylist()
+        public async Task<MusicPlaylist> CurrentPlaylist()
         {
+            if (this.BackupPlaylist.Songs.Count == 0)
+            {
+                await LoadBackupList();
+            }
             return this.BackupPlaylist;
         }
         public async Task<List<MusicPlaylist>> Playlists()

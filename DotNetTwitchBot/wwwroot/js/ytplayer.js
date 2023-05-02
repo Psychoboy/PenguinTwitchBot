@@ -3,6 +3,11 @@
 var connection = new signalR.HubConnectionBuilder().withUrl("/ythub").withAutomaticReconnect().build();
 connection.start().then(function () {
 
+    var tag = document.createElement('script');
+
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 }).catch(function (err) {
     return console.error(err.toString());
 });
@@ -51,11 +56,6 @@ connection.onreconnecting(error => {
 });
 
 
-var tag = document.createElement('script');
-
-tag.src = "https://www.youtube.com/iframe_api";
-var firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 var player;
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {

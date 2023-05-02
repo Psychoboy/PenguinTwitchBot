@@ -42,11 +42,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
-            _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
+            //_eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
-            _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+            //_eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
@@ -112,11 +112,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
             , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-            if (await _subscriptionHistory.ExistingSub(e.Notification.Payload.Event.UserLogin))
-            {
-                _logger.LogInformation("Previous sub so skipping notification.");
-                return;
-            }
+            // if (await _subscriptionHistory.ExistingSub(e.Notification.Payload.Event.UserLogin))
+            // {
+            //     _logger.LogInformation("Previous sub so skipping notification.");
+            //     return;
+            // }
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
             SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
@@ -158,6 +158,33 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 GiftAmount = e.Notification.Payload.Event.Total,
                 TotalGifted = e.Notification.Payload.Event.CumulativeTotal
             });
+        }
+
+        private async void OnPubSubSubscription(object? sender, OnChannelSubscriptionArgs e)
+        {
+            _logger.LogInformation("Pub Sub Subscription {0} {1} Months: {2} IsGift: {3}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
+            //  if (DidProcessMessage(e.Notification.Metadata)) return;
+            // _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
+            // , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
+
+            // if (await _subscriptionHistory.ExistingSub(e.Subscription.Username))
+            // {
+            //     _logger.LogInformation("Previous sub so skipping notification.");
+            //     return;
+            // }
+
+            if (CheckIfExistsAndAddSubCache(e.Subscription.Username)) return;
+            SubCache[e.Subscription.Username] = DateTime.Now;
+            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            {
+                Name = e.Subscription.Username,
+                DisplayName = e.Subscription.DisplayName,
+                IsGift = e.Subscription.IsGift != null ? (bool)e.Subscription.IsGift : false,
+                IsRenewal = e.Subscription.Months > 0,
+                Count = e.Subscription.Months,
+                Message = e.Subscription.SubMessage?.Message
+            });
+            await _subscriptionHistory.AddOrUpdateSubHistory(e.Subscription.Username);
         }
 
 
@@ -297,10 +324,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("Listen Successful: {0} Error {1} Topic: {2}", e.Response.Successful, e.Response.Error, e.Topic);
         }
 
-        private void OnPubSubSubscription(object? sender, OnChannelSubscriptionArgs e)
-        {
-            _logger.LogInformation("Pub Sub Subscription {0} {1} Months: {2} IsGift: {3}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
-        }
+
 
         private void OnPubSubConnect(object? sender, EventArgs e)
         {

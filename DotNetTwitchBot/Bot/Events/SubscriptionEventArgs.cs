@@ -12,5 +12,6 @@ namespace DotNetTwitchBot.Bot.Events
         public int? Count { get; set; } = null;
         public bool IsGift { get; set; } = false;
         public bool IsRenewal { get; set; } = false;
+        public string? Message {get;set;}
     }
 }
