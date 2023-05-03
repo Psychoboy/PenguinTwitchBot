@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             //_eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
-            _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
+            // _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
             //_eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
 

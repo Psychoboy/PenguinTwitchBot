@@ -405,10 +405,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     lastPlaylist = new Setting
                     {
-                        Name = "LastSongList",
-                        IntSetting = playList.Id ?? default(int)
+                        Name = "LastSongList"
                     };
                 }
+                lastPlaylist.IntSetting = playList.Id ?? default(int);
                 // await _serviceBackbone.SendChatMessage($"Loaded playlist {0}", playList.Name);
                 db.Settings.Update(lastPlaylist);
                 await db.SaveChangesAsync();
