@@ -78,7 +78,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
 
             if (!e.Command.Equals(Command)) return;
-            if (!IsCoolDownExpired(e.Name, e.Command)) return;
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
 
             if (GameState == State.Finishing)
             {

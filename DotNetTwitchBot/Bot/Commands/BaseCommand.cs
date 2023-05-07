@@ -51,6 +51,16 @@ namespace DotNetTwitchBot.Bot.Commands
             return true;
         }
 
+        protected async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
+        {
+            if (!IsCoolDownExpired(user, command))
+            {
+                await _serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown: {1}", command, CooldownLeft(user, command)));
+                return false;
+            }
+            return true;
+        }
+
         protected string CooldownLeft(string user, string command)
         {
 
@@ -81,29 +91,47 @@ namespace DotNetTwitchBot.Bot.Commands
             if (globalCooldown > userCooldown)
             {
                 var timeDiff = globalCooldown - DateTime.Now;
-                return string.Format("{0:%h} hours, {0:%m} minutes, {0:%s} seconds", timeDiff);
+                // return FormatTimeSpan(timeDiff);
+                return timeDiff.ToFriendlyString();
             }
             else if (userCooldown > globalCooldown)
             {
                 var timeDiff = userCooldown - DateTime.Now;
-                return string.Format("{0:%h} hours, {0:%m} minutes, {0:%s} seconds", timeDiff);
+                // return FormatTimeSpan(timeDiff);
+                return timeDiff.ToFriendlyString();
             }
             return "";
         }
 
+        private string FormatTimeSpan(TimeSpan timeDiff)
+        {
+            return timeDiff.ToString(@"d\d\ hh\hmm\mss\s")
+            .TrimStart(' ', 'd', 'h', 'm', 's', '0');
+        }
+
         protected void AddCoolDown(string user, string command, int cooldown)
+        {
+            AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
+        }
+
+        protected void AddCoolDown(string user, string command, DateTime cooldown)
         {
             if (!_coolDowns.ContainsKey(user.ToLower()))
             {
                 _coolDowns[user.ToLower()] = new Dictionary<string, DateTime>();
             }
 
-            _coolDowns[user.ToLower()][command] = DateTime.Now.AddSeconds(cooldown);
+            _coolDowns[user.ToLower()][command] = cooldown;
         }
 
         protected void AddGlobalCooldown(string command, int cooldown)
         {
-            _globalCooldowns[command] = DateTime.Now.AddSeconds(cooldown);
+            AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
+        }
+
+        protected void AddGlobalCooldown(string command, DateTime cooldown)
+        {
+            _globalCooldowns[command] = cooldown;
         }
     }
 }

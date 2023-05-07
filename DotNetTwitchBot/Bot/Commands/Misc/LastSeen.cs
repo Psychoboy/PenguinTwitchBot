@@ -24,7 +24,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var command = "lastseen";
             if (!e.Command.Equals(command)) return;
-            if (!IsCoolDownExpired(e.Name, command)) return;
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
 
             var viewer = await _viewerFeature.GetViewer(e.TargetUser);

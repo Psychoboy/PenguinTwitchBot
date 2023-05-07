@@ -54,11 +54,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (!e.Command.Equals(Command)) return;
-            if (!IsCoolDownExpired(e.Name, e.Command))
-            {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "!heist is still on cooldown");
-                return;
-            }
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
+
             if (GameState == State.Finishing)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you can not join the heist now.");

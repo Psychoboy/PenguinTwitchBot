@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     {
                         _logger.LogError(ex, "Error running dice game");
                     }
-                    AddCoolDown(e.Name, e.Command, 180);
+                    AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(3));
                     break;
             }
         }

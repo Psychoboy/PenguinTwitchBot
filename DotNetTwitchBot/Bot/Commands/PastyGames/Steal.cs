@@ -32,7 +32,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var command = "steal";
             if (!e.Command.Equals(command)) return;
-            if (!IsCoolDownExpired(e.Name, command)) return;
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
@@ -53,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
 
             await StealFromUser(e);
-            AddCoolDown(e.Name, command, 300);
+            AddCoolDown(e.Name, command, DateTime.Now.AddMinutes(5));
         }
 
         private async Task StealFromUser(CommandEventArgs e)

@@ -32,11 +32,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             switch (e.Command)
             {
                 case "duel":
-                    if (!IsCoolDownExpired(e.Name, e.Command))
-                    {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, "Duel is still on cooldown for you.");
-                        return;
-                    }
+                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                    if (isCoolDownExpired == false) return;
                     await Duel(e);
                     break;
 
@@ -230,7 +227,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-            AddCoolDown(e.Name, e.Command, 600);
+            AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(10));
             await _serviceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.");
         }
 

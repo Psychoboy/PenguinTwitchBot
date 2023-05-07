@@ -119,11 +119,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (Commands.ContainsKey(e.Command) == false) return;
             if (Commands[e.Command].Disabled) return;
 
-            if (!IsCoolDownExpired(e.Name, e.Command))
-            {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
-                return;
-            }
+            // if (!IsCoolDownExpired(e.Name, e.Command))
+            // {
+            //     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
+            //     return;
+            // }
+
+            var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCooldownExpired == false) return;
 
             if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
             {

@@ -48,11 +48,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task HandleGamble(CommandEventArgs e)
         {
-            if (!IsCoolDownExpired(e.Name, e.Command))
-            {
-                await SendChatMessage(e.DisplayName, $"{e.Command} is on cooldown");
-                return;
-            }
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
 
             if (e.Args.Count == 0)
             {
@@ -109,7 +106,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await updateJackpot(Convert.ToInt64(amount * 0.10), false);
                 await _serviceBackbone.SendChatMessage(string.Format("{0} rolled {1} and lost {2} pasties", e.DisplayName, value, amount.ToString("N0")));
             }
-            AddCoolDown(e.Name, e.Command, 180);
+            AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(3));
         }
 
         private async Task updateJackpot(long amount, bool reset)

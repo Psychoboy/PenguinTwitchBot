@@ -482,7 +482,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     db.Playlists.Update(playList);
                     await db.SaveChangesAsync();
                 }
-                await _serviceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs} songs");
+                await _serviceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count()} songs");
             }
             catch (Exception ex)
             {
@@ -494,11 +494,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task MovePriority(CommandEventArgs e)
         {
-            if (!IsCoolDownExpired(e.Name, e.Command))
-            {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "!priority is still on cooldown for you.");
-                return;
-            }
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
             List<Song> backwardsRequest = new List<Song>();
             lock (RequestsLock)
             {
@@ -516,7 +513,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     }
                     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
                     NextSong = song;
-                    AddCoolDown(e.Name, e.Command, 60 * 30);
+                    AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(30));
                     await UpdateDbState();
                     return;
                 }

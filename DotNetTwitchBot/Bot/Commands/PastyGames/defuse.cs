@@ -37,7 +37,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var command = "defuse";
             if (!e.Command.Equals(command)) return;
-            if (!IsCoolDownExpired(e.Name, command)) return;
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
 
             if (string.IsNullOrEmpty(e.Arg) ||
             (!e.Arg.Equals("red", StringComparison.CurrentCultureIgnoreCase) &&

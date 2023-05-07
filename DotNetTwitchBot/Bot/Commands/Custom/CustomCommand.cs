@@ -267,11 +267,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     return;
                 }
 
-                if (!IsCoolDownExpired(e.Name, e.Command))
-                {
-                    await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
-                    return;
-                }
+                // if (!IsCoolDownExpired(e.Name, e.Command))
+                // {
+                //     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
+                //     return;
+                // }
+                var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                if (isCoolDownExpired == false) return;
                 if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
                 {
                     switch (Commands[e.Command].MinimumRank)

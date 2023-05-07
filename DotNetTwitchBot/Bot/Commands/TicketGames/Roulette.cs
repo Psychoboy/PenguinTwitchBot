@@ -27,7 +27,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 case "roulette":
                     {
                         if (_serviceBackbone.IsOnline == false) return;
-                        if (!IsCoolDownExpired(e.Name, e.Command)) return;
+                        var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                        if (isCoolDownExpired == false) return;
+
                         if (e.Args.Count == 0)
                         {
                             await SendChatMessage(e.DisplayName, "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
@@ -66,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             return;
                         }
 
-                        AddCoolDown(e.Name, e.Command, 30 * 60);
+                        AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(15));
                         var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {

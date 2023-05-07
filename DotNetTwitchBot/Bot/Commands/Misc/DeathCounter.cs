@@ -34,7 +34,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var command = "death";
             if (!e.Command.Equals(command)) return;
-            if (!IsCoolDownExpired(e.Name, command)) return;
+            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            if (isCoolDownExpired == false) return;
             var game = await _twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))
             {

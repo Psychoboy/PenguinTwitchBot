@@ -30,7 +30,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 case "slot":
                 case "slots":
-                    if (!IsCoolDownExpired(e.Name, "slot")) return;
+                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                    if (isCoolDownExpired == false) return;
 
                     await CalculateResult(e);
                     AddCoolDown(e.Name, "slot", 10);

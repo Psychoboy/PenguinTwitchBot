@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     break;
                 case "toptickets":
                 case "topticket":
-                    await SayTicketsTopN(5);
+                    await SayTicketsTopN(10);
                     break;
             }
         }
