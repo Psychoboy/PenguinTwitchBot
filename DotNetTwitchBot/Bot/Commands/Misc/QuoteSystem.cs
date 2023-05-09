@@ -116,6 +116,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     quote = db.Quotes.Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
                 }
             }
+
+            if (quote == null)
+            {
+                if (int.TryParse(searchParam, out int quoteId))
+                {
+                    await using (var scope = _scopeFactory.CreateAsyncScope())
+                    {
+                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
+                    }
+                }
+            }
+
             if (quote == null)
             {
                 await using (var scope = _scopeFactory.CreateAsyncScope())

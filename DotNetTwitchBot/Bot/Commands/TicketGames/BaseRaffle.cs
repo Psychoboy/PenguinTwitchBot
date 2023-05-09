@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if (CurrentState != State.NotRunning)
             {
-                await _serviceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, "name"));
+                await _serviceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, _name));
                 return;
             }
 
