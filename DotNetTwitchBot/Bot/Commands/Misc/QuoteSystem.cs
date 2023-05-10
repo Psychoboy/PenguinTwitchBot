@@ -11,13 +11,16 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class QuoteSystem : BaseCommand
     {
         private IServiceScopeFactory _scopeFactory;
+        private ILogger<QuoteSystem> _logger;
 
         public QuoteSystem(
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
+            ServiceBackbone serviceBackbone,
+            ILogger<QuoteSystem> logger
             ) : base(serviceBackbone)
         {
             _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -108,7 +111,25 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task SayQuote(string? searchParam)
         {
             QuoteType? quote = null;
-            if (!string.IsNullOrWhiteSpace(searchParam))
+
+            if (quote == null && string.IsNullOrWhiteSpace(searchParam?.Trim()) == false)
+            {
+                if (int.TryParse(searchParam.Trim(), out int quoteId))
+                {
+                    await using (var scope = _scopeFactory.CreateAsyncScope())
+                    {
+                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to parse args: {0}", searchParam);
+                }
+            }
+
+
+            if (quote == null && !string.IsNullOrWhiteSpace(searchParam))
             {
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
@@ -117,17 +138,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 }
             }
 
-            if (quote == null)
-            {
-                if (int.TryParse(searchParam, out int quoteId))
-                {
-                    await using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
-                    }
-                }
-            }
 
             if (quote == null)
             {
