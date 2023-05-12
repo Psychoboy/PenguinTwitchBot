@@ -459,7 +459,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
                 foreach (var songLink in songLinks)
                 {
-                    var songId = await GetSongId(songLink);
+                    string songId;
+                    if (songLinks.Contains("https://"))
+                    {
+                        songId = await GetSongId(songLink);
+                    }
+                    else
+                    {
+                        songId = songLink.Trim();
+                    }
                     if (string.IsNullOrWhiteSpace(songId))
                     {
                         continue;
