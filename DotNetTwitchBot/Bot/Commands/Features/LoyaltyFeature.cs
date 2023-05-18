@@ -363,6 +363,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerMessage == null ? new ViewerMessageCountWithRank() { Ranking = int.MaxValue } : viewerMessage;
         }
 
+        public async Task<List<ViewerMessageCountWithRank>> GetTopNLoudest(int topN)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.ViewerMessageCountWithRanks.OrderBy(x => x.Ranking).Take(topN).ToListAsync();
+            }
+        }
+
         public async Task<ViewerPoint> GetUserPasties(string Name)
         {
             ViewerPoint? viewerPoint;

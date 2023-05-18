@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private ConcurrentDictionary<string, DateTime> _usersLastActive = new ConcurrentDictionary<string, DateTime>();
         private ConcurrentDictionary<string, byte> _users = new ConcurrentDictionary<string, byte>();
+        private ConcurrentDictionary<string, DateTime> _lurkers = new ConcurrentDictionary<string, DateTime>();
         // private ApplicationDbContext _applicationDbContext;
 
         //private ViewerData _viewerData;
@@ -172,7 +173,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetActiveViewers()
         {
-            return _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
+            var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
+            var lurkers = _lurkers.Where(x => x.Value > DateTime.Now.AddHours(-1)).Select(x => x.Key);
+            activeViewers.AddRange(lurkers.Where(x => activeViewers.Contains(x) == false));
+            return activeViewers;
         }
 
         public List<string> GetCurrentViewers()
@@ -392,13 +396,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        protected override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if (e.Command.Equals("tw"))
+            if (e.Command.Equals("lurk"))
             {
-                await _twitchBotService.SendWhisper(e.Name, "Test Whisper Message");
+                _lurkers[e.Name] = DateTime.Now;
             }
-            // return Task.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 
@@ -36,6 +37,20 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 case "topticket":
                     await SayTicketsTopN(10);
                     break;
+                case "loudest":
+                    await SayLoudestTopN(10);
+                    break;
+            }
+        }
+
+        private async Task SayLoudestTopN(int topN)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var loyalty = scope.ServiceProvider.GetRequiredService<LoyaltyFeature>();
+                var top = await loyalty.GetTopNLoudest(topN);
+                var names = string.Join(", ", top.Select(x => x.Ranking.ToString() + ". " + x.Username + " " + x.MessageCount.ToString("N0")));
+                await _serviceBackbone.SendChatMessage(string.Format("Top {0} Loudest: {1}", topN, names));
             }
         }
 

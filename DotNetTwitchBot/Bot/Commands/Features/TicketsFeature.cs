@@ -50,7 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach (var viewer in onlineViewers)
             {
-                if (await _viewerFeature.IsSubscriber(viewer))
+                if (activeViewers.Contains(viewer) == false && await _viewerFeature.IsSubscriber(viewer))
                 {
                     activeViewers.Add(viewer);
                 }
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach (var viewer in onlineViewers)
             {
-                if (await _viewerFeature.IsSubscriber(viewer))
+                if (activeViewers.Contains(viewer) == false && await _viewerFeature.IsSubscriber(viewer))
                 {
                     activeViewers.Add(viewer);
                 }
