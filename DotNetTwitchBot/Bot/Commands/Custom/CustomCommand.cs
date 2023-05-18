@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     {
         Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
         Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
+        static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         List<Models.KeywordType> Keywords = new List<KeywordType>();
         private SendAlerts _sendAlerts;
         private ViewerFeature _viewerFeature;
@@ -272,8 +273,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 //     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
                 //     return;
                 // }
-                var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                if (isCoolDownExpired == false) return;
+
                 if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
                 {
                     switch (Commands[e.Command].MinimumRank)
@@ -306,26 +306,36 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             return;
                     }
                 }
-                if (Commands[e.Command].Cost > 0)
+                try
                 {
-                    if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                    await _semaphoreSlim.WaitAsync();
+
+                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                    if (isCoolDownExpired == false) return;
+                    if (Commands[e.Command].Cost > 0)
                     {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
-                        return;
+                        if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                        {
+                            await _serviceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                            return;
+                        }
+                    }
+
+                    if (Commands[e.Command].GlobalCooldown > 0)
+                    {
+                        AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                    }
+                    if (Commands[e.Command].UserCooldown > 0)
+                    {
+                        AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
                     }
                 }
-
+                finally
+                {
+                    _semaphoreSlim.Release();
+                }
 
                 await processTagsAndSayMessage(e, Commands[e.Command].Response);
-
-                if (Commands[e.Command].GlobalCooldown > 0)
-                {
-                    AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
-                }
-                if (Commands[e.Command].UserCooldown > 0)
-                {
-                    AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
-                }
             }
         }
 
