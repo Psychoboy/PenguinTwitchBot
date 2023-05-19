@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var dice1 = Tools.RandomRange(1, 6);
             var dice2 = Tools.RandomRange(1, 6);
-            var resultMessage = string.Format("{0} roles a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
+            var resultMessage = string.Format("{0} rolls a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
             if (dice1 == dice2)
             {
                 switch (dice1)
