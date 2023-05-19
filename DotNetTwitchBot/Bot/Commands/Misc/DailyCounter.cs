@@ -136,6 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private int NextValue(int currentValue)
         {
+            currentValue++;
             var nextGoal = (int)Math.Ceiling((double)currentValue / 10) * 10;
             if (nextGoal == 0)
             {

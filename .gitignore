@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 DotNetTwitchBot/Playlists/Mix3.txt
 DotNetTwitchBot/Data/counters/shots-full.txt
 DotNetTwitchBot/Data/counters/shots.txt
+DotNetTwitchBot/Bot/Commands/Misc/DailyCounter.cs
