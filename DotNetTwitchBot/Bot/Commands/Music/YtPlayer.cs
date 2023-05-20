@@ -554,6 +554,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 songInQueue = Requests.Where(x => x.SongId.Equals(searchResult)).FirstOrDefault();
             }
+
+            if (songInQueue == null && CurrentSong != null)
+            {
+                songInQueue = CurrentSong.SongId.Equals(searchResult) ? CurrentSong : null;
+            }
+
             if (songInQueue != null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
