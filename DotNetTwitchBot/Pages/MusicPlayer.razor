@@ -17,6 +17,34 @@
     <div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
 }
 <div id="player" style="background-color: rgb(49, 49, 49);"></div>
+
+@if (songRequests != null)
+{
+    <div>Requested Songs: @songRequests.Count</div>
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Length</th>
+                <th>Requested By</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var song in songRequests)
+            {
+                <tr>
+                    <td>@song.Title</td>
+                    <td>@song.Duration</td>
+                    <td>@song.RequestedBy</td>
+
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSongRequest(song)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 @if (musicPlaylists == null)
 {
     <p><em>Loading...</em></p>
@@ -75,6 +103,7 @@ else
     private List<MusicPlaylist>? musicPlaylists;
     private MusicPlaylist? currentPlayList;
     private Song? currentSong;
+    private List<Song>? songRequests;
     private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
@@ -96,6 +125,12 @@ else
             currentPlayList = playlist;
             InvokeAsync(StateHasChanged);
         });
+
+        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        {
+            songRequests = playlist;
+            InvokeAsync(StateHasChanged);
+        });
         await hubConnection.StartAsync();
     }
 
@@ -111,6 +146,12 @@ else
     {
         await YtPlayer.RemoveSong(song);
     }
+
+    private async Task RemoveSongRequest(Song song)
+    {
+        await YtPlayer.RemoveSongRequest(song);
+    }
+
 
     private async Task StealSong()
     {

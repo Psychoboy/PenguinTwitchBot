@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (song != null)
             {
-                await UpdateDbState();
+                await UpdateRequestedSongsState();
                 await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
                 return song.SongId;
             }
@@ -87,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             NextSong = null;
             SkipVotes.Clear();
             await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
-            await UpdateDbState();
+            await UpdateRequestedSongsState();
             return randomSong.SongId;
         }
 
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
-                        await UpdateDbState();
+                        await UpdateRequestedSongsState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
@@ -119,7 +119,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
-                        await UpdateDbState();
+                        await UpdateRequestedSongsState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         return;
                     }
@@ -314,11 +314,29 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     Requests.Remove(song);
                 }
-                await UpdateDbState();
+                await UpdateRequestedSongsState();
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
                 return;
             }
             await _serviceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
+        }
+
+        public async Task RemoveSongRequest(Song requestedSong)
+        {
+            Song? song;
+            lock (RequestsLock)
+            {
+                song = Requests.Where(x => x.SongId.Equals(requestedSong.SongId)).FirstOrDefault();
+            }
+            if (song != null)
+            {
+                lock (RequestsLock)
+                {
+                    Requests.Remove(song);
+                }
+                await UpdateRequestedSongsState();
+                return;
+            }
         }
 
         private async Task VoteSkipSong(CommandEventArgs e)
@@ -524,7 +542,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
                     NextSong = song;
                     AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(30));
-                    await UpdateDbState();
+                    await UpdateRequestedSongsState();
                     return;
                 }
             }
@@ -582,7 +600,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 Requests.Add(song);
             }
-            await UpdateDbState();
+            await UpdateRequestedSongsState();
             if (NextSong == null)
             {
                 NextSong = song;
@@ -644,7 +662,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return null;
         }
 
-        private async Task UpdateDbState()
+        private async Task UpdateRequestedSongsState()
         {
             List<Song> requests = new List<Song>();
             lock (RequestsLock)
@@ -658,7 +676,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 if (requests.Count == 0)
                 {
                     db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
-                    await db.SaveChangesAsync();
+                    await SendSongRequests(requests);
+                    int v = await db.SaveChangesAsync();
                     return;
                 }
                 foreach (var request in requests)
@@ -688,8 +707,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     id++;
                 }
                 db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Where(x => x.Id >= id));
+                await SendSongRequests(requests);
                 await db.SaveChangesAsync();
             }
+        }
+
+        private async Task SendSongRequests(List<Song> requests)
+        {
+            await _hubContext.Clients.All.SendAsync("CurrentSongRequests", requests);
         }
     }
 }
