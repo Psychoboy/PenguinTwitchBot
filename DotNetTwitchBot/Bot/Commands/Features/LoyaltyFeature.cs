@@ -203,6 +203,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "give":
                     await GiftPasties(e);
                     break;
+                case "check":
+                    await CheckUsersPasties(e);
+                    break;
                 case "addpasties":
                     if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     if (e.Args.Count < 2) return;
@@ -216,6 +219,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                     break;
 
+            }
+        }
+
+        private async Task CheckUsersPasties(CommandEventArgs e)
+        {
+            var pasties = await GetUserPasties(e.TargetUser);
+            if (pasties.Points == 0)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has no pasties or doesn't exist.");
+            }
+            else
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has {pasties.Points.ToString("N0")} pasties.");
             }
         }
 

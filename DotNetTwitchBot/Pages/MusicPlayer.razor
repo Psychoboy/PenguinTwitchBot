@@ -13,6 +13,7 @@
 @if (currentSong != null)
 {
     <div>Current Song: @currentSong.Title</div>
+    <div>Requested By: @currentSong.RequestedBy</div>
     <div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
 }
 <div id="player" style="background-color: rgb(49, 49, 49);"></div>

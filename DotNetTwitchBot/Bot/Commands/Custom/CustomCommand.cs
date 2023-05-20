@@ -67,6 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("uptime", Uptime);
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
             CommandTags.Add("GiveawayPrize", GiveawayPrize);
+            CommandTags.Add("target", Target);
         }
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
@@ -687,6 +688,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var currentTime = DateTime.UtcNow;
             var totalTime = currentTime - streamTime;
             return new CustomCommandResult(totalTime.ToString(@"hh\:mm\:ss"));
+        }
+
+        private async Task<CustomCommandResult> Target(CommandEventArgs eventArgs, string args)
+        {
+            return await Task.Run(() =>
+            {
+                return new CustomCommandResult(eventArgs.TargetUser);
+            });
+
         }
     }
 }

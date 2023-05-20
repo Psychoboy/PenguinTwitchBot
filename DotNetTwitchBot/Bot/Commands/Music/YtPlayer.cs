@@ -235,6 +235,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     }
                     break;
                 case "wrongsong":
+                case "wrong":
+                    if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
                     await WrongSong(e);
                     break;
                 case "sr":
