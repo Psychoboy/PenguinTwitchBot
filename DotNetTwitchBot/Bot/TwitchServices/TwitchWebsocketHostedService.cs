@@ -119,7 +119,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             // }
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
-            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
+            // SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -136,7 +136,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
 
-            SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
+            // SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -174,7 +174,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             // }
 
             if (CheckIfExistsAndAddSubCache(e.Subscription.Username)) return;
-            SubCache[e.Subscription.Username] = DateTime.Now;
+            // SubCache[e.Subscription.Username] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Subscription.Username,
@@ -198,6 +198,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool CheckIfExistsAndAddSubCache(string name)
         {
+            if (string.IsNullOrWhiteSpace(name)) return false;
             if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddMinutes(-5)) return true;
             SubCache[name] = DateTime.Now;
             return false;
