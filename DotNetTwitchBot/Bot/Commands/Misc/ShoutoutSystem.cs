@@ -118,6 +118,25 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
+        public async Task<AutoShoutout?> GetAutoShoutoutAsync(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.AutoShoutouts.Where(x => x.Id == id).FirstOrDefaultAsync();
+            }
+        }
+
+        public async Task UpdateAutoShoutoutAsync(AutoShoutout autoShoutout)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.AutoShoutouts.Update(autoShoutout);
+                await db.SaveChangesAsync();
+            }
+        }
+
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)

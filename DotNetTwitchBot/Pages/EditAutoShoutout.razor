@@ -1,0 +1,57 @@
+@page "/editautoshoutout/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
+
+<PageTitle>Edit Shoutout</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (autoShoutout == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="autoShoutout" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="autoShoutout" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (autoShoutout == null) return;
+        await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+        navigationManager.NavigateTo($"/autoshoutouts");
+    }
+}
