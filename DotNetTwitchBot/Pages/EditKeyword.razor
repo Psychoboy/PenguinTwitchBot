@@ -1,0 +1,56 @@
+@page "/keywords/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>Edit Keyword Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (theKeyword == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="theKeyword" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="theKeyword" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.KeywordType? theKeyword { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        theKeyword = await CustomCommand.GetKeyword(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (theKeyword == null) return;
+        await CustomCommand.SaveKeyword(theKeyword);
+        navigationManager.NavigateTo($"/keywords");
+    }
+}

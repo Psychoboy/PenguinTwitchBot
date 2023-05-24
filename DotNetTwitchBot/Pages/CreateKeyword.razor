@@ -1,0 +1,49 @@
+@page "/keywords/create"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>Create Keyword Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (keyword == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="keyword" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="keyword" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+
+@code {
+
+    private DotNetTwitchBot.Bot.Models.KeywordType keyword { get; set; } = new KeywordType();
+
+    public async void OnSubmit()
+    {
+        if (keyword == null) return;
+        await CustomCommand.AddKeyword(keyword);
+        navigationManager.NavigateTo($"/keywords");
+    }
+}

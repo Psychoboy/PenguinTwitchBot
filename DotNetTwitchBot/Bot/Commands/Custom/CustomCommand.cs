@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
         Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
-        List<Models.KeywordType> Keywords = new List<KeywordType>();
+        List<Models.KeywordWithRegex> Keywords = new List<KeywordWithRegex>();
         private SendAlerts _sendAlerts;
         private ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -75,12 +75,26 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return Commands;
         }
 
+        public List<KeywordType> GetKeywords()
+        {
+            return Keywords.Select(x => x.Keyword).ToList();
+        }
+
         public async Task<CustomCommands?> GetCustomCommand(int id)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 return await db.CustomCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
+            }
+        }
+
+        public async Task<KeywordType?> GetKeyword(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Keywords.Where(x => x.Id == id).FirstOrDefaultAsync();
             }
         }
 
@@ -101,14 +115,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 _logger.LogInformation("Loading keywords");
                 Keywords.Clear();
-                Keywords = await db.Keywords.ToListAsync();
+                Keywords = (await db.Keywords.ToListAsync()).Select(x => new KeywordWithRegex(x)).ToList();
             }
 
             foreach (var keyword in Keywords)
             {
-                if (keyword.IsRegex)
+                if (keyword.Keyword.IsRegex)
                 {
-                    keyword.Regex = new Regex(keyword.Keyword);
+                    keyword.Regex = new Regex(keyword.Keyword.CommandName);
                 }
             }
             _logger.LogInformation("Finished loading commands: {0}", count);
@@ -130,6 +144,22 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
+        public async Task AddKeyword(KeywordType keyword)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                if ((await db.Keywords.Where(x => x.CommandName.Equals(keyword.CommandName)).FirstOrDefaultAsync()) != null)
+                {
+                    _logger.LogWarning("Keyword already exists");
+                    return;
+                }
+                await db.Keywords.AddAsync(keyword);
+                await db.SaveChangesAsync();
+            }
+            await LoadCommands();
+        }
+
         public async Task SaveCommand(CustomCommands customCommand)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -140,25 +170,37 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
+        public async Task SaveKeyword(KeywordType keyword)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Keywords.Update(keyword);
+                await db.SaveChangesAsync();
+            }
+            await LoadCommands();
+        }
+
         //To check for keywords
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (keyword.IsRegex)
+                if (IsCoolDownExpired(e.Sender, keyword.Keyword.CommandName) == false) continue;
+                if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
                 }
                 else
                 {
-                    if (keyword.IsCaseSensitive)
+                    if (keyword.Keyword.IsCaseSensitive)
                     {
-                        if (e.Message.Contains(keyword.Keyword, StringComparison.CurrentCulture)) match = true;
+                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.CurrentCulture)) match = true;
                     }
                     else
                     {
-                        if (e.Message.Contains(keyword.Keyword, StringComparison.CurrentCultureIgnoreCase)) match = true;
+                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.CurrentCultureIgnoreCase)) match = true;
                     }
 
                 }
@@ -176,7 +218,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         isVip = e.isVip,
                         isBroadcaster = e.isBroadcaster,
                     };
-                    await processTagsAndSayMessage(commandEventArgs, keyword.Response);
+                    await processTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
+                    if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
+                    {
+                        AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
+                    }
+                    if (Commands[keyword.Keyword.CommandName].UserCooldown > 0)
+                    {
+                        AddCoolDown(e.Sender, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
+                    }
                     break;
                 }
             }
