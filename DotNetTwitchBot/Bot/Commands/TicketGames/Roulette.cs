@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommand
     {
-        private int MustBeatValue = 50;
+        private int MustBeatValue = 52;
         private TicketsFeature _ticketsFeature;
         public Roulette(
             ServiceBackbone eventService,
@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             return;
                         }
 
-                        AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(15));
+                        AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(20));
                         var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {
