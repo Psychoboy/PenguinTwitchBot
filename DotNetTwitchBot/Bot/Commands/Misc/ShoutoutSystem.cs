@@ -77,21 +77,33 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var beforeTime = DateTime.Now.AddHours(-12);
-                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name.ToLower()) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
+                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name.ToLower())).FirstOrDefaultAsync();
             }
+
             await UpdateLastShoutout(autoShoutout);
+
             var message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";
             if (autoShoutout != null && !string.IsNullOrWhiteSpace(autoShoutout.CustomMessage))
             {
                 message = autoShoutout.CustomMessage;
             }
+
             var userId = await _twitchService.GetUserId(name);
             if (userId == null) return;
+
             var game = await _twitchService.GetCurrentGame(userId);
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
+
             message = message.Replace("(name)", name).Replace("(game)", game);
             await _serviceBackbone.SendChatMessage(message);
+
+            await TwitchShoutOut(userId);
+        }
+
+
+        private async Task TwitchShoutOut(string userId)
+        {
+
             if (LastShoutOut.AddMinutes(2) < DateTime.Now)
             {
                 if (UserLastShoutout.ContainsKey(userId))
@@ -102,8 +114,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 if (_serviceBackbone.IsOnline == false) return;
                 await _twitchService.ShoutoutStreamer(userId);
             }
-
-
         }
 
         private async Task UpdateLastShoutout(AutoShoutout? autoShoutout)
