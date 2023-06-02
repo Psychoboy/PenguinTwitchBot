@@ -19,6 +19,8 @@ namespace DotNetTwitchBot.Bot.Events
         public bool isDiscord { get; set; } = false;
         public string DiscordMention { get; set; } = "";
 
+        public bool FromAlias { get; set; } = false;
+
         public bool SubOrHigher()
         {
             return isSub || isMod || isVip || isBroadcaster;

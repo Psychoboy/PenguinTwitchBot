@@ -1,0 +1,50 @@
+@page "/aliases/create"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>Edit Keyword Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (theAlias == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="theAlias" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="theAlias" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.AliasModel? theAlias { get; set; } = new AliasModel();
+
+    public async void OnSubmit()
+    {
+        if (theAlias == null) return;
+        await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
+        navigationManager.NavigateTo($"/aliases");
+    }
+}

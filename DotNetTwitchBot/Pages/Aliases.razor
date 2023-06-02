@@ -1,0 +1,65 @@
+@page "/aliases"
+@inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Custom Commands</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+<button class="btn btn-primary" @onclick="CreateAlias">Create Alias</button>
+@if (aliases == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Alias</th>
+                <th>Command</th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var alias in aliases)
+            {
+                <tr>
+                    <td>@alias.AliasName</td>
+                    <td>@alias.CommandName</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(alias)">Edit</button></td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Delete(alias)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<DotNetTwitchBot.Bot.Models.AliasModel>? aliases;
+    protected override async Task OnInitializedAsync()
+    {
+        aliases = await AliasCommand.GetAliasesAsync();
+    }
+
+    private void CreateAlias()
+    {
+        navigationManager.NavigateTo($"/aliases/create");
+    }
+
+    private void Edit(DotNetTwitchBot.Bot.Models.AliasModel item)
+    {
+        navigationManager.NavigateTo($"/aliases/{item.Id}");
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.AliasModel item)
+    {
+        await AliasCommand.DeleteAliasAsync(item);
+        aliases?.Remove(item);
+        StateHasChanged();
+    }
+}
