@@ -29,8 +29,8 @@ else
             @foreach (var alias in aliases)
             {
                 <tr>
-                    <td>@alias.AliasName</td>
-                    <td>@alias.CommandName</td>
+                    <td>!@alias.AliasName</td>
+                    <td>!@alias.CommandName</td>
                     <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(alias)">Edit</button></td>
                     <td><button class="btn btn-primary btn-xs" @onclick="() => Delete(alias)">Delete</button></td>
                 </tr>

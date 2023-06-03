@@ -29,7 +29,7 @@ else
             @foreach (var command in commands)
             {
                 <tr>
-                    <td>@command.Key</td>
+                    <td>!@command.Key</td>
                     <td>@command.Value.Response</td>
                     <td>@command.Value.Disabled</td>
                     <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(command.Value)">Edit</button></td>
