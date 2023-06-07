@@ -6,6 +6,7 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets.Core.Models;
+using TwitchLib.EventSub.Core.Models.Subscriptions;
 using TwitchLib.PubSub;
 using TwitchLib.PubSub.Events;
 
@@ -132,7 +133,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
-                Count = e.Notification.Payload.Event.CumulativeTotal,
+                Count = e.Notification.Payload.Event.CumulativeMonths,
                 IsRenewal = true,
                 Message = e.Notification.Payload.Event.Message?.Text
             });
