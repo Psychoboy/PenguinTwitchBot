@@ -42,11 +42,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
-            //_eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
+            _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
-            // _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
-            //_eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+            _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
+            _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
             _eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
@@ -112,14 +112,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
             , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-            // if (await _subscriptionHistory.ExistingSub(e.Notification.Payload.Event.UserLogin))
-            // {
-            //     _logger.LogInformation("Previous sub so skipping notification.");
-            //     return;
-            // }
-
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
-            // SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -135,14 +128,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
-
-            // SubCache[e.Notification.Payload.Event.UserName] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
                 Count = e.Notification.Payload.Event.CumulativeTotal,
-                IsRenewal = true
+                IsRenewal = true,
+                Message = e.Notification.Payload.Event.Message?.Text
             });
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
         }
@@ -163,18 +155,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnPubSubSubscription(object? sender, OnChannelSubscriptionArgs e)
         {
             _logger.LogInformation("Pub Sub Subscription {0} {1} Months: {2} IsGift: {3}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
-            //  if (DidProcessMessage(e.Notification.Metadata)) return;
-            // _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
-            // , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
-
-            // if (await _subscriptionHistory.ExistingSub(e.Subscription.Username))
-            // {
-            //     _logger.LogInformation("Previous sub so skipping notification.");
-            //     return;
-            // }
-
             if (CheckIfExistsAndAddSubCache(e.Subscription.Username)) return;
-            // SubCache[e.Subscription.Username] = DateTime.Now;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Subscription.Username,
@@ -198,8 +179,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool CheckIfExistsAndAddSubCache(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddMinutes(-5)) return true;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                _logger.LogWarning("Subscriber name was null or white space");
+                return false;
+            }
+            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddMinutes(-5))
+            {
+                _logger.LogWarning("Subscriber already in sub cache");
+                return true;
+            }
             SubCache[name] = DateTime.Now;
             return false;
         }
