@@ -68,6 +68,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("customapinoresponse", CustomApiNoResponse);
             CommandTags.Add("GiveawayPrize", GiveawayPrize);
             CommandTags.Add("target", Target);
+            CommandTags.Add("targetorself", TargetOrSelf);
+            CommandTags.Add("watchtime", WatchTime);
         }
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
@@ -747,6 +749,20 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 return new CustomCommandResult(eventArgs.TargetUser);
             });
 
+        }
+
+        private async Task<CustomCommandResult> TargetOrSelf(CommandEventArgs eventArgs, string args)
+        {
+            return await Task.Run(() =>
+            {
+                return new CustomCommandResult(string.IsNullOrWhiteSpace(eventArgs.TargetUser) ? eventArgs.Name : eventArgs.TargetUser);
+            });
+        }
+
+        private async Task<CustomCommandResult> WatchTime(CommandEventArgs eventArgs, string args)
+        {
+            var time = await _loyaltyFeature.GetViewerWatchTime(args);
+            return new CustomCommandResult(time);
         }
     }
 }

@@ -332,6 +332,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         }
 
+        public async Task<string> GetViewerWatchTime(string user)
+        {
+            var time = await GetUserTimeAndRank(user);
+            return Tools.ConvertToCompoundDuration(time.Time);
+        }
+
         private async Task AddTimeToViewer(string viewer, int timeToAdd)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
