@@ -66,10 +66,10 @@ namespace DotNetTwitchBot.Bot.Core
                         {
                             Username = name
                         };
-                        subHistory.LastSub = DateTime.Now;
-                        db.SubscriptionHistories.Update(subHistory);
-                        await db.SaveChangesAsync();
                     }
+                    subHistory.LastSub = DateTime.Now;
+                    db.SubscriptionHistories.Update(subHistory);
+                    await db.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
