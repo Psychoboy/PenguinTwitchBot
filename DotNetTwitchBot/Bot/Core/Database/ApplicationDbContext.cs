@@ -44,6 +44,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<WordFilter> WordFilters { get; set; } = null!;
         public DbSet<SubscriptionHistory> SubscriptionHistories { get; set; } = null!;
         public DbSet<AliasModel> Aliases { get; set; } = null!;
+        public DbSet<KnownBot> KnownBots { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

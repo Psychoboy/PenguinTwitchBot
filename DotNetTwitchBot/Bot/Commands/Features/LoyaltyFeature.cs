@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 await _serviceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
-                var ticketsToAward = (int)Math.Floor((double)e.Amount / 100);
+                var ticketsToAward = (int)Math.Floor((double)e.Amount / 10);
                 if (ticketsToAward < 1) return;
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, ticketsToAward);
             }
@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (string.IsNullOrWhiteSpace(e.Name)) return;
             try
             {
-                await _ticketsFeature.GiveTicketsToViewer(e.Name, 5 * e.GiftAmount);
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, 50 * e.GiftAmount);
                 var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
                 if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
                 {
@@ -93,7 +93,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.IsGift) return;
             try
             {
-                await _ticketsFeature.GiveTicketsToViewer(e.Name, 5);
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, 50);
                 if (e.Count != null && e.Count > 0)
                 {
                     await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
@@ -128,6 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             if (!_serviceBackbone.IsOnline) return;
+            if (_serviceBackbone.IsKnownBotOrCurrentStreamer(e.Sender)) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -163,7 +164,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (!_serviceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
-                if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) continue;
+                // if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) continue;
+                if (_serviceBackbone.IsKnownBot(viewer)) continue;
                 try
                 {
                     await AddPointsToViewer(viewer, 5);

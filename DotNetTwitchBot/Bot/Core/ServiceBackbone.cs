@@ -3,25 +3,30 @@ using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.Client.Models;
+using DotNetTwitchBot.Bot.Commands.Moderation;
 
 namespace DotNetTwitchBot.Bot.Core
 {
     public class ServiceBackbone
     {
         private ILogger<ServiceBackbone> _logger;
-        private IConfiguration _configuration;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IKnownBots _knownBots;
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
 
-        public ServiceBackbone(ILogger<ServiceBackbone> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory)
+        public ServiceBackbone(
+            ILogger<ServiceBackbone> logger,
+            IKnownBots knownBots,
+            IConfiguration configuration,
+            IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
-            _configuration = configuration;
             RawBroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
             _scopeFactory = scopeFactory;
+            _knownBots = knownBots;
         }
 
         public delegate Task AsyncEventHandler(object? sender);
@@ -42,13 +47,21 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
-
         public bool IsOnline { get; set; } = false;
         public string BroadcasterName { get { return RawBroadcasterName != null ? RawBroadcasterName : ""; } }
         public bool IsBroadcasterOrBot(string name)
         {
-            return (name.Equals(RawBroadcasterName, StringComparison.CurrentCultureIgnoreCase) ||
-                    name.Equals(BotName, StringComparison.CurrentCultureIgnoreCase));
+            return _knownBots.IsStreamerOrBot(name);
+        }
+
+        public bool IsKnownBot(string name)
+        {
+            return _knownBots.IsKnownBot(name);
+        }
+
+        public bool IsKnownBotOrCurrentStreamer(string name)
+        {
+            return _knownBots.IsKnownBotOrCurrentStreamer(name);
         }
 
         public async Task RunCommand(CommandEventArgs args)

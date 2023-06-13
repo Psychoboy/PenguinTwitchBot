@@ -48,6 +48,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots, DotNetTwitchBot.Bot.Commands.Moderation.KnownBots>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
         //builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Music.YtPlayer>();
 
