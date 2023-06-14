@@ -73,7 +73,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (string.IsNullOrWhiteSpace(e.Name)) return;
             try
             {
-                await _ticketsFeature.GiveTicketsToViewer(e.Name, 50 * e.GiftAmount);
+                var amountToGift = 50 * e.GiftAmount;
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToGift);
+                _logger.LogInformation("Gave {0} {1} tickets for gifting {2} subs", e.Name, amountToGift, e.GiftAmount);
                 var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
                 if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
                 {
@@ -94,6 +96,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, 50);
+                _logger.LogInformation("Gave {0} 50 tickets for subscribing.", e.Name);
                 if (e.Count != null && e.Count > 0)
                 {
                     await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
