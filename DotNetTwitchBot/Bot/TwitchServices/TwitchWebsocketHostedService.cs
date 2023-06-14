@@ -84,6 +84,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (MessageIds.Contains(metadata.MessageId))
             {
+                _logger.LogWarning("Already processed message: {0} - {1} - {2}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
             }
             else
@@ -185,7 +186,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogWarning("Subscriber name was null or white space");
                 return false;
             }
-            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddMinutes(-5))
+            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddDays(-5))
             {
                 _logger.LogWarning("Subscriber already in sub cache");
                 return true;
@@ -295,6 +296,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
+            //await _eventSubWebsocketClient.ConnectAsync(new Uri("http://localhost:8080/eventsub/subscription"));
             _logger.LogInformation("Websocket Connected.");
             try
             {
@@ -308,14 +310,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-
-
         private void OnPubSubListenResponse(object? sender, OnListenResponseArgs e)
         {
-            _logger.LogInformation("Listen Successful: {0} Error {1} Topic: {2}", e.Response.Successful, e.Response.Error, e.Topic);
+            _logger.LogInformation("PubSub Listen Successful: {0} Error {1} Topic: {2}", e.Response.Successful, e.Response.Error, e.Topic);
         }
-
-
 
         private void OnPubSubConnect(object? sender, EventArgs e)
         {

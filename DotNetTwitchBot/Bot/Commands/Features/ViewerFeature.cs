@@ -358,6 +358,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                                 DisplayName = subscriber.UserName
                             };
                         }
+                        if (viewer.isSub == false)
+                        {
+                            _logger.LogWarning("{0} was not a subscriber and is being updated manually bulk.", viewer.Username);
+                        }
                         viewer.isSub = true;
                         db.Viewers.Update(viewer);
                     }
