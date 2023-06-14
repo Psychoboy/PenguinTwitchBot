@@ -84,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             return _knownBots.ToList();
         }
 
-        private async Task LoadKnownBots()
+        public async Task LoadKnownBots()
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {

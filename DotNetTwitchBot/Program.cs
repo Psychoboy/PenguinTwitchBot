@@ -154,6 +154,7 @@ internal class Program
         await audioCommands.LoadAudioCommands();
         var blacklist = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.Blacklist>();
         await blacklist.LoadBlacklist();
+        await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
         foreach (var cmd in commands)
         {
             app.Services.GetRequiredService(cmd);

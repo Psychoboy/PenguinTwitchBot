@@ -14,5 +14,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public Task AddKnownBot(KnownBot knownBot);
         public Task RemoveKnownBot(KnownBot knownBot);
         public List<KnownBot> GetKnownBots();
+        public Task LoadKnownBots();
     }
 }
