@@ -202,6 +202,32 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
         }
 
+        public async Task AddSongToRequests(string url)
+        {
+            var song = await GetSongByLinkOrId(url);
+            if (song == null)
+            {
+                _logger.LogWarning("Song was null.");
+                return;
+            }
+            song.RequestedBy = _serviceBackbone.BroadcasterName;
+            await AddSongToRequests(song);
+        }
+
+        public async Task MoveSongToNext(string songId)
+        {
+            Song? song;
+            lock (RequestsLock)
+            {
+                song = Requests.Where(x => x.SongId.Equals(songId, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+                if (song == null) return;
+                Requests.Remove(song);
+                Requests.Insert(0, song);
+            }
+            NextSong = song;
+            await UpdateRequestedSongsState();
+        }
+
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
@@ -479,20 +505,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
                 foreach (var songLink in songLinks)
                 {
-                    string songId;
-                    if (songLinks.Contains("https://"))
-                    {
-                        songId = await GetSongId(songLink);
-                    }
-                    else
-                    {
-                        songId = songLink.Trim();
-                    }
-                    if (string.IsNullOrWhiteSpace(songId))
-                    {
-                        continue;
-                    }
-                    var song = await GetSong(songId);
+                    var song = await GetSongByLinkOrId(songLink);
                     if (song == null)
                     {
                         continue;
@@ -520,6 +533,26 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         }
 
+        private async Task<Song?> GetSongByLinkOrId(string songLink)
+        {
+            songLink.Trim();
+            string songId;
+            if (songLink.Contains("https://"))
+            {
+                songId = await GetSongId(songLink);
+            }
+            else
+            {
+                songId = songLink.Trim();
+            }
+            if (string.IsNullOrWhiteSpace(songId))
+            {
+                return null;
+            }
+            var song = await GetSong(songId);
+            return song;
+        }
+
         private async Task MovePriority(CommandEventArgs e)
         {
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
@@ -530,23 +563,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 backwardsRequest = Requests.ToList();
             }
             backwardsRequest.Reverse();
+            Song? foundSong = null;
             foreach (var song in backwardsRequest)
             {
                 if (song.RequestedBy.Equals(e.DisplayName))
                 {
-                    lock (RequestsLock)
-                    {
-                        Requests.Remove(song);
-                        Requests.Insert(0, song);
-                    }
-                    await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", song.Title));
-                    NextSong = song;
+                    await MoveSongToNext(song.SongId);
+                    foundSong = song;
                     AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(30));
-                    await UpdateRequestedSongsState();
-                    return;
+                    break;
                 }
             }
-            await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
+            if (foundSong != null)
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", foundSong.Title));
+            }
+            else
+            {
+                await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
+            }
         }
 
         private async Task SongRequest(CommandEventArgs e)
@@ -595,7 +630,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 return;
             }
 
-            song.RequestedBy = e.DisplayName;
+            await AddSongToRequests(song);
+            if (e.IsWhisper) return;
+
+            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+        }
+
+        private async Task AddSongToRequests(Song song)
+        {
             lock (RequestsLock)
             {
                 Requests.Add(song);
@@ -605,9 +647,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 NextSong = song;
             }
-            if (e.IsWhisper) return;
-
-            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task<string> GetSongId(string searchTerm)
@@ -623,7 +662,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return searchResult;
         }
 
-        private async Task<Song?> GetSong(string youtubeId, string? displayName = null)
+        private async Task<Song?> GetSong(string youtubeId, string? displayName = null, bool sendChatResponse = true)
         {
             var ytRequest = _youtubeService.Videos.List("snippet,contentDetails");
             ytRequest.Id = youtubeId;
@@ -635,12 +674,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 TimeSpan length = new TimeSpan();
                 if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
                 {
-                    await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;
                 }
                 if (item.AgeGating != null && item.AgeGating.Restricted == true)
                 {
-                    await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;
                 }
                 if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
@@ -648,16 +687,18 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     length = new TimeSpan((int)duration.Hours, (int)duration.Minutes, (int)duration.Seconds);
                 }
 
-                return new Song
+                var song = new Song
                 {
                     Title = item.Snippet.Title,
                     Duration = length,
                     SongId = youtubeId
                 };
+                if (displayName != null) song.RequestedBy = displayName;
+                return song;
             }
             if (displayName != null)
             {
-                await _serviceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
+                if (sendChatResponse) await _serviceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
             }
             return null;
         }

@@ -4,19 +4,31 @@
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @implements IAsyncDisposable
+
+<PageTitle>Music Player</PageTitle>
+
 <style type="text/css">
     .white-text {
         color: white;
 
     }
 </style>
+
 @if (currentSong != null)
 {
     <div>Current Song: @currentSong.Title</div>
     <div>Requested By: @currentSong.RequestedBy</div>
     <div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
 }
+
 <div id="player" style="background-color: rgb(49, 49, 49);"></div>
+<div>
+    <h1>Add Song</h1>
+</div>
+<div>
+    <input placeholder="Song Url" @bind="addSongUrl" />
+    <button class="btn btn-primary" @onclick="AddSongRequest">Add Song</button>
+</div>
 
 @if (songRequests != null)
 {
@@ -27,6 +39,7 @@
                 <th>Title</th>
                 <th>Length</th>
                 <th>Requested By</th>
+                <th></th>
                 <th></th>
             </tr>
         </thead>
@@ -39,6 +52,7 @@
                     <td>@song.RequestedBy</td>
 
                     <td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSongRequest(song)">Remove</button></td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Priority(song)">Priority</button></td>
                 </tr>
             }
         </tbody>
@@ -105,6 +119,7 @@ else
     private Song? currentSong;
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
+    private string? addSongUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,6 +157,11 @@ else
         }
     }
 
+    private async Task Priority(Song song)
+    {
+        await YtPlayer.MoveSongToNext(song.SongId);
+    }
+
     private async Task RemoveSong(Song song)
     {
         await YtPlayer.RemoveSong(song);
@@ -152,6 +172,12 @@ else
         await YtPlayer.RemoveSongRequest(song);
     }
 
+    private async Task AddSongRequest()
+    {
+        if (addSongUrl == null) return;
+        await YtPlayer.AddSongToRequests(addSongUrl);
+        addSongUrl = "";
+    }
 
     private async Task StealSong()
     {
