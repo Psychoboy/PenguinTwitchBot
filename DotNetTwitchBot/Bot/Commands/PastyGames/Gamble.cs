@@ -43,6 +43,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     await _serviceBackbone.SendChatMessage(e.DisplayName,
                     string.Format("The current jackpot is {0}", jackpot.ToString("N0")));
                     break;
+                case "testjackpotfireworks":
+                    if (e.isBroadcaster == false) return;
+                    await LaunchFireworks();
+                    break;
             }
         }
 
@@ -93,6 +97,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
                 await updateJackpot(jackpot, true);
                 await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
+                await LaunchFireworks();
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
             }
             else if (value > WinRange)
@@ -107,6 +112,25 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await _serviceBackbone.SendChatMessage(string.Format("{0} rolled {1} and lost {2} pasties", e.DisplayName, value, amount.ToString("N0")));
             }
             AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(3));
+        }
+
+        private async Task LaunchFireworks()
+        {
+            try
+            {
+                var httpClient = new HttpClient();
+                var request = new HttpRequestMessage()
+                {
+                    RequestUri = new Uri("http://127.0.0.1:7474/DoAction"),
+                    Method = HttpMethod.Post,
+                    Content = new StringContent("{\"action\":{\"id\":\"c4a5e3b8-a607-4b34-b8fe-ff7b36c3f3d4\",\"name\":\"Fireworks - General - 50 fireworks\"},\"args\": {}}")
+                };
+                var result = await httpClient.SendAsync(request);
+            }
+            catch (Exception)
+            {
+                // do nothing
+            }
         }
 
         private async Task updateJackpot(long amount, bool reset)
