@@ -208,7 +208,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelCheer: {0}", e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("OnChannelCheer: {0}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnCheer(e.Notification.Payload.Event);
         }
 
@@ -225,7 +225,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelFollow: {0}", e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("OnChannelFollow: {0}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnFollow(e.Notification.Payload.Event);
         }
 
