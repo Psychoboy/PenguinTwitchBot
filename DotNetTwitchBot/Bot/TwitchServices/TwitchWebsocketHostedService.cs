@@ -23,6 +23,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private SubscriptionTracker _subscriptionHistory;
         private IConfiguration _configuration;
         private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
+        static SemaphoreSlim _subscriptionLock = new SemaphoreSlim(1);
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
@@ -114,7 +115,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
             , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -129,7 +130,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
 
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserName)) return;
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -181,18 +182,27 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool CheckIfExistsAndAddSubCache(string name)
         {
-            if (string.IsNullOrWhiteSpace(name))
+            try
             {
-                _logger.LogWarning("Subscriber name was null or white space");
+                _subscriptionLock.Wait();
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    _logger.LogWarning("Subscriber name was null or white space");
+                    return false;
+                }
+                if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddDays(-5))
+                {
+                    _logger.LogWarning("Subscriber already in sub cache");
+                    return true;
+                }
+                SubCache[name] = DateTime.Now;
                 return false;
             }
-            if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddDays(-5))
+            finally
             {
-                _logger.LogWarning("Subscriber already in sub cache");
-                return true;
+                _subscriptionLock.Release();
             }
-            SubCache[name] = DateTime.Now;
-            return false;
         }
 
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
