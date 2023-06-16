@@ -176,7 +176,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
 
-            _logger.LogInformation("OnChannelSubscriptionEnd: {0} Type: {1}", e.Notification.Payload.Event.UserName, e.Notification.Metadata.SubscriptionType);
+            _logger.LogInformation("OnChannelSubscriptionEnd: {0} Type: {1}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
             await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
         }
 
