@@ -113,7 +113,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
-            , e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
+            , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserLogin);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
@@ -145,7 +145,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserName);
+            _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
