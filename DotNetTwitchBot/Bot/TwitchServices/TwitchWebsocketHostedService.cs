@@ -116,6 +116,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+            if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
+            {
+                _logger.LogInformation("{0} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
+                return;
+            }
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -123,6 +128,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsGift = e.Notification.Payload.Event.IsGift
             });
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+        }
+
+        private Task<bool> CheckIfPreviousSub(string userLogin)
+        {
+            return _subscriptionHistory.ExistingSub(userLogin);
         }
 
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
