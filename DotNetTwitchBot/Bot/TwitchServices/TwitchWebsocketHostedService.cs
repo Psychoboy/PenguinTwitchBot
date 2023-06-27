@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _twitchPubSub = new TwitchPubSub(tbsLogger);
             _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
             _twitchPubSub.OnPubSubServiceClosed += OnPubSubDisconnect;
-            _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
+            // _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
             _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
 
             _twitchService = twitchService;
@@ -115,12 +115,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
             , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
             if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
             {
                 _logger.LogInformation("{0} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
                 return;
             }
+
+            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
