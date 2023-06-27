@@ -37,14 +37,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
                         if (Int64.TryParse(e.Args[0], out long amount))
                         {
-                            if(amount > 100) amount = 100;
-                            _lastTicketsAdded = DateTime.Now;
-                            _ticketsToGiveOut += amount;
+                            AddActiveTickets(amount);
                         }
                         break;
                     }
             }
             return Task.CompletedTask;
+        }
+
+        public void AddActiveTickets(long amount)
+        {
+            if (amount > 100) amount = 100;
+            _lastTicketsAdded = DateTime.Now;
+            _ticketsToGiveOut += amount;
         }
 
         private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e)

@@ -1,0 +1,64 @@
+@page "/viewers"
+@inject DotNetTwitchBot.Bot.Commands.Features.ViewerFeature viewerFeature
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Viewers</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+<div>
+    <input placeholder="Name" @bind="name" />
+    <button class="btn btn-primary" @onclick="Search">Search</button>
+</div>
+
+@if (viewers == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Display Name</th>
+                <th>Title</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var viewer in viewers)
+            {
+                <tr>
+                    <td>@viewer.Username</td>
+                    <td>@viewer.DisplayName</td>
+                    <td>@viewer.Title</td>
+                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(viewer)">Edit</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Viewer>? viewers = new();
+    private string? name;
+    private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)
+    {
+        navigationManager.NavigateTo($"/editviewer/{item.Id}");
+    }
+    private async Task Search()
+    {
+        if (String.IsNullOrWhiteSpace(name))
+        {
+            viewers = new();
+            return;
+        }
+        viewers = await viewerFeature.SearchForViewer(name);
+        StateHasChanged();
+    }
+}

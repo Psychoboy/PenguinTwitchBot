@@ -59,6 +59,43 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _timer.Start();
         }
 
+        public async Task<Viewer?> GetViewer(int id)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Viewers.Where(x => x.Id == id).FirstOrDefaultAsync();
+            }
+        }
+
+        public async Task<List<Viewer>> GetViewers()
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Viewers.ToListAsync();
+            }
+        }
+
+        public async Task SaveViewer(Viewer viewer)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Viewers.Update(viewer);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        public async Task<List<Viewer>> SearchForViewer(string name)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.Viewers.Where(x => x.Username.Contains(name) || x.DisplayName.Contains(name)).ToListAsync();
+            }
+        }
+
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
 
@@ -89,6 +126,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await UpdateLastSeen(viewer);
             }
         }
+
+
 
         private async Task UpdateLastSeen(Viewer viewer)
         {

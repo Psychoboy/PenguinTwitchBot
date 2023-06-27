@@ -1,0 +1,57 @@
+@page "/editviewer/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Features.ViewerFeature viewerFeature
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Edit Viewer</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+
+    textarea {
+        width: 100%
+    }
+
+    input {
+        width: 100%;
+    }
+</style>
+
+@if (viewer == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="viewer" OnSubmit="OnSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <GenericForm Model="viewer" />
+
+        <button type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.Viewer? viewer { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        viewer = await viewerFeature.GetViewer(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (viewer == null) return;
+        await viewerFeature.SaveViewer(viewer);
+        navigationManager.NavigateTo($"/viewers");
+    }
+}
