@@ -27,6 +27,7 @@ else
                 <th>Username</th>
                 <th>Display Name</th>
                 <th>Title</th>
+                <th>Last Seen</th>
                 <th></th>
             </tr>
         </thead>
@@ -37,6 +38,7 @@ else
                     <td>@viewer.Username</td>
                     <td>@viewer.DisplayName</td>
                     <td>@viewer.Title</td>
+                    <td>@viewer.LastSeen</td>
                     <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(viewer)">Edit</button></td>
                 </tr>
             }
