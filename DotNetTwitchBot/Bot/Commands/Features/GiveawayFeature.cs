@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using EFCore.BulkExtensions;
 using Microsoft.AspNetCore.SignalR;

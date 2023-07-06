@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using Microsoft.AspNetCore.SignalR;
 using Google.Apis.YouTube.v3;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -249,7 +249,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await VoteSkipSong(e);
                     break;
                 case "veto":
-                    if (e.isMod || e.isBroadcaster)
+                    if (e.IsModOrHigher())
                     {
                         await PlayNextSong();
                     }
@@ -288,20 +288,23 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
         }
 
-        public async Task RemoveSong(Song song)
+        public async Task RemoveSong(Song requestedSong)
         {
             if (BackupPlaylist.Songs.Count == 0) return;
-            if (BackupPlaylist.Songs.Contains(song) == false)
+            var song = BackupPlaylist.Songs.Where(x => x.Id == requestedSong.Id).FirstOrDefault();
+            if (song == null)
             {
                 await _serviceBackbone.SendChatMessage("Song is not in the list.");
                 return;
             }
 
-            BackupPlaylist.Songs.Remove(song);
+
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                BackupPlaylist.Songs.Remove(song);
                 db.Playlists.Update(BackupPlaylist);
+                db.Songs.Remove(song);
                 await db.SaveChangesAsync();
             }
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);

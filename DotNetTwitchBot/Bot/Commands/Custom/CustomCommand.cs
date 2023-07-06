@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using System.Text.Json;
@@ -189,7 +189,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (IsCoolDownExpired(e.Sender, keyword.Keyword.CommandName) == false) continue;
+                if (IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -213,7 +213,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         Arg = e.Message,
                         Args = e.Message.Split(" ").ToList(),
                         IsWhisper = false,
-                        Name = e.Sender,
+                        Name = e.Name,
                         DisplayName = e.DisplayName,
                         isSub = e.isSub,
                         isMod = e.isBroadcaster || e.isMod,
@@ -227,7 +227,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     if (Commands[keyword.Keyword.CommandName].UserCooldown > 0)
                     {
-                        AddCoolDown(e.Sender, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
+                        AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
                     }
                     break;
                 }

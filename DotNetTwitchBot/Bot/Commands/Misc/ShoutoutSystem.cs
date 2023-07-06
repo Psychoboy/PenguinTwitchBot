@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             if (_serviceBackbone.IsOnline == false) return;
-            var name = e.Sender;
+            var name = e.Name;
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {

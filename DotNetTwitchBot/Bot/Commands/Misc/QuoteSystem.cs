@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
@@ -32,13 +32,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     break;
                 case "quoteadd":
                 case "addquote":
-                    if (e.SubOrHigher() == false) return;
+                    if (e.IsModOrHigher() == false) return;
                     await AddQuote(e);
                     break;
 
                 case "delquote":
                 case "quotedel":
-                    if (e.SubOrHigher() == false) return;
+                    if (e.IsModOrHigher() == false) return;
                     await DeleteQuote(e);
                     break;
 

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
@@ -40,12 +40,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 await _serviceBackbone.SendChatMessage("Mod spam completed... tickets arriving soon.");
+
+
             }
         }
 
         protected override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if (e.Command.Equals("modspam") && (e.isMod || e.isBroadcaster))
+            if (e.Command.Equals("modspam") && e.IsModOrHigher())
             {
                 var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                 if (isCooldownExpired == false) return;
@@ -59,6 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _runTime = new TimeSpan(0, 0, Tools.RandomRange(15, 20));
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
+            AddGlobalCooldown("modspam", 1200);
         }
     }
 }

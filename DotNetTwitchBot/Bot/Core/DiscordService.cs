@@ -7,7 +7,7 @@ using Discord;
 using Discord.Net;
 using Discord.WebSocket;
 using DotNetTwitchBot.Bot.Commands.Custom;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using Serilog.Events;
 

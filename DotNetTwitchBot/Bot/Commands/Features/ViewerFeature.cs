@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Database;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -329,20 +330,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            updateLastActive(e.Sender);
+            updateLastActive(e.Name);
             //var viewer = await _viewerData.FindOne(e.Sender);
             Viewer? viewer;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewer = await db.Viewers.Where(x => x.Username.Equals(e.Sender)).FirstOrDefaultAsync();
+                viewer = await db.Viewers.Where(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
             }
             if (viewer == null)
             {
                 viewer = new Models.Viewer()
                 {
                     DisplayName = e.DisplayName,
-                    Username = e.Sender
+                    Username = e.Name
                 };
             }
             if (viewer.DisplayName != e.DisplayName) viewer.DisplayName = e.DisplayName;

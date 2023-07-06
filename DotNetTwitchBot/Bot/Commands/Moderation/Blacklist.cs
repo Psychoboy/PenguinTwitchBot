@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
@@ -86,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 if (match)
                 {
                     //await _serviceBackbone.SendChatMessage($"/timeout {e.DisplayName} {wordFilter.TimeOutLength} {wordFilter.BanReason}");
-                    await _twitchService.TimeoutUser(e.Sender, wordFilter.TimeOutLength, wordFilter.BanReason);
+                    await _twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
                     await _serviceBackbone.SendChatMessage(wordFilter.Message);
                     break;
                 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -131,16 +132,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             if (!_serviceBackbone.IsOnline) return;
-            if (_serviceBackbone.IsKnownBotOrCurrentStreamer(e.Sender)) return;
+            if (_serviceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var viewer = await db.ViewerMessageCounts.Where(x => x.Username.Equals(e.Sender)).FirstOrDefaultAsync();
+                var viewer = await db.ViewerMessageCounts.Where(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
                 if (viewer == null)
                 {
                     viewer = new ViewerMessageCount
                     {
-                        Username = e.Sender,
+                        Username = e.Name,
                         MessageCount = 0
                     };
                 }

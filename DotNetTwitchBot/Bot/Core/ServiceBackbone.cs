@@ -1,5 +1,6 @@
 ﻿using System.Runtime.ExceptionServices;
 using System.Reflection.Emit;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.Client.Models;
@@ -290,7 +291,7 @@ namespace DotNetTwitchBot.Bot.Core
                 await ChatMessageEvent(this, new ChatMessageEventArgs()
                 {
                     Message = message.Message,
-                    Sender = message.Username.ToLower(),
+                    Name = message.Username.ToLower(),
                     DisplayName = message.DisplayName,
                     isSub = message.IsSubscriber,
                     isMod = message.IsModerator,

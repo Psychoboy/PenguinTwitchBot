@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
