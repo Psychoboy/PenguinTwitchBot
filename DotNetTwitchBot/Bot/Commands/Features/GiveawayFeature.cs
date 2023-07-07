@@ -47,7 +47,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 case "enter":
                     {
-                        if (e.Args.Count() == 0) return;
+                        if (e.Args.Count() == 0)
+                        {
+                            await _serviceBackbone.SendChatMessage(e.Name, "To enter tickets, please use !enter AMOUNT/MAX/ALL");
+                            return;
+                        }
                         await Enter(e.Name, e.Args.First());
                         break;
                     }

@@ -191,7 +191,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             else
             {
                 await _serviceBackbone.SendChatMessage(
-                    string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}",
+                    string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}. Use !enter AMOUNT to enter your tickets.",
                     e.DisplayName, tickets.Points, tickets.Ranking
                     ));
             }
