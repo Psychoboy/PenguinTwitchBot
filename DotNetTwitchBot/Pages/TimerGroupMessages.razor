@@ -1,4 +1,6 @@
 @page "/timermessages/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Misc.Timers Timers
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>Timer Group Edit</PageTitle>
@@ -38,6 +40,32 @@ else
         <input placeholder="Message" @bind="Message" />
         <button class="btn btn-primary" @onclick="AddMessage">Add Message</button>
     </div>
+    <div>
+        <EditForm Model="timerGroup" OnSubmit="OnEdit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div>
+                <InputText @bind-Value=@timerGroup.Name />
+            </div>
+            <div>
+                <label>Minimum Interval</label>
+                <InputNumber @bind-Value=@timerGroup.IntervalMinimum />
+            </div>
+            <div>
+                <label>Maximum Interval</label>
+                <InputNumber @bind-Value=@timerGroup.IntervalMaximum />
+            </div>
+            <div>
+                <label>Minimum Messages</label>
+                <InputNumber @bind-Value=@timerGroup.MinimumMessages />
+            </div>
+            <div>
+                <label>Enabled</label>
+                <InputCheckbox @bind-Value=@timerGroup.Active />
+            </div>
+            <button type="submit">Submit</button>
+        </EditForm>
+    </div>
 }
 @code
 {
@@ -73,5 +101,11 @@ else
             await Timers.UpdateTimerGroup(timerGroup);
             StateHasChanged();
         }
+    }
+    public async void OnEdit()
+    {
+        if (timerGroup == null) return;
+        await Timers.UpdateTimerGroup(timerGroup);
+        StateHasChanged();
     }
 }

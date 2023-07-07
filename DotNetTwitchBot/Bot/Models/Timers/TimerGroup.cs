@@ -10,15 +10,16 @@ namespace DotNetTwitchBot.Bot.Models.Timers
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int? Id { get; set; }
-        public string Name {get;set;} = null!;
-        public bool Active {get;set;} = true;
-        public int IntervalMinimum {get;set;} = 5;
-        public int IntervalMaximum {get;set;} = 15;
-        public int MinimumMessages {get;set;} = 15;
-        public bool Shuffle {get;set;} = true;
-        public DateTime LastRun {get;set;}
-        public DateTime NextRun {get;set;}
-        
-        public List<TimerMessage> Messages {get;set;} = new List<TimerMessage>();
+        public string Name { get; set; } = null!;
+        public bool Active { get; set; } = true;
+        public int IntervalMinimum { get; set; } = 5;
+        public int IntervalMaximum { get; set; } = 15;
+        public int MinimumMessages { get; set; } = 15;
+        [Required]
+        public bool Shuffle { get; set; } = true;
+        public DateTime LastRun { get; set; }
+        public DateTime NextRun { get; set; }
+
+        public List<TimerMessage> Messages { get; set; } = new List<TimerMessage>();
     }
 }
