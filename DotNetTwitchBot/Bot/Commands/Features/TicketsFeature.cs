@@ -224,7 +224,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task ResetAllPoints()
+        public async Task ResetAllPoints()
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {

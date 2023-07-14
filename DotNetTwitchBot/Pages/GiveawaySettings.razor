@@ -1,0 +1,48 @@
+@page "/giveawaysettings"
+@using Microsoft.AspNetCore.SignalR.Client
+@using DotNetTwitchBot.Bot.Models.Giveaway
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject DotNetTwitchBot.Bot.Commands.Features.TicketsFeature TicketsFeature;
+@inject DotNetTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
+@inject NavigationManager Navigation
+
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+<div>
+    @* <EditForm Model="Prize" OnSubmit="OnPrizeSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary /> *@
+    <div>
+        <input @bind=@Prize />
+        <button class="btn btn-primary btn-xs" @onclick="() => OnPrizeSubmit()">Submit</button>
+    </div>
+    @* </EditForm> *@
+</div>
+<div>
+    <button class="btn btn-primary btn-xs" @onclick="() => Reset()">Reset</button>
+</div>
+@code {
+    private string? Prize { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prize = await GiveawayFeature.GetPrize();
+    }
+
+    public async void OnPrizeSubmit()
+    {
+        if (Prize == null) return;
+        await GiveawayFeature.SetPrize(Prize);
+    }
+
+    public async void Reset()
+    {
+        await DatabaseTools.Backup();
+        await GiveawayFeature.Reset();
+        await TicketsFeature.ResetAllPoints();
+    }
+}

@@ -20,7 +20,7 @@
     @foreach (var winner in winners)
     {
         <div>
-            <h2>@winner</h2>
+            <h2>@winner.Username - @winner.Prize</h2>
         </div>
     }
 </div>
@@ -62,7 +62,7 @@
 </div>
 
 @code {
-    private List<string> winners = new List<string>();
+    private List<GiveawayWinner> winners = new List<GiveawayWinner>();
     private List<GiveawayWinner>? pastWinners;
     private string prize = "";
     private HubConnection? hubConnection;
@@ -72,9 +72,14 @@
         prize = await GiveawayFeature.GetPrize();
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
-        hubConnection.On<List<string>>("Winners", (Winners) =>
+        hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
         {
             winners = Winners;
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string>("Prize", (Prize) =>
+        {
+            prize = Prize;
             InvokeAsync(StateHasChanged);
         });
         await hubConnection.StartAsync();
@@ -83,6 +88,8 @@
     private async Task Draw()
     {
         await GiveawayFeature.Draw();
+        pastWinners = await GiveawayFeature.PastWinners();
+        StateHasChanged();
     }
 
     private async Task Close()

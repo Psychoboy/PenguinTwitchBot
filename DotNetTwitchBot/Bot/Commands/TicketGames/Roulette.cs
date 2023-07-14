@@ -23,10 +23,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         ) : base(serviceBackbone)
         {
             _ticketsFeature = ticketsFeature;
-            _serviceBackbone.StreamEnded += OnStreamEnded;
+            _serviceBackbone.StreamStarted += OnStreamStarted;
         }
 
-        private Task OnStreamEnded(object? sender)
+        private Task OnStreamStarted(object? sender)
         {
             TotalGambled.Clear();
             return Task.CompletedTask;

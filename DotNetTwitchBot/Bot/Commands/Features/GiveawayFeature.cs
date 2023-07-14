@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<GiveawayHub> _hubContext;
         private List<string> Tickets = new List<string>();
-        private List<string> Winners = new List<string>();
+        private List<GiveawayWinner> Winners = new List<GiveawayWinner>();
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
@@ -105,7 +105,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task SetPrize(string arg)
+        public async Task SetPrize(string arg)
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -122,6 +122,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.Update(prize);
                 await db.SaveChangesAsync();
             }
+            await _hubContext.Clients.All.SendAsync("Prize", arg);
         }
 
         public async Task Close()
@@ -152,14 +153,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (Tickets.Count == 0)
             {
-                await _serviceBackbone.SendChatMessage("Closing Giveaway prior to drawing ticket");
+                //await _serviceBackbone.SendChatMessage("Closing Giveaway prior to drawing ticket");
                 await Close();
             }
             if (Tickets.Count == 0) return;
             var winningTicket = Tickets.RandomElement(_logger);
             var viewer = await _viewerFeature.GetViewer(winningTicket);
             var isFollower = await _viewerFeature.IsFollower(winningTicket);
-            await _serviceBackbone.SendChatMessage(string.Format("{0} won the drawing and {1} following", viewer != null ? viewer.NameWithTitle() : winningTicket, isFollower ? "is" : "is not"));
+            await _serviceBackbone.SendChatMessage(string.Format("{0} won the {1} and {2} following", viewer != null ? viewer.NameWithTitle() : winningTicket, await GetPrize(), isFollower ? "is" : "is not"));
             await AddWinner(viewer);
         }
 
@@ -176,8 +177,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (viewer == null) return;
 
-            Winners.Add(viewer.DisplayName);
-            await _hubContext.Clients.All.SendAsync("Winners", Winners);
             var prize = await GetPrize();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -187,9 +186,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     Username = viewer.DisplayName,
                     Prize = prize
                 };
+                Winners.Add(winner);
                 db.GiveawayWinners.Add(winner);
                 await db.SaveChangesAsync();
             }
+            await _hubContext.Clients.All.SendAsync("Winners", Winners);
         }
 
 
