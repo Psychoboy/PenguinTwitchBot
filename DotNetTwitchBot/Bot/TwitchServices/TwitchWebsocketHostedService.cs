@@ -205,7 +205,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
                 if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddDays(-5))
                 {
-                    _logger.LogWarning("Subscriber already in sub cache");
+                    _logger.LogWarning($"{name} Subscriber already in sub cache");
                     return true;
                 }
                 SubCache[name] = DateTime.Now;
