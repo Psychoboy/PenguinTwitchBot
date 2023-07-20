@@ -11,7 +11,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class Blacklist : BaseCommand
+    public class Blacklist : BaseCommandService
     {
         private ILogger<Blacklist> _logger;
         private IServiceScopeFactory _scopeFactory;
@@ -22,8 +22,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             ILogger<Blacklist> logger,
             IServiceScopeFactory scopeFactory,
             TwitchServices.TwitchService twitchService,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
@@ -106,11 +107,14 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             }
         }
 
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.CompletedTask;
         }
 
-
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

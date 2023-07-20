@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class QuoteSystem : BaseCommand
+    public class QuoteSystem : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
         private ILogger<QuoteSystem> _logger;
@@ -16,28 +16,40 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public QuoteSystem(
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
-            ILogger<QuoteSystem> logger
-            ) : base(serviceBackbone)
+            ILogger<QuoteSystem> logger,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async void RegisterDefaultCommands()
         {
-            switch (e.Command)
+            var moduleName = "QuoteSystem";
+            await RegisterDefaultCommand("quote", this, moduleName);
+            //await RegisterDefaultCommand("quoteadd", this, moduleName, Rank.Moderator); add alias
+            await RegisterDefaultCommand("addquote", this, moduleName, Rank.Moderator);
+            await RegisterDefaultCommand("delquote", this, moduleName, Rank.Moderator);
+            //await RegisterDefaultCommand("quotedel", this, moduleName, Rank.Moderator); add alias
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "quote":
                     await SayQuote(e.Arg);
                     break;
-                case "quoteadd":
                 case "addquote":
                     if (e.IsModOrHigher() == false) return;
                     await AddQuote(e);
                     break;
 
                 case "delquote":
-                case "quotedel":
                     if (e.IsModOrHigher() == false) return;
                     await DeleteQuote(e);
                     break;

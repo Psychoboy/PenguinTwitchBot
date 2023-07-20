@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class AudioCommands : BaseCommand
+    public class AudioCommands : BaseCommandService
     {
         Dictionary<string, AudioCommand> Commands = new Dictionary<string, AudioCommand>();
         private SendAlerts SendAlerts { get; }
@@ -24,7 +24,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<AudioCommands> logger,
-            ServiceBackbone eventService) : base(eventService)
+            ServiceBackbone eventService,
+            CommandHandler commandHandler) : base(eventService, scopeFactory, commandHandler)
         {
             SendAlerts = sendAlerts;
             ViewerFeature = viewerFeature;
@@ -90,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (e.Command.Equals("addaudiocommand"))
             {
@@ -229,6 +230,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 _logger.LogError(err, "Failed to add audio command");
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            //Do nothing
         }
     }
 }

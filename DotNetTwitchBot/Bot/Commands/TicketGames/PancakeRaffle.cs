@@ -12,12 +12,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         public PancakeRaffle(
             ServiceBackbone eventService,
-            TicketsFeature ticketsFeature
-        ) : base(eventService, ticketsFeature, "sptvPancake", "!pancake", "pancake")
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+        ) : base(eventService, ticketsFeature, scopeFactory, commandHandler, "sptvPancake", "!pancake", "pancake")
         {
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -38,6 +40,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     }
                     break;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

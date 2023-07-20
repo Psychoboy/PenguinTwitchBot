@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Slots : BaseCommand
+    public class Slots : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
         private List<string> Emotes = LoadEmotes();
@@ -18,13 +18,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Slots(
             LoyaltyFeature loyaltyService,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyService;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -202,6 +204,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "My dad could win, and he\'s dead!",
                 "You with the keyboard! I won DESPITE you. You suck. And smell -- REALLY smell."
             };
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

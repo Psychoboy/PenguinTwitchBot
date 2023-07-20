@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Heist : BaseCommand
+    public class Heist : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
         private ViewerFeature _viewerFeature;
@@ -42,8 +42,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             LoyaltyFeature loyaltyFeature,
             ViewerFeature viewerFeature,
             ServiceBackbone serviceBackbone,
-            ILogger<Heist> logger
-            ) : base(serviceBackbone)
+            ILogger<Heist> logger,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _viewerFeature = viewerFeature;
@@ -51,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (!e.Command.Equals(Command)) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
@@ -247,6 +249,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     Caught.Add(participant);
                 }
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

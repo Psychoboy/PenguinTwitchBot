@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Roll : BaseCommand
+    public class Roll : BaseCommandService
     {
         private ILogger<Roll> _logger;
         private LoyaltyFeature _loyaltyFeature;
@@ -23,14 +23,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Roll(
             ILogger<Roll> logger,
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _logger = logger;
             _loyaltyFeature = loyaltyFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -188,6 +190,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "Whoever said, \"It's not whether you win or lose that counts,\" probably lost.",
                 "What went wrong? What didn\'t? - it was just one of those days. Not your day really"
             };
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -8,19 +8,20 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Top : BaseCommand
+    public class Top : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
 
         public Top(
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -94,6 +95,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
                 await _serviceBackbone.SendChatMessage(string.Format("Top {0} in Tickets: {1}", topN, names));
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

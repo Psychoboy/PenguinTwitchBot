@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class FFA : BaseCommand
+    public class FFA : BaseCommandService
     {
         public int Cooldown = 300;
         public int JoinTime = 180;
@@ -32,8 +32,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public FFA(
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
-            ViewerFeature viewerFeature
-            ) : base(serviceBackbone)
+            ViewerFeature viewerFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _joinTimer = new Timer(joinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _loyaltyFeature = loyaltyFeature;
@@ -74,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             AddGlobalCooldown(Command, Cooldown);
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
 
             if (!e.Command.Equals(Command)) return;
@@ -110,6 +112,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await _serviceBackbone.SendChatMessage(string.Format("{0} joined the FFA", e.DisplayName));
             }
             Entered.Add(e.Name);
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

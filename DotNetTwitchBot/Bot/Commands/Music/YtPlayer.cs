@@ -12,7 +12,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
-    public class YtPlayer : BaseCommand
+    public class YtPlayer : BaseCommandService
     {
         private IHubContext<YtHub> _hubContext;
         private IServiceScopeFactory _scopeFactory;
@@ -41,8 +41,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             ILogger<YtPlayer> logger,
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
-        ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+        ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
@@ -228,7 +229,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await UpdateRequestedSongsState();
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -759,6 +760,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task SendSongRequests(List<Song> requests)
         {
             await _hubContext.Clients.All.SendAsync("CurrentSongRequests", requests);
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

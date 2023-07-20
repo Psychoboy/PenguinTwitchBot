@@ -15,7 +15,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class CustomCommand : BaseCommand
+    public class CustomCommand : BaseCommandService
     {
         Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
         Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
@@ -37,7 +37,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             TwitchService twitchService,
             LoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
-            ServiceBackbone serviceBackbone) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
@@ -235,7 +236,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (e.Command.Equals("addcommand"))
             {
@@ -763,6 +764,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             var time = await _loyaltyFeature.GetViewerWatchTime(args);
             return new CustomCommandResult(time);
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            //Do nothing
         }
     }
 }

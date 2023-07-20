@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Models.Duel;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class DuelGame : BaseCommand
+    public class DuelGame : BaseCommandService
     {
         List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
@@ -20,14 +20,16 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public DuelGame(
             ServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            ViewerFeature viewerFeature
-            ) : base(serviceBackbone)
+            ViewerFeature viewerFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -279,6 +281,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

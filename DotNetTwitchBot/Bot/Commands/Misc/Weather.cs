@@ -7,15 +7,17 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Weather : BaseCommand
+    public class Weather : BaseCommandService
     {
         private WeatherSettings _settings;
         private HttpClient _client = new HttpClient();
 
         public Weather(
             IConfiguration configuration,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>();
             if (settings == null)
@@ -25,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _settings = settings;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -72,6 +74,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var weatherString = $"The weather in {weather.Location.Name}, {weather.Location.Country} is {weather.Current.Condition.Text} {weather.Current.TempF}F/{weather.Current.TempC}C. Humidity: {weather.Current.Humidity}%.";
             weatherString += $" Today will be {forecastDay.Day.Condition.Text} High: {forecastDay.Day.MaxTempF}F/{forecastDay.Day.MaxTempC}C Low: {forecastDay.Day.MinTempF}F/{forecastDay.Day.MinTempC}C";
             return weatherString;
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

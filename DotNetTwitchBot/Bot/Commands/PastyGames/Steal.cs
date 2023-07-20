@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Steal : BaseCommand
+    public class Steal : BaseCommandService
     {
         private int StealMin = 100;
         private int StealMax = 10000;
@@ -20,15 +20,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
             _viewerFeature = viewerFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = "steal";
             if (!e.Command.Equals(command)) return;
@@ -89,6 +90,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             await _loyaltyFeature.RemovePointsFromUser(from, amount);
             await _loyaltyFeature.AddPointsToViewer(to, amount);
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

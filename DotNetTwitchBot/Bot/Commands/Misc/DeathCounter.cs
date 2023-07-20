@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DeathCounter : BaseCommand
+    public class DeathCounter : BaseCommandService
     {
         private TwitchService _twitchService;
         private ILogger<DeathCounter> _logger;
@@ -21,8 +21,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<DeathCounter> logger,
             ServiceBackbone serviceBackbone,
             ViewerFeature viewerFeature,
-            IServiceScopeFactory scopeFactory
-            ) : base(serviceBackbone)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _twitchService = twitchService;
             _logger = logger;
@@ -30,10 +31,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _viewerFeature = viewerFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async void RegisterDefaultCommands()
         {
-            var command = "death";
-            if (!e.Command.Equals(command)) return;
+            var moduleName = "DeathCounter";
+            await RegisterDefaultCommand("death", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("death")) return;
+
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
             var game = await _twitchService.GetCurrentGame();

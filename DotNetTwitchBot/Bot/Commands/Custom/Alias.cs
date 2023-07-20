@@ -7,11 +7,11 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class Alias : BaseCommand
+    public class Alias : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
 
-        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone) : base(serviceBackbone)
+        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone, CommandHandler commandHandler) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
         }
@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (await IsAlias(e))
             {
@@ -84,6 +84,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 return false;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            //Do nothing here
         }
     }
 }

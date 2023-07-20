@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Gamble : BaseCommand
+    public class Gamble : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
@@ -19,8 +19,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             TwitchServices.TwitchService twitchServices,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
@@ -31,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public long JackpotDefault { get; } = 1000;
         public int WinRange { get; } = 48;
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -171,6 +172,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
             }
             return jackpot;
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

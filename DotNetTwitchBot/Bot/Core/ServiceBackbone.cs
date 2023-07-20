@@ -1,10 +1,12 @@
-﻿using System.Runtime.ExceptionServices;
+﻿using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.Client.Models;
 using DotNetTwitchBot.Bot.Commands.Moderation;
+using DotNetTwitchBot.Bot.Commands;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -13,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ILogger<ServiceBackbone> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IKnownBots _knownBots;
+        private readonly CommandHandler _commandHandler;
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
@@ -21,13 +24,15 @@ namespace DotNetTwitchBot.Bot.Core
             ILogger<ServiceBackbone> logger,
             IKnownBots knownBots,
             IConfiguration configuration,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler)
         {
             _logger = logger;
             RawBroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
             _scopeFactory = scopeFactory;
             _knownBots = knownBots;
+            _commandHandler = commandHandler;
         }
 
         public delegate Task AsyncEventHandler(object? sender);
@@ -67,22 +72,22 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task RunCommand(CommandEventArgs args)
         {
-            if (CommandEvent != null)
-            {
-                try
-                {
-                    await _semaphoreSlim.WaitAsync();
-                    await CommandEvent(this, args);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogCritical("Command Failure {0}", e);
-                }
-                finally
-                {
-                    _semaphoreSlim.Release();
-                }
-            }
+            // if (CommandEvent != null)
+            // {
+            //     try
+            //     {
+            //         await _semaphoreSlim.WaitAsync();
+            //         await CommandEvent(this, args);
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         _logger.LogCritical("Command Failure {0}", e);
+            //     }
+            //     finally
+            //     {
+            //         _semaphoreSlim.Release();
+            //     }
+            // }
         }
 
         public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
@@ -108,16 +113,47 @@ namespace DotNetTwitchBot.Bot.Core
                 try
                 {
                     await _semaphoreSlim.WaitAsync();
-                    await CommandEvent(this, eventArgs);
+                    //await CommandEvent(this, eventArgs);
+                    var commandService = _commandHandler.GetCommand(eventArgs.Command);
+                    if (commandService == null)
+                    {
+                        throw new Exception($"Command service not found {eventArgs.Command}");
+                    }
+                    if (CheckPermission(commandService.CommandProperties, eventArgs))
+                    {
+                        await commandService.CommandService.OnCommand(this, eventArgs);
+                    }
                 }
                 catch (Exception e)
                 {
-                    _logger.LogCritical("Command Failure {0}", e);
+                    _logger.LogWarning("Command Failure {0}", e);
                 }
                 finally
                 {
                     _semaphoreSlim.Release();
                 }
+            }
+        }
+
+        private bool CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
+        {
+            switch (commandProperties.MinimumRank)
+            {
+                case Rank.Viewer:
+                case Rank.Regular:
+                    return true;
+                case Rank.Follower:
+                    return true; //Need to add this check
+                case Rank.Subscriber:
+                    return eventArgs.IsSubOrHigher();
+                case Rank.Vip:
+                    return eventArgs.IsVipOrHigher();
+                case Rank.Moderator:
+                    return eventArgs.IsModOrHigher();
+                case Rank.Streamer:
+                    return IsBroadcasterOrBot(eventArgs.Name);
+                default:
+                    return false;
             }
         }
 

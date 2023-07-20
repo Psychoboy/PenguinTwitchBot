@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class First : BaseCommand
+    public class First : BaseCommandService
     {
         private List<string> Firsts = new List<string>();
         private TicketsFeature _ticketsFeature;
@@ -17,12 +17,15 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public First(
             TicketsFeature ticketsFeature,
-            ServiceBackbone serviceBackbone) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -33,6 +36,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     GotTickets.Add(e.Name);
                     break;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

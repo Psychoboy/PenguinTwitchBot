@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class ShoutoutSystem : BaseCommand
+    public class ShoutoutSystem : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
         private TwitchService _twitchService;
@@ -20,8 +20,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<ShoutoutSystem> logger,
             IServiceScopeFactory scopeFactory,
             TwitchServices.TwitchService twitchService,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             serviceBackbone.ChatMessageEvent += OnChatMessage;
             _scopeFactory = scopeFactory;
@@ -147,7 +148,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -164,6 +165,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await Shoutout(e.TargetUser);
                     break;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

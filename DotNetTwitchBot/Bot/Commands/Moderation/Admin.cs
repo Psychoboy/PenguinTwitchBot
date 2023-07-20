@@ -8,17 +8,21 @@ using DotNetTwitchBot.Bot.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class Admin : BaseCommand
+    public class Admin : BaseCommandService
     {
         private IWebSocketMessenger _webSocketMessenger;
 
-        public Admin(IWebSocketMessenger webSocketMessenger,
-            ServiceBackbone serviceBackbone) : base(serviceBackbone)
+        public Admin(
+            IWebSocketMessenger webSocketMessenger,
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _webSocketMessenger = webSocketMessenger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (e.isBroadcaster == false) return;
             switch (e.Command)
@@ -43,6 +47,11 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             _webSocketMessenger.Pause();
             await _serviceBackbone.SendChatMessage("Alerts paused.");
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

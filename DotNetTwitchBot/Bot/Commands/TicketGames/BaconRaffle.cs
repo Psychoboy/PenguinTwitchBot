@@ -10,7 +10,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BaconRaffle : BaseRaffle
     {
-        public BaconRaffle(ServiceBackbone eventService, TicketsFeature ticketsFeature) : base(eventService, ticketsFeature, "sptvBacon", "!bacon", "bacon")
+        public BaconRaffle(
+            ServiceBackbone eventService,
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(eventService, ticketsFeature, scopeFactory, commandHandler, "sptvBacon", "!bacon", "bacon")
         {
         }
 
@@ -36,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             NumberOfWinners = Tools.Next(min, max + 1);
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -57,6 +62,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     }
                     break;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

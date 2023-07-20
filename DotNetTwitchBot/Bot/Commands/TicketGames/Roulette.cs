@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class Roulette : BaseCommand
+    public class Roulette : BaseCommandService
     {
         private int MustBeatValue = 52;
         private TicketsFeature _ticketsFeature;
@@ -19,8 +19,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public Roulette(
             ServiceBackbone serviceBackbone,
-            TicketsFeature ticketsFeature
-        ) : base(serviceBackbone)
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+        ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _serviceBackbone.StreamStarted += OnStreamStarted;
@@ -32,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             return Task.CompletedTask;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             switch (e.Command)
             {
@@ -121,6 +123,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     }
                     break;
             }
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
 
         private string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";

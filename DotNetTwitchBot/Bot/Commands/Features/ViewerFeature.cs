@@ -15,7 +15,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class ViewerFeature : BaseCommand
+    public class ViewerFeature : BaseCommandService
     {
         private ConcurrentDictionary<string, DateTime> _usersLastActive = new ConcurrentDictionary<string, DateTime>();
         private ConcurrentDictionary<string, byte> _users = new ConcurrentDictionary<string, byte>();
@@ -37,8 +37,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             TwitchBotService twitchBotService,
             // FollowData followData
             // ApplicationDbContext applicationDbContext
-            IServiceScopeFactory scopeFactory
-            ) : base(eventService)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(eventService, scopeFactory, commandHandler)
         {
             _logger = logger;
             eventService.ChatMessageEvent += OnChatMessage;
@@ -440,13 +441,24 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        public override async void RegisterDefaultCommands()
         {
-            if (e.Command.Equals("lurk"))
+            var moduleName = "ViewerFeature";
+            await RegisterDefaultCommand("lurk", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return Task.CompletedTask;
+            if (command.CommandProperties.CommandName.Equals("lurk"))
             {
                 _lurkers[e.Name] = DateTime.Now;
             }
             return Task.CompletedTask;
         }
+
+
     }
 }

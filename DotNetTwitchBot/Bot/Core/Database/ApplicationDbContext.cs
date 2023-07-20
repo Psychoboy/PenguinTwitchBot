@@ -45,6 +45,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<SubscriptionHistory> SubscriptionHistories { get; set; } = null!;
         public DbSet<AliasModel> Aliases { get; set; } = null!;
         public DbSet<KnownBot> KnownBots { get; set; } = null!;
+        public DbSet<DefaultCommand> DefaultCommands { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

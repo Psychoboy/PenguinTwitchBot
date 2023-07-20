@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class ModSpam : BaseCommand
+    public class ModSpam : BaseCommandService
     {
         private AddActive _addActive;
         Timer _intervalTimer;
@@ -18,8 +18,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public ModSpam(
             AddActive addActive,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _addActive = addActive;
             _intervalTimer = new Timer(timerCallBack, this, Timeout.Infinite, Timeout.Infinite);
@@ -45,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             if (e.Command.Equals("modspam") && e.IsModOrHigher())
             {
@@ -62,6 +64,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
             AddGlobalCooldown("modspam", 1200);
+        }
+
+        public override void RegisterDefaultCommands()
+        {
+            throw new NotImplementedException();
         }
     }
 }

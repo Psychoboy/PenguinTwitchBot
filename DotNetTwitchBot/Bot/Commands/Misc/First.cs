@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class First : BaseCommand
+    public class First : BaseCommandService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
         private int MaxClaims = 60;
@@ -20,16 +20,28 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public First(
             ServiceBackbone eventService,
             ILogger<First> logger,
-            TicketsFeature ticketsFeature
-        ) : base(eventService)
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+        ) : base(eventService, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async void RegisterDefaultCommands()
         {
-            switch (e.Command)
+            var moduleName = "First";
+            await RegisterDefaultCommand("first", this, moduleName);
+            await RegisterDefaultCommand("resetfirst", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "first":
                     {

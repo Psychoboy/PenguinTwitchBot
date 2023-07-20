@@ -35,7 +35,8 @@ internal class Program
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
-        builder.Services.AddSingleton<DiscordService>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.CommandHandler>();
+        // TODO: builder.Services.AddSingleton<DiscordService>();
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
@@ -145,7 +146,7 @@ internal class Program
         }
         //Loads all the command stuff into memory
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
-        app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
+        // TODO: app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
 
         var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         await viewerFeature.UpdateSubscribers();
@@ -156,6 +157,9 @@ internal class Program
         var blacklist = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.Blacklist>();
         await blacklist.LoadBlacklist();
         await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
+        // TEST CODE
+        var pasties = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature>();
+        pasties.RegisterDefaultCommands();
         foreach (var cmd in commands)
         {
             app.Services.GetRequiredService(cmd);
