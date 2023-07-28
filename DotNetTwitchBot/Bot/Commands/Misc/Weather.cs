@@ -10,9 +10,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class Weather : BaseCommandService
     {
         private WeatherSettings _settings;
+        private readonly ILogger<Weather> _logger;
         private HttpClient _client = new HttpClient();
 
         public Weather(
+            ILogger<Weather> logger,
             IConfiguration configuration,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
@@ -25,23 +27,26 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 throw new Exception("Invalid Configuration. Weather settings missing.");
             }
             _settings = settings;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Weather";
+            await RegisterDefaultCommand("weather", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "weather":
 
                     var response = await GetWeather(e.Arg);
-                    if (e.isDiscord)
-                    {
-
-                    }
-                    else
-                    {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, response);
-                    }
+                    await _serviceBackbone.SendChatMessage(e.DisplayName, response);
                     break;
             }
         }
@@ -74,11 +79,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var weatherString = $"The weather in {weather.Location.Name}, {weather.Location.Country} is {weather.Current.Condition.Text} {weather.Current.TempF}F/{weather.Current.TempC}C. Humidity: {weather.Current.Humidity}%.";
             weatherString += $" Today will be {forecastDay.Day.Condition.Text} High: {forecastDay.Day.MaxTempF}F/{forecastDay.Day.MaxTempC}C Low: {forecastDay.Day.MinTempF}F/{forecastDay.Day.MinTempC}C";
             return weatherString;
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -35,10 +35,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _viewerFeature = viewerFeature;
         }
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Defuse";
+            await RegisterDefaultCommand("defuse", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = "defuse";
-            if (!e.Command.Equals(command)) return;
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("defuse")) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
 
@@ -79,12 +87,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await _serviceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
                 _sendAlerts.QueueAlert("detonated.gif,10");
             }
-            AddCoolDown(e.Name, command, 10);
+            AddCoolDown(e.Name, "defuse", 10);
         }
 
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
-        }
+
     }
 }

@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private ILogger<Heist> _logger;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
-        private string Command = "heist";
+        private string CommandName = "heist";
 
         enum State
         {
@@ -53,9 +53,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Heist";
+            await RegisterDefaultCommand("heist", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            if (!e.Command.Equals(Command)) return;
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
 
@@ -215,7 +224,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 Caught.Clear();
                 GameState = State.NotRunning;
                 CurrentStoryPart = 0;
-                AddGlobalCooldown(Command, Cooldown);
+                AddGlobalCooldown(CommandName, Cooldown);
             }
             catch (Exception e)
             {
@@ -249,11 +258,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     Caught.Add(participant);
                 }
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

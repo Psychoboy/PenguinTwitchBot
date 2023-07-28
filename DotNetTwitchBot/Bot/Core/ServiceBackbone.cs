@@ -70,24 +70,30 @@ namespace DotNetTwitchBot.Bot.Core
             return _knownBots.IsKnownBotOrCurrentStreamer(name);
         }
 
-        public async Task RunCommand(CommandEventArgs args)
+        public async Task RunCommand(CommandEventArgs eventArgs)
         {
-            // if (CommandEvent != null)
-            // {
-            //     try
-            //     {
-            //         await _semaphoreSlim.WaitAsync();
-            //         await CommandEvent(this, args);
-            //     }
-            //     catch (Exception e)
-            //     {
-            //         _logger.LogCritical("Command Failure {0}", e);
-            //     }
-            //     finally
-            //     {
-            //         _semaphoreSlim.Release();
-            //     }
-            // }
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                //await CommandEvent(this, eventArgs);
+                var commandService = _commandHandler.GetCommand(eventArgs.Command);
+                if (commandService == null)
+                {
+                    throw new Exception($"Command service not found {eventArgs.Command}");
+                }
+                if (CheckPermission(commandService.CommandProperties, eventArgs))
+                {
+                    await commandService.CommandService.OnCommand(this, eventArgs);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning("Command Failure {0}", e);
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
+            }
         }
 
         public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
@@ -110,28 +116,7 @@ namespace DotNetTwitchBot.Bot.Core
                         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
                         : ""
                 };
-                try
-                {
-                    await _semaphoreSlim.WaitAsync();
-                    //await CommandEvent(this, eventArgs);
-                    var commandService = _commandHandler.GetCommand(eventArgs.Command);
-                    if (commandService == null)
-                    {
-                        throw new Exception($"Command service not found {eventArgs.Command}");
-                    }
-                    if (CheckPermission(commandService.CommandProperties, eventArgs))
-                    {
-                        await commandService.CommandService.OnCommand(this, eventArgs);
-                    }
-                }
-                catch (Exception e)
-                {
-                    _logger.LogWarning("Command Failure {0}", e);
-                }
-                finally
-                {
-                    _semaphoreSlim.Release();
-                }
+                await RunCommand(eventArgs);
             }
         }
 

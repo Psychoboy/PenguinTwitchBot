@@ -148,11 +148,20 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "ShoutoutSystem";
+            //Add so alias
+            await RegisterDefaultCommand("shoutout", this, moduleName, Rank.Vip);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
-                case "so":
                 case "shoutout":
                     if (e.isMod == false && e.isBroadcaster == false && e.isVip == false)
                     {
@@ -165,11 +174,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await Shoutout(e.TargetUser);
                     break;
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

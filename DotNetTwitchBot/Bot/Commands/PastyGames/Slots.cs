@@ -11,12 +11,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     public class Slots : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
+        private ILogger<Slots> _logger;
         private List<string> Emotes = LoadEmotes();
         private List<Int64> Prizes = LoadPrizes();
         private List<string> WinMessages = LoadWinMessages();
         private List<string> LoseMessages = LoadLoseMessages();
 
         public Slots(
+            ILogger<Slots> logger,
             LoyaltyFeature loyaltyService,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
@@ -24,11 +26,22 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyService;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Slots";
+            await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "slot":
                 case "slots":
@@ -204,11 +217,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "My dad could win, and he\'s dead!",
                 "You with the keyboard! I won DESPITE you. You suck. And smell -- REALLY smell."
             };
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

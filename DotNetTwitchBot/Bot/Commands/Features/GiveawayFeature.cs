@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _hubContext = hubContext;
         }
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "GiveawayFeature";
             await RegisterDefaultCommand("enter", this, moduleName);

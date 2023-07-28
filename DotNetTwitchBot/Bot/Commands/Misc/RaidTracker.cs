@@ -133,7 +133,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         }
 
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "RaidTracker";
             await RegisterDefaultCommand("raid", this, moduleName, Rank.Streamer);

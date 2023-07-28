@@ -11,19 +11,37 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class Top : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
+        private readonly Logger<Top> _logger;
 
         public Top(
+            Logger<Top> logger,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Top";
+            //Add so alias
+            await RegisterDefaultCommand("top10", this, moduleName);
+            await RegisterDefaultCommand("top5", this, moduleName);
+            await RegisterDefaultCommand("toptime", this, moduleName);
+            await RegisterDefaultCommand("toptickets", this, moduleName);
+            //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
+            await RegisterDefaultCommand("loudest", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "top10":
                     await SayPointsTopN(10);
@@ -35,7 +53,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await SayTimeTopN(5);
                     break;
                 case "toptickets":
-                case "topticket":
                     await SayTicketsTopN(10);
                     break;
                 case "loudest":
@@ -95,11 +112,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
                 await _serviceBackbone.SendChatMessage(string.Format("Top {0} in Tickets: {1}", topN, names));
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

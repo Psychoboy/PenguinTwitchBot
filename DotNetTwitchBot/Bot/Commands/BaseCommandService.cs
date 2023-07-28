@@ -34,41 +34,22 @@ namespace DotNetTwitchBot.Bot.Commands
         // public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 
         public abstract Task OnCommand(object? sender, CommandEventArgs e);
-        public abstract void RegisterDefaultCommands();
+        public abstract Task RegisterDefaultCommands();
 
         public async Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand)
         {
-            var registeredDefaultCommand = await GetDefaultCommandFromDb(defaultCommand.CommandName);
+            var registeredDefaultCommand = await _commandHandler.GetDefaultCommandFromDb(defaultCommand.CommandName);
             if (registeredDefaultCommand != null)
             {
                 return registeredDefaultCommand;
             }
             else
             {
-                return await AddDefaultCommand(defaultCommand);
+                return await _commandHandler.AddDefaultCommand(defaultCommand);
             }
         }
 
-        public async Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName)
-        {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.DefaultCommands.Where(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
-            }
-        }
 
-        public async Task<DefaultCommand> AddDefaultCommand(DefaultCommand defaultCommand)
-        {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var newDefaultCommand = await db.DefaultCommands.AddAsync(defaultCommand);
-                await db.SaveChangesAsync();
-                await newDefaultCommand.ReloadAsync();
-                return newDefaultCommand.Entity;
-            }
-        }
 
         public bool IsCoolDownExpired(string user, string command)
         {

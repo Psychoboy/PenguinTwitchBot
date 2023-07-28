@@ -14,8 +14,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
         private TwitchService _twitchServices;
+        private readonly ILogger<Gamble> _logger;
 
         public Gamble(
+            ILogger<Gamble> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             TwitchServices.TwitchService twitchServices,
@@ -26,15 +28,26 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
             _twitchServices = twitchServices;
+            _logger = logger;
         }
 
         public int JackPotNumber { get; } = 69;
         public long JackpotDefault { get; } = 1000;
         public int WinRange { get; } = 48;
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Gamble";
+            await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("jackpot", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "gamble":
                     await HandleGamble(e);
@@ -43,10 +56,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     var jackpot = await GetJackpot();
                     await _serviceBackbone.SendChatMessage(e.DisplayName,
                     string.Format("The current jackpot is {0}", jackpot.ToString("N0")));
-                    break;
-                case "testjackpotfireworks":
-                    if (e.isBroadcaster == false) return;
-                    await LaunchFireworks();
                     break;
             }
         }
@@ -174,9 +183,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return jackpot;
         }
 
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
-        }
+
     }
 }

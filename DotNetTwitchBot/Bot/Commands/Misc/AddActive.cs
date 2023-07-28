@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _ticketsToActiveCommandTimer.Start();
         }
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "AddActive";
             await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);

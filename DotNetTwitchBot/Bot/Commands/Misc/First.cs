@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
         }
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "First";
             await RegisterDefaultCommand("first", this, moduleName);

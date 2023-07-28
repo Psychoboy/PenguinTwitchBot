@@ -70,6 +70,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
+        // public async Task<Viewer?> GetViewerWithDetauls(int id)
+        // {
+        //     await using (var scope = _scopeFactory.CreateAsyncScope())
+        //     {
+        //         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        //         var viewer = await db.Viewers.Where(x => x.Id == id).(db.ViewersTime, o => o.Username, i => i.Username, (o, i) =>
+        //         new {
+
+        //         }).FirstOrDefaultAsync();
+        //     }
+        // }
+
         public async Task<List<Viewer>> GetViewers()
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -441,7 +453,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "ViewerFeature";
             await RegisterDefaultCommand("lurk", this, moduleName);

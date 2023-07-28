@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await SetCounterValue(await GetCounterValue() + 1);
         }
 
-        public override async void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
             var moduleName = "DailyCounter";
             await RegisterDefaultCommand("setdailycountertext", this, moduleName, Rank.Streamer);

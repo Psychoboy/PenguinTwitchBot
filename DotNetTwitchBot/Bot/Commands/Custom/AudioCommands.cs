@@ -232,9 +232,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public override void RegisterDefaultCommands()
+        public override Task RegisterDefaultCommands()
         {
-            //Do nothing
+            return Task.CompletedTask;
         }
     }
 }

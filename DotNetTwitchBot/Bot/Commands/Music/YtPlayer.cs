@@ -229,9 +229,32 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await UpdateRequestedSongsState();
         }
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "MusicPlayer";
+            await RegisterDefaultCommand("lastsong", this, moduleName);
+            await RegisterDefaultCommand("song", this, moduleName);
+            await RegisterDefaultCommand("currentsong", this, moduleName);
+            await RegisterDefaultCommand("nextsong", this, moduleName);
+            await RegisterDefaultCommand("skip", this, moduleName);
+            await RegisterDefaultCommand("voteskip", this, moduleName);
+            await RegisterDefaultCommand("veto", this, moduleName, Rank.Moderator);
+            await RegisterDefaultCommand("pause", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("wrongsong", this, moduleName);
+            await RegisterDefaultCommand("wrong", this, moduleName);
+            await RegisterDefaultCommand("sr", this, moduleName);
+            await RegisterDefaultCommand("priority", this, moduleName);
+            await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("steal", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "lastsong":
                     await SayLastSong(e);
@@ -760,11 +783,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task SendSongRequests(List<Song> requests)
         {
             await _hubContext.Clients.All.SendAsync("CurrentSongRequests", requests);
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

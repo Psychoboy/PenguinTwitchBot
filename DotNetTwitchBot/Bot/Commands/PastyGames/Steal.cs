@@ -15,8 +15,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
         private ViewerFeature _viewerFeature;
+        private readonly Logger<Steal> _logger;
 
         public Steal(
+            Logger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
@@ -27,12 +29,21 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
             _viewerFeature = viewerFeature;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Steal";
+            await RegisterDefaultCommand("steal", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = "steal";
-            if (!e.Command.Equals(command)) return;
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("steal")) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
@@ -55,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
 
             await StealFromUser(e);
-            AddCoolDown(e.Name, command, DateTime.Now.AddMinutes(5));
+            AddCoolDown(e.Name, "steal", DateTime.Now.AddMinutes(5));
         }
 
         private async Task StealFromUser(CommandEventArgs e)
@@ -90,11 +101,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             await _loyaltyFeature.RemovePointsFromUser(from, amount);
             await _loyaltyFeature.AddPointsToViewer(to, amount);
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

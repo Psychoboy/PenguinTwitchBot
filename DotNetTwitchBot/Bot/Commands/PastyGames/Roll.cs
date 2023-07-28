@@ -32,9 +32,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _loyaltyFeature = loyaltyFeature;
         }
 
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Roll";
+            await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "roll":
                 case "dice":
@@ -190,11 +200,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "Whoever said, \"It's not whether you win or lose that counts,\" probably lost.",
                 "What went wrong? What didn\'t? - it was just one of those days. Not your day really"
             };
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }
