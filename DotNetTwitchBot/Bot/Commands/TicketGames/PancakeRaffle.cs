@@ -31,7 +31,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
-
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = _commandHandler.GetCommand(e.Command);

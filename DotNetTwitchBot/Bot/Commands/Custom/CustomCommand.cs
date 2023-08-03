@@ -765,10 +765,5 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var time = await _loyaltyFeature.GetViewerWatchTime(args);
             return new CustomCommandResult(time);
         }
-
-        public override void RegisterDefaultCommands()
-        {
-            return Task.CompletedTask;
-        }
     }
 }
