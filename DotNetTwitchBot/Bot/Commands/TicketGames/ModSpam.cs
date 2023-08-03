@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         private AddActive _addActive;
         Timer _intervalTimer;
+        private readonly ILogger<ModSpam> _logger;
         TimeSpan _runTime = new TimeSpan(0, 0, 0, 15);
         DateTime _startTime = new DateTime();
 
@@ -20,11 +21,38 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             AddActive addActive,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            CommandHandler commandHandler,
+            ILogger<ModSpam> logger
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _addActive = addActive;
             _intervalTimer = new Timer(timerCallBack, this, Timeout.Infinite, Timeout.Infinite);
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "ModSpam";
+            await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
+            {
+                case "modspam":
+                    if (e.IsModOrHigher())
+                    {
+                        var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                        if (isCooldownExpired == false) return;
+                        await StartModSpam();
+                    }
+                    break;
+            }
+
         }
 
         private async void timerCallBack(object? state)
@@ -47,16 +75,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
-        {
-            if (e.Command.Equals("modspam") && e.IsModOrHigher())
-            {
-                var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                if (isCooldownExpired == false) return;
-                await StartModSpam();
-            }
-        }
-
         private async Task StartModSpam()
         {
             await _serviceBackbone.SendChatMessage("Starting Mod Spam... please wait while it spams silently...");
@@ -64,11 +82,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
             AddGlobalCooldown("modspam", 1200);
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

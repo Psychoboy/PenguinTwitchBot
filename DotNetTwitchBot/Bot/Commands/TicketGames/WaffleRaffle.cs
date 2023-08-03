@@ -10,18 +10,32 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class WaffleRaffle : BaseRaffle
     {
+        private readonly ILogger<WaffleRaffle> _logger;
+
         public WaffleRaffle(
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            CommandHandler commandHandler,
+            ILogger<WaffleRaffle> logger
         ) : base(eventService, ticketsFeature, scopeFactory, commandHandler, "sptvWaffle", "!waffle", "waffle")
         {
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "WaffleRaffle";
+            await RegisterDefaultCommand("waffleraffle", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("waffle", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "waffleraffle":
                     {
@@ -40,11 +54,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     }
                     break;
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

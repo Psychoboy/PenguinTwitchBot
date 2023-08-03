@@ -13,21 +13,33 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         private List<string> Firsts = new List<string>();
         private TicketsFeature _ticketsFeature;
+        private readonly Logger<First> _logger;
         private List<string> GotTickets = new List<string>();
 
         public First(
             TicketsFeature ticketsFeature,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            CommandHandler commandHandler,
+            Logger<First> logger
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "First";
+            await RegisterDefaultCommand("first", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "first":
                     if (!GotTickets.Contains(e.Name)) return;
@@ -36,11 +48,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     GotTickets.Add(e.Name);
                     break;
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }

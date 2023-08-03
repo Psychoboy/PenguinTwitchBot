@@ -766,7 +766,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return new CustomCommandResult(time);
         }
 
-        public override Task RegisterDefaultCommands()
+        public override void RegisterDefaultCommands()
         {
             return Task.CompletedTask;
         }

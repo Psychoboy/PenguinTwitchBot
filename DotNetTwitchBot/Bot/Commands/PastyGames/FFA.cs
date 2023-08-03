@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private Timer _joinTimer;
         private LoyaltyFeature _loyaltyFeature;
         private ViewerFeature _viewFeature;
+        private readonly ILogger<FFA> _logger;
         string CommandName = "ffa";
 
         enum State
@@ -32,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public FFA(
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
+            ILogger<FFA> logger,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
@@ -40,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _joinTimer = new Timer(joinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _loyaltyFeature = loyaltyFeature;
             _viewFeature = viewerFeature;
+            _logger = logger;
         }
 
         private static void joinTimerCallback(object? state)
@@ -76,9 +79,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             AddGlobalCooldown(CommandName, Cooldown);
         }
 
-        public override void RegisterDefaultCommands()
+        public override async Task RegisterDefaultCommands()
         {
-            throw new NotImplementedException();
+            var moduleName = "FFA";
+            await RegisterDefaultCommand(CommandName, this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

@@ -16,22 +16,36 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private ViewerFeature _viewerFeature;
         private TicketsFeature _ticketsFeature;
+        private readonly ILogger<DuelGame> _logger;
 
         public DuelGame(
             ServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            CommandHandler commandHandler,
+            ILogger<DuelGame> logger
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
+            _logger = logger;
+        }
+
+        public override async Task RegisterDefaultCommands()
+        {
+            var moduleName = "Duel";
+            await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("accept", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("deny", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            switch (e.Command)
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "duel":
                     var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
@@ -281,11 +295,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            throw new NotImplementedException();
         }
     }
 }
