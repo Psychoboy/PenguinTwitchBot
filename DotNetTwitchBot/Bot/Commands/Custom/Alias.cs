@@ -70,9 +70,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public override Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task<bool> OnCommand(object? sender, CommandEventArgs e)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)

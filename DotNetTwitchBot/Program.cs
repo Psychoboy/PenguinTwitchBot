@@ -54,42 +54,44 @@ internal class Program
         //builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Music.YtPlayer>();
 
         //Add Features Here:
-        var commands = new List<Type>();
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.Roulette));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.DuelGame));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.TicketGames.ModSpam));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.First));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.DailyCounter));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Top));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.RaidTracker));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Weather));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Misc.Timers));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Custom.Alias));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Roll));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Gamble));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist));
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin));
+        var commands = new List<Type>
+        {
+            typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature),
+            typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature),
+            typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
+            typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.Roulette),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.DuelGame),
+            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.ModSpam),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.First),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.DailyCounter),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.Top),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.RaidTracker),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.Weather),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.Timers),
+            typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand),
+            typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands),
+            typeof(DotNetTwitchBot.Bot.Commands.Custom.Alias),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Roll),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Gamble),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots),
+            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax),
+            typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer),
+            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist),
+            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin)
+        };
 
         //Add Alerts
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();

@@ -32,8 +32,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public override async Task Register()
         {
             var moduleName = "Slots";
-            await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer);
-            await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer, userCooldown: 600);
+            await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer, userCooldown: 600);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -45,11 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 case "slot":
                 case "slots":
-                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                    if (isCoolDownExpired == false) return;
-
                     await CalculateResult(e);
-                    AddCoolDown(e.Name, "slot", 10);
                     break;
             }
         }

@@ -147,10 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             switch (command.CommandProperties.CommandName)
             {
                 case "raid":
-                    if (e.isBroadcaster)
-                    {
-                        await Raid(e.TargetUser);
-                    }
+                    await Raid(e.TargetUser);
                     break;
             }
         }

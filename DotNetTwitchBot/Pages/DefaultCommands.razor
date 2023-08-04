@@ -1,0 +1,55 @@
+@page "/defaultcommands"
+@inject DotNetTwitchBot.Bot.Commands.CommandHandler CommandHandler
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Default Commands</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+@if (defaultCommands == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table white-text">
+        <thead>
+            <tr>
+                <th>Configured Name</th>
+                <th>Default Name</th>
+                <th>Module</th>
+                <th>Rank</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var defaultCommand in defaultCommands)
+            {
+                <tr>
+                    <td>!@defaultCommand.CustomCommandName</td>
+                    <td>!@defaultCommand.CommandName</td>
+                    <td>@defaultCommand.ModuleName</td>
+                    <td>@defaultCommand.MinimumRank</td>
+                    <td><button class="btn btn-primary btn-xs" data-id="@defaultCommand.CommandName"
+                        @onclick="() => Edit(defaultCommand)">Edit</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<DotNetTwitchBot.Bot.Models.DefaultCommand>? defaultCommands;
+    protected override async Task OnInitializedAsync()
+    {
+        defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
+    }
+
+    private void Edit(DotNetTwitchBot.Bot.Models.DefaultCommand item)
+    {
+        navigationManager.NavigateTo($"/defaultcommands/{item.Id}");
+    }
+}

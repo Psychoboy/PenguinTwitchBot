@@ -164,10 +164,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 case "shoutout":
                 case "so":
-                    if (e.isMod == false && e.isBroadcaster == false && e.isVip == false)
-                    {
-                        return;
-                    }
                     if (e.Args.Any() == false)
                     {
                         return;

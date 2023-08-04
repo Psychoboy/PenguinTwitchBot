@@ -35,8 +35,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public override async Task Register()
         {
             var moduleName = "Roll";
-            await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer);
-            await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
+            await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -48,7 +48,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 case "roll":
                 case "dice":
-                    if (!IsCoolDownExpired(e.Name, e.Command)) return;
                     try
                     {
                         await RunGame(e);
@@ -57,7 +56,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     {
                         _logger.LogError(ex, "Error running dice game");
                     }
-                    AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(3));
                     break;
             }
         }

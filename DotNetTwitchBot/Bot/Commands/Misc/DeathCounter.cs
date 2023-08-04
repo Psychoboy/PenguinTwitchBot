@@ -44,8 +44,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("death")) return;
 
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
             var game = await _twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))
             {
@@ -53,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 return;
             }
             var modifiers = e.Args;
-            if (modifiers.Count > 0 && _serviceBackbone.IsBroadcasterOrBot(e.Name))
+            if (modifiers.Count > 0)
             {
                 switch (modifiers.First())
                 {

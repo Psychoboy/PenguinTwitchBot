@@ -45,12 +45,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await SayQuote(e.Arg);
                     break;
                 case "addquote":
-                    if (e.IsModOrHigher() == false) return;
                     await AddQuote(e);
                     break;
 
                 case "delquote":
-                    if (e.IsModOrHigher() == false) return;
                     await DeleteQuote(e);
                     break;
 

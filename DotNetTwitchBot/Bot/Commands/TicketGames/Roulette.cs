@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public override async Task Register()
         {
             var moduleName = "Roulette";
-            await RegisterDefaultCommand("roulette", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("roulette", this, moduleName, Rank.Viewer, userCooldown: 1200);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -53,8 +53,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 case "roulette":
                     {
                         if (_serviceBackbone.IsOnline == false) return;
-                        var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                        if (isCoolDownExpired == false) return;
 
                         if (e.Args.Count == 0)
                         {
@@ -112,8 +110,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         {
                             TotalGambled[e.Name] = 0;
                         }
-
-                        AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(20));
 
                         TotalGambled[e.Name] += amountToBet;
 

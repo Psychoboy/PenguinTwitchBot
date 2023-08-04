@@ -65,8 +65,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var command = _commandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
 
             if (GameState == State.Finishing)
             {
@@ -224,7 +222,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 Caught.Clear();
                 GameState = State.NotRunning;
                 CurrentStoryPart = 0;
-                AddGlobalCooldown(CommandName, Cooldown);
+                _commandHandler.AddGlobalCooldown(CommandName, Cooldown);
             }
             catch (Exception e)
             {

@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public override async Task Register()
         {
             var moduleName = "Steal";
-            await RegisterDefaultCommand("steal", this, moduleName);
+            await RegisterDefaultCommand("steal", this, moduleName, userCooldown: 300);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -44,8 +44,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var command = _commandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("steal")) return;
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
@@ -66,7 +64,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
 
             await StealFromUser(e);
-            AddCoolDown(e.Name, "steal", DateTime.Now.AddMinutes(5));
         }
 
         private async Task StealFromUser(CommandEventArgs e)

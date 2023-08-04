@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public override async Task Register()
         {
             var moduleName = "ModSpam";
-            await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator);
+            await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator, globalCoolDown: 1200);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -44,12 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             switch (command.CommandProperties.CommandName)
             {
                 case "modspam":
-                    if (e.IsModOrHigher())
-                    {
-                        var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                        if (isCooldownExpired == false) return;
-                        await StartModSpam();
-                    }
+                    await StartModSpam();
                     break;
             }
 
@@ -81,7 +76,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _runTime = new TimeSpan(0, 0, Tools.RandomRange(15, 20));
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
-            AddGlobalCooldown("modspam", 1200);
         }
     }
 }

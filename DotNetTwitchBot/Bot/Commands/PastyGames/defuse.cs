@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public override async Task Register()
         {
             var moduleName = "Defuse";
-            await RegisterDefaultCommand("defuse", this, moduleName);
+            await RegisterDefaultCommand("defuse", this, moduleName, userCooldown: 10);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -47,8 +47,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var command = _commandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("defuse")) return;
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
 
             if (string.IsNullOrEmpty(e.Arg) ||
             (!e.Arg.Equals("red", StringComparison.CurrentCultureIgnoreCase) &&
@@ -87,7 +85,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await _serviceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
                 _sendAlerts.QueueAlert("detonated.gif,10");
             }
-            AddCoolDown(e.Name, "defuse", 10);
         }
 
 

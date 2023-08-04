@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public override async Task Register()
         {
             var moduleName = "Duel";
-            await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("accept", this, moduleName, Rank.Viewer);
             await RegisterDefaultCommand("deny", this, moduleName, Rank.Viewer);
             _logger.LogInformation($"Registered commands for {moduleName}");
@@ -48,8 +48,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             switch (command.CommandProperties.CommandName)
             {
                 case "duel":
-                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                    if (isCoolDownExpired == false) return;
                     await Duel(e);
                     break;
 
@@ -243,7 +241,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-            AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(10));
             await _serviceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.");
         }
 
