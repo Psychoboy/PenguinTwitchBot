@@ -17,8 +17,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class CustomCommand : BaseCommandService
     {
-        Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>>();
-        Dictionary<string, Models.CustomCommands> Commands = new Dictionary<string, Models.CustomCommands>();
+        readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new();
+        Dictionary<string, Models.CustomCommands> Commands = new();
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         List<Models.KeywordWithRegex> Keywords = new List<KeywordWithRegex>();
         private SendAlerts _sendAlerts;
@@ -194,7 +194,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (_commandHandler.IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
+                if (CommandHandler.IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -228,11 +228,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     await processTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
                     if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
                     {
-                        _commandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
+                        CommandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
                     }
                     if (Commands[keyword.Keyword.CommandName].UserCooldown > 0)
                     {
-                        _commandHandler.AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
+                        CommandHandler.AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
                     }
                     break;
                 }
@@ -286,7 +286,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     await _semaphoreSlim.WaitAsync();
 
-                    var isCoolDownExpired = await _commandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                    var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                     if (isCoolDownExpired == false) return;
                     if (Commands[e.Command].Cost > 0)
                     {
@@ -299,11 +299,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                     if (Commands[e.Command].GlobalCooldown > 0)
                     {
-                        _commandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                        CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
                     }
                     if (Commands[e.Command].UserCooldown > 0)
                     {
-                        _commandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                        CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
                     }
                 }
                 finally
@@ -328,7 +328,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var defaultCommand = _commandHandler.GetCommand(e.Command);
+            var defaultCommand = CommandHandler.GetCommand(e.Command);
             if (defaultCommand == null) return;
             switch (defaultCommand.CommandProperties.CommandName)
             {

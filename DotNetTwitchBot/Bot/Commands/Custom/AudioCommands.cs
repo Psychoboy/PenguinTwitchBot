@@ -13,11 +13,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class AudioCommands : BaseCommandService
     {
-        Dictionary<string, AudioCommand> Commands = new Dictionary<string, AudioCommand>();
+        readonly Dictionary<string, AudioCommand> Commands = new();
         private SendAlerts SendAlerts { get; }
         private ViewerFeature ViewerFeature { get; }
         private readonly IServiceScopeFactory _scopeFactory;
-        private ILogger<AudioCommands> _logger;
+        private readonly ILogger<AudioCommands> _logger;
 
         public AudioCommands(
             SendAlerts sendAlerts,
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (Commands.ContainsKey(e.Command) == false) return;
             if (Commands[e.Command].Disabled) return;
 
-            var isCooldownExpired = await _commandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+            var isCooldownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCooldownExpired == false) return;
 
             switch (Commands[e.Command].MinimumRank)
@@ -160,7 +160,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             if (e.Command.Equals("refreshaudiocommands"))
             {
-                await RefreshAudio(e.Name);
+                await RefreshAudio();
                 return;
             }
 
@@ -188,11 +188,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             SendAlerts.QueueAlert(alertSound);
             if (Commands[e.Command].GlobalCooldown > 0)
             {
-                _commandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
             }
             if (Commands[e.Command].UserCooldown > 0)
             {
-                _commandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
             }
         }
 
@@ -216,7 +216,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
         }
 
-        private async Task RefreshAudio(string name)
+        private async Task RefreshAudio()
         {
             await LoadAudioCommands();
         }

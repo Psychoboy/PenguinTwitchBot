@@ -210,7 +210,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = _commandHandler.GetCommand(e.Command);
+            var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             switch (command.CommandProperties.CommandName)
             {

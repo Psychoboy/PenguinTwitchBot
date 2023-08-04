@@ -5,17 +5,13 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public abstract class BaseCommandService : IBaseCommandService //: IHostedService
     {
-        Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
-        Dictionary<string, DateTime> _globalCooldowns = new Dictionary<string, DateTime>();
-        private IServiceScopeFactory _scopeFactory;
-        protected CommandHandler _commandHandler { get; }
+        protected CommandHandler CommandHandler { get; }
 
         public BaseCommandService(ServiceBackbone serviceBackbone, IServiceScopeFactory scopeFactory, CommandHandler commandHandler)
         {
             _serviceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
-            _scopeFactory = scopeFactory;
-            _commandHandler = commandHandler;
+            CommandHandler = commandHandler;
         }
 
         protected ServiceBackbone _serviceBackbone { get; }
@@ -38,116 +34,16 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand)
         {
-            var registeredDefaultCommand = await _commandHandler.GetDefaultCommandFromDb(defaultCommand.CommandName);
+            var registeredDefaultCommand = await CommandHandler.GetDefaultCommandFromDb(defaultCommand.CommandName);
             if (registeredDefaultCommand != null)
             {
                 return registeredDefaultCommand;
             }
             else
             {
-                return await _commandHandler.AddDefaultCommand(defaultCommand);
+                return await CommandHandler.AddDefaultCommand(defaultCommand);
             }
         }
-
-
-
-        // public bool IsCoolDownExpired(string user, string command)
-        // {
-        //     if (
-        //         _globalCooldowns.ContainsKey(command) &&
-        //         _globalCooldowns[command] > DateTime.Now)
-        //     {
-        //         return false;
-        //     }
-        //     if (_coolDowns.ContainsKey(user.ToLower()))
-        //     {
-        //         if (_coolDowns[user.ToLower()].ContainsKey(command))
-        //         {
-        //             if (_coolDowns[user.ToLower()][command] > DateTime.Now)
-        //             {
-        //                 return false;
-        //             }
-        //         }
-        //     }
-        //     return true;
-        // }
-
-        // public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
-        // {
-        //     if (!IsCoolDownExpired(user, command))
-        //     {
-        //         await _serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown: {1}", command, CooldownLeft(user, command)));
-        //         return false;
-        //     }
-        //     return true;
-        // }
-
-        // private string CooldownLeft(string user, string command)
-        // {
-
-        //     var globalCooldown = DateTime.MinValue;
-        //     var userCooldown = DateTime.MinValue;
-        //     if (
-        //        _globalCooldowns.ContainsKey(command) &&
-        //        _globalCooldowns[command] > DateTime.Now)
-        //     {
-        //         globalCooldown = _globalCooldowns[command];
-        //     }
-        //     if (_coolDowns.ContainsKey(user.ToLower()))
-        //     {
-        //         if (_coolDowns[user.ToLower()].ContainsKey(command))
-        //         {
-        //             if (_coolDowns[user.ToLower()][command] > DateTime.Now)
-        //             {
-        //                 userCooldown = _coolDowns[user.ToLower()][command];
-        //             }
-        //         }
-        //     }
-
-        //     if (globalCooldown == DateTime.MinValue && userCooldown == DateTime.MinValue)
-        //     {
-        //         return "";
-        //     }
-
-        //     if (globalCooldown > userCooldown)
-        //     {
-        //         var timeDiff = globalCooldown - DateTime.Now;
-        //         // return FormatTimeSpan(timeDiff);
-        //         return timeDiff.ToFriendlyString();
-        //     }
-        //     else if (userCooldown > globalCooldown)
-        //     {
-        //         var timeDiff = userCooldown - DateTime.Now;
-        //         // return FormatTimeSpan(timeDiff);
-        //         return timeDiff.ToFriendlyString();
-        //     }
-        //     return "";
-        // }
-
-        // public void AddCoolDown(string user, string command, int cooldown)
-        // {
-        //     AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
-        // }
-
-        // public void AddCoolDown(string user, string command, DateTime cooldown)
-        // {
-        //     if (!_coolDowns.ContainsKey(user.ToLower()))
-        //     {
-        //         _coolDowns[user.ToLower()] = new Dictionary<string, DateTime>();
-        //     }
-
-        //     _coolDowns[user.ToLower()][command] = cooldown;
-        // }
-
-        // public void AddGlobalCooldown(string command, int cooldown)
-        // {
-        //     AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
-        // }
-
-        // public void AddGlobalCooldown(string command, DateTime cooldown)
-        // {
-        //     _globalCooldowns[command] = cooldown;
-        // }
 
         protected async Task RegisterDefaultCommand(
             string command,
@@ -172,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands
             };
 
             defaultCommand = await RegisterDefaultCommand(defaultCommand);
-            _commandHandler.AddCommand(defaultCommand, baseCommandService);
+            CommandHandler.AddCommand(defaultCommand, baseCommandService);
         }
     }
 }

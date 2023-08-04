@@ -8,9 +8,9 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public class CommandHandler
     {
-        ConcurrentDictionary<string, Command> Commands = new ConcurrentDictionary<string, Command>();
-        Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
-        Dictionary<string, DateTime> _globalCooldowns = new Dictionary<string, DateTime>();
+        readonly ConcurrentDictionary<string, Command> Commands = new();
+        readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new();
+        readonly Dictionary<string, DateTime> _globalCooldowns = new();
         private readonly ILogger<CommandHandler> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 

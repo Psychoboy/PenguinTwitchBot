@@ -44,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = _commandHandler.GetCommand(e.Command);
+            var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("defuse")) return;
 

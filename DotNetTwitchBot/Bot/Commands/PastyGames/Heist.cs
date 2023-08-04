@@ -62,7 +62,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = _commandHandler.GetCommand(e.Command);
+            var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
 
@@ -222,7 +222,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 Caught.Clear();
                 GameState = State.NotRunning;
                 CurrentStoryPart = 0;
-                _commandHandler.AddGlobalCooldown(CommandName, Cooldown);
+                CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
             }
             catch (Exception e)
             {
