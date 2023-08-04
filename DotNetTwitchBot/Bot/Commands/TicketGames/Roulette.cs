@@ -9,21 +9,26 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class Roulette : BaseCommand
+    public class Roulette : BaseCommandService
     {
         private int MustBeatValue = 52;
         private TicketsFeature _ticketsFeature;
         private ConcurrentDictionary<string, int> TotalGambled = new ConcurrentDictionary<string, int>();
         private int MaxAmount = 1000;
         private int MaxPerBet = 100;
+        private readonly ILogger<Roulette> _logger;
 
         public Roulette(
             ServiceBackbone serviceBackbone,
-            TicketsFeature ticketsFeature
-        ) : base(serviceBackbone)
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
+            ILogger<Roulette> logger
+        ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _serviceBackbone.StreamStarted += OnStreamStarted;
+            _logger = logger;
         }
 
         private Task OnStreamStarted(object? sender)
@@ -32,9 +37,18 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             return Task.CompletedTask;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Roulette";
+            await RegisterDefaultCommand("roulette", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "roulette":
                     {
@@ -125,8 +139,5 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
         private string LoseMessage = "rolled a {3} and {0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
-        // private string AllInWinMessage = "PogChamp rolled {3} {0} went all in and won {1:n0} tickets PogChamp they now have {2:n0} tickets FeelsGoodMan Rouletted {4} of {5} limit per stream";
-        // private string AllInLoseMessage = "rolled {3} and {0} went all in and lost every single one of their {1:n0} tickets LUL";
-
     }
 }

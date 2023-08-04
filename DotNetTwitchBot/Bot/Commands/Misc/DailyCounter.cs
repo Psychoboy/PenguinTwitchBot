@@ -8,18 +8,22 @@ using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DailyCounter : BaseCommand
+    public class DailyCounter : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
+        private ILogger<DailyCounter> _logger;
         private static string SettingName = "DailyCounterFormat";
         private static string CountValue = "DailyCountValue";
 
         public DailyCounter(
+            ILogger<DailyCounter> logger,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory
-            ) : base(serviceBackbone)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
+            _logger = logger;
             _serviceBackbone.SubscriptionEvent += OnSub;
             _serviceBackbone.SubscriptionGiftEvent += OnGiftSub;
 
@@ -36,11 +40,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await SetCounterValue(await GetCounterValue() + 1);
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            // var command = "setcountertext";
-            if (_serviceBackbone.IsBroadcasterOrBot(e.Name) == false) return;
-            switch (e.Command)
+            var moduleName = "DailyCounter";
+            await RegisterDefaultCommand("setdailycountertext", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("setdailyvalue", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "setdailycountertext":
                     await UpdateCounterText(e.Arg);
@@ -154,6 +166,5 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             await File.WriteAllTextAsync($"Data/DailyCounter.txt", data);
         }
-
     }
 }

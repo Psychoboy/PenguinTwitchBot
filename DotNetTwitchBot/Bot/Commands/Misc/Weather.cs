@@ -7,15 +7,19 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Weather : BaseCommand
+    public class Weather : BaseCommandService
     {
         private WeatherSettings _settings;
+        private readonly ILogger<Weather> _logger;
         private HttpClient _client = new HttpClient();
 
         public Weather(
+            ILogger<Weather> logger,
             IConfiguration configuration,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>();
             if (settings == null)
@@ -23,23 +27,26 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 throw new Exception("Invalid Configuration. Weather settings missing.");
             }
             _settings = settings;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Weather";
+            await RegisterDefaultCommand("weather", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "weather":
 
                     var response = await GetWeather(e.Arg);
-                    if (e.isDiscord)
-                    {
-
-                    }
-                    else
-                    {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, response);
-                    }
+                    await _serviceBackbone.SendChatMessage(e.DisplayName, response);
                     break;
             }
         }

@@ -13,7 +13,7 @@ using DotNetTwitchBot.Bot.Hubs;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class GiveawayFeature : BaseCommand
+    public class GiveawayFeature : BaseCommandService
     {
         private ILogger<GiveawayFeature> _logger;
         // private GiveawayData _giveawayData;
@@ -26,12 +26,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
-            ServiceBackbone eventService,
+            ServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature,
             IHubContext<GiveawayHub> hubContext,
-            IServiceScopeFactory scopeFactory
-            ) : base(eventService)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _logger = logger;
             //_giveawayData = giveawayData;
@@ -41,9 +42,23 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _hubContext = hubContext;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "GiveawayFeature";
+            await RegisterDefaultCommand("enter", this, moduleName);
+            await RegisterDefaultCommand("entries", this, moduleName);
+            await RegisterDefaultCommand("draw", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "enter":
                     {
@@ -277,5 +292,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await _serviceBackbone.SendWhisperMessage(sender, $"You have {entries} entries");
             // await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
+
+
     }
 }

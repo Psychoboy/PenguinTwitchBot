@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Defuse : BaseCommand
+    public class Defuse : BaseCommandService
     {
         public List<string> Wires = new List<string> { "red", "blue", "yellow" };
         public int Cost = 500;
@@ -24,8 +24,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ServiceBackbone serviceBackbone,
             ViewerFeature viewerFeature,
             SendAlerts sendAlerts,
-            ILogger<Defuse> logger
-            ) : base(serviceBackbone)
+            ILogger<Defuse> logger,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _logger = logger;
@@ -33,10 +35,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _viewerFeature = viewerFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            var command = "defuse";
-            if (!e.Command.Equals(command)) return;
+            var moduleName = "Defuse";
+            await RegisterDefaultCommand("defuse", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("defuse")) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
 
@@ -77,7 +87,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await _serviceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
                 _sendAlerts.QueueAlert("detonated.gif,10");
             }
-            AddCoolDown(e.Name, command, 10);
+            AddCoolDown(e.Name, "defuse", 10);
         }
+
+
     }
 }

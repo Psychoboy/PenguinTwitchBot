@@ -12,7 +12,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
-    public class YtPlayer : BaseCommand
+    public class YtPlayer : BaseCommandService
     {
         private IHubContext<YtHub> _hubContext;
         private IServiceScopeFactory _scopeFactory;
@@ -41,8 +41,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             ILogger<YtPlayer> logger,
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
-        ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+        ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
@@ -228,9 +229,32 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await UpdateRequestedSongsState();
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "MusicPlayer";
+            await RegisterDefaultCommand("lastsong", this, moduleName);
+            await RegisterDefaultCommand("song", this, moduleName);
+            await RegisterDefaultCommand("currentsong", this, moduleName);
+            await RegisterDefaultCommand("nextsong", this, moduleName);
+            await RegisterDefaultCommand("skip", this, moduleName);
+            await RegisterDefaultCommand("voteskip", this, moduleName);
+            await RegisterDefaultCommand("veto", this, moduleName, Rank.Moderator);
+            await RegisterDefaultCommand("pause", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("wrongsong", this, moduleName);
+            await RegisterDefaultCommand("wrong", this, moduleName);
+            await RegisterDefaultCommand("sr", this, moduleName);
+            await RegisterDefaultCommand("priority", this, moduleName);
+            await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("steal", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "lastsong":
                     await SayLastSong(e);

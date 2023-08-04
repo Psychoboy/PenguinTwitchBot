@@ -10,16 +10,32 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class WaffleRaffle : BaseRaffle
     {
+        private readonly ILogger<WaffleRaffle> _logger;
+
         public WaffleRaffle(
             ServiceBackbone eventService,
-            TicketsFeature ticketsFeature
-        ) : base(eventService, ticketsFeature, "sptvWaffle", "!waffle", "waffle")
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
+            ILogger<WaffleRaffle> logger
+        ) : base(eventService, ticketsFeature, scopeFactory, commandHandler, "sptvWaffle", "!waffle", "waffle")
         {
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "WaffleRaffle";
+            await RegisterDefaultCommand("waffleraffle", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("waffle", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "waffleraffle":
                     {

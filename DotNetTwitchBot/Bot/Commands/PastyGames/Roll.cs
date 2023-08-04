@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Roll : BaseCommand
+    public class Roll : BaseCommandService
     {
         private ILogger<Roll> _logger;
         private LoyaltyFeature _loyaltyFeature;
@@ -23,16 +23,28 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Roll(
             ILogger<Roll> logger,
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _logger = logger;
             _loyaltyFeature = loyaltyFeature;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Roll";
+            await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "roll":
                 case "dice":

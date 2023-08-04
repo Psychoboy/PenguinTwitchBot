@@ -3,14 +3,19 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public abstract class BaseCommand //: IHostedService
+    public abstract class BaseCommandService : IBaseCommandService //: IHostedService
     {
         Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new Dictionary<string, Dictionary<string, DateTime>>();
         Dictionary<string, DateTime> _globalCooldowns = new Dictionary<string, DateTime>();
-        public BaseCommand(ServiceBackbone serviceBackbone)
+        private IServiceScopeFactory _scopeFactory;
+        protected CommandHandler _commandHandler { get; }
+
+        public BaseCommandService(ServiceBackbone serviceBackbone, IServiceScopeFactory scopeFactory, CommandHandler commandHandler)
         {
             _serviceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
+            _scopeFactory = scopeFactory;
+            _commandHandler = commandHandler;
         }
 
         protected ServiceBackbone _serviceBackbone { get; }
@@ -28,9 +33,25 @@ namespace DotNetTwitchBot.Bot.Commands
         // public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
         // public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 
-        protected abstract Task OnCommand(object? sender, CommandEventArgs e);
+        public abstract Task OnCommand(object? sender, CommandEventArgs e);
+        public abstract Task Register();
 
-        protected bool IsCoolDownExpired(string user, string command)
+        public async Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand)
+        {
+            var registeredDefaultCommand = await _commandHandler.GetDefaultCommandFromDb(defaultCommand.CommandName);
+            if (registeredDefaultCommand != null)
+            {
+                return registeredDefaultCommand;
+            }
+            else
+            {
+                return await _commandHandler.AddDefaultCommand(defaultCommand);
+            }
+        }
+
+
+
+        public bool IsCoolDownExpired(string user, string command)
         {
             if (
                 _globalCooldowns.ContainsKey(command) &&
@@ -51,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands
             return true;
         }
 
-        protected async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
+        public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
         {
             if (!IsCoolDownExpired(user, command))
             {
@@ -61,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands
             return true;
         }
 
-        protected string CooldownLeft(string user, string command)
+        public string CooldownLeft(string user, string command)
         {
 
             var globalCooldown = DateTime.MinValue;
@@ -109,12 +130,12 @@ namespace DotNetTwitchBot.Bot.Commands
             .TrimStart(' ', 'd', 'h', 'm', 's', '0');
         }
 
-        protected void AddCoolDown(string user, string command, int cooldown)
+        public void AddCoolDown(string user, string command, int cooldown)
         {
             AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
         }
 
-        protected void AddCoolDown(string user, string command, DateTime cooldown)
+        public void AddCoolDown(string user, string command, DateTime cooldown)
         {
             if (!_coolDowns.ContainsKey(user.ToLower()))
             {
@@ -124,14 +145,28 @@ namespace DotNetTwitchBot.Bot.Commands
             _coolDowns[user.ToLower()][command] = cooldown;
         }
 
-        protected void AddGlobalCooldown(string command, int cooldown)
+        public void AddGlobalCooldown(string command, int cooldown)
         {
             AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
         }
 
-        protected void AddGlobalCooldown(string command, DateTime cooldown)
+        public void AddGlobalCooldown(string command, DateTime cooldown)
         {
             _globalCooldowns[command] = cooldown;
+        }
+
+        protected async Task RegisterDefaultCommand(string command, IBaseCommandService baseCommandService, string moduleName, Rank minimumRank = Rank.Viewer)
+        {
+            var defaultCommand = new DefaultCommand
+            {
+                CommandName = command,
+                CustomCommandName = command,
+                ModuleName = moduleName,
+                MinimumRank = minimumRank
+            };
+
+            defaultCommand = await RegisterDefaultCommand(defaultCommand);
+            _commandHandler.AddCommand(defaultCommand, baseCommandService);
         }
     }
 }

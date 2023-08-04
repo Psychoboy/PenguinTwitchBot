@@ -51,7 +51,6 @@ else
     {
         if (customCommand == null) return;
         await CustomCommand.SaveCommand(customCommand);
-        await CustomCommand.LoadCommands();
         navigationManager.NavigateTo($"/customcommands");
     }
 }

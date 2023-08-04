@@ -9,27 +9,43 @@ using DotNetTwitchBot.Bot.Models.Duel;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class DuelGame : BaseCommand
+    public class DuelGame : BaseCommandService
     {
         List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
 
         private ViewerFeature _viewerFeature;
         private TicketsFeature _ticketsFeature;
+        private readonly ILogger<DuelGame> _logger;
 
         public DuelGame(
             ServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            ViewerFeature viewerFeature
-            ) : base(serviceBackbone)
+            ViewerFeature viewerFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
+            ILogger<DuelGame> logger
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Duel";
+            await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("accept", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("deny", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "duel":
                     var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);

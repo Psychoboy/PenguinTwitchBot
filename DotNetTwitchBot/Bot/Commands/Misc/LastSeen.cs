@@ -8,22 +8,36 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class LastSeen : BaseCommand
+    public class LastSeen : BaseCommandService
     {
         private ViewerFeature _viewerFeature;
+        private ILogger<LastSeen> _logger;
 
         public LastSeen(
+            ILogger<LastSeen> logger,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _viewerFeature = viewerFeature;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            var command = "lastseen";
-            if (!e.Command.Equals(command)) return;
+            var moduleName = "LastSeen";
+            await RegisterDefaultCommand("lastseen", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("lastseen")) return;
+
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser)) return;

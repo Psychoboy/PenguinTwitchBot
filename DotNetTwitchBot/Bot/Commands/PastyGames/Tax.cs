@@ -9,7 +9,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Tax : BaseCommand
+    public class Tax : BaseCommandService
     {
         // private static bool ShouldRun = false;
         // private static bool DidRun = false;
@@ -20,7 +20,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Tax(
             ILogger<Tax> logger,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
             _taxTimer.Elapsed += Elapsed;
@@ -89,7 +91,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 _logger.LogError(ex, "Error running taxes");
             }
         }
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override Task Register()
         {
             return Task.CompletedTask;
         }

@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public abstract class BaseRaffle : BaseCommand
+    public abstract class BaseRaffle : BaseCommandService
     {
         DateTime _startTime = DateTime.Now;
         Timer _intervalTimer;
@@ -40,10 +40,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected BaseRaffle(
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
             string emote,
             string command,
             string name
-        ) : base(eventService)
+        ) : base(eventService, scopeFactory, commandHandler)
         {
             _emote = emote;
             _command = command;

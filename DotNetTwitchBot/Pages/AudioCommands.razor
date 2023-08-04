@@ -60,9 +60,8 @@ else
         return Task.CompletedTask;
     }
 
-    private async Task ReloadCommands()
+    private void ReloadCommands()
     {
-        await AudioCommand.LoadAudioCommands();
         audioCommands = AudioCommand.GetAudioCommands();
         StateHasChanged();
     }
@@ -82,7 +81,7 @@ else
                     AudioFile = audioFile
                 };
             await AudioCommand.AddAudioCommand(command);
-            await ReloadCommands();
+            ReloadCommands();
         }
     }
 

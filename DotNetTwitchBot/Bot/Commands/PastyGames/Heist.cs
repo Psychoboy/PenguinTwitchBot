@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Heist : BaseCommand
+    public class Heist : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
         private ViewerFeature _viewerFeature;
@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private ILogger<Heist> _logger;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
-        private string Command = "heist";
+        private string CommandName = "heist";
 
         enum State
         {
@@ -42,8 +42,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             LoyaltyFeature loyaltyFeature,
             ViewerFeature viewerFeature,
             ServiceBackbone serviceBackbone,
-            ILogger<Heist> logger
-            ) : base(serviceBackbone)
+            ILogger<Heist> logger,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _viewerFeature = viewerFeature;
@@ -51,9 +53,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            if (!e.Command.Equals(Command)) return;
+            var moduleName = "Heist";
+            await RegisterDefaultCommand("heist", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
 
@@ -213,7 +224,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 Caught.Clear();
                 GameState = State.NotRunning;
                 CurrentStoryPart = 0;
-                AddGlobalCooldown(Command, Cooldown);
+                AddGlobalCooldown(CommandName, Cooldown);
             }
             catch (Exception e)
             {

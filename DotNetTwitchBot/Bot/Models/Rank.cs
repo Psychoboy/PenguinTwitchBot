@@ -5,8 +5,8 @@ namespace DotNetTwitchBot.Bot.Models
         Viewer,
         Regular,
         Follower,
-        Vip,
         Subscriber,
+        Vip,
         Moderator,
         Streamer
     }

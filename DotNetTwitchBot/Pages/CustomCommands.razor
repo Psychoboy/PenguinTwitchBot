@@ -60,9 +60,8 @@ else
         return Task.CompletedTask;
     }
 
-    private async Task ReloadCommands()
+    private void ReloadCommands()
     {
-        await CustomCommand.LoadCommands();
         commands = CustomCommand.GetCustomCommands();
         StateHasChanged();
     }
@@ -82,7 +81,7 @@ else
                     Response = commandResponse
                 };
             await CustomCommand.AddCommand(command);
-            await ReloadCommands();
+            ReloadCommands();
         }
     }
 

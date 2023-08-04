@@ -1,10 +1,12 @@
-﻿using System.Runtime.ExceptionServices;
+﻿using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using System.Reflection.Emit;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.Client.Models;
 using DotNetTwitchBot.Bot.Commands.Moderation;
+using DotNetTwitchBot.Bot.Commands;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -13,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Core
         private ILogger<ServiceBackbone> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IKnownBots _knownBots;
+        private readonly CommandHandler _commandHandler;
         static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
@@ -21,13 +24,15 @@ namespace DotNetTwitchBot.Bot.Core
             ILogger<ServiceBackbone> logger,
             IKnownBots knownBots,
             IConfiguration configuration,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler)
         {
             _logger = logger;
             RawBroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
             _scopeFactory = scopeFactory;
             _knownBots = knownBots;
+            _commandHandler = commandHandler;
         }
 
         public delegate Task AsyncEventHandler(object? sender);
@@ -65,23 +70,40 @@ namespace DotNetTwitchBot.Bot.Core
             return _knownBots.IsKnownBotOrCurrentStreamer(name);
         }
 
-        public async Task RunCommand(CommandEventArgs args)
+        public async Task RunCommand(CommandEventArgs eventArgs)
         {
-            if (CommandEvent != null)
+            try
             {
-                try
+                await _semaphoreSlim.WaitAsync();
+                var commandService = _commandHandler.GetCommand(eventArgs.Command);
+                if (commandService != null)
                 {
-                    await _semaphoreSlim.WaitAsync();
-                    await CommandEvent(this, args);
+                    if (CheckPermission(commandService.CommandProperties, eventArgs))
+                    {
+                        await commandService.CommandService.OnCommand(this, eventArgs);
+                    }
+                    return;
                 }
-                catch (Exception e)
+
+                //Run the Generic services
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    _logger.LogCritical("Command Failure {0}", e);
+                    var customCommand = scope.ServiceProvider.GetRequiredService<Commands.Custom.CustomCommand>();
+                    await customCommand.RunCommand(eventArgs);
+                    var audioCommands = scope.ServiceProvider.GetRequiredService<Commands.Custom.AudioCommands>();
+                    await audioCommands.RunCommand(eventArgs);
+                    var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
+                    await alias.RunCommand(eventArgs);
                 }
-                finally
-                {
-                    _semaphoreSlim.Release();
-                }
+
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning("Command Failure {0}", e);
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
             }
         }
 
@@ -105,19 +127,29 @@ namespace DotNetTwitchBot.Bot.Core
                         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
                         : ""
                 };
-                try
-                {
-                    await _semaphoreSlim.WaitAsync();
-                    await CommandEvent(this, eventArgs);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogCritical("Command Failure {0}", e);
-                }
-                finally
-                {
-                    _semaphoreSlim.Release();
-                }
+                await RunCommand(eventArgs);
+            }
+        }
+
+        private bool CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
+        {
+            switch (commandProperties.MinimumRank)
+            {
+                case Rank.Viewer:
+                case Rank.Regular:
+                    return true;
+                case Rank.Follower:
+                    return true; //Need to add this check
+                case Rank.Subscriber:
+                    return eventArgs.IsSubOrHigher();
+                case Rank.Vip:
+                    return eventArgs.IsVipOrHigher();
+                case Rank.Moderator:
+                    return eventArgs.IsModOrHigher();
+                case Rank.Streamer:
+                    return IsBroadcasterOrBot(eventArgs.Name);
+                default:
+                    return false;
             }
         }
 

@@ -9,20 +9,50 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class ModSpam : BaseCommand
+    public class ModSpam : BaseCommandService
     {
         private AddActive _addActive;
         Timer _intervalTimer;
+        private readonly ILogger<ModSpam> _logger;
         TimeSpan _runTime = new TimeSpan(0, 0, 0, 15);
         DateTime _startTime = new DateTime();
 
         public ModSpam(
             AddActive addActive,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
+            ILogger<ModSpam> logger
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _addActive = addActive;
             _intervalTimer = new Timer(timerCallBack, this, Timeout.Infinite, Timeout.Infinite);
+            _logger = logger;
+        }
+
+        public override async Task Register()
+        {
+            var moduleName = "ModSpam";
+            await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
+            {
+                case "modspam":
+                    if (e.IsModOrHigher())
+                    {
+                        var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                        if (isCooldownExpired == false) return;
+                        await StartModSpam();
+                    }
+                    break;
+            }
+
         }
 
         private async void timerCallBack(object? state)
@@ -42,16 +72,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 await _serviceBackbone.SendChatMessage("Mod spam completed... tickets arriving soon.");
 
 
-            }
-        }
-
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
-        {
-            if (e.Command.Equals("modspam") && e.IsModOrHigher())
-            {
-                var isCooldownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                if (isCooldownExpired == false) return;
-                await StartModSpam();
             }
         }
 

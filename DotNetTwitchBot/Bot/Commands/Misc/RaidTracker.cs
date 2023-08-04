@@ -12,7 +12,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class RaidTracker : BaseCommand
+    public class RaidTracker : BaseCommandService
     {
         private ILogger<RaidTracker> _logger;
         private TwitchService _twitchService;
@@ -25,8 +25,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             TwitchService twitchService,
             ServiceBackbone serviceBackbone,
-            ViewerFeature viewerFeature
-            ) : base(serviceBackbone)
+            ViewerFeature viewerFeature,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _serviceBackbone.IncomingRaidEvent += OnIncomingRaid;
@@ -131,9 +132,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "RaidTracker";
+            await RegisterDefaultCommand("raid", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "raid":
                     if (e.isBroadcaster)

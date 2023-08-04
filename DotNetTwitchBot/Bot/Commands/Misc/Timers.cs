@@ -11,7 +11,7 @@ using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Timers : BaseCommand
+    public class Timers : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
         private ILogger<Timers> _logger;
@@ -22,8 +22,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public Timers(
             ILogger<Timers> logger,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -204,7 +205,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override Task Register()
         {
             return Task.CompletedTask;
         }

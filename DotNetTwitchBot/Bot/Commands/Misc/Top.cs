@@ -8,21 +8,40 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Top : BaseCommand
+    public class Top : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<Top> _logger;
 
         public Top(
+            ILogger<Top> logger,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Top";
+            //Add so alias
+            await RegisterDefaultCommand("top10", this, moduleName);
+            await RegisterDefaultCommand("top5", this, moduleName);
+            await RegisterDefaultCommand("toptime", this, moduleName);
+            await RegisterDefaultCommand("toptickets", this, moduleName);
+            //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
+            await RegisterDefaultCommand("loudest", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "top10":
                     await SayPointsTopN(10);
@@ -34,7 +53,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await SayTimeTopN(5);
                     break;
                 case "toptickets":
-                case "topticket":
                     await SayTicketsTopN(10);
                     break;
                 case "loudest":

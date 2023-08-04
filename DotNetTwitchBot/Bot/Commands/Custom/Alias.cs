@@ -7,11 +7,11 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class Alias : BaseCommand
+    public class Alias : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
 
-        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone) : base(serviceBackbone)
+        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone, CommandHandler commandHandler) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _scopeFactory = scopeFactory;
         }
@@ -61,13 +61,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public async Task RunCommand(CommandEventArgs e)
         {
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
                 await _serviceBackbone.RunCommand(e);
             }
+        }
+
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)
@@ -84,6 +89,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 return false;
             }
+        }
+
+        public override Task Register()
+        {
+            return Task.CompletedTask;
         }
     }
 }

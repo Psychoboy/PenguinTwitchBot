@@ -35,7 +35,8 @@ internal class Program
         builder.Services.AddSingleton<ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
-        builder.Services.AddSingleton<DiscordService>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.CommandHandler>();
+        // TODO: builder.Services.AddSingleton<DiscordService>();
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
@@ -91,7 +92,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin));
 
         //Add Alerts
-        commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();
 
         foreach (var cmd in commands)
         {
@@ -145,20 +146,14 @@ internal class Program
         }
         //Loads all the command stuff into memory
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
-        app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
+        // TODO: app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
 
-        var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        await viewerFeature.UpdateSubscribers();
-        var customCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.CustomCommand>();
-        await customCommands.LoadCommands();
-        var audioCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.AudioCommands>();
-        await audioCommands.LoadAudioCommands();
-        var blacklist = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.Blacklist>();
-        await blacklist.LoadBlacklist();
         await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
+
         foreach (var cmd in commands)
         {
-            app.Services.GetRequiredService(cmd);
+            var commandService = (DotNetTwitchBot.Bot.Commands.IBaseCommandService)app.Services.GetRequiredService(cmd);
+            await commandService.Register();
         }
 
 

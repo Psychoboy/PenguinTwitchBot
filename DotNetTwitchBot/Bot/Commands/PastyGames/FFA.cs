@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class FFA : BaseCommand
+    public class FFA : BaseCommandService
     {
         public int Cooldown = 300;
         public int JoinTime = 180;
@@ -18,7 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private Timer _joinTimer;
         private LoyaltyFeature _loyaltyFeature;
         private ViewerFeature _viewFeature;
-        string Command = "ffa";
+        private readonly ILogger<FFA> _logger;
+        string CommandName = "ffa";
 
         enum State
         {
@@ -32,12 +33,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public FFA(
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
-            ViewerFeature viewerFeature
-            ) : base(serviceBackbone)
+            ILogger<FFA> logger,
+            ViewerFeature viewerFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _joinTimer = new Timer(joinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _loyaltyFeature = loyaltyFeature;
             _viewFeature = viewerFeature;
+            _logger = logger;
         }
 
         private static void joinTimerCallback(object? state)
@@ -71,13 +76,22 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             Entered.Clear();
             GameState = State.NotRunning;
             _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            AddGlobalCooldown(Command, Cooldown);
+            AddGlobalCooldown(CommandName, Cooldown);
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
+        {
+            var moduleName = "FFA";
+            await RegisterDefaultCommand(CommandName, this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
 
-            if (!e.Command.Equals(Command)) return;
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals(CommandName)) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
 
@@ -111,5 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
             Entered.Add(e.Name);
         }
+
+
     }
 }

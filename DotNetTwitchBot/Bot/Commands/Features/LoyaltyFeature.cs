@@ -14,7 +14,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class LoyaltyFeature : BaseCommand
+    public class LoyaltyFeature : BaseCommandService
     {
         private ViewerFeature _viewerFeature;
         private readonly TicketsFeature _ticketsFeature;
@@ -27,8 +27,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone eventService,
-            TicketsFeature ticketsFeature
-            ) : base(eventService)
+            TicketsFeature ticketsFeature,
+            CommandHandler commandHandler
+            ) : base(eventService, scopeFactory, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
@@ -196,11 +197,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-
-
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "LoyaltyFeature";
+            await RegisterDefaultCommand("pasties", this, moduleName);
+            await RegisterDefaultCommand("gift", this, moduleName);
+            await RegisterDefaultCommand("give", this, moduleName);
+            await RegisterDefaultCommand("check", this, moduleName);
+            await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "pasties":
                     await SayLoyalty(e);
@@ -444,5 +456,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 return viewerPointRank == null ? Int32.MaxValue : viewerPointRank.Ranking;
             }
         }
+
+
     }
 }

@@ -9,22 +9,37 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class First : BaseCommand
+    public class First : BaseCommandService
     {
         private List<string> Firsts = new List<string>();
         private TicketsFeature _ticketsFeature;
+        private readonly ILogger<First> _logger;
         private List<string> GotTickets = new List<string>();
 
         public First(
             TicketsFeature ticketsFeature,
-            ServiceBackbone serviceBackbone) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler,
+            ILogger<First> logger
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "First";
+            await RegisterDefaultCommand("first", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "first":
                     if (!GotTickets.Contains(e.Name)) return;

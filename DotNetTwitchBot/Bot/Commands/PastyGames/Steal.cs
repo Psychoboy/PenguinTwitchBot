@@ -8,30 +8,42 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Steal : BaseCommand
+    public class Steal : BaseCommandService
     {
         private int StealMin = 100;
         private int StealMax = 10000;
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
         private ViewerFeature _viewerFeature;
+        private readonly ILogger<Steal> _logger;
 
         public Steal(
+            ILogger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
             _viewerFeature = viewerFeature;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            var command = "steal";
-            if (!e.Command.Equals(command)) return;
+            var moduleName = "Steal";
+            await RegisterDefaultCommand("steal", this, moduleName);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("steal")) return;
             var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
@@ -54,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
 
             await StealFromUser(e);
-            AddCoolDown(e.Name, command, DateTime.Now.AddMinutes(5));
+            AddCoolDown(e.Name, "steal", DateTime.Now.AddMinutes(5));
         }
 
         private async Task StealFromUser(CommandEventArgs e)

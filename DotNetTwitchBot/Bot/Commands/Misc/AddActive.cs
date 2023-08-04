@@ -10,27 +10,41 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class AddActive : BaseCommand
+    public class AddActive : BaseCommandService
     {
         private TicketsFeature _ticketsFeature;
         Timer _ticketsToActiveCommandTimer;
         private long _ticketsToGiveOut = 0;
         private DateTime _lastTicketsAdded = DateTime.Now;
+        private readonly ILogger<AddActive> _logger;
 
         public AddActive(
+            ILogger<AddActive> logger,
             ServiceBackbone eventService,
-            TicketsFeature ticketsFeature
-        ) : base(eventService)
+            TicketsFeature ticketsFeature,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+        ) : base(eventService, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
+            _logger = logger;
             _ticketsToActiveCommandTimer = new Timer(1000);
             _ticketsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
             _ticketsToActiveCommandTimer.Start();
         }
 
-        protected override Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "AddActive";
+            await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return Task.CompletedTask;
+            switch (command.CommandProperties.CommandName)
             {
                 case "addactive":
                     {

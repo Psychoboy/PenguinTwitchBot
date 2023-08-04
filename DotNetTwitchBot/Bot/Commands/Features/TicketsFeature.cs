@@ -10,7 +10,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class TicketsFeature : BaseCommand
+    public class TicketsFeature : BaseCommandService
     {
         private readonly ILogger<TicketsFeature> _logger;
 
@@ -29,8 +29,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             // TicketsData ticketsData, 
             // ApplicationDbContext applicationDbContext,
             IServiceScopeFactory scopeFactory,
-            ViewerFeature viewerFeature)
-            : base(serviceBackbone)
+            ViewerFeature viewerFeature,
+            CommandHandler commandHandler)
+            : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _logger = logger;
 
@@ -196,11 +197,23 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     ));
             }
         }
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "TicketsFeature";
+            // await RegisterDefaultCommand("t", this, moduleName); add alias
+            await RegisterDefaultCommand("tickets", this, moduleName);
+            await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
-                case "t":
                 case "tickets":
                     {
                         await SayViewerTickets(e);

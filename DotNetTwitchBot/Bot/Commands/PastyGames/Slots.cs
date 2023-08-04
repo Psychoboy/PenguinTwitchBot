@@ -8,25 +8,40 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Slots : BaseCommand
+    public class Slots : BaseCommandService
     {
         private LoyaltyFeature _loyaltyFeature;
+        private ILogger<Slots> _logger;
         private List<string> Emotes = LoadEmotes();
         private List<Int64> Prizes = LoadPrizes();
         private List<string> WinMessages = LoadWinMessages();
         private List<string> LoseMessages = LoadLoseMessages();
 
         public Slots(
+            ILogger<Slots> logger,
             LoyaltyFeature loyaltyService,
-            ServiceBackbone serviceBackbone
-            ) : base(serviceBackbone)
+            ServiceBackbone serviceBackbone,
+            IServiceScopeFactory scopeFactory,
+            CommandHandler commandHandler
+            ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _loyaltyFeature = loyaltyService;
+            _logger = logger;
         }
 
-        protected override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task Register()
         {
-            switch (e.Command)
+            var moduleName = "Slots";
+            await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = _commandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
             {
                 case "slot":
                 case "slots":
