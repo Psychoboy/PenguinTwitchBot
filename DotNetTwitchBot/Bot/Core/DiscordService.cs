@@ -15,14 +15,13 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class DiscordService
     {
-        private DiscordSocketClient _client;
-        private ILogger<DiscordService> _logger;
-        private ServiceBackbone _serviceBackbone;
-        private CustomCommand _customCommands;
-        private TwitchService _twitchService;
-        private IServiceScopeFactory _scopeFactory;
-        private ConcurrentDictionary<ulong, byte> _streamingIds = new ConcurrentDictionary<ulong, byte>();
-        private DiscordSettings _settings;
+        private readonly DiscordSocketClient _client;
+        private readonly ILogger<DiscordService> _logger;
+        private readonly ServiceBackbone _serviceBackbone;
+        private readonly CustomCommand _customCommands;
+        private readonly TwitchService _twitchService;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly DiscordSettings _settings;
 
         public DiscordService(
             CustomCommand customCommands,
@@ -51,11 +50,7 @@ namespace DotNetTwitchBot.Bot.Core
             _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
 
-            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
-            if (settings == null)
-            {
-                throw new Exception("Invalid Configuration. Discord settings missing.");
-            }
+            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
             Initialize(settings.DiscordToken);
         }

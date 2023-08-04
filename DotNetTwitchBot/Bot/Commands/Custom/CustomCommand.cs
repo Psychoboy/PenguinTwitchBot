@@ -18,16 +18,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     public class CustomCommand : BaseCommandService
     {
         readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new();
-        Dictionary<string, Models.CustomCommands> Commands = new();
-        static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
-        List<Models.KeywordWithRegex> Keywords = new List<KeywordWithRegex>();
-        private SendAlerts _sendAlerts;
-        private ViewerFeature _viewerFeature;
+        readonly Dictionary<string, Models.CustomCommands> Commands = new();
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        List<Models.KeywordWithRegex> Keywords = new();
+        private readonly SendAlerts _sendAlerts;
+        private readonly ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
-        private ILogger<CustomCommand> _logger;
-        private TwitchService _twitchService;
-        private LoyaltyFeature _loyaltyFeature;
-        private GiveawayFeature _giveawayFeature;
+        private readonly ILogger<CustomCommand> _logger;
+        private readonly TwitchService _twitchService;
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly GiveawayFeature _giveawayFeature;
 
         public CustomCommand(
             SendAlerts sendAlerts,
@@ -225,7 +225,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         isVip = e.isVip,
                         isBroadcaster = e.isBroadcaster,
                     };
-                    await processTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
+                    await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
                     if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
                     {
                         CommandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
@@ -311,7 +311,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     _semaphoreSlim.Release();
                 }
 
-                await processTagsAndSayMessage(e, Commands[e.Command].Response);
+                await ProcessTagsAndSayMessage(e, Commands[e.Command].Response);
             }
         }
 
@@ -427,12 +427,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var cancel = false;
             while (true)
             {
-                bool thisTagFound = false;
                 var matches = mainRegex.Matches(message);
                 if (matches.Count == 0) break;
-                foreach (Match match in matches)
+                foreach (Match match in matches.Cast<Match>())
                 {
-                    thisTagFound = false;
+                    bool thisTagFound = false;
                     var groups = match.Groups;
                     var wholeMatch = groups[1];
                     var tagName = groups[2];
@@ -452,7 +451,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     if (!thisTagFound)
                     {
-                        message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value.Substring(1, wholeMatch.Value.Length - 2) + "\\)");
+                        message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value[1..^1] + "\\)");
                     }
 
                 }
@@ -461,9 +460,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return new CustomCommandResult(message);
         }
 
-        private async Task processTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
+        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
         {
-            var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            _ = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
             {
@@ -487,7 +486,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var regex = new Regex(@"\\([\\()])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             //var result = regex.Replace(args,)
             var matches = regex.Matches(args);
-            foreach (Match match in matches)
+            foreach (Match match in matches.Cast<Match>())
             {
                 args = args.Replace(match.Value, match.Groups[1].Value);
             }
@@ -605,7 +604,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 Method = HttpMethod.Get
             };
             request.Headers.Add("Accept", "text/plain");
-            var result = await httpClient.SendAsync(request);
+            _ = await httpClient.SendAsync(request);
             return new CustomCommandResult();
         }
 
