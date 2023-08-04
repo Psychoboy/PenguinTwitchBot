@@ -420,44 +420,51 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<CustomCommandResult> ProcessTags(CommandEventArgs eventArgs, string originalText)
         {
-
-            var message = originalText;
-            var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
-            var cancel = false;
-            while (true)
+            try
             {
-                var matches = mainRegex.Matches(message);
-                if (matches.Count == 0) break;
-                foreach (Match match in matches.Cast<Match>())
+                var message = originalText;
+                var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
+                var cancel = false;
+                while (true)
                 {
-                    bool thisTagFound = false;
-                    var groups = match.Groups;
-                    var wholeMatch = groups[1];
-                    var tagName = groups[2];
-                    var tagArgs = groups[3];
-
-                    if (CommandTags.ContainsKey(tagName.Value.Trim()))
+                    var matches = mainRegex.Matches(message);
+                    if (matches.Count == 0) break;
+                    foreach (Match match in matches.Cast<Match>())
                     {
-                        thisTagFound = true;
-                        CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
-                        if (result.Cancel)
+                        bool thisTagFound = false;
+                        var groups = match.Groups;
+                        var wholeMatch = groups[1];
+                        var tagName = groups[2];
+                        var tagArgs = groups[3];
+
+                        if (CommandTags.ContainsKey(tagName.Value.Trim()))
                         {
-                            cancel = true;
-                            break;
+                            thisTagFound = true;
+                            CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
+                            if (result.Cancel)
+                            {
+                                cancel = true;
+                                break;
+                            }
+
+                            message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
+                        }
+                        if (!thisTagFound)
+                        {
+                            message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value[1..^1] + "\\)");
                         }
 
-                        message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
                     }
-                    if (!thisTagFound)
-                    {
-                        message = message.Replace(wholeMatch.Value, "\\(" + wholeMatch.Value[1..^1] + "\\)");
-                    }
-
+                    if (cancel) return new CustomCommandResult(cancel);
                 }
-                if (cancel) return new CustomCommandResult(cancel);
+                return new CustomCommandResult(message);
             }
-            return new CustomCommandResult(message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running custom command.");
+                return new CustomCommandResult(true);
+            }
         }
 
         private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)

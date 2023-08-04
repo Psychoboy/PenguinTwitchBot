@@ -181,12 +181,19 @@ namespace DotNetTwitchBot.Bot.Core
                 return;
             }
 
-            if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
-            var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
-            var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
-            if (message != null && message.Cancel == false && message.Message.Length > 0)
+            try
             {
-                await arg.RespondAsync(message.Message);
+                if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
+                var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
+                var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
+                if (message != null && message.Cancel == false && message.Message.Length > 0)
+                {
+                    await arg.RespondAsync(message.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running custom command via discord");
             }
         }
 
