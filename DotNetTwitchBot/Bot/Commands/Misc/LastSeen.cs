@@ -38,8 +38,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("lastseen")) return;
 
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
 
             var viewer = await _viewerFeature.GetViewer(e.TargetUser);

@@ -13,12 +13,11 @@ namespace DotNetTwitchBot.Bot.Commands
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
         Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand);
-        bool IsCoolDownExpired(string user, string command);
-        Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command);
-        string CooldownLeft(string user, string command);
-        void AddCoolDown(string user, string command, int cooldown);
-        void AddCoolDown(string user, string command, DateTime cooldown);
-        void AddGlobalCooldown(string command, int cooldown);
-        void AddGlobalCooldown(string command, DateTime cooldown);
+        // bool IsCoolDownExpired(string user, string command);
+        // Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command);
+        // void AddCoolDown(string user, string command, int cooldown);
+        // void AddCoolDown(string user, string command, DateTime cooldown);
+        // void AddGlobalCooldown(string command, int cooldown);
+        // void AddGlobalCooldown(string command, DateTime cooldown);
     }
 }

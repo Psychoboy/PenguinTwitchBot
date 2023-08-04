@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public override async Task Register()
         {
             var moduleName = "Gamble";
-            await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer);
+            await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer, userCooldown: 180);
             await RegisterDefaultCommand("jackpot", this, moduleName, Rank.Viewer);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
@@ -62,9 +62,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task HandleGamble(CommandEventArgs e)
         {
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
-
             if (e.Args.Count == 0)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName,
@@ -121,7 +118,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await updateJackpot(Convert.ToInt64(amount * 0.10), false);
                 await _serviceBackbone.SendChatMessage(string.Format("{0} rolled {1} and lost {2} pasties", e.DisplayName, value, amount.ToString("N0")));
             }
-            AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(3));
         }
 
         private async Task LaunchFireworks()

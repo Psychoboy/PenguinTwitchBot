@@ -221,7 +221,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                 case "givetickets":
                     {
-                        if (e.isBroadcaster && Int64.TryParse(e.Args[1], out long amount))
+                        if (Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
                             await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
@@ -230,7 +230,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                 case "resettickets":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         await ResetAllPoints();
                     }
                     break;

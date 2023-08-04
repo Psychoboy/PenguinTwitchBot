@@ -273,16 +273,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await VoteSkipSong(e);
                     break;
                 case "veto":
-                    if (e.IsModOrHigher())
-                    {
-                        await PlayNextSong();
-                    }
+                    await PlayNextSong();
                     break;
                 case "pause":
-                    if (e.isBroadcaster)
-                    {
-                        await Pause();
-                    }
+                    await Pause();
                     break;
                 case "wrongsong":
                 case "wrong":
@@ -296,17 +290,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await MovePriority(e);
                     break;
                 case "importpl":
-                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     if (e.Args.Count < 2) return;
                     await ImportPlaylist(e);
                     break;
                 case "loadpl":
-                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     await LoadPlaylist(e);
                     break;
 
                 case "steal":
-                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     await StealCurrentSong();
                     break;
             }
@@ -582,8 +573,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task MovePriority(CommandEventArgs e)
         {
-            var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCoolDownExpired == false) return;
             List<Song> backwardsRequest = new List<Song>();
             lock (RequestsLock)
             {
@@ -597,7 +586,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     await MoveSongToNext(song.SongId);
                     foundSong = song;
-                    AddCoolDown(e.Name, e.Command, DateTime.Now.AddMinutes(30));
                     break;
                 }
             }

@@ -78,11 +78,37 @@ namespace DotNetTwitchBot.Bot.Core
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null)
                 {
-                    if (CheckPermission(commandService.CommandProperties, eventArgs))
+                    if (await CheckPermission(commandService.CommandProperties, eventArgs))
                     {
+                        if (commandService.CommandProperties.SayCooldown)
+                        {
+                            if (await _commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
+                        }
+                        else
+                        {
+                            if (_commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
+                        }
+                        //This will throw a SkipCooldownException if the command fails to by pass setting cooldown
                         await commandService.CommandService.OnCommand(this, eventArgs);
                     }
-                    return;
+                    else
+                    {
+                        if (commandService.CommandProperties.SayRankRequirement)
+                        {
+                            //Say message here
+                        }
+                        return;
+                    }
+
+                    if (commandService.CommandProperties.GlobalCooldown > 0)
+                    {
+                        _commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
+                    }
+
+                    if (commandService.CommandProperties.UserCooldown > 0)
+                    {
+                        _commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
+                    }
                 }
 
                 //Run the Generic services
@@ -96,6 +122,10 @@ namespace DotNetTwitchBot.Bot.Core
                     await alias.RunCommand(eventArgs);
                 }
 
+            }
+            catch (SkipCooldownException)
+            {
+                //Do nothing
             }
             catch (Exception e)
             {
@@ -131,7 +161,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private bool CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
+        private async Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
         {
             switch (commandProperties.MinimumRank)
             {
@@ -139,7 +169,11 @@ namespace DotNetTwitchBot.Bot.Core
                 case Rank.Regular:
                     return true;
                 case Rank.Follower:
-                    return true; //Need to add this check
+                    using (var scope = _scopeFactory.CreateAsyncScope())
+                    {
+                        var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
+                        return await viewerService.IsFollower(eventArgs.Name);
+                    }
                 case Rank.Subscriber:
                     return eventArgs.IsSubOrHigher();
                 case Rank.Vip:
@@ -180,30 +214,6 @@ namespace DotNetTwitchBot.Bot.Core
                         _logger.LogCritical("Whisper Failure {0}", e);
                     }
                 }
-                // if (!IsBroadcasterOrBot(command.WhisperMessage.Username)) { return; }
-                // var eventArgs = new CommandEventArgs()
-                // {
-                //     Arg = command.ArgumentsAsString,
-                //     Args = command.ArgumentsAsList,
-                //     Command = command.CommandText.ToLower(),
-                //     IsWhisper = true,
-                //     Name = command.WhisperMessage.Username,
-                //     DisplayName = command.WhisperMessage.DisplayName,
-                //     isSub = true,
-                //     isMod = true,
-                //     isBroadcaster = true,
-                //     TargetUser = command.ArgumentsAsList.Count > 0
-                //         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
-                //         : ""
-                // };
-                // try
-                // {
-                //     await CommandEvent(this, command);
-                // }
-                // catch (Exception e)
-                // {
-                //     _logger.LogCritical("Whisper Failure {0}", e);
-                // }
             }
         }
 

@@ -51,7 +51,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     break;
                 case "resetfirst":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         ResetFirst();
                     }
                     break;

@@ -40,7 +40,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 case "waffleraffle":
                     {
                         if (e.Args.Count == 0) return;
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         if (Int32.TryParse(e.Args[0], out int amount))
                         {
                             await StartRaffle(e.Name, amount);

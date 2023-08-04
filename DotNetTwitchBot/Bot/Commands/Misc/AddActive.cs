@@ -48,7 +48,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 case "addactive":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return Task.CompletedTask;
                         if (Int64.TryParse(e.Args[0], out long amount))
                         {
                             AddActiveTickets(amount);

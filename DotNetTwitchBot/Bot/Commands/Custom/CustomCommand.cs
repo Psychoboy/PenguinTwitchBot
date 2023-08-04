@@ -194,7 +194,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
+                if (_commandHandler.IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -228,11 +228,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     await processTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
                     if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
                     {
-                        AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
+                        _commandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
                     }
                     if (Commands[keyword.Keyword.CommandName].UserCooldown > 0)
                     {
-                        AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
+                        _commandHandler.AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
                     }
                     break;
                 }
@@ -249,49 +249,44 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     return;
                 }
 
-                // if (!IsCoolDownExpired(e.Name, e.Command))
-                // {
-                //     await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("That command is still on cooldown: {0}", CooldownLeft(e.Name, e.Command)));
-                //     return;
-                // }
-
-                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name))
+                switch (Commands[e.Command].MinimumRank)
                 {
-                    switch (Commands[e.Command].MinimumRank)
-                    {
-                        case Rank.Viewer:
-                            break; //everyone gets this
-                        case Rank.Follower:
-                            if (!(await _viewerFeature.IsFollower(e.Name)))
-                            {
-                                await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
-                                return;
-                            }
-                            break;
-                        case Rank.Subscriber:
-                            if (!(await _viewerFeature.IsSubscriber(e.Name)))
-                            {
-                                await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
-                                return;
-                            }
-                            break;
-                        case Rank.Moderator:
-                            if (!(await _viewerFeature.IsModerator(e.Name)))
-                            {
-                                await SendChatMessage(e.DisplayName, "only moderators can do that...");
-                                return;
-                            }
-                            break;
-                        case Rank.Streamer:
+                    case Rank.Viewer:
+                        break; //everyone gets this
+                    case Rank.Follower:
+                        if (await _viewerFeature.IsFollower(e.Name) == false)
+                        {
+                            await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
+                            return;
+                        }
+                        break;
+                    case Rank.Subscriber:
+                        if (await _viewerFeature.IsSubscriber(e.Name) == false)
+                        {
+                            await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
+                            return;
+                        }
+                        break;
+                    case Rank.Moderator:
+                        if (await _viewerFeature.IsModerator(e.Name) == false)
+                        {
+                            await SendChatMessage(e.DisplayName, "only moderators can do that...");
+                            return;
+                        }
+                        break;
+                    case Rank.Streamer:
+                        if (_serviceBackbone.IsBroadcasterOrBot(e.Name) == false)
+                        {
                             await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
                             return;
-                    }
+                        }
+                        break;
                 }
                 try
                 {
                     await _semaphoreSlim.WaitAsync();
 
-                    var isCoolDownExpired = await IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                    var isCoolDownExpired = await _commandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                     if (isCoolDownExpired == false) return;
                     if (Commands[e.Command].Cost > 0)
                     {
@@ -304,11 +299,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                     if (Commands[e.Command].GlobalCooldown > 0)
                     {
-                        AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                        _commandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
                     }
                     if (Commands[e.Command].UserCooldown > 0)
                     {
-                        AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                        _commandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
                     }
                 }
                 finally
@@ -339,7 +334,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 case "addcommand":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         try
                         {
                             var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
@@ -364,14 +358,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "refreshcommands":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         await LoadCommands();
                         return;
                     }
 
                 case "disablecommand":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         if (!Commands.ContainsKey(e.Arg)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
@@ -393,7 +385,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "enablecommand":
                     {
-                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                         if (!Commands.ContainsKey(e.Arg)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
@@ -677,6 +668,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     };
                     await db.Counters.AddAsync(counter);
                 }
+
+                // TODO: Make this customizable
                 if (eventArgs.Args.Count > 0 && (eventArgs.isBroadcaster || eventArgs.isMod))
                 {
                     var modifier = eventArgs.Args[0];

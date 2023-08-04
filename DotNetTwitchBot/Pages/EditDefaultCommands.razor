@@ -1,0 +1,91 @@
+@page "/defaultcommands/{id:int}"
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.CommandHandler CommandHandler
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>Edit Default Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+@if (defaultCommand == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <EditForm Model="defaultCommand" OnSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div>
+                Module: @defaultCommand.ModuleName
+            </div>
+            <div>
+                Default Command: @defaultCommand.CommandName
+                <em>Default command is system default command. If custom command is used, it will use that instead.</em>
+            </div>
+            <div>
+                <label>Custom Command</label>
+                <InputText @bind-Value=@defaultCommand.CustomCommandName />
+            </div>
+            <div>
+                <label>Minimum Rank</label>
+                <InputSelect @bind-Value=@defaultCommand.MinimumRank>
+                    @foreach (var rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <option value="@rank">@rank</option>
+                    }
+                </InputSelect>
+            </div>
+            <div>
+                <label>User Cooldown</label>
+                <InputNumber @bind-Value=@defaultCommand.UserCooldown />
+            </div>
+            <div>
+                <label>Global Cooldown</label>
+                <InputNumber @bind-Value=@defaultCommand.GlobalCooldown />
+            </div>
+            <div>
+                <label>Cost</label>
+                <InputNumber @bind-Value=@defaultCommand.Cost />
+            </div>
+            <div>
+                <label>Disabled</label>
+                <InputCheckbox @bind-Value=@defaultCommand.Disabled />
+            </div>
+            <div>
+                <label>Say Cooldown</label>
+                <InputCheckbox @bind-Value=@defaultCommand.SayCooldown />
+            </div>
+            <div>
+                <label>Say Minimum Rank Required</label>
+                <InputCheckbox @bind-Value=@defaultCommand.SayRankRequirement />
+            </div>
+            <button type="submit">Submit</button>
+        </EditForm>
+    </div>
+}
+
+@code
+{
+    [Parameter]
+    public int id { get; set; }
+    private DotNetTwitchBot.Bot.Models.DefaultCommand? defaultCommand;
+
+    protected override async void OnParametersSet()
+    {
+        defaultCommand = await CommandHandler.GetDefaultCommandById(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (defaultCommand == null) return;
+        await CommandHandler.UpdateDefaultCommand(defaultCommand);
+        navigationManager.NavigateTo($"/defaultcommands");
+    }
+
+}
