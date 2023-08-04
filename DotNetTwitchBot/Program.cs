@@ -36,7 +36,7 @@ internal class Program
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.CommandHandler>();
-        // TODO: builder.Services.AddSingleton<DiscordService>();
+        builder.Services.AddSingleton<DiscordService>();
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
@@ -147,8 +147,7 @@ internal class Program
             }
         }
         //Loads all the command stuff into memory
-        //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
-        // TODO: app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
+        app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
 
         await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
 
