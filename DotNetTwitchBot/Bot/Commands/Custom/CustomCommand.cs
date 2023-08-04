@@ -101,9 +101,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public async Task LoadCommands()
+
+
+        private async Task LoadCommands()
         {
-            _logger.LogInformation("Loading commands");
+            _logger.LogInformation("Loading custom commands");
             var count = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -145,6 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 Commands[customCommand.CommandName] = customCommand;
                 await db.SaveChangesAsync();
             }
+            await LoadCommands();
         }
 
         public async Task AddKeyword(KeywordType keyword)
@@ -171,6 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 db.CustomCommands.Update(customCommand);
                 await db.SaveChangesAsync();
             }
+            await LoadCommands();
         }
 
         public async Task SaveKeyword(KeywordType keyword)
@@ -236,85 +240,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        public async Task RunCommand(CommandEventArgs e)
         {
-            if (e.Command.Equals("addcommand"))
-            {
-                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
-                try
-                {
-                    var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
-                    if (newCommand != null)
-                    {
-                        await AddCommand(newCommand);
-                        await _serviceBackbone.SendChatMessage("Successfully added command");
-                    }
-                    else
-                    {
-                        await _serviceBackbone.SendChatMessage("failed to add command");
-                    }
-
-                }
-                catch (Exception err)
-                {
-                    _logger.LogError(err, "Failed to add command");
-                }
-
-                return;
-            }
-
-            if (e.Command.Equals("refreshcommands"))
-            {
-                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
-                await LoadCommands();
-                return;
-            }
-
-            if (e.Command.Equals("disablecommand"))
-            {
-                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
-                if (!Commands.ContainsKey(e.Arg)) return;
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
-                    if (command == null)
-                    {
-                        await _serviceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
-                        return;
-                    }
-                    command.Disabled = true;
-                    Commands[e.Arg].Disabled = true;
-                    db.Update(command);
-                    await db.SaveChangesAsync();
-                }
-                await _serviceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
-                return;
-            }
-
-            if (e.Command.Equals("enablecommand"))
-            {
-                if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
-                if (!Commands.ContainsKey(e.Arg)) return;
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
-                    if (command == null)
-                    {
-                        await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
-                        return;
-                    }
-                    command.Disabled = false;
-                    Commands[e.Arg].Disabled = false;
-                    db.Update(command);
-                    await db.SaveChangesAsync();
-                }
-                await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
-                return;
-            }
-
-
             if (Commands.ContainsKey(e.Command))
             {
                 if (Commands[e.Command].Disabled)
@@ -391,6 +318,103 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 await processTagsAndSayMessage(e, Commands[e.Command].Response);
             }
+        }
+
+        public override async Task Register()
+        {
+            var moduleName = "CustomCommands";
+            await RegisterDefaultCommand("addcommand", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("refreshcommands", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("disablecommand", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("enablecommand", this, moduleName, Rank.Streamer);
+            _logger.LogInformation($"Registered commands for {moduleName}");
+            await LoadCommands();
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var defaultCommand = _commandHandler.GetCommand(e.Command);
+            if (defaultCommand == null) return;
+            switch (defaultCommand.CommandProperties.CommandName)
+            {
+                case "addcommand":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                        try
+                        {
+                            var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
+                            if (newCommand != null)
+                            {
+                                await AddCommand(newCommand);
+                                await _serviceBackbone.SendChatMessage("Successfully added command");
+                            }
+                            else
+                            {
+                                await _serviceBackbone.SendChatMessage("failed to add command");
+                            }
+
+                        }
+                        catch (Exception err)
+                        {
+                            _logger.LogError(err, "Failed to add command");
+                        }
+
+                        return;
+                    }
+
+                case "refreshcommands":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                        await LoadCommands();
+                        return;
+                    }
+
+                case "disablecommand":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                        if (!Commands.ContainsKey(e.Arg)) return;
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                            var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                            if (command == null)
+                            {
+                                await _serviceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                                return;
+                            }
+                            command.Disabled = true;
+                            Commands[e.Arg].Disabled = true;
+                            db.Update(command);
+                            await db.SaveChangesAsync();
+                        }
+                        await _serviceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                        return;
+                    }
+
+                case "enablecommand":
+                    {
+                        if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
+                        if (!Commands.ContainsKey(e.Arg)) return;
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                            var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                            if (command == null)
+                            {
+                                await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                                return;
+                            }
+                            command.Disabled = false;
+                            Commands[e.Arg].Disabled = false;
+                            db.Update(command);
+                            await db.SaveChangesAsync();
+                        }
+                        await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                        return;
+                    }
+
+            }
+
         }
 
         public string CustomCommandResponse(string command)

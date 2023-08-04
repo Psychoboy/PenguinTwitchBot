@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             NumberOfWinners = Tools.Next(min, max + 1);
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "BaconRaffle";
             await RegisterDefaultCommand("raffle", this, moduleName, Rank.Streamer);

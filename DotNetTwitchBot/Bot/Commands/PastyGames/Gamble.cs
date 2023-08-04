@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public long JackpotDefault { get; } = 1000;
         public int WinRange { get; } = 48;
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Gamble";
             await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer);

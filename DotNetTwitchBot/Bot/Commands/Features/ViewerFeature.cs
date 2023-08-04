@@ -392,7 +392,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public async Task UpdateSubscribers()
+        private async Task UpdateSubscribers()
         {
             try
             {
@@ -453,11 +453,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "ViewerFeature";
             await RegisterDefaultCommand("lurk", this, moduleName);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            await UpdateSubscribers();
+            _logger.LogInformation($"Registered {moduleName}");
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Duel";
             await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer);

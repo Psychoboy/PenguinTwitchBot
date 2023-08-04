@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _logger = logger;
         }
 
-        public async Task LoadAudioCommands()
+        private async Task LoadAudioCommands()
         {
             _logger.LogInformation("Loading Audio Hooks");
             var count = 0;
@@ -65,6 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 Commands[audioCommand.CommandName] = audioCommand;
                 await db.SaveChangesAsync();
             }
+            await LoadAudioCommands();
         }
 
         public async Task SaveAudioCommand(AudioCommand audioCommand)
@@ -75,6 +76,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 db.AudioCommands.Update(audioCommand);
                 await db.SaveChangesAsync();
             }
+            await LoadAudioCommands();
         }
 
         public Dictionary<string, AudioCommand> GetAudioCommands()
@@ -91,32 +93,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        public async Task RunCommand(CommandEventArgs e)
         {
-            if (e.Command.Equals("addaudiocommand"))
-            {
-                await AddAudioCommand(e);
-                return;
-            }
-
-            if (e.Command.Equals("refreshaudiocommands"))
-            {
-                await RefreshAudio(e.Name);
-                return;
-            }
-
-            if (e.Command.Equals("disableaudiocommand"))
-            {
-                await ToggleAudioCommandDisable(e, true);
-                return;
-            }
-
-            if (e.Command.Equals("enableaudiocommand"))
-            {
-                await ToggleAudioCommandDisable(e, false);
-                return;
-            }
-
             if (Commands.ContainsKey(e.Command) == false) return;
             if (Commands[e.Command].Disabled) return;
 
@@ -163,6 +141,47 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
 
             RunCommand(Commands[e.Command], e);
+        }
+
+        public override async Task Register()
+        {
+            var moduleName = "AudioCommands";
+            await RegisterDefaultCommand("addaudiocommand", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("refreshaudiocommands", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("disableaudiocommand", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("enableaudiocommand", this, moduleName, Rank.Streamer);
+            await LoadAudioCommands();
+            _logger.LogInformation($"Registered {moduleName}");
+
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            if (e.Command.Equals("addaudiocommand"))
+            {
+                await AddAudioCommand(e);
+                return;
+            }
+
+            if (e.Command.Equals("refreshaudiocommands"))
+            {
+                await RefreshAudio(e.Name);
+                return;
+            }
+
+            if (e.Command.Equals("disableaudiocommand"))
+            {
+                await ToggleAudioCommandDisable(e, true);
+                return;
+            }
+
+            if (e.Command.Equals("enableaudiocommand"))
+            {
+                await ToggleAudioCommandDisable(e, false);
+                return;
+            }
+
+
         }
 
         private void RunCommand(AudioCommand audioCommand, CommandEventArgs e)
@@ -230,11 +249,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 _logger.LogError(err, "Failed to add audio command");
             }
-        }
-
-        public override void RegisterDefaultCommands()
-        {
-            return Task.CompletedTask;
         }
     }
 }

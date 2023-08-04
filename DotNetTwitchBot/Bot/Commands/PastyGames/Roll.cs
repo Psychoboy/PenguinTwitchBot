@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _loyaltyFeature = loyaltyFeature;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Roll";
             await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer);

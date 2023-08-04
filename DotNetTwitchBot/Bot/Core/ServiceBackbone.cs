@@ -75,16 +75,27 @@ namespace DotNetTwitchBot.Bot.Core
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                //await CommandEvent(this, eventArgs);
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
-                if (commandService == null)
+                if (commandService != null)
                 {
-                    throw new Exception($"Command service not found {eventArgs.Command}");
+                    if (CheckPermission(commandService.CommandProperties, eventArgs))
+                    {
+                        await commandService.CommandService.OnCommand(this, eventArgs);
+                    }
+                    return;
                 }
-                if (CheckPermission(commandService.CommandProperties, eventArgs))
+
+                //Run the Generic services
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    await commandService.CommandService.OnCommand(this, eventArgs);
+                    var customCommand = scope.ServiceProvider.GetRequiredService<Commands.Custom.CustomCommand>();
+                    await customCommand.RunCommand(eventArgs);
+                    var audioCommands = scope.ServiceProvider.GetRequiredService<Commands.Custom.AudioCommands>();
+                    await audioCommands.RunCommand(eventArgs);
+                    var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
+                    await alias.RunCommand(eventArgs);
                 }
+
             }
             catch (Exception e)
             {

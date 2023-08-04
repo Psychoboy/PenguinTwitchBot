@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands
         Task SendChatMessage(string message);
         Task SendChatMessage(string name, string message);
         Task OnCommand(object? sender, CommandEventArgs e);
-        Task RegisterDefaultCommands();
+        Task Register();
         Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand);
         bool IsCoolDownExpired(string user, string command);
         Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command);

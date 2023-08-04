@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         private List<string> Firsts = new List<string>();
         private TicketsFeature _ticketsFeature;
-        private readonly Logger<First> _logger;
+        private readonly ILogger<First> _logger;
         private List<string> GotTickets = new List<string>();
 
         public First(
@@ -21,14 +21,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
-            Logger<First> logger
+            ILogger<First> logger
             ) : base(serviceBackbone, scopeFactory, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "First";
             await RegisterDefaultCommand("first", this, moduleName, Rank.Viewer);

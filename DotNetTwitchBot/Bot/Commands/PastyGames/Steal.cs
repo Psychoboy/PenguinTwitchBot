@@ -15,10 +15,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private LoyaltyFeature _loyaltyFeature;
         private IServiceScopeFactory _scopeFactory;
         private ViewerFeature _viewerFeature;
-        private readonly Logger<Steal> _logger;
+        private readonly ILogger<Steal> _logger;
 
         public Steal(
-            Logger<Steal> logger,
+            ILogger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Steal";
             await RegisterDefaultCommand("steal", this, moduleName);

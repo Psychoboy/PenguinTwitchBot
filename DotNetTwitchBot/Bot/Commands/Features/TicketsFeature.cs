@@ -198,7 +198,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "TicketsFeature";
             // await RegisterDefaultCommand("t", this, moduleName); add alias

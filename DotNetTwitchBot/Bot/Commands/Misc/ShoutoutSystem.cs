@@ -148,11 +148,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "ShoutoutSystem";
-            //Add so alias
             await RegisterDefaultCommand("shoutout", this, moduleName, Rank.Vip);
+            await RegisterDefaultCommand("so", this, moduleName, Rank.Vip);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -163,6 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             switch (command.CommandProperties.CommandName)
             {
                 case "shoutout":
+                case "so":
                     if (e.isMod == false && e.isBroadcaster == false && e.isVip == false)
                     {
                         return;

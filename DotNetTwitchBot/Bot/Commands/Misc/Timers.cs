@@ -210,7 +210,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return Task.CompletedTask;
         }
 
-        public override Task RegisterDefaultCommands()
+        public override Task Register()
         {
             return Task.CompletedTask;
         }

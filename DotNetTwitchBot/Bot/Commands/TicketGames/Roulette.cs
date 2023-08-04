@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             return Task.CompletedTask;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Roulette";
             await RegisterDefaultCommand("roulette", this, moduleName, Rank.Viewer);

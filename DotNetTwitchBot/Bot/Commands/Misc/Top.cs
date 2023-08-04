@@ -11,10 +11,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class Top : BaseCommandService
     {
         private IServiceScopeFactory _scopeFactory;
-        private readonly Logger<Top> _logger;
+        private readonly ILogger<Top> _logger;
 
         public Top(
-            Logger<Top> logger,
+            ILogger<Top> logger,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Top";
             //Add so alias

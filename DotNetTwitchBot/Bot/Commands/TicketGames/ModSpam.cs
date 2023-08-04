@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "ModSpam";
             await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator);

@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _viewerFeature = viewerFeature;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Defuse";
             await RegisterDefaultCommand("defuse", this, moduleName);

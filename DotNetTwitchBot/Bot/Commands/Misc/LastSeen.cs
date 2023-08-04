@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "LastSeen";
             await RegisterDefaultCommand("lastseen", this, moduleName);

@@ -11,10 +11,10 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
     public class Admin : BaseCommandService
     {
         private IWebSocketMessenger _webSocketMessenger;
-        private Logger<Admin> _logger;
+        private ILogger<Admin> _logger;
 
         public Admin(
-            Logger<Admin> logger,
+            ILogger<Admin> logger,
             IWebSocketMessenger webSocketMessenger,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Admin";
             await RegisterDefaultCommand("pausealerts", this, moduleName, Rank.Streamer);

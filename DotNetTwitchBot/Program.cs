@@ -92,7 +92,7 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin));
 
         //Add Alerts
-        commands.Add(typeof(DotNetTwitchBot.Bot.Alerts.AlertImage));
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();
 
         foreach (var cmd in commands)
         {
@@ -148,21 +148,12 @@ internal class Program
         //app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.RegisterCommands>();
         // TODO: app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
 
-        var viewerFeature = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        await viewerFeature.UpdateSubscribers();
-        var customCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.CustomCommand>();
-        await customCommands.LoadCommands();
-        var audioCommands = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Custom.AudioCommands>();
-        await audioCommands.LoadAudioCommands();
-        var blacklist = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.Blacklist>();
-        await blacklist.LoadBlacklist();
         await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
-        // TEST CODE
-        var pasties = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature>();
-        pasties.RegisterDefaultCommands();
+
         foreach (var cmd in commands)
         {
-            app.Services.GetRequiredService(cmd);
+            var commandService = (DotNetTwitchBot.Bot.Commands.IBaseCommandService)app.Services.GetRequiredService(cmd);
+            await commandService.Register();
         }
 
 

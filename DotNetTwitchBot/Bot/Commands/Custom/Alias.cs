@@ -61,13 +61,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        public async Task RunCommand(CommandEventArgs e)
         {
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
                 await _serviceBackbone.RunCommand(e);
             }
+        }
+
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)
@@ -86,9 +91,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        public override void RegisterDefaultCommands()
+        public override Task Register()
         {
-            //Do nothing here
+            return Task.CompletedTask;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands
         // public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
 
         public abstract Task OnCommand(object? sender, CommandEventArgs e);
-        public abstract Task RegisterDefaultCommands();
+        public abstract Task Register();
 
         public async Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand)
         {

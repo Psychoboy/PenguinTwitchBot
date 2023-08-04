@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "Heist";
             await RegisterDefaultCommand("heist", this, moduleName);

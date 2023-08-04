@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "QuoteSystem";
             await RegisterDefaultCommand("quote", this, moduleName);

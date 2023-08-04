@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             AddGlobalCooldown(CommandName, Cooldown);
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "FFA";
             await RegisterDefaultCommand(CommandName, this, moduleName);

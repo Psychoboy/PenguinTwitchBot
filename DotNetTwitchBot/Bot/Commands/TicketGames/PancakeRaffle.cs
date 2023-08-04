@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger = logger;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "PancakeRaffle";
             await RegisterDefaultCommand("pancakeraffle", this, moduleName, Rank.Streamer);

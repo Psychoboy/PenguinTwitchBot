@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return Task.CompletedTask;
         }
 
-        public override Task RegisterDefaultCommands()
+        public override Task Register()
         {
             return Task.CompletedTask;
         }

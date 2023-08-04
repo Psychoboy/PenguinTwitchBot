@@ -112,9 +112,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             return Task.CompletedTask;
         }
 
-        public override Task RegisterDefaultCommands()
+        public override async Task Register()
         {
-            return Task.CompletedTask;
+            await LoadBlacklist();
         }
     }
 }

@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _viewerFeature = viewerFeature;
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "DeathCounter";
             await RegisterDefaultCommand("death", this, moduleName);

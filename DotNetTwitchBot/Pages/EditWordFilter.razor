@@ -38,7 +38,7 @@ else
 }
 
 @code {
-     [Parameter]
+    [Parameter]
     public int id { get; set; }
     private WordFilter? wordFilter { get; set; }
 
@@ -57,9 +57,8 @@ else
 
     public async void OnSubmit()
     {
-        if(wordFilter == null) return;
+        if (wordFilter == null) return;
         await Blacklist.UpdateBlacklist(wordFilter);
-        await Blacklist.LoadBlacklist();
         navigationManager.NavigateTo($"/blacklist");
     }
 }

@@ -197,7 +197,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "LoyaltyFeature";
             await RegisterDefaultCommand("pasties", this, moduleName);

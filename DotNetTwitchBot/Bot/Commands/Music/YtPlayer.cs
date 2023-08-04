@@ -229,7 +229,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await UpdateRequestedSongsState();
         }
 
-        public override async Task RegisterDefaultCommands()
+        public override async Task Register()
         {
             var moduleName = "MusicPlayer";
             await RegisterDefaultCommand("lastsong", this, moduleName);
