@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         if (e.Args.Count == 0)
                         {
                             await SendChatMessage(e.DisplayName, "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
-                            return;
+                            throw new SkipCooldownException();
                         }
                         // var maxBet = false;
                         var amount = e.Args[0];
@@ -77,19 +77,19 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         if (!Int32.TryParse(amount, out amountToBet))
                         {
                             await SendChatMessage(e.DisplayName, "The amount must be a number, max, or all");
-                            return;
+                            throw new SkipCooldownException();
                         }
 
                         if (amountToBet <= 0)
                         {
                             await SendChatMessage(e.DisplayName, "The amount needs to be greater then 0");
-                            return;
+                            throw new SkipCooldownException();
                         }
 
                         if (amountToBet > await _ticketsFeature.GetViewerTickets(e.Name))
                         {
                             await SendChatMessage(e.DisplayName, "You don't have that many tickets.");
-                            return;
+                            throw new SkipCooldownException();
                         }
 
                         if (amountToBet > MaxPerBet) amountToBet = MaxPerBet;
@@ -99,7 +99,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             if (TotalGambled[e.Name] >= MaxAmount)
                             {
                                 await SendChatMessage(e.DisplayName, $"You have reached your max per stream limit for !roulette ({MaxAmount} tickets).");
-                                return;
+                                throw new SkipCooldownException();
                             }
                             if (TotalGambled[e.Name] + amountToBet > MaxAmount)
                             {

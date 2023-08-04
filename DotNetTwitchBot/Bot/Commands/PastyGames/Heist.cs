@@ -69,13 +69,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (GameState == State.Finishing)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you can not join the heist now.");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (Entered.Exists(x => x.Name.Equals(e.Name)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you have already joined the heist.");
-                return;
+                throw new SkipCooldownException();
             }
 
             var amountStr = e.Args.First();
@@ -89,19 +89,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName,
                 "To join the heist, enter !heist AMOUNT or ALL or MAX");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (amount > LoyaltyFeature.MaxBet || amount < MinBet)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("The max amount to join the heist is {0} and must be greater then {1}", LoyaltyFeature.MaxBet.ToString("N0"), MinBet));
-                return;
+                throw new SkipCooldownException();
             }
 
             if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, amount)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (GameState == State.NotRunning)

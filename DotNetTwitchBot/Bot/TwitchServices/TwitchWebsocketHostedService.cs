@@ -319,7 +319,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
             //await _eventSubWebsocketClient.ConnectAsync(new Uri("http://localhost:8080/eventsub/subscription"));
-            _logger.LogInformation("Websocket Connected.");
             try
             {
 

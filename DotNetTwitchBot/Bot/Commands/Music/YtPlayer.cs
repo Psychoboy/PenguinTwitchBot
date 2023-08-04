@@ -243,7 +243,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await RegisterDefaultCommand("wrongsong", this, moduleName);
             await RegisterDefaultCommand("wrong", this, moduleName);
             await RegisterDefaultCommand("sr", this, moduleName);
-            await RegisterDefaultCommand("priority", this, moduleName);
+            await RegisterDefaultCommand("priority", this, moduleName, userCooldown: 1800);
             await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("steal", this, moduleName, Rank.Streamer);
@@ -290,7 +290,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await MovePriority(e);
                     break;
                 case "importpl":
-                    if (e.Args.Count < 2) return;
+                    if (e.Args.Count < 2) throw new SkipCooldownException();
                     await ImportPlaylist(e);
                     break;
                 case "loadpl":
@@ -363,6 +363,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 return;
             }
             await _serviceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
+            throw new SkipCooldownException();
         }
 
         public async Task RemoveSongRequest(Song requestedSong)
@@ -387,7 +388,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             if (SkipVotes.Contains(e.Name))
             {
-                return;
+                throw new SkipCooldownException();
             }
             SkipVotes.Add(e.Name);
             if (SkipVotes.Count >= 3)
@@ -596,6 +597,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             else
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
+                throw new SkipCooldownException();
             }
         }
 
@@ -609,13 +611,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (songsInQueue >= 30)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
-                return;
+                throw new SkipCooldownException();
             }
             var searchResult = await GetSongId(e.Arg);
             if (string.IsNullOrWhiteSpace(searchResult))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
-                return;
+                throw new SkipCooldownException();
             }
             Song? songInQueue = null;
             lock (RequestsLock)
@@ -631,7 +633,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (songInQueue != null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
-                return;
+                throw new SkipCooldownException();
             }
 
             var song = await GetSong(searchResult, e.DisplayName);

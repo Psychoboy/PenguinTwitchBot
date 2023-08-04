@@ -160,14 +160,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 if (user == null)
                 {
                     await _serviceBackbone.SendChatMessage("Couldn't find that user to raid.");
-                    return;
+                    throw new SkipCooldownException();
                 }
 
                 var isOnline = await _twitchService.IsStreamOnline(user.Id);
                 if (isOnline == false)
                 {
                     await _serviceBackbone.SendChatMessage("That stream is offline");
-                    return;
+                    throw new SkipCooldownException();
                 }
                 await _twitchService.RaidStreamer(user.Id);
                 await using (var scope = _scopeFactory.CreateAsyncScope())

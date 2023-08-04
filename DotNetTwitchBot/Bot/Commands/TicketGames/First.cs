@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             switch (command.CommandProperties.CommandName)
             {
                 case "first":
-                    if (!GotTickets.Contains(e.Name)) return;
+                    if (!GotTickets.Contains(e.Name)) throw new SkipCooldownException();
                     var tickets = await _ticketsFeature.GiveTicketsToViewer(e.Name, Tools.RandomRange(1, 4));
 
                     GotTickets.Add(e.Name);

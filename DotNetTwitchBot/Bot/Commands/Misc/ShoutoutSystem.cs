@@ -166,7 +166,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 case "so":
                     if (e.Args.Any() == false)
                     {
-                        return;
+                        throw new SkipCooldownException();
                     }
                     await Shoutout(e.TargetUser);
                     break;

@@ -54,20 +54,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             !e.Arg.Equals("yellow", StringComparison.CurrentCultureIgnoreCase)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you need to choose one of these wires to cut: {0}", string.Join(", ", Wires)));
-                return;
+                throw new SkipCooldownException();
             }
 
             if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
-                return;
+                throw new SkipCooldownException();
             }
 
             var chosenWire = Wires.RandomElement();
             if (chosenWire == null)
             {
                 _logger.LogError("Couldn't choose a wire for defuse");
-                return;
+                throw new SkipCooldownException();
             }
             var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", await _viewerFeature.GetNameWithTitle(e.Name), e.Arg);
             if (chosenWire.Equals(e.Arg, StringComparison.CurrentCultureIgnoreCase))

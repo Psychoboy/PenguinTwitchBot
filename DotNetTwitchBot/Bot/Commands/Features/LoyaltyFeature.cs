@@ -225,7 +225,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     await CheckUsersPasties(e);
                     break;
                 case "addpasties":
-                    if (!_serviceBackbone.IsBroadcasterOrBot(e.Name)) return;
                     if (e.Args.Count < 2) return;
                     if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
                     if (Int32.TryParse(e.Args[1], out var points))
@@ -258,27 +257,27 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.Args.Count < 2 || e.TargetUser.Equals(e.Name))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-                return;
+                throw new SkipCooldownException(); ;
             }
 
             var amount = 0L;
             if (!Int64.TryParse(e.Args[1], out amount))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-                return;
+                throw new SkipCooldownException(); ;
             }
 
             var target = await _viewerFeature.GetViewer(e.TargetUser);
             if (target == null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
-                return;
+                throw new SkipCooldownException(); ;
             }
 
             if (!(await RemovePointsFromUser(e.Name, amount)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
-                return;
+                throw new SkipCooldownException(); ;
             }
 
             await AddPointsToViewer(e.TargetUser, amount);

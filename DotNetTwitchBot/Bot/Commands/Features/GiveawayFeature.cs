@@ -54,10 +54,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
-        public override async Task<bool> OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = _commandHandler.GetCommand(e.Command);
-            if (command == null) return false;
+            if (command == null) return;
             switch (command.CommandProperties.CommandName)
             {
                 case "enter":
@@ -65,37 +65,37 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (e.Args.Count() == 0)
                         {
                             await _serviceBackbone.SendChatMessage(e.Name, "To enter tickets, please use !enter AMOUNT/MAX/ALL");
-                            return false;
+                            throw new SkipCooldownException();
                         }
-                        return await Enter(e.Name, e.Args.First());
+                        await Enter(e.Name, e.Args.First());
+                        break;
                     }
                 case "entries":
                     {
                         await Entries(e.Name);
-                        return true;
+                        break;
                     }
                 case "draw":
                     {
                         await Draw();
-                        return true;
+                        break;
                     }
                 case "close":
                     {
                         await Close();
-                        return true;
+                        break;
                     }
                 case "resetdraw":
                     {
                         await Reset();
-                        return true;
+                        break;
                     }
                 case "setprize":
                     {
                         await SetPrize(e.Arg);
-                        return true;
+                        break;
                     }
             }
-            return false;
         }
 
         public async Task<string> GetPrize()
@@ -204,7 +204,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
 
-        private async Task<bool> Enter(string sender, string amount)
+        private async Task Enter(string sender, string amount)
         {
             amount = amount.ToLower();
             var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
@@ -216,18 +216,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (!Int32.TryParse(amount, out var points))
             {
                 await _serviceBackbone.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
-                return false;
+                throw new SkipCooldownException();
             }
             if (points == 0 || points > viewerPoints)
             {
                 await _serviceBackbone.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", displayName));
-                return false;
+                throw new SkipCooldownException();
             }
 
             if (points < 0)
             {
                 await _serviceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName));
-                return false;
+                throw new SkipCooldownException();
             }
 
             var enteredTickets = await GetEntriesCount(sender);
@@ -237,14 +237,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await _serviceBackbone.SendChatMessage(displayName, string.Format("Max entries is 1,000,000, so entering {0} instead to max you out.", points));
                 if (points == 0)
                 {
-                    return false;
+                    throw new SkipCooldownException();
                 }
             }
 
             if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
             {
                 await _serviceBackbone.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
-                return false;
+                throw new SkipCooldownException();
             }
 
             using (var scope = _scopeFactory.CreateAsyncScope())
@@ -263,7 +263,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await db.SaveChangesAsync();
             }
             await _serviceBackbone.SendChatMessage($"@{sender}, you have bought {points} entries.");
-            return true;
         }
         private async Task<long> GetEntriesCount(string sender)
         {

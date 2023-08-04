@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (e.Args.Count == 0)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the ID you want to delete.");
-                return;
+                throw new SkipCooldownException();
             }
             if (Int32.TryParse(e.Args[0], out var id))
             {
@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     if (quote == null)
                     {
                         await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find that id.");
-                        return;
+                        throw new SkipCooldownException();
                     }
                     db.Quotes.Remove(quote);
                     await db.SaveChangesAsync();
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             else
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't figure out which id you meant.");
-                return;
+                throw new SkipCooldownException();
             }
         }
 
@@ -90,7 +90,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(e.Arg))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the quote.");
-                return;
+                throw new SkipCooldownException();
             }
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {

@@ -96,19 +96,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (GameState == State.Finishing)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry you were to late to join this one"));
-                return;
+                throw new SkipCooldownException();
             }
 
             if (Entered.Contains(e.Name))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("You have already joined the FFA!"));
-                return;
+                throw new SkipCooldownException();
             }
 
             if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to enter the FFA, which you do not have.", Cost));
-                return;
+                throw new SkipCooldownException();
             }
 
             if (GameState == State.NotRunning)

@@ -68,16 +68,16 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (!_serviceBackbone.IsOnline)
             {
                 await SendChatMessage(sender, "Nice try, the stream is currently offline.");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (ClaimedFirst.Count >= MaxClaims)
             {
                 await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
-                return;
+                throw new SkipCooldownException();
             }
 
-            if (ClaimedFirst.Contains(sender.ToLower())) return;
+            if (ClaimedFirst.Contains(sender.ToLower())) throw new SkipCooldownException();
 
             ClaimedFirst.Add(sender.ToLower());
             // var awardPoints = Tools.RandomRange(1, 25);
@@ -87,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (awardPoints == 0)
             {
                 await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
-                return;
+                throw new SkipCooldownException();
             }
             CurrentClaims++;
             _logger.LogInformation($"Current Claims: {CurrentClaims}");

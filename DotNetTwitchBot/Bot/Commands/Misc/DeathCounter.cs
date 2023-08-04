@@ -48,46 +48,52 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(game))
             {
                 _logger.LogWarning("Game is not set for counter");
-                return;
+                throw new SkipCooldownException();
             }
             var modifiers = e.Args;
             if (modifiers.Count > 0)
             {
+                // TODO: Make modifiers customizable
                 switch (modifiers.First())
                 {
                     case "+":
+                        if (e.isBroadcaster || e.isMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount++;
                             await UpdateCounter(counter);
-                            break;
+
                         }
+                        break;
                     case "-":
+                        if (e.isBroadcaster || e.isMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount--;
                             if (counter.Amount < 0) counter.Amount = 0;
                             await UpdateCounter(counter);
-                            break;
                         }
+                        break;
                     case "reset":
+                        if (e.isBroadcaster || e.isMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount = 0;
                             await UpdateCounter(counter);
-                            break;
                         }
+                        break;
                     case "set":
+                        if (e.isBroadcaster || e.isMod)
                         {
-                            if (!(modifiers.Count > 1)) return;
+                            if (!(modifiers.Count > 1)) throw new SkipCooldownException();
                             if (Int32.TryParse(modifiers[1], out var amount))
                             {
                                 var counter = await GetCounter(game);
                                 counter.Amount = amount;
                                 await UpdateCounter(counter);
                             }
-                            break;
                         }
+                        break;
                 }
             }
             await SendCounter(game);

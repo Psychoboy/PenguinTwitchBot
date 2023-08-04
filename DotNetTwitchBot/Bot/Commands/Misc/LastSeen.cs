@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("lastseen")) return;
 
-            if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
+            if (string.IsNullOrWhiteSpace(e.TargetUser)) throw new SkipCooldownException();
 
             var viewer = await _viewerFeature.GetViewer(e.TargetUser);
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)

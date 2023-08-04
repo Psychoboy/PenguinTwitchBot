@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName,
                 "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
-                return;
+                throw new SkipCooldownException();
             }
 
             var amountStr = e.Args.First();
@@ -80,13 +80,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName,
                 "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (amount > LoyaltyFeature.MaxBet || amount < 5)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
-                return;
+                throw new SkipCooldownException();
             }
 
             var jackpot = await GetJackpot();

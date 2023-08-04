@@ -166,31 +166,31 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             if (string.IsNullOrWhiteSpace(e.TargetUser))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "You need to specify a target.");
-                return;
+                throw new SkipCooldownException();
             }
             if (e.Args.Count < 2)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "To use duel, !duel target amount");
-                return;
+                throw new SkipCooldownException();
             }
 
             long amount = 0;
             if (long.TryParse(e.Args[1], out amount) == false)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "Please enter a proper amount. !duel target amount");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (amount < 1 || amount > 100)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "To duel you must choose an amount between 1 and 100");
-                return;
+                throw new SkipCooldownException();
             }
             var attackerTickets = await _ticketsFeature.GetViewerTickets(e.Name);
             if (attackerTickets < amount)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "You don't have that much.");
-                return;
+                throw new SkipCooldownException();
             }
             var existingDuel = await GetExistingDuel(e.Name);
             if (existingDuel != null)
@@ -203,26 +203,26 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 {
                     await _serviceBackbone.SendChatMessage(e.DisplayName, $"You already have a pending duel with {existingDuel.Attacker}, !accept or !deny it.");
                 }
-                return;
+                throw new SkipCooldownException();
             }
             var defender = await _viewerFeature.GetViewer(e.TargetUser);
             if (defender == null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "Could not find that viewer");
-                return;
+                throw new SkipCooldownException();
             }
             existingDuel = await GetExistingDuel(defender.Username);
             if (existingDuel != null)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out."); ;
-                return;
+                throw new SkipCooldownException();
             }
 
             var defenderTickets = await _ticketsFeature.GetViewerTickets(defender.Username);
             if (defenderTickets < amount)
             {
                 await _serviceBackbone.SendChatMessage(defender.Username, "They don't have that many tickets.");
-                return;
+                throw new SkipCooldownException();
             }
 
             PendingDuel pendingDuel = new PendingDuel

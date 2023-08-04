@@ -72,6 +72,11 @@ else
 
     private async Task Raid(RaidHistoryEntry item)
     {
-        await RaidTracker.Raid(item.Name);
+        try
+        {
+            await RaidTracker.Raid(item.Name);
+        }
+        catch (Exception)
+        { }
     }
 }

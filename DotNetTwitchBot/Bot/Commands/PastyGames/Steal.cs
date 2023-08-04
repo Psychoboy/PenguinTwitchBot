@@ -47,20 +47,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
-                return;
+                throw new SkipCooldownException();
             }
 
             if (!_serviceBackbone.IsOnline)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, "you can't steal from someone when the stream is offline");
-                return;
+                throw new SkipCooldownException();
             }
 
             var userPasties = await _loyaltyFeature.GetUserPasties(e.Name);
             if (userPasties.Points < StealMax)
             {
                 await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
-                return;
+                throw new SkipCooldownException();
             }
 
             await StealFromUser(e);
