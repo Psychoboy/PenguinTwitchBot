@@ -106,8 +106,6 @@ internal class Program
 
         builder.Services.AddQuartz(q =>
         {
-            q.UseMicrosoftDependencyInjectionJobFactory();
-
             var backupDbJobKey = new JobKey("BackupDbJob");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
