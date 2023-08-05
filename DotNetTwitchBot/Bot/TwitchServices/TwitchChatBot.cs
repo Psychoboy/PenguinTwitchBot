@@ -76,13 +76,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnUserLeft(object? sender, OnUserLeftArgs e)
         {
-            _logger.LogDebug("{0} Left.", e.Username);
+            _logger.LogTrace("{0} Left.", e.Username);
             await _eventService.OnUserLeft(e.Username);
         }
 
         private async void OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
-            _logger.LogDebug("{0} Joined.", e.Username);
+            _logger.LogTrace("{0} Joined.", e.Username);
             await _eventService.OnUserJoined(e.Username);
         }
 
@@ -99,12 +99,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private void Client_OnMessageReceived(object? sender, TwitchLib.Client.Events.OnMessageReceivedArgs e)
         {
-            _logger.LogDebug("OnMessageReceived");
+            _logger.LogTrace("OnMessageReceived");
         }
 
         private void OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
         {
-            _logger.LogDebug("OnWhisperReceived");
+            _logger.LogTrace("OnWhisperReceived");
         }
 
         private void Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedArgs e)
@@ -114,7 +114,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private void Client_OnLog(object? sender, TwitchLib.Client.Events.OnLogArgs e)
         {
-            _logger.LogDebug("OnLog");
+            _logger.LogTrace("OnLog");
         }
 
         private void Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
@@ -124,7 +124,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private void Client_OnDisconnected(object? sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {
-            _logger.LogDebug("Bot Disconnected");
+            _logger.LogTrace("Bot Disconnected");
         }
 
         private async void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
@@ -151,7 +151,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         }
         private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
-            _logger.LogDebug("Bot left the channel ", e.Channel);
+            _logger.LogTrace("Bot left the channel ", e.Channel);
         }
 
         private async void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
