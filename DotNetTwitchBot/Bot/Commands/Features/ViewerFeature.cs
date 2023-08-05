@@ -17,9 +17,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class ViewerFeature : BaseCommandService
     {
-        private ConcurrentDictionary<string, DateTime> _usersLastActive = new ConcurrentDictionary<string, DateTime>();
-        private ConcurrentDictionary<string, byte> _users = new ConcurrentDictionary<string, byte>();
-        private ConcurrentDictionary<string, DateTime> _lurkers = new ConcurrentDictionary<string, DateTime>();
+        private readonly ConcurrentDictionary<string, DateTime> _usersLastActive = new();
+        private readonly ConcurrentDictionary<string, byte> _users = new();
+        private readonly ConcurrentDictionary<string, DateTime> _lurkers = new();
         // private ApplicationDbContext _applicationDbContext;
 
         //private ViewerData _viewerData;
@@ -118,13 +118,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
         {
-            _users.Remove(e.Username, out byte doNotCare);
+            _users.Remove(e.Username, out _);
             await AddOrUpdateLastSeen(e.Username);
         }
 
         private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
         {
-            _users[e.Username] = default(byte);
+            _users[e.Username] = default;
             await AddOrUpdateLastSeen(e.Username);
         }
 

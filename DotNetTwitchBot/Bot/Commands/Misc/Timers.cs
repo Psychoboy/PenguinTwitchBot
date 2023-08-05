@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private IServiceScopeFactory _scopeFactory;
         private ILogger<Timers> _logger;
         private Timer _intervalTimer;
-        private ConcurrentDictionary<int, int> MessageCounters = new ConcurrentDictionary<int, int>();
+        private readonly ConcurrentDictionary<int, int> MessageCounters = new();
         private int MessageCounter = 0;
 
         public Timers(
@@ -172,9 +172,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 return true;
             }
-            if (MessageCounters.ContainsKey((int)id))
+            if (MessageCounters.TryGetValue((int)id, out var messageCounter))
             {
-                if (MessageCounters[(int)id] + group.MinimumMessages > MessageCounter)
+                if (messageCounter + group.MinimumMessages > MessageCounter)
                 {
                     return false;
                 }

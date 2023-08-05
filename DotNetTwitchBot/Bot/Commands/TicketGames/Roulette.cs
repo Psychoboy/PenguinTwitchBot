@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         private int MustBeatValue = 52;
         private TicketsFeature _ticketsFeature;
-        private ConcurrentDictionary<string, int> TotalGambled = new ConcurrentDictionary<string, int>();
+        private readonly ConcurrentDictionary<string, int> TotalGambled = new();
         private int MaxAmount = 1000;
         private int MaxPerBet = 100;
         private readonly ILogger<Roulette> _logger;
@@ -94,14 +94,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
                         if (amountToBet > MaxPerBet) amountToBet = MaxPerBet;
 
-                        if (TotalGambled.ContainsKey(e.Name))
+                        if (TotalGambled.TryGetValue(e.Name, out var userTotalGambled))
                         {
-                            if (TotalGambled[e.Name] >= MaxAmount)
+                            if (userTotalGambled >= MaxAmount)
                             {
                                 await SendChatMessage(e.DisplayName, $"You have reached your max per stream limit for !roulette ({MaxAmount} tickets).");
                                 throw new SkipCooldownException();
                             }
-                            if (TotalGambled[e.Name] + amountToBet > MaxAmount)
+                            if (userTotalGambled + amountToBet > MaxAmount)
                             {
                                 amountToBet = MaxAmount - TotalGambled[e.Name];
                             }

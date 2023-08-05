@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private ServiceBackbone _eventService;
         private SubscriptionTracker _subscriptionHistory;
         private IConfiguration _configuration;
-        private ConcurrentDictionary<string, DateTime> SubCache = new ConcurrentDictionary<string, DateTime>();
+        private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static SemaphoreSlim _subscriptionLock = new SemaphoreSlim(1);
 
         public TwitchWebsocketHostedService(
@@ -203,7 +203,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     _logger.LogWarning("Subscriber name was null or white space");
                     return false;
                 }
-                if (SubCache.ContainsKey(name) && SubCache[name] > DateTime.Now.AddDays(-5))
+                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
                 {
                     _logger.LogWarning($"{name} Subscriber already in sub cache");
                     return true;

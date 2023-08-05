@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private IConfiguration _configuration;
         private HttpClient _httpClient = new HttpClient();
         static SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
-        ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?>();
+        readonly ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new();
         Timer _timer;
         private SettingsFileManager _settingsFileManager;
 
@@ -110,13 +110,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUser(string user)
         {
-            if (UserCache.ContainsKey(user))
+            if (UserCache.TryGetValue(user, out var twitchUser))
             {
-                if (UserCache[user] != null)
+                if (twitchUser != null)
                 {
-                    return UserCache[user];
+                    return twitchUser;
                 }
             }
+
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
             var userObj = users.Users.FirstOrDefault();
             UserCache[user] = userObj;

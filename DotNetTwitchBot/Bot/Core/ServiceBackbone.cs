@@ -74,7 +74,10 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                await _semaphoreSlim.WaitAsync(500);
+                if (await _semaphoreSlim.WaitAsync(500) == false)
+                {
+                    _logger.LogWarning("Lock expired while waiting...");
+                }
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null)
                 {
