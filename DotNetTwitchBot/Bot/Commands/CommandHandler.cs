@@ -24,9 +24,9 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public Command? GetCommand(string commandName)
         {
-            if (Commands.ContainsKey(commandName))
+            if (Commands.TryGetValue(commandName, out var command))
             {
-                return Commands[commandName];
+                return command;
             }
             return null;
         }

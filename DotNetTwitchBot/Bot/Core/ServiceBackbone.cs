@@ -74,7 +74,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                await _semaphoreSlim.WaitAsync();
+                await _semaphoreSlim.WaitAsync(500);
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null)
                 {
@@ -93,10 +93,6 @@ namespace DotNetTwitchBot.Bot.Core
                     }
                     else
                     {
-                        if (commandService.CommandProperties.SayRankRequirement)
-                        {
-                            //Say message here
-                        }
                         return;
                     }
 

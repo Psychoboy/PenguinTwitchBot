@@ -287,6 +287,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             try
             {
+
                 var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
                 {
