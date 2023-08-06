@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
-        private TwitchPubSub _twitchPubSub;
+        // private TwitchPubSub _twitchPubSub;
         private TwitchService _twitchService;
         private ServiceBackbone _eventService;
         private SubscriptionTracker _subscriptionHistory;
@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
-            ILogger<TwitchPubSub> tbsLogger,
+            // ILogger<TwitchPubSub> tbsLogger,
             ServiceBackbone eventService,
             IConfiguration configuration,
             EventSubWebsocketClient eventSubWebsocketClient,
@@ -55,11 +55,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
             _configuration = configuration;
 
-            _twitchPubSub = new TwitchPubSub(tbsLogger);
-            _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
-            _twitchPubSub.OnPubSubServiceClosed += OnPubSubDisconnect;
-            // _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
-            _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
+            // _twitchPubSub = new TwitchPubSub(tbsLogger);
+            // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
+            // _twitchPubSub.OnPubSubServiceClosed += OnPubSubDisconnect;
+            // // _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
+            // _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
 
             _twitchService = twitchService;
             _eventService = eventService;
@@ -320,16 +320,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
             //await _eventSubWebsocketClient.ConnectAsync(new Uri("http://localhost:8080/eventsub/subscription"));
-            try
-            {
+            // try
+            // {
 
-                _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
-                _twitchPubSub.Connect();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error connecting to twitchpub");
-            }
+            //     _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
+            //     _twitchPubSub.Connect();
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError(ex, "Error connecting to twitchpub");
+            // }
         }
 
         private void OnPubSubListenResponse(object? sender, OnListenResponseArgs e)
@@ -339,8 +339,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private void OnPubSubConnect(object? sender, EventArgs e)
         {
-            _logger.LogInformation("PubSub Connected");
-            _twitchPubSub.SendTopics(_configuration["twitchAccessToken"]);
+            // _logger.LogInformation("PubSub Connected");
+            // _twitchPubSub.SendTopics(_configuration["twitchAccessToken"]);
         }
 
         private void OnPubSubDisconnect(object? sender, EventArgs e)
