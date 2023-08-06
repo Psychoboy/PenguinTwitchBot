@@ -1,55 +1,14 @@
-This is a WIP project
+[![.NET](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml) [![CodeQL](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/github-code-scanning/codeql)
 
-It's a Twitch Chat Bot I am working on for my personal Twitch Stream SuperPenguinTV.
+This is a twitch bought written in .NET Core 7 using TwitchLib and a MariaDB backend. Currently it is written specifically my use but am currently making it more generic for others to use. 
 
-Feel free to fork and do what you wish with it.
+Here are just some of things I need to re-work to make it so others can use:
 
-TODO:
- - = code implemented need move data
- / = in Testing
- x = complete
-- [X] Pasties
-- [X] Watch time
-- [X] Messages in chat
-- [X] Keywords
-- [x] Lastseen
-- [X] Death Counters
-- [x] top commands
-- [X] word filters
-- [X] Keywords
-- [X] Pasty games:
-    - [X] defuse
-    - [X] ffa
-    - [X] roulette
-    - [X] steal
-    - [X] heist
-    - [X] slots
-    - [X] Gift pasties
-    - [X] Roll
-    - [ ] Boss
-- [ ] Pasty Tax
-- [X] Shoutout
-- [X] Auto Shout system
-- [X] Quote System
-- [X] Rank/Title system
-- [X] Weather
-- [ ] kill command
-- [X] Bonus handlers 
-    - [X] On Sub
-    - [X] On Bits
-- [X] Music
-- [X] Blacklist
-- [X] Timers
-- [X] Raid Tracker
-- [X] Chat Alerts
-    - [X] Follower
-    - [X] Subscriber
-    - [ ] Clip
-    - [X] Raid
-    - [X] Bits
-- [ ] Migrate visual alerts from SE to new Bot
-- [X] Discord Stuff
-    - [X] Commands
-    - [X] Live notification
-    - [X] Add/Remove Live Streaming role as people stream on twitch
-
+* Customize response strings (Allows streamers to set custom responses and support different languages)
+* Enable/Disable entire modules
+* Individual module settings for their own uniqueness (This will be slowly done over time)
+* Registering credentials easier
+* Allow custom Discord commands
+* Make Discord commands configurable
+* Documentation
+* And more items I probably couldn't think of at the time of this writing
