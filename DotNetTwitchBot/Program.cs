@@ -17,18 +17,15 @@ internal class Program
 
         var builder = WebApplication.CreateBuilder(args);
         var section = builder.Configuration.GetSection("Secrets");
-        var secretsFileLocation = section.GetValue<string>("SecretsConf");
-        if (secretsFileLocation == null) throw new Exception("Invalid file configuration");
+        var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? throw new Exception("Invalid file configuration");
         builder.Configuration.AddJsonFile(secretsFileLocation);
 
-        builder.Host.ConfigureLogging((context, loggingBuilder) =>
-        {
-            var logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(builder.Configuration)
-            .Enrich.FromLogContext();
-            loggingBuilder.ClearProviders();
-            loggingBuilder.AddSerilog(logger.CreateLogger());
-        });
+        var loggerConfiguration = new LoggerConfiguration()
+           .ReadFrom.Configuration(builder.Configuration)
+           .Enrich.FromLogContext();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
+
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
@@ -138,11 +135,9 @@ internal class Program
 
         if (!app.Environment.IsDevelopment())
         {
-            using (var scope = app.Services.CreateScope())
-            {
-                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                dbContext.Database.Migrate();
-            }
+            using var scope = app.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            dbContext.Database.Migrate();
         }
         //Loads all the command stuff into memory
         app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
@@ -186,10 +181,7 @@ internal class Program
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
-        app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapControllers();
-        });
+        app.MapControllers();
 
         var logger = app.Logger;
         var lifetime = app.Lifetime;
