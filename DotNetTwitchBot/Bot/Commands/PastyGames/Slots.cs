@@ -96,7 +96,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
             message += randomLoseMessage;
-            await _serviceBackbone.SendChatMessage(string.Format(message, e.DisplayName));
+            message = message.Replace(Environment.NewLine, "");
+            try
+            {
+                await _serviceBackbone.SendChatMessage(string.Format(message, e.DisplayName));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error formatting slots message");
+            }
         }
 
         private static List<long> LoadPrizes()
