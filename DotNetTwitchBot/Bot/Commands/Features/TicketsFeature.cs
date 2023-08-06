@@ -115,7 +115,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewerPoints.Points < 0)
             {
                 //Should NEVER hit this
-                _logger.LogCritical("Points for {0} would have gone negative, points to remove {1}", viewer, amount);
+                _logger.LogCritical("Points for {0} would have gone negative, points to remove {1}", viewer.Replace(Environment.NewLine, ""), amount);
                 throw new Exception("Points would have went negative. ABORTING");
             }
 

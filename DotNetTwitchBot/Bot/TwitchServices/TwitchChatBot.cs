@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private Task CommandService_OnSendMessage(object? sender, string e)
         {
             _twitchClient.SendMessage(_configuration["broadcaster"], e);
-            _logger.LogInformation("BOTCHATMSG: {0}", e);
+            _logger.LogInformation("BOTCHATMSG: {0}", e.Replace(Environment.NewLine, ""));
             return Task.CompletedTask;
         }
 
@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             //_twitchClient.SendWhisper(e, e2);
             await _twitchBotService.SendWhisper(e, e2);
-            _logger.LogInformation("BOTWHISPERMSG: {0}", e + ": " + e2);
+            _logger.LogInformation("BOTWHISPERMSG: {0}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
         }
 
         public void Initialize()

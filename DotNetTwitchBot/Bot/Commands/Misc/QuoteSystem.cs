@@ -134,7 +134,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to parse args: {0}", searchParam);
+                    _logger.LogWarning("Failed to parse args: {0}", searchParam.Replace(Environment.NewLine, ""));
                 }
             }
 
