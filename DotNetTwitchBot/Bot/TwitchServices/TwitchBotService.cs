@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error Sending Whisper: {0}", error);
+                _logger.LogError("Error Sending Whisper to {0}: {1}", target.Replace(Environment.NewLine, ""), error.Replace(Environment.NewLine, ""));
             }
             catch (Exception ex)
             {

@@ -95,7 +95,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
-            await _serviceBackbone.SendChatMessage(string.Format(message + randomLoseMessage, e.DisplayName));
+            //{NAME_HERE}
+            message += randomLoseMessage;
+            await _serviceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
         }
 
         private static List<long> LoadPrizes()
@@ -132,7 +134,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "Keep it up!",
                 "Baby, now you\'re number one, shining bright for everyone!",
                 "I only let you win out of pity.",
-                "If there were more clumsy and perverted people like {0}, the world would be a better place.",
+                "If there were more clumsy and perverted people like {NAME_HERE}, the world would be a better place.",
                 "Dreams do come true!",
                 "The way to success is always difficult, but you still manage to get yourself on top and be honored.",
                 "You rarely win, but sometimes you do.",
@@ -152,14 +154,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return new List<string>{
                 "Better luck next time!",
                 "Gambling can be hard, but don\'t stray.",
-                "Dreamin\', don\'t give it up {0}",
+                "Dreamin\', don\'t give it up {NAME_HERE}",
                 "You have ignited a nuclear war! And no, there is no animated display of a mushroom cloud. Why? Because we do not reward failure.",
                 "Can you like.. win? please?",
                 "Game Over.",
                 "Don\'t looooose your waaaaaaay!",
                 "You just weren\'t good enough.",
-                "Will {0} finally win? Find out next time on Dragon Ball Z!",
-                "{0} has lost something great today!",
+                "Will {NAME_HERE} finally win? Find out next time on Dragon Ball Z!",
+                "{NAME_HERE} has lost something great today!",
                 "Perhaps if you trained in the mountains in solitude, you could learn how to win.",
                 "Believe in the heart of the cards!",
                 "Believe in me who believes in you!",

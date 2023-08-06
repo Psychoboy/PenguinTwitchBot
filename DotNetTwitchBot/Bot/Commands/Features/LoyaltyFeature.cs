@@ -311,7 +311,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if (viewerPoint.Points < 0)
                 {
                     viewerPoint.Points = 0;
-                    _logger.LogWarning("User: {0} was about to go negative when attempting to remove {1} pasties.", target, points);
+                    _logger.LogWarning("User: {0} was about to go negative when attempting to remove {1} pasties.", target.Replace(Environment.NewLine, ""), points);
                 }
                 db.ViewerPoints.Update(viewerPoint);
                 await db.SaveChangesAsync();
