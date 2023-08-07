@@ -11,11 +11,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommandService
     {
-        private int MustBeatValue = 52;
-        private TicketsFeature _ticketsFeature;
+        private readonly int MustBeatValue = 52;
+        private readonly TicketsFeature _ticketsFeature;
         private readonly ConcurrentDictionary<string, int> TotalGambled = new();
-        private int MaxAmount = 1000;
-        private int MaxPerBet = 100;
+        private readonly int MaxAmount = 1000;
+        private readonly int MaxPerBet = 500;
         private readonly ILogger<Roulette> _logger;
 
         public Roulette(
@@ -73,8 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             // maxBet = true;
                         }
 
-                        var amountToBet = 0;
-                        if (!Int32.TryParse(amount, out amountToBet))
+                        if (!Int32.TryParse(amount, out int amountToBet))
                         {
                             await SendChatMessage(e.DisplayName, "The amount must be a number, max, or all");
                             throw new SkipCooldownException();
@@ -133,7 +132,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        private string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
-        private string LoseMessage = "rolled a {3} and {0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
+        private readonly string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
+        private readonly string LoseMessage = "rolled a {3} and {0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
     }
 }
