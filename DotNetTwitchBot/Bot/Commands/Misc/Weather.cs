@@ -9,23 +9,18 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class Weather : BaseCommandService
     {
-        private WeatherSettings _settings;
+        private readonly WeatherSettings _settings;
         private readonly ILogger<Weather> _logger;
-        private HttpClient _client = new HttpClient();
+        private readonly HttpClient _client = new();
 
         public Weather(
             ILogger<Weather> logger,
             IConfiguration configuration,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
-            var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>();
-            if (settings == null)
-            {
-                throw new Exception("Invalid Configuration. Weather settings missing.");
-            }
+            var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>() ?? throw new Exception("Invalid Configuration. Weather settings missing.");
             _settings = settings;
             _logger = logger;
         }
@@ -46,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 case "weather":
 
                     var response = await GetWeather(e.Arg);
-                    await _serviceBackbone.SendChatMessage(e.DisplayName, response);
+                    await ServiceBackbone.SendChatMessage(e.DisplayName, response);
                     break;
             }
         }

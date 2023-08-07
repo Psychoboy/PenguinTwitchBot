@@ -10,19 +10,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Heist : BaseCommandService
     {
-        private LoyaltyFeature _loyaltyFeature;
-        private ViewerFeature _viewerFeature;
+        private readonly LoyaltyFeature _loyaltyFeature;
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 300;
         private readonly int MinBet = 10;
-        private List<Participant> Entered = new List<Participant>();
-        private List<Participant> Survivors = new List<Participant>();
-        private List<Participant> Caught = new List<Participant>();
-        private Timer JoinTimer;
-        private ILogger<Heist> _logger;
+        private readonly List<Participant> Entered = new();
+        private readonly List<Participant> Survivors = new();
+        private readonly List<Participant> Caught = new();
+        private readonly Timer JoinTimer;
+        private readonly ILogger<Heist> _logger;
         private State GameState = State.NotRunning;
         private int CurrentStoryPart = 0;
-        private string CommandName = "heist";
+        private readonly string CommandName = "heist";
 
         enum State
         {
@@ -40,15 +39,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Heist(
             LoyaltyFeature loyaltyFeature,
-            ViewerFeature viewerFeature,
             ServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
-            _viewerFeature = viewerFeature;
             JoinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _logger = logger;
         }
@@ -68,13 +64,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             if (GameState == State.Finishing)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you can not join the heist now.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you can not join the heist now.");
                 throw new SkipCooldownException();
             }
 
             if (Entered.Exists(x => x.Name.Equals(e.Name)))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you have already joined the heist.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you have already joined the heist.");
                 throw new SkipCooldownException();
             }
 
@@ -87,26 +83,26 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName,
+                await ServiceBackbone.SendChatMessage(e.DisplayName,
                 "To join the heist, enter !heist AMOUNT or ALL or MAX");
                 throw new SkipCooldownException();
             }
 
             if (amount > LoyaltyFeature.MaxBet || amount < MinBet)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("The max amount to join the heist is {0} and must be greater then {1}", LoyaltyFeature.MaxBet.ToString("N0"), MinBet));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("The max amount to join the heist is {0} and must be greater then {1}", LoyaltyFeature.MaxBet.ToString("N0"), MinBet));
                 throw new SkipCooldownException();
             }
 
             if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, amount)))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
                 throw new SkipCooldownException();
             }
 
             if (GameState == State.NotRunning)
             {
-                await _serviceBackbone.SendChatMessage(string.Format("{0} is trying to get a team together for some serious heist business! use \"!heist AMOUNT/ALL/MAX\" to join!", e.DisplayName));
+                await ServiceBackbone.SendChatMessage(string.Format("{0} is trying to get a team together for some serious heist business! use \"!heist AMOUNT/ALL/MAX\" to join!", e.DisplayName));
                 GameState = State.Running;
                 JoinTimer.Change(JoinTime * 1000, JoinTime * 1000);
             }
@@ -139,20 +135,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     case 0:
                         CalculateResult();
-                        await _serviceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! SHARK");
+                        await ServiceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! SHARK");
                         JoinTimer.Change(5000, 5000);
                         CurrentStoryPart++;
                         return;
 
                     case 1:
-                        await _serviceBackbone.SendChatMessage("Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
+                        await ServiceBackbone.SendChatMessage("Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
                         CurrentStoryPart++;
                         return;
 
                     case 2:
                         if (Caught.Count > 0)
                         {
-                            await _serviceBackbone.SendChatMessage(string.Format("Look out! Charlie SHARK captured {0}", GetCaughtNames()));
+                            await ServiceBackbone.SendChatMessage(string.Format("Look out! Charlie SHARK captured {0}", GetCaughtNames()));
                         }
                         CurrentStoryPart++;
                         return;
@@ -160,7 +156,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     case 3:
                         if (Survivors.Count > 0)
                         {
-                            await _serviceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sharkS and grab some of those precious pasties!", GetWinnerNames()));
+                            await ServiceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sharkS and grab some of those precious pasties!", GetWinnerNames()));
                         }
                         CurrentStoryPart++;
                         return;
@@ -194,15 +190,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
                 if (payouts.Count == 0)
                 {
-                    await _serviceBackbone.SendChatMessage("The heist ended! There are no survivors.");
+                    await ServiceBackbone.SendChatMessage("The heist ended! There are no survivors.");
                 }
                 else if (((maxlength + 14) + "superpenguintv".Length) > 512)
                 {
-                    await _serviceBackbone.SendChatMessage(string.Format("The heist ended with {0} survivor(s) and {1} death(s).", Survivors.Count, Caught.Count));
+                    await ServiceBackbone.SendChatMessage(string.Format("The heist ended with {0} survivor(s) and {1} death(s).", Survivors.Count, Caught.Count));
                 }
                 else
                 {
-                    await _serviceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(",", payouts)));
+                    await ServiceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(",", payouts)));
                 }
                 CleanUp();
             }

@@ -7,8 +7,8 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class SubscriptionTracker
     {
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<SubscriptionTracker> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<SubscriptionTracker> _logger;
 
         public SubscriptionTracker(ILogger<SubscriptionTracker> logger, IServiceScopeFactory scopeFactory)
         {
@@ -20,11 +20,9 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    return await db.SubscriptionHistories.Where(x => x.Username.Equals(name)).AnyAsync();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return await db.SubscriptionHistories.Where(x => x.Username.Equals(name)).AnyAsync();
             }
             catch (Exception ex)
             {
@@ -37,13 +35,11 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var foundNames = await db.SubscriptionHistories.Where(x => names.Contains(x.Username)).Select(x => x.Username).ToListAsync();
-                    var missingNames = names.Where(x => foundNames.Contains(x) == false).ToList();
-                    return missingNames;
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var foundNames = await db.SubscriptionHistories.Where(x => names.Contains(x.Username)).Select(x => x.Username).ToListAsync();
+                var missingNames = names.Where(x => foundNames.Contains(x) == false).ToList();
+                return missingNames;
             }
             catch (Exception ex)
             {
@@ -56,21 +52,16 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var subHistory = await db.SubscriptionHistories.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
-                    if (subHistory == null)
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var subHistory = await db.SubscriptionHistories.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                subHistory ??= new SubscriptionHistory()
                     {
-                        subHistory = new SubscriptionHistory()
-                        {
-                            Username = name
-                        };
-                    }
-                    subHistory.LastSub = DateTime.Now;
-                    db.SubscriptionHistories.Update(subHistory);
-                    await db.SaveChangesAsync();
-                }
+                        Username = name
+                    };
+                subHistory.LastSub = DateTime.Now;
+                db.SubscriptionHistories.Update(subHistory);
+                await db.SaveChangesAsync();
             }
             catch (Exception ex)
             {

@@ -11,8 +11,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class DeathCounter : BaseCommandService
     {
-        private TwitchService _twitchService;
-        private ILogger<DeathCounter> _logger;
+        private readonly TwitchService _twitchService;
+        private readonly ILogger<DeathCounter> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ViewerFeature _viewerFeature;
 
@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _twitchService = twitchService;
             _logger = logger;
@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 switch (modifiers.First())
                 {
                     case "+":
-                        if (e.isBroadcaster || e.isMod)
+                        if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount++;
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         }
                         break;
                     case "-":
-                        if (e.isBroadcaster || e.isMod)
+                        if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount--;
@@ -75,7 +75,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         }
                         break;
                     case "reset":
-                        if (e.isBroadcaster || e.isMod)
+                        if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
                             counter.Amount = 0;
@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         }
                         break;
                     case "set":
-                        if (e.isBroadcaster || e.isMod)
+                        if (e.IsBroadcaster || e.IsMod)
                         {
                             if (!(modifiers.Count > 1)) throw new SkipCooldownException();
                             if (Int32.TryParse(modifiers[1], out var amount))
@@ -104,40 +104,33 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var counter = await GetCounter(counterName);
             if (counter.Amount == 0)
             {
-                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayName(_serviceBackbone.BroadcasterName), counterName));
+                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayName(ServiceBackbone.BroadcasterName), counterName));
 
             }
             else
             {
-                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayName(_serviceBackbone.BroadcasterName), counter.Amount, counterName));
+                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayName(ServiceBackbone.BroadcasterName), counter.Amount, counterName));
             }
         }
 
         private async Task<Models.DeathCounter> GetCounter(string counterName)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var counter = await db.DeathCounters.FirstOrDefaultAsync(x => x.Game.Equals(counterName));
+            counter ??= new Models.DeathCounter
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var counter = await db.DeathCounters.FirstOrDefaultAsync(x => x.Game.Equals(counterName));
-                if (counter == null)
-                {
-                    counter = new Models.DeathCounter
-                    {
-                        Game = counterName
-                    };
-                }
-                return counter;
-            }
+                Game = counterName
+            };
+            return counter;
         }
 
         private async Task UpdateCounter(Models.DeathCounter counter)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.DeathCounters.Update(counter);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.DeathCounters.Update(counter);
+            await db.SaveChangesAsync();
         }
     }
 }

@@ -12,11 +12,11 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class ServiceBackbone
     {
-        private ILogger<ServiceBackbone> _logger;
+        private readonly ILogger<ServiceBackbone> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IKnownBots _knownBots;
         private readonly CommandHandler _commandHandler;
-        static SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1);
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
 
@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
         public bool IsOnline { get; set; } = false;
-        public string BroadcasterName { get { return RawBroadcasterName != null ? RawBroadcasterName : ""; } }
+        public string BroadcasterName { get { return RawBroadcasterName ?? ""; } }
         public bool IsBroadcasterOrBot(string name)
         {
             return _knownBots.IsStreamerOrBot(name);
@@ -111,15 +111,13 @@ namespace DotNetTwitchBot.Bot.Core
                 }
 
                 //Run the Generic services
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var customCommand = scope.ServiceProvider.GetRequiredService<Commands.Custom.CustomCommand>();
-                    await customCommand.RunCommand(eventArgs);
-                    var audioCommands = scope.ServiceProvider.GetRequiredService<Commands.Custom.AudioCommands>();
-                    await audioCommands.RunCommand(eventArgs);
-                    var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
-                    await alias.RunCommand(eventArgs);
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var customCommand = scope.ServiceProvider.GetRequiredService<Commands.Custom.CustomCommand>();
+                await customCommand.RunCommand(eventArgs);
+                var audioCommands = scope.ServiceProvider.GetRequiredService<Commands.Custom.AudioCommands>();
+                await audioCommands.RunCommand(eventArgs);
+                var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
+                await alias.RunCommand(eventArgs);
 
             }
             catch (SkipCooldownException)
@@ -148,10 +146,10 @@ namespace DotNetTwitchBot.Bot.Core
                     IsWhisper = false,
                     Name = command.ChatMessage.Username,
                     DisplayName = command.ChatMessage.DisplayName,
-                    isSub = command.ChatMessage.IsSubscriber,
-                    isMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator,
-                    isVip = command.ChatMessage.IsVip,
-                    isBroadcaster = command.ChatMessage.IsBroadcaster,
+                    IsSub = command.ChatMessage.IsSubscriber,
+                    IsMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator,
+                    IsVip = command.ChatMessage.IsVip,
+                    IsBroadcaster = command.ChatMessage.IsBroadcaster,
                     TargetUser = command.ArgumentsAsList.Count > 0
                         ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
                         : ""
@@ -203,7 +201,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 if (IsBroadcasterOrBot(command.Name) || AllowedWhisperCommands.Contains(command.Command))
                 {
-                    command.isBroadcaster = IsBroadcasterOrBot(command.Name);
+                    command.IsBroadcaster = IsBroadcasterOrBot(command.Name);
                     try
                     {
                         await CommandEvent(this, command);
@@ -235,12 +233,10 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (SendMessageEvent != null)
             {
-                using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
-                    var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
-                    await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
-                }
+                using var scope = _scopeFactory.CreateAsyncScope();
+                var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
+                var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
+                await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
             }
         }
 
@@ -334,10 +330,10 @@ namespace DotNetTwitchBot.Bot.Core
                     Message = message.Message,
                     Name = message.Username.ToLower(),
                     DisplayName = message.DisplayName,
-                    isSub = message.IsSubscriber,
-                    isMod = message.IsModerator,
-                    isVip = message.IsVip,
-                    isBroadcaster = message.IsBroadcaster
+                    IsSub = message.IsSubscriber,
+                    IsMod = message.IsModerator,
+                    IsVip = message.IsVip,
+                    IsBroadcaster = message.IsBroadcaster
                 });
             }
         }

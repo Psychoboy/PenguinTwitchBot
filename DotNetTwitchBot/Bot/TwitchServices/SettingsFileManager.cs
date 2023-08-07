@@ -8,8 +8,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class SettingsFileManager
     {
-        private IConfiguration _configuration;
-        private ILogger<SettingsFileManager> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<SettingsFileManager> _logger;
 
         public SettingsFileManager(ILogger<SettingsFileManager> logger, IConfiguration configuration)
         {
@@ -23,8 +23,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 try
                 {
-                    var filePath = _configuration["Secrets:SecretsConf"]; //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
-                    if (filePath == null) throw new Exception("Invalid file configuration");
+                    var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration"); //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
                     string json = File.ReadAllText(filePath);
                     dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
 

@@ -10,20 +10,17 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
     public class KnownBots : IKnownBots
     {
-        private ConcurrentBag<KnownBot> _knownBots = new ConcurrentBag<KnownBot>();
-        private ILogger<KnownBots> _logger;
-        private IServiceScopeFactory _scopeFactory;
+        private readonly ConcurrentBag<KnownBot> _knownBots = new();
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public string? BroadcasterName { get; }
         public string? BotName { get; }
 
         public KnownBots(
-             ILogger<KnownBots> logger,
              IConfiguration configuration,
             IServiceScopeFactory scopeFactory
             )
         {
-            _logger = logger;
             _scopeFactory = scopeFactory;
             BroadcasterName = configuration["broadcaster"];
             BotName = configuration["botName"];
@@ -86,13 +83,11 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task LoadKnownBots()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var knownBots = await db.KnownBots.ToListAsync();
-                _knownBots.Clear();
-                _knownBots.AddRange(knownBots);
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var knownBots = await db.KnownBots.ToListAsync();
+            _knownBots.Clear();
+            _knownBots.AddRange(knownBots);
         }
 
 

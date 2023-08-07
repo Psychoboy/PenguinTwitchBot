@@ -10,22 +10,22 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class DailyCounter : BaseCommandService
     {
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<DailyCounter> _logger;
-        private static string SettingName = "DailyCounterFormat";
-        private static string CountValue = "DailyCountValue";
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<DailyCounter> _logger;
+        private static readonly string SettingName = "DailyCounterFormat";
+        private static readonly string CountValue = "DailyCountValue";
 
         public DailyCounter(
             ILogger<DailyCounter> logger,
             ServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _serviceBackbone.SubscriptionEvent += OnSub;
-            _serviceBackbone.SubscriptionGiftEvent += OnGiftSub;
+            ServiceBackbone.SubscriptionEvent += OnSub;
+            ServiceBackbone.SubscriptionGiftEvent += OnGiftSub;
 
         }
 
@@ -69,16 +69,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task<int> GetCounterValue()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var counterValue = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
+            if (counterValue == null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var counterValue = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
-                if (counterValue == null)
-                {
-                    return 0;
-                }
-                return counterValue.IntSetting;
+                return 0;
             }
+            return counterValue.IntSetting;
         }
 
 
@@ -88,13 +86,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var counterValue = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
-                if (counterValue == null)
-                {
-                    counterValue = new Setting()
+                counterValue ??= new Setting()
                     {
                         Name = CountValue
                     };
-                }
                 counterValue.IntSetting = value;
                 db.Settings.Update(counterValue);
                 await db.SaveChangesAsync();
@@ -108,13 +103,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var setting = await db.Settings.Where(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
-                if (setting == null)
-                {
-                    setting = new Setting()
+                setting ??= new Setting()
                     {
                         Name = SettingName
                     };
-                }
                 setting.StringSetting = format;
                 db.Settings.Update(setting);
                 await db.SaveChangesAsync();
@@ -124,27 +116,22 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task UpdateCounter()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var setting = await db.Settings.Where(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
+            if (setting == null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var setting = await db.Settings.Where(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
-                if (setting == null)
-                {
-                    return;
-                }
-                var count = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
-                if (count == null)
-                {
-                    count = new Setting()
-                    {
-                        IntSetting = 0
-                    };
-                }
-                var format = setting.StringSetting;
-                var value = count.IntSetting;
-                var text = format.Replace("{value}", value.ToString()).Replace("{nextgoal}", NextValue(value).ToString());
-                await WriteCounterFile(text);
+                return;
             }
+            var count = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
+            count ??= new Setting()
+                {
+                    IntSetting = 0
+                };
+            var format = setting.StringSetting;
+            var value = count.IntSetting;
+            var text = format.Replace("{value}", value.ToString()).Replace("{nextgoal}", NextValue(value).ToString());
+            await WriteCounterFile(text);
         }
 
         private int NextValue(int currentValue)

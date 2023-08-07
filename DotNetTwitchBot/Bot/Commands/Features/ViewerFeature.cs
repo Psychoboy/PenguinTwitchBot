@@ -24,22 +24,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         //private ViewerData _viewerData;
         // private FollowData _followData;
-        private TwitchService _twitchService;
-        private readonly TwitchBotService _twitchBotService;
+        private readonly TwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private Timer _timer;
+        private readonly Timer _timer;
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
             ServiceBackbone eventService,
             TwitchService twitchService,
-            TwitchBotService twitchBotService,
-            // FollowData followData
-            // ApplicationDbContext applicationDbContext
             IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(eventService, scopeFactory, commandHandler)
+            ) : base(eventService, commandHandler)
         {
             _logger = logger;
             eventService.ChatMessageEvent += OnChatMessage;
@@ -49,12 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             eventService.FollowEvent += OnFollow;
             eventService.UserJoinedEvent += OnUserJoined;
             eventService.UserLeftEvent += OnUserLeft;
-
-            // _viewerData = viewerData;
-            // _followData = followData;
-            // _applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
             _twitchService = twitchService;
-            _twitchBotService = twitchBotService;
             _scopeFactory = scopeFactory;
             _timer = new Timer(TimeSpan.FromHours(1).TotalMilliseconds); //30 minutes
             _timer.Elapsed += OnTimerElapsed;
@@ -63,11 +54,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Viewer?> GetViewer(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Viewers.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         // public async Task<Viewer?> GetViewerWithDetauls(int id)
@@ -84,30 +73,24 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<List<Viewer>> GetViewers()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Viewers.ToListAsync();
         }
 
         public async Task SaveViewer(Viewer viewer)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Viewers.Update(viewer);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Viewers.Update(viewer);
+            await db.SaveChangesAsync();
         }
 
         public async Task<List<Viewer>> SearchForViewer(string name)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.Where(x => x.Username.Contains(name) || x.DisplayName.Contains(name)).ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Viewers.Where(x => x.Username.Contains(name) || x.DisplayName.Contains(name)).ToListAsync();
         }
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -146,19 +129,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task UpdateLastSeen(Viewer viewer)
         {
             viewer.LastSeen = DateTime.Now;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Viewers.Update(viewer);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Viewers.Update(viewer);
+            await db.SaveChangesAsync();
         }
 
         private async Task OnFollow(object? sender, FollowEventArgs e)
         {
             _logger.LogInformation("{0} Followed.", e.DisplayName);
-            await _serviceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
-            updateLastActive(e.Username);
+            await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
+            UpdateLastActive(e.Username);
             await AddFollow(e);
         }
 
@@ -180,12 +161,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         DisplayName = args.DisplayName,
                         FollowDate = args.FollowDate
                     };
-                    await using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        await db.Followers.AddAsync(follower);
-                        await db.SaveChangesAsync();
-                    }
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    await db.Followers.AddAsync(follower);
+                    await db.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
@@ -242,11 +221,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Viewer?> GetViewer(string username)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username.ToLower()));
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Viewers.FirstOrDefaultAsync(x => x.Username.Equals(username.ToLower()));
         }
 
         public async Task<string> GetDisplayName(string username)
@@ -286,7 +263,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.Name == null) return;
             _logger.LogInformation("{0} Subscribed.", e.Name);
             await AddSubscription(e.Name);
-            updateLastActive(e.Name);
+            UpdateLastActive(e.Name);
         }
 
         private async Task OnSubscriptionEnd(object? sender, SubscriptionEndEventArgs e)
@@ -330,12 +307,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (!e.IsAnonymous)
             {
-                updateLastActive(e.Name);
+                UpdateLastActive(e.Name);
             }
             return Task.CompletedTask;
         }
 
-        private void updateLastActive(string? sender)
+        private void UpdateLastActive(string? sender)
         {
             if (sender == null) return;
             _usersLastActive[sender] = DateTime.Now;
@@ -343,7 +320,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            updateLastActive(e.Name);
+            UpdateLastActive(e.Name);
             //var viewer = await _viewerData.FindOne(e.Sender);
             Viewer? viewer;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -351,19 +328,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 viewer = await db.Viewers.Where(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
             }
-            if (viewer == null)
+            viewer ??= new Models.Viewer()
             {
-                viewer = new Models.Viewer()
-                {
-                    DisplayName = e.DisplayName,
-                    Username = e.Name
-                };
-            }
+                DisplayName = e.DisplayName,
+                Username = e.Name
+            };
             if (viewer.DisplayName != e.DisplayName) viewer.DisplayName = e.DisplayName;
-            if (viewer.isMod != e.isMod) viewer.isMod = e.isMod;
-            if (viewer.isSub != e.isSub) viewer.isSub = e.isSub;
-            if (viewer.isVip != e.isVip) viewer.isVip = e.isVip;
-            if (viewer.isBroadcaster != e.isBroadcaster) viewer.isBroadcaster = e.isBroadcaster;
+            if (viewer.isMod != e.IsMod) viewer.isMod = e.IsMod;
+            if (viewer.isSub != e.IsSub) viewer.isSub = e.IsSub;
+            if (viewer.isVip != e.IsVip) viewer.isVip = e.IsVip;
+            if (viewer.isBroadcaster != e.IsBroadcaster) viewer.isBroadcaster = e.IsBroadcaster;
             viewer.LastSeen = DateTime.Now;
             //await _viewerData.InsertOrUpdate(viewer);
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -376,20 +350,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task AddBasicUser(string name)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var viewer = await db.Viewers.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+            if (viewer != null) return;
+            viewer = new Viewer
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var viewer = await db.Viewers.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
-                if (viewer != null) return;
-                viewer = new Viewer
-                {
-                    DisplayName = name,
-                    Username = name,
-                    LastSeen = DateTime.Now
-                };
-                db.Update(viewer);
-                await db.SaveChangesAsync();
-            }
+                DisplayName = name,
+                Username = name,
+                LastSeen = DateTime.Now
+            };
+            db.Update(viewer);
+            await db.SaveChangesAsync();
         }
 
         private async Task UpdateSubscribers()
@@ -403,14 +375,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     foreach (var subscriber in subscribers)
                     {
                         var viewer = await GetViewer(subscriber.UserLogin);
-                        if (viewer == null)
+                        viewer ??= new Viewer()
                         {
-                            viewer = new Viewer()
-                            {
-                                Username = subscriber.UserLogin,
-                                DisplayName = subscriber.UserName
-                            };
-                        }
+                            Username = subscriber.UserLogin,
+                            DisplayName = subscriber.UserName
+                        };
                         if (viewer.isSub == false)
                         {
                             _logger.LogWarning("{0} was not a subscriber and is being updated manually bulk.", viewer.Username);

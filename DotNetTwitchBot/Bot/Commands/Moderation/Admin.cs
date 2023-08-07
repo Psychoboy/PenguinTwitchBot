@@ -10,16 +10,15 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
     public class Admin : BaseCommandService
     {
-        private IWebSocketMessenger _webSocketMessenger;
-        private ILogger<Admin> _logger;
+        private readonly IWebSocketMessenger _webSocketMessenger;
+        private readonly ILogger<Admin> _logger;
 
         public Admin(
             ILogger<Admin> logger,
             IWebSocketMessenger webSocketMessenger,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _webSocketMessenger = webSocketMessenger;
             _logger = logger;
@@ -52,13 +51,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public async Task ResumeAlerts()
         {
             _webSocketMessenger.Resume();
-            await _serviceBackbone.SendChatMessage("Alerts resumed.");
+            await ServiceBackbone.SendChatMessage("Alerts resumed.");
         }
 
         public async Task PauseAlerts()
         {
             _webSocketMessenger.Pause();
-            await _serviceBackbone.SendChatMessage("Alerts paused.");
+            await ServiceBackbone.SendChatMessage("Alerts paused.");
         }
     }
 }

@@ -10,19 +10,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class ShoutoutSystem : BaseCommandService
     {
-        private IServiceScopeFactory _scopeFactory;
-        private TwitchService _twitchService;
-        private ILogger<ShoutoutSystem> _logger;
-        private DateTime LastShoutOut = DateTime.Now;
-        private Dictionary<string, DateTime> UserLastShoutout = new Dictionary<string, DateTime>();
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TwitchService _twitchService;
+        private readonly ILogger<ShoutoutSystem> _logger;
+        private readonly DateTime LastShoutOut = DateTime.Now;
+        private readonly Dictionary<string, DateTime> UserLastShoutout = new();
 
         public ShoutoutSystem(
             ILogger<ShoutoutSystem> logger,
             IServiceScopeFactory scopeFactory,
-            TwitchServices.TwitchService twitchService,
+            TwitchService twitchService,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             serviceBackbone.ChatMessageEvent += OnChatMessage;
             _scopeFactory = scopeFactory;
@@ -32,32 +32,28 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task<List<AutoShoutout>> GetAutoShoutoutsAsync()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.AutoShoutouts.OrderBy(x => x.Name).ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.AutoShoutouts.OrderBy(x => x.Name).ToListAsync();
         }
 
         public async Task AddAutoShoutout(AutoShoutout autoShoutout)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var autoShoutExists = await db.AutoShoutouts.Where(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
+            if (autoShoutExists != null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var autoShoutExists = await db.AutoShoutouts.Where(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
-                if (autoShoutExists != null)
-                {
-                    _logger.LogWarning("{0} autoshoutout already exists.", autoShoutout.Name);
-                    return;
-                }
-                await db.AutoShoutouts.AddAsync(autoShoutout);
-                await db.SaveChangesAsync();
+                _logger.LogWarning("{0} autoshoutout already exists.", autoShoutout.Name);
+                return;
             }
+            await db.AutoShoutouts.AddAsync(autoShoutout);
+            await db.SaveChangesAsync();
         }
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            if (_serviceBackbone.IsOnline == false) return;
+            if (ServiceBackbone.IsOnline == false) return;
             var name = e.Name;
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -96,7 +92,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
 
             message = message.Replace("(name)", name).Replace("(game)", game);
-            await _serviceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message);
 
             await TwitchShoutOut(userId);
         }
@@ -112,7 +108,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     if (UserLastShoutout[userId].AddMinutes(60) > DateTime.Now) return;
                 }
                 UserLastShoutout[userId] = DateTime.Now;
-                if (_serviceBackbone.IsOnline == false) return;
+                if (ServiceBackbone.IsOnline == false) return;
                 await _twitchService.ShoutoutStreamer(userId);
             }
         }
@@ -120,32 +116,26 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task UpdateLastShoutout(AutoShoutout? autoShoutout)
         {
             if (autoShoutout == null) return;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                autoShoutout.LastShoutout = DateTime.Now;
-                db.AutoShoutouts.Update(autoShoutout);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            autoShoutout.LastShoutout = DateTime.Now;
+            db.AutoShoutouts.Update(autoShoutout);
+            await db.SaveChangesAsync();
         }
 
         public async Task<AutoShoutout?> GetAutoShoutoutAsync(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.AutoShoutouts.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.AutoShoutouts.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task UpdateAutoShoutoutAsync(AutoShoutout autoShoutout)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.AutoShoutouts.Update(autoShoutout);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.AutoShoutouts.Update(autoShoutout);
+            await db.SaveChangesAsync();
         }
 
         public override async Task Register()

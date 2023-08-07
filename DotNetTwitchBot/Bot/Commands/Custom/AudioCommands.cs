@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<AudioCommands> logger,
             ServiceBackbone eventService,
-            CommandHandler commandHandler) : base(eventService, scopeFactory, commandHandler)
+            CommandHandler commandHandler) : base(eventService, commandHandler)
         {
             SendAlerts = sendAlerts;
             ViewerFeature = viewerFeature;
@@ -86,11 +86,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<AudioCommand?> GetAudioCommand(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.AudioCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.AudioCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task RunCommand(CommandEventArgs e)
@@ -127,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     break;
                 case Rank.Streamer:
-                    if (_serviceBackbone.IsBroadcasterOrBot(e.Name) == false)
+                    if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
                     {
                         await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
                         return;
@@ -205,7 +203,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var command = await db.AudioCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
-                    await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                    await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
                     return;
                 }
                 command.Disabled = disabled;
@@ -213,7 +211,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 db.Update(command);
                 await db.SaveChangesAsync();
             }
-            await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+            await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
         }
 
         private async Task RefreshAudio()
@@ -229,11 +227,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);
-                    await _serviceBackbone.SendChatMessage("Successfully added audio command");
+                    await ServiceBackbone.SendChatMessage("Successfully added audio command");
                 }
                 else
                 {
-                    await _serviceBackbone.SendChatMessage("Failed to add audio command");
+                    await ServiceBackbone.SendChatMessage("Failed to add audio command");
                 }
 
             }

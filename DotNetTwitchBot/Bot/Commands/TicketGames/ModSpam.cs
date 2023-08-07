@@ -11,22 +11,21 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class ModSpam : BaseCommandService
     {
-        private AddActive _addActive;
-        Timer _intervalTimer;
+        private readonly AddActive _addActive;
+        readonly Timer _intervalTimer;
         private readonly ILogger<ModSpam> _logger;
-        TimeSpan _runTime = new TimeSpan(0, 0, 0, 15);
-        DateTime _startTime = new DateTime();
+        TimeSpan _runTime = new(0, 0, 0, 15);
+        DateTime _startTime = new();
 
         public ModSpam(
             AddActive addActive,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
             ILogger<ModSpam> logger
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _addActive = addActive;
-            _intervalTimer = new Timer(timerCallBack, this, Timeout.Infinite, Timeout.Infinite);
+            _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
             _logger = logger;
         }
 
@@ -50,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         }
 
-        private async void timerCallBack(object? state)
+        private async void TimerCallBack(object? state)
         {
             if (state == null) return;
             var modSpam = (ModSpam)state;
@@ -64,7 +63,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             if (elapsedTime > _runTime)
             {
                 _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                await _serviceBackbone.SendChatMessage("Mod spam completed... tickets arriving soon.");
+                await ServiceBackbone.SendChatMessage("Mod spam completed... tickets arriving soon.");
 
 
             }
@@ -72,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task StartModSpam()
         {
-            await _serviceBackbone.SendChatMessage("Starting Mod Spam... please wait while it spams silently...");
+            await ServiceBackbone.SendChatMessage("Starting Mod Spam... please wait while it spams silently...");
             _runTime = new TimeSpan(0, 0, Tools.RandomRange(15, 20));
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);

@@ -13,23 +13,20 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
     public class Blacklist : BaseCommandService
     {
-        private ILogger<Blacklist> _logger;
-        private IServiceScopeFactory _scopeFactory;
-        private TwitchService _twitchService;
-        private ConcurrentBag<WordFilter> _blackList = new ConcurrentBag<WordFilter>();
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TwitchService _twitchService;
+        private readonly ConcurrentBag<WordFilter> _blackList = new();
 
         public Blacklist(
-            ILogger<Blacklist> logger,
             IServiceScopeFactory scopeFactory,
-            TwitchServices.TwitchService twitchService,
+            TwitchService twitchService,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
-            _logger = logger;
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;
-            _serviceBackbone.ChatMessageEvent += ChatMessage;
+            ServiceBackbone.ChatMessageEvent += ChatMessage;
         }
 
         public async Task AddBlacklist(WordFilter wordFilter)
@@ -56,11 +53,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task<WordFilter?> GetWordFilter(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.WordFilters.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.WordFilters.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public List<WordFilter> GetBlackList()
@@ -71,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         private async Task ChatMessage(object? sender, ChatMessageEventArgs e)
         {
             bool match = false;
-            if (e.isMod || e.isBroadcaster) return;
+            if (e.IsMod || e.IsBroadcaster) return;
             foreach (var wordFilter in _blackList)
             {
                 if (wordFilter.IsRegex)
@@ -88,23 +83,18 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 {
                     //await _serviceBackbone.SendChatMessage($"/timeout {e.DisplayName} {wordFilter.TimeOutLength} {wordFilter.BanReason}");
                     await _twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
-                    await _serviceBackbone.SendChatMessage(wordFilter.Message);
+                    await ServiceBackbone.SendChatMessage(wordFilter.Message);
                     break;
                 }
             }
         }
-        private static String WildCardToRegular(String value)
-        {
-            return "^" + Regex.Escape(value).Replace("\\*", ".*") + "$";
-        }
+
         public async Task LoadBlacklist()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                _blackList.Clear();
-                _blackList.AddRange(await db.WordFilters.OrderBy(x => x.Id).ToListAsync());
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            _blackList.Clear();
+            _blackList.AddRange(await db.WordFilters.OrderBy(x => x.Id).ToListAsync());
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

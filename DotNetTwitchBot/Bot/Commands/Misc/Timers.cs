@@ -13,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class Timers : BaseCommandService
     {
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<Timers> _logger;
-        private Timer _intervalTimer;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<Timers> _logger;
+        private readonly Timer _intervalTimer;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
         private int MessageCounter = 0;
 
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -49,55 +49,45 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task<List<TimerGroup>> GetTimerGroupsAsync()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.TimerGroups.Include(x => x.Messages).ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.TimerGroups.Include(x => x.Messages).ToListAsync();
         }
 
         public async Task<TimerGroup?> GetTimerGroupAsync(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.TimerGroups.Where(x => x.Id == id).Include(x => x.Messages).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.TimerGroups.Where(x => x.Id == id).Include(x => x.Messages).FirstOrDefaultAsync();
         }
 
         public async Task AddTimerGroup(TimerGroup group)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await db.TimerGroups.AddAsync(group);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await db.TimerGroups.AddAsync(group);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateTimerGroup(TimerGroup group)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.TimerGroups.Update(group);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.TimerGroups.Update(group);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateTimerMessage(TimerMessage message)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.TimerMessages.Update(message);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.TimerMessages.Update(message);
+            await db.SaveChangesAsync();
         }
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
-            if (_serviceBackbone.IsOnline == false) return;
+            if (ServiceBackbone.IsOnline == false) return;
             await RunTimers();
         }
 
@@ -152,12 +142,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var randomNextMinutes = Tools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
                 group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
                 group.LastRun = DateTime.Now;
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    db.TimerGroups.Update(group);
-                    await db.SaveChangesAsync();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.TimerGroups.Update(group);
+                await db.SaveChangesAsync();
             }
             catch (Exception ex)
             {
@@ -191,13 +179,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var commandArgs = new CommandEventArgs
                 {
                     Command = commandText[1],
-                    Name = _serviceBackbone.BroadcasterName,
-                    DisplayName = _serviceBackbone.BroadcasterName,
-                    isMod = true,
-                    isBroadcaster = true,
-                    isSub = true
+                    Name = ServiceBackbone.BroadcasterName,
+                    DisplayName = ServiceBackbone.BroadcasterName,
+                    IsMod = true,
+                    IsBroadcaster = true,
+                    IsSub = true
                 };
-                await _serviceBackbone.RunCommand(commandArgs);
+                await ServiceBackbone.RunCommand(commandArgs);
             }
             else
             {

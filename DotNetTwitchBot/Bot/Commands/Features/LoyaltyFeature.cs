@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
             CommandHandler commandHandler
-            ) : base(eventService, scopeFactory, commandHandler)
+            ) : base(eventService, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
@@ -38,12 +38,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _intervalTimer.Elapsed += ElapseTimer;
             _intervalTimer.Start();
 
-            _serviceBackbone.ChatMessageEvent += OnChatMessage;
+            ServiceBackbone.ChatMessageEvent += OnChatMessage;
 
             //Loyalty Stuff
-            _serviceBackbone.SubscriptionEvent += OnSubscription;
-            _serviceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
-            _serviceBackbone.CheerEvent += OnCheer;
+            ServiceBackbone.SubscriptionEvent += OnSubscription;
+            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
+            ServiceBackbone.CheerEvent += OnCheer;
 
             _logger = logger;
         }
@@ -54,12 +54,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous)
             {
-                await _serviceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
+                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
                 return;
             }
             try
             {
-                await _serviceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
+                await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
                 var ticketsToAward = (int)Math.Floor((double)e.Amount / 10);
                 if (ticketsToAward < 1) return;
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, ticketsToAward);
@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     message += $" They have gifted a total of {e.TotalGifted} subs to the channel!";
                 }
-                await _serviceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message);
             }
             catch (Exception ex)
             {
@@ -101,11 +101,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _logger.LogInformation("Gave {0} 50 tickets for subscribing.", e.Name);
                 if (e.Count != null && e.Count > 0)
                 {
-                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
                 }
                 else
                 {
-                    await _serviceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
                 }
 
             }
@@ -132,8 +132,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
-            if (!_serviceBackbone.IsOnline) return;
-            if (_serviceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
+            if (!ServiceBackbone.IsOnline) return;
+            if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var viewer = await db.ViewerMessageCounts.Where(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
@@ -161,11 +161,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var currentViewers = _viewerFeature.GetCurrentViewers();
             //_logger.LogInformation("(Loyalty) Currently a total of {0} viewers", currentViewers.Count());
-            if (!_serviceBackbone.IsOnline) return;
+            if (!ServiceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
                 // if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) continue;
-                if (_serviceBackbone.IsKnownBot(viewer)) continue;
+                if (ServiceBackbone.IsKnownBot(viewer)) continue;
                 try
                 {
                     await AddPointsToViewer(viewer, 5);
@@ -227,7 +227,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
                         var totalPasties = await GetUserPasties(e.TargetUser);
-                        await _serviceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
+                        await ServiceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
                     }
                     break;
 
@@ -239,11 +239,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var pasties = await GetUserPasties(e.TargetUser);
             if (pasties.Points == 0)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has no pasties or doesn't exist.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has no pasties or doesn't exist.");
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has {pasties.Points:N0} pasties.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has {pasties.Points:N0} pasties.");
             }
         }
 
@@ -251,31 +251,31 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (e.Args.Count < 2 || e.TargetUser.Equals(e.Name))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
                 throw new SkipCooldownException(); ;
             }
 
             if (!Int64.TryParse(e.Args[1], out long amount))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
                 throw new SkipCooldownException(); ;
             }
 
             var target = await _viewerFeature.GetViewer(e.TargetUser);
             if (target == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
                 throw new SkipCooldownException(); ;
             }
 
             if (!(await RemovePointsFromUser(e.Name, amount)))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
                 throw new SkipCooldownException(); ;
             }
 
             await AddPointsToViewer(e.TargetUser, amount);
-            await _serviceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
+            await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
         public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max = MaxBet)
@@ -368,7 +368,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var pasties = await GetUserPastiesAndRank(e.Name);
             var time = await GetUserTimeAndRank(e.Name);
             var messages = await GetUserMessagesAndRank(e.Name);
-            await _serviceBackbone.SendChatMessage($"{await _viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
+            await ServiceBackbone.SendChatMessage($"{await _viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
         }
 
         private async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)

@@ -21,13 +21,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public Roulette(
             ServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
             ILogger<Roulette> logger
-        ) : base(serviceBackbone, scopeFactory, commandHandler)
+        ) : base(serviceBackbone, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
-            _serviceBackbone.StreamStarted += OnStreamStarted;
+            ServiceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
         }
 
@@ -52,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 case "roulette":
                     {
-                        if (_serviceBackbone.IsOnline == false) return;
+                        if (ServiceBackbone.IsOnline == false) return;
 
                         if (e.Args.Count == 0)
                         {

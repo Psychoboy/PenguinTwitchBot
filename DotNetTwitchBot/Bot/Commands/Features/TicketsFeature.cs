@@ -14,9 +14,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private readonly ILogger<TicketsFeature> _logger;
 
-        Timer _autoPointsTimer;
+        readonly Timer _autoPointsTimer;
 
-        private ViewerFeature _viewerFeature;
+        private readonly ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
 
         // private TicketsData _ticketsData;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
             CommandHandler commandHandler)
-            : base(serviceBackbone, scopeFactory, commandHandler)
+            : base(serviceBackbone, commandHandler)
         {
             _logger = logger;
 
@@ -95,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<long> GiveTicketsToViewer(string viewer, long amount)
         {
-            if (_serviceBackbone.IsKnownBot(viewer)) return 0;
+            if (ServiceBackbone.IsKnownBot(viewer)) return 0;
             ViewerTicket? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -103,14 +103,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewerPoints = await db.ViewerTickets.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
             }
             // var viewerPoints = await _applicationDbContext.ViewerTickets.Where(x => x.Username.Equals(viewer, StringComparison.CurrentCultureIgnoreCase)).FirstAsync();
-            if (viewerPoints == null)
+            viewerPoints ??= new Models.ViewerTicket()
             {
-                viewerPoints = new Models.ViewerTicket()
-                {
-                    Username = viewer.ToLower(),
-                    Points = 0
-                };
-            }
+                Username = viewer.ToLower(),
+                Points = 0
+            };
             viewerPoints.Points += amount;
             if (viewerPoints.Points < 0)
             {
@@ -170,11 +167,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            var viewers = _viewerFeature.GetCurrentViewers();
-
-            // _logger.LogInformation("(Tickets) Currently a total of {0} viewers", viewers.Count());
-
-            if (_serviceBackbone.IsOnline)
+            if (ServiceBackbone.IsOnline)
             {
                 _logger.LogInformation("Starting to give  out tickets");
                 await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 5);
@@ -187,11 +180,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var tickets = await GetViewerTicketsWithRank(e.Name);
             if (tickets == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(
+                await ServiceBackbone.SendChatMessage(
                     string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}. Use !enter AMOUNT to enter your tickets.",
                     e.DisplayName, tickets.Points, tickets.Ranking
                     ));
@@ -224,7 +217,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
-                            await _serviceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
+                            await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }
@@ -238,12 +231,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task ResetAllPoints()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await db.ViewerTickets.ExecuteDeleteAsync();
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await db.ViewerTickets.ExecuteDeleteAsync();
+            await db.SaveChangesAsync();
         }
     }
 }

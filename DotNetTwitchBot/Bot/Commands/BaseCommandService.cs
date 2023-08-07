@@ -7,23 +7,23 @@ namespace DotNetTwitchBot.Bot.Commands
     {
         protected CommandHandler CommandHandler { get; }
 
-        public BaseCommandService(ServiceBackbone serviceBackbone, IServiceScopeFactory scopeFactory, CommandHandler commandHandler)
+        public BaseCommandService(ServiceBackbone serviceBackbone, CommandHandler commandHandler)
         {
-            _serviceBackbone = serviceBackbone;
+            ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
             CommandHandler = commandHandler;
         }
 
-        protected ServiceBackbone _serviceBackbone { get; }
+        protected ServiceBackbone ServiceBackbone { get; }
 
         public async Task SendChatMessage(string message)
         {
-            await _serviceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message);
         }
 
         public async Task SendChatMessage(string name, string message)
         {
-            await _serviceBackbone.SendChatMessage(name, message);
+            await ServiceBackbone.SendChatMessage(name, message);
         }
 
         // public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }

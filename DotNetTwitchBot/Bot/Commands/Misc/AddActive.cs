@@ -12,8 +12,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class AddActive : BaseCommandService
     {
-        private TicketsFeature _ticketsFeature;
-        Timer _ticketsToActiveCommandTimer;
+        private readonly TicketsFeature _ticketsFeature;
+        readonly Timer _ticketsToActiveCommandTimer;
         private long _ticketsToGiveOut = 0;
         private DateTime _lastTicketsAdded = DateTime.Now;
         private readonly ILogger<AddActive> _logger;
@@ -22,9 +22,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<AddActive> logger,
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-        ) : base(eventService, scopeFactory, commandHandler)
+        ) : base(eventService, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
@@ -70,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < DateTime.Now)
             {
                 await _ticketsFeature.GiveTicketsToActiveUsers(_ticketsToGiveOut);
-                await _serviceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
+                await ServiceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
                 _ticketsToGiveOut = 0;
             }
         }

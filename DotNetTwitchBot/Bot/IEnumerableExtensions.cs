@@ -11,13 +11,10 @@ namespace DotNetTwitchBot.Bot
         public static T RandomElement<T>(this IEnumerable<T> list, ILogger? logger = null)
         {
 #pragma warning disable CS8603 //disable the possible null warning
-            if (list.Count() == 0) return default(T);
+            if (list.Count() == 0) return default;
 #pragma warning restore CS8603
             var elementNum = RandomNumberGenerator.GetInt32(list.Count());
-            if (logger != null)
-            {
-                logger.LogInformation("Got ElementNum: {0} from total: {1}", elementNum, list.Count());
-            }
+            logger?.LogInformation("Got ElementNum: {0} from total: {1}", elementNum, list.Count());
             return list.ElementAt(elementNum);
         }
     }

@@ -10,24 +10,21 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Steal : BaseCommandService
     {
-        private int StealMin = 100;
-        private int StealMax = 10000;
-        private LoyaltyFeature _loyaltyFeature;
-        private IServiceScopeFactory _scopeFactory;
-        private ViewerFeature _viewerFeature;
+        private readonly int StealMin = 100;
+        private readonly int StealMax = 10000;
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ViewerFeature _viewerFeature;
         private readonly ILogger<Steal> _logger;
 
         public Steal(
             ILogger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
-            IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
-            _scopeFactory = scopeFactory;
             _viewerFeature = viewerFeature;
             _logger = logger;
         }
@@ -46,20 +43,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (!command.CommandProperties.CommandName.Equals("steal")) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
                 throw new SkipCooldownException();
             }
 
-            if (!_serviceBackbone.IsOnline)
+            if (!ServiceBackbone.IsOnline)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you can't steal from someone when the stream is offline");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you can't steal from someone when the stream is offline");
                 throw new SkipCooldownException();
             }
 
             var userPasties = await _loyaltyFeature.GetUserPasties(e.Name);
             if (userPasties.Points < StealMax)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
                 throw new SkipCooldownException();
             }
 
@@ -73,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var amount = Tools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName,
+                await ServiceBackbone.SendChatMessage(e.DisplayName,
                 string.Format("{0} is to poor for you to steal from them, instead you give them {1} pasties.", targetDisplayName, amount.ToString("N0")));
                 await MovePoints(e.Name, e.TargetUser, amount);
                 return;
@@ -81,14 +78,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var rand = Tools.Next(1, 12 + 1);
             if (rand <= 4) // success
             {
-                await _serviceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} pasties from {2}",
+                await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} pasties from {2}",
                 e.DisplayName, amount, targetDisplayName));
 
                 await MovePoints(e.TargetUser, e.Name, amount);
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} pasties from {2}, {2} gets {1} pasties from {0} instead",
+                await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} pasties from {2}, {2} gets {1} pasties from {0} instead",
                e.DisplayName, amount, targetDisplayName));
                 await MovePoints(e.Name, e.TargetUser, amount);
             }

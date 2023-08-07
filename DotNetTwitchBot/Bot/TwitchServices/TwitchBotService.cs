@@ -16,12 +16,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class TwitchBotService
     {
-        private readonly TwitchAPI _twitchApi = new TwitchAPI();
-        private ILogger<TwitchBotService> _logger;
-        private IConfiguration _configuration;
-        private HttpClient _httpClient = new HttpClient();
-        Timer _timer;
-        private SettingsFileManager _settingsFileManager;
+        private readonly TwitchAPI _twitchApi = new();
+        private readonly ILogger<TwitchBotService> _logger;
+        private readonly IConfiguration _configuration;
+        readonly Timer _timer;
+        private readonly SettingsFileManager _settingsFileManager;
 
         public TwitchBotService(ILogger<TwitchBotService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
