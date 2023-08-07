@@ -11,13 +11,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Defuse : BaseCommandService
     {
-        public List<string> Wires = new List<string> { "red", "blue", "yellow" };
+        public List<string> Wires = new() { "red", "blue", "yellow" };
         public int Cost = 500;
         public int Cooldown = 10;
-        private LoyaltyFeature _loyaltyFeature;
-        private ILogger<Defuse> _logger;
-        private SendAlerts _sendAlerts;
-        private ViewerFeature _viewerFeature;
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILogger<Defuse> _logger;
+        private readonly SendAlerts _sendAlerts;
+        private readonly ViewerFeature _viewerFeature;
 
         public Defuse(
             LoyaltyFeature loyaltyFeature,
@@ -25,9 +25,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ViewerFeature viewerFeature,
             SendAlerts sendAlerts,
             ILogger<Defuse> logger,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _logger = logger;
@@ -53,13 +52,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             !e.Arg.Equals("blue", StringComparison.CurrentCultureIgnoreCase) &&
             !e.Arg.Equals("yellow", StringComparison.CurrentCultureIgnoreCase)))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("you need to choose one of these wires to cut: {0}", string.Join(", ", Wires)));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you need to choose one of these wires to cut: {0}", string.Join(", ", Wires)));
                 throw new SkipCooldownException();
             }
 
             if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
                 throw new SkipCooldownException();
             }
 
@@ -77,12 +76,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var max = Cost * multiplier + Cost / multiplier;
                 var value = Tools.Next(min, max + 1);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, value);
-                await _serviceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
+                await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
                 _sendAlerts.QueueAlert("defuse.gif,8");
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
+                await ServiceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
                 _sendAlerts.QueueAlert("detonated.gif,10");
             }
         }

@@ -91,20 +91,16 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.DefaultCommands.Where(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.DefaultCommands.Where(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
         }
 
         public async Task<DefaultCommand?> GetDefaultCommandById(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.DefaultCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.DefaultCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<List<DefaultCommand>> GetDefaultCommandsFromDb()
@@ -116,14 +112,12 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<DefaultCommand> AddDefaultCommand(DefaultCommand defaultCommand)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var newDefaultCommand = await db.DefaultCommands.AddAsync(defaultCommand);
-                await db.SaveChangesAsync();
-                await newDefaultCommand.ReloadAsync();
-                return newDefaultCommand.Entity;
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var newDefaultCommand = await db.DefaultCommands.AddAsync(defaultCommand);
+            await db.SaveChangesAsync();
+            await newDefaultCommand.ReloadAsync();
+            return newDefaultCommand.Entity;
         }
 
         public bool IsCoolDownExpired(string user, string command)
@@ -151,11 +145,9 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (!IsCoolDownExpired(user, command))
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
-                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command)));
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
+                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command)));
 
                 return false;
             }
@@ -166,18 +158,15 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (!IsCoolDownExpired(user, command.CommandName))
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
+                if (command is DefaultCommand commandProperties)
                 {
-                    var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
-                    if (command is DefaultCommand commandProperties)
-                    {
-                        await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, CooldownLeft(user, command.CommandName)));
-                    }
-                    else
-                    {
-                        await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command.CommandName)));
-                    }
-
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, CooldownLeft(user, command.CommandName)));
+                }
+                else
+                {
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command.CommandName)));
                 }
 
                 return false;

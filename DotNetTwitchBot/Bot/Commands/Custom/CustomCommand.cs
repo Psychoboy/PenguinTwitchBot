@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             LoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
             ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler) : base(serviceBackbone, scopeFactory, commandHandler)
+            CommandHandler commandHandler) : base(serviceBackbone, commandHandler)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _twitchService = twitchService;
             _loyaltyFeature = loyaltyFeature;
             _giveawayFeature = giveawayFeature;
-            _serviceBackbone.ChatMessageEvent += OnChatMessage;
+            ServiceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -85,20 +85,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<CustomCommands?> GetCustomCommand(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.CustomCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.CustomCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<KeywordType?> GetKeyword(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Keywords.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Keywords.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
 
@@ -220,10 +216,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsWhisper = false,
                         Name = e.Name,
                         DisplayName = e.DisplayName,
-                        isSub = e.isSub,
-                        isMod = e.isBroadcaster || e.isMod,
-                        isVip = e.isVip,
-                        isBroadcaster = e.isBroadcaster,
+                        IsSub = e.IsSub,
+                        IsMod = e.IsBroadcaster || e.IsMod,
+                        IsVip = e.IsVip,
+                        IsBroadcaster = e.IsBroadcaster,
                     };
                     await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
                     if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
@@ -275,7 +271,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         }
                         break;
                     case Rank.Streamer:
-                        if (_serviceBackbone.IsBroadcasterOrBot(e.Name) == false)
+                        if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
                         {
                             await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
                             return;
@@ -292,7 +288,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     {
                         if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
                         {
-                            await _serviceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                            await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
                             return;
                         }
                     }
@@ -340,11 +336,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             if (newCommand != null)
                             {
                                 await AddCommand(newCommand);
-                                await _serviceBackbone.SendChatMessage("Successfully added command");
+                                await ServiceBackbone.SendChatMessage("Successfully added command");
                             }
                             else
                             {
-                                await _serviceBackbone.SendChatMessage("failed to add command");
+                                await ServiceBackbone.SendChatMessage("failed to add command");
                             }
 
                         }
@@ -371,7 +367,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await _serviceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
                                 return;
                             }
                             command.Disabled = true;
@@ -379,7 +375,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await _serviceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
                         return;
                     }
 
@@ -392,7 +388,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await _serviceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
                                 return;
                             }
                             command.Disabled = false;
@@ -400,7 +396,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await _serviceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
                         return;
                     }
 
@@ -482,7 +478,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
                     message = UnescapeTagsInMessages(result.Message);
-                    await _serviceBackbone.SendChatMessage(message);
+                    await ServiceBackbone.SendChatMessage(message);
                 }
             }
         }
@@ -529,7 +525,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                if (eventArgs.isDiscord)
+                if (eventArgs.IsDiscord)
                 {
                     return new CustomCommandResult(eventArgs.DiscordMention);
                 }
@@ -619,7 +615,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                return _serviceBackbone.IsOnline ? new CustomCommandResult() : new CustomCommandResult(true);
+                return ServiceBackbone.IsOnline ? new CustomCommandResult() : new CustomCommandResult(true);
             });
         }
 
@@ -627,7 +623,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                return _serviceBackbone.IsOnline ? new CustomCommandResult(true) : new CustomCommandResult();
+                return ServiceBackbone.IsOnline ? new CustomCommandResult(true) : new CustomCommandResult();
             });
         }
 
@@ -676,7 +672,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
 
                 // TODO: Make this customizable
-                if (eventArgs.Args.Count > 0 && (eventArgs.isBroadcaster || eventArgs.isMod))
+                if (eventArgs.Args.Count > 0 && (eventArgs.IsBroadcaster || eventArgs.IsMod))
                 {
                     var modifier = eventArgs.Args[0];
 

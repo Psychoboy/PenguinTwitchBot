@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 Command = arg.CommandName,
                 DiscordMention = arg.User.Mention,
-                isDiscord = true
+                IsDiscord = true
             };
 
             if (arg.CommandName.Equals("weather"))
@@ -154,11 +154,9 @@ namespace DotNetTwitchBot.Bot.Core
                 }
                 try
                 {
-                    await using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var weather = scope.ServiceProvider.GetRequiredService<Commands.Misc.Weather>();
-                        await arg.RespondAsync(await weather.GetWeather(loc));
-                    }
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var weather = scope.ServiceProvider.GetRequiredService<Commands.Misc.Weather>();
+                    await arg.RespondAsync(await weather.GetWeather(loc));
                 }
                 catch (Exception ex)
                 {

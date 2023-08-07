@@ -12,18 +12,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class First : BaseCommandService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
-        private int MaxClaims = 60;
+        private readonly int MaxClaims = 60;
         private static int CurrentClaims = 0;
-        private TicketsFeature _ticketsFeature;
-        private ILogger<First> _logger;
+        private readonly TicketsFeature _ticketsFeature;
+        private readonly ILogger<First> _logger;
 
         public First(
             ServiceBackbone eventService,
             ILogger<First> logger,
             TicketsFeature ticketsFeature,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-        ) : base(eventService, scopeFactory, commandHandler)
+        ) : base(eventService, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
@@ -45,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 case "first":
                     {
-                        await giveFirst(e.Name);
+                        await GiveFirst(e.Name);
 
                     }
                     break;
@@ -63,9 +62,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             CurrentClaims = 0;
         }
 
-        private async Task giveFirst(string sender)
+        private async Task GiveFirst(string sender)
         {
-            if (!_serviceBackbone.IsOnline)
+            if (!ServiceBackbone.IsOnline)
             {
                 await SendChatMessage(sender, "Nice try, the stream is currently offline.");
                 throw new SkipCooldownException();

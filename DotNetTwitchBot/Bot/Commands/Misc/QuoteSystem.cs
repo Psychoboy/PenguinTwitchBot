@@ -10,15 +10,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class QuoteSystem : BaseCommandService
     {
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<QuoteSystem> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<QuoteSystem> _logger;
 
         public QuoteSystem(
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             ILogger<QuoteSystem> logger,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -59,28 +59,26 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             if (e.Args.Count == 0)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the ID you want to delete.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the ID you want to delete.");
                 throw new SkipCooldownException();
             }
             if (Int32.TryParse(e.Args[0], out var id))
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var quote = await db.Quotes.FirstOrDefaultAsync(x => x.Id == id);
+                if (quote == null)
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var quote = await db.Quotes.FirstOrDefaultAsync(x => x.Id == id);
-                    if (quote == null)
-                    {
-                        await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find that id.");
-                        throw new SkipCooldownException();
-                    }
-                    db.Quotes.Remove(quote);
-                    await db.SaveChangesAsync();
-                    await _serviceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} removed.");
+                    await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't find that id.");
+                    throw new SkipCooldownException();
                 }
+                db.Quotes.Remove(quote);
+                await db.SaveChangesAsync();
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} removed.");
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't figure out which id you meant.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't figure out which id you meant.");
                 throw new SkipCooldownException();
             }
         }
@@ -89,33 +87,29 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             if (string.IsNullOrWhiteSpace(e.Arg))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the quote.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the quote.");
                 throw new SkipCooldownException();
             }
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var twitchService = scope.ServiceProvider.GetRequiredService<TwitchService>();
+            QuoteType quote = new()
             {
-                var twitchService = scope.ServiceProvider.GetRequiredService<TwitchService>();
-                QuoteType quote = new QuoteType
-                {
-                    CreatedOn = DateTime.Now,
-                    CreatedBy = e.DisplayName,
-                    Game = await twitchService.GetCurrentGame(),
-                    Quote = e.Arg
-                };
-                quote = await AddQuote(quote);
-                await _serviceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} added.");
-            }
+                CreatedOn = DateTime.Now,
+                CreatedBy = e.DisplayName,
+                Game = await twitchService.GetCurrentGame(),
+                Quote = e.Arg
+            };
+            quote = await AddQuote(quote);
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} added.");
         }
 
         public async Task<QuoteType> AddQuote(QuoteType quote)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Quotes.Add(quote);
-                await db.SaveChangesAsync();
-                return quote;
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Quotes.Add(quote);
+            await db.SaveChangesAsync();
+            return quote;
         }
 
         public async Task SayQuote(string? searchParam)
@@ -126,11 +120,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 if (int.TryParse(searchParam.Trim(), out int quoteId))
                 {
-                    await using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
-                    }
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
                 }
                 else
                 {
@@ -141,25 +133,21 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             if (quote == null && !string.IsNullOrWhiteSpace(searchParam))
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    quote = db.Quotes.Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                quote = db.Quotes.Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
             }
 
 
             if (quote == null)
             {
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    quote = db.Quotes.RandomElement();
-                }
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                quote = db.Quotes.RandomElement();
             }
             if (quote != null)
             {
-                await _serviceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn.ToString("yyyy-MM-dd")}) Created By {quote.CreatedBy}");
+                await ServiceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}");
             }
         }
     }

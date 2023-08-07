@@ -7,26 +7,26 @@ namespace DotNetTwitchBot.Bot.Events.Chat
 {
     public class BaseChatEventArgs
     {
-        public bool isSub { get; set; }
-        public bool isMod { get; set; }
-        public bool isVip { get; set; }
-        public bool isBroadcaster { get; set; }
+        public bool IsSub { get; set; }
+        public bool IsMod { get; set; }
+        public bool IsVip { get; set; }
+        public bool IsBroadcaster { get; set; }
         public string DisplayName { get; set; } = "";
         public string Name { get; set; } = "";
 
         public bool IsSubOrHigher()
         {
-            return isSub || isMod || isVip || isBroadcaster;
+            return IsSub || IsMod || IsVip || IsBroadcaster;
         }
 
         public bool IsVipOrHigher()
         {
-            return isVip || isMod || isBroadcaster;
+            return IsVip || IsMod || IsBroadcaster;
         }
 
         public bool IsModOrHigher()
         {
-            return isMod || isBroadcaster;
+            return IsMod || IsBroadcaster;
         }
     }
 }

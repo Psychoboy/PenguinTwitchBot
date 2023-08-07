@@ -9,56 +9,48 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class Alias : BaseCommandService
     {
-        private IServiceScopeFactory _scopeFactory;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone, CommandHandler commandHandler) : base(serviceBackbone, scopeFactory, commandHandler)
+        public Alias(IServiceScopeFactory scopeFactory, ServiceBackbone serviceBackbone, CommandHandler commandHandler) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;
         }
 
         public async Task<List<AliasModel>> GetAliasesAsync()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Aliases.ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Aliases.ToListAsync();
         }
 
         public async Task<AliasModel?> GetAliasAsync(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Aliases.Where(x => x.Id == id).FirstOrDefaultAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Aliases.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task CreateOrUpdateAliasAsync(AliasModel alias)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            if (alias.Id == null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                if (alias.Id == null)
-                {
-                    await db.Aliases.AddAsync(alias);
-                }
-                else
-                {
-                    db.Aliases.Update(alias);
-                }
-                await db.SaveChangesAsync();
+                await db.Aliases.AddAsync(alias);
             }
+            else
+            {
+                db.Aliases.Update(alias);
+            }
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteAliasAsync(AliasModel alias)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Aliases.Remove(alias);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Aliases.Remove(alias);
+            await db.SaveChangesAsync();
         }
 
         public async Task RunCommand(CommandEventArgs e)
@@ -66,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
-                await _serviceBackbone.RunCommand(e);
+                await ServiceBackbone.RunCommand(e);
             }
         }
 
@@ -78,17 +70,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private async Task<bool> IsAlias(CommandEventArgs e)
         {
             if (e.FromAlias) return false; //Prevents endless recursion
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var alias = await db.Aliases.Where(x => x.AliasName.Equals(e.Command)).FirstOrDefaultAsync();
+            if (alias != null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var alias = await db.Aliases.Where(x => x.AliasName.Equals(e.Command)).FirstOrDefaultAsync();
-                if (alias != null)
-                {
-                    e.Command = alias.CommandName;
-                    return true;
-                }
-                return false;
+                e.Command = alias.CommandName;
+                return true;
             }
+            return false;
         }
 
         public override Task Register()

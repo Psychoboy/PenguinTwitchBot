@@ -10,20 +10,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Slots : BaseCommandService
     {
-        private LoyaltyFeature _loyaltyFeature;
-        private ILogger<Slots> _logger;
-        private List<string> Emotes = LoadEmotes();
-        private List<Int64> Prizes = LoadPrizes();
-        private List<string> WinMessages = LoadWinMessages();
-        private List<string> LoseMessages = LoadLoseMessages();
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILogger<Slots> _logger;
+        private readonly List<string> Emotes = LoadEmotes();
+        private readonly List<Int64> Prizes = LoadPrizes();
+        private readonly List<string> WinMessages = LoadWinMessages();
+        private readonly List<string> LoseMessages = LoadLoseMessages();
 
         public Slots(
             ILogger<Slots> logger,
             LoyaltyFeature loyaltyService,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyService;
             _logger = logger;
@@ -53,19 +52,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private int GetEmoteKey()
         {
             var key = Tools.Next(1, 1000);
-            switch (key)
+            return key switch
             {
-                case <= 75:
-                    return 4;
-                case > 75 and <= 200:
-                    return 3;
-                case > 200 and <= 450:
-                    return 2;
-                case > 450 and <= 700:
-                    return 1;
-                default:
-                    return 0;
-            }
+                <= 75 => 4,
+                > 75 and <= 200 => 3,
+                > 200 and <= 450 => 2,
+                > 450 and <= 700 => 1,
+                _ => 0,
+            };
         }
 
         private async Task CalculateResult(CommandEventArgs e)
@@ -80,7 +74,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += string.Format("+{0} pasties. ", Prizes[e1]);
                 var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
                 message += string.Format(randomMessage, e.DisplayName);
-                await _serviceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, Prizes[e1]);
                 return;
             }
@@ -90,14 +84,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += string.Format("+{0} pasties. ", prize);
                 var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
                 message += string.Format(randomMessage, e.DisplayName);
-                await _serviceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, prize);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
             //{NAME_HERE}
             message += randomLoseMessage;
-            await _serviceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
+            await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
         }
 
         private static List<long> LoadPrizes()

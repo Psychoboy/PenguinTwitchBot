@@ -16,23 +16,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
-        private ConcurrentBag<string> MessageIds = new ConcurrentBag<string>();
+        private readonly ConcurrentBag<string> MessageIds = new();
         // private TwitchPubSub _twitchPubSub;
-        private TwitchService _twitchService;
-        private ServiceBackbone _eventService;
-        private SubscriptionTracker _subscriptionHistory;
-        private IConfiguration _configuration;
+        private readonly TwitchService _twitchService;
+        private readonly ServiceBackbone _eventService;
+        private readonly SubscriptionTracker _subscriptionHistory;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
-        static SemaphoreSlim _subscriptionLock = new SemaphoreSlim(1);
+        static readonly SemaphoreSlim _subscriptionLock = new(1);
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
-            // ILogger<TwitchPubSub> tbsLogger,
             ServiceBackbone eventService,
-            IConfiguration configuration,
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
-            // TwitchPubSub twitchPubSub,
             TwitchService twitchService)
         {
             _logger = logger;
@@ -44,7 +40,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
             _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
-            _eventSubWebsocketClient.ChannelSubscribe += onChannelSubscription;
+            _eventSubWebsocketClient.ChannelSubscribe += OnChannelSubscription;
             _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
             _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
             _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
@@ -53,7 +49,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
-            _configuration = configuration;
 
             // _twitchPubSub = new TwitchPubSub(tbsLogger);
             // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
@@ -109,7 +104,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await _eventService.OnStreamStarted();
         }
 
-        private async void onChannelSubscription(object? sender, ChannelSubscribeArgs e)
+        private async void OnChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
@@ -175,7 +170,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 Name = e.Subscription.Username,
                 DisplayName = e.Subscription.DisplayName,
-                IsGift = e.Subscription.IsGift != null ? (bool)e.Subscription.IsGift : false,
+                IsGift = e.Subscription.IsGift != null && (bool)e.Subscription.IsGift,
                 IsRenewal = e.Subscription.Months > 0,
                 Count = e.Subscription.Months,
                 Message = e.Subscription.SubMessage?.Message
@@ -262,7 +257,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ReconnectAsync())
                 {
-                    delayCounter = (delayCounter * 2);
+                    delayCounter *= 2;
                     if (delayCounter > 60) delayCounter = 60;
                     _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
                     await Task.Delay(delayCounter * 1000);
@@ -291,7 +286,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
                 {
-                    delayCounter = (delayCounter * 2);
+                    delayCounter *= 2;
                     if (delayCounter > 300)
                     {
                         return;

@@ -1,31 +1,24 @@
-using System.Net;
-using System.Runtime.InteropServices.ComTypes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using Microsoft.AspNetCore.SignalR;
 using Google.Apis.YouTube.v3;
-using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
     public class YtPlayer : BaseCommandService
     {
-        private IHubContext<YtHub> _hubContext;
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<YtPlayer> _logger;
-        private YouTubeService _youtubeService;
-        private List<Song> Requests = new List<Song>();
-        private readonly object RequestsLock = new object();
-        private MusicPlaylist BackupPlaylist = new MusicPlaylist();
+        private readonly IHubContext<YtHub> _hubContext;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<YtPlayer> _logger;
+        private readonly YouTubeService _youtubeService;
+        private readonly List<Song> Requests = new();
+        private readonly object RequestsLock = new();
+        private MusicPlaylist BackupPlaylist = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
         private Song? NextSong = null;
-        private List<string> SkipVotes = new List<string>();
+        private readonly List<string> SkipVotes = new();
         enum PlayerState
         {
             UnStarted = -1,
@@ -43,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-        ) : base(serviceBackbone, scopeFactory, commandHandler)
+        ) : base(serviceBackbone, commandHandler)
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
@@ -172,7 +165,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             _logger.LogWarning("Error with song {0}", errorCode);
             if (CurrentSong != null)
             {
-                await _serviceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
+                await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
             }
             await PlayNextSong();
         }
@@ -187,20 +180,16 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         }
         public async Task<List<MusicPlaylist>> Playlists()
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Playlists.ToListAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Playlists.ToListAsync();
         }
 
         public async Task<MusicPlaylist> GetPlayList(int id)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                return await db.Playlists.Include(x => x.Songs).Where(x => x.Id == id).FirstAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.Playlists.Include(x => x.Songs).Where(x => x.Id == id).FirstAsync();
         }
 
         public async Task AddSongToRequests(string url)
@@ -211,7 +200,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 _logger.LogWarning("Song was null.");
                 return;
             }
-            song.RequestedBy = _serviceBackbone.BroadcasterName;
+            song.RequestedBy = ServiceBackbone.BroadcasterName;
             await AddSongToRequests(song);
         }
 
@@ -309,7 +298,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var song = BackupPlaylist.Songs.Where(x => x.Id == requestedSong.Id).FirstOrDefault();
             if (song == null)
             {
-                await _serviceBackbone.SendChatMessage("Song is not in the list.");
+                await ServiceBackbone.SendChatMessage("Song is not in the list.");
                 return;
             }
 
@@ -331,7 +320,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (CurrentSong == null) return;
             if (BackupPlaylist.Songs.Where(x => x.SongId.Equals(CurrentSong.SongId)).Any())
             {
-                await _serviceBackbone.SendChatMessage("Song is already in the list.");
+                await ServiceBackbone.SendChatMessage("Song is already in the list.");
                 return;
             }
             CurrentSong.Id = null;
@@ -359,10 +348,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     Requests.Remove(song);
                 }
                 await UpdateRequestedSongsState();
-                await _serviceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
                 return;
             }
-            await _serviceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
             throw new SkipCooldownException();
         }
 
@@ -393,12 +382,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             SkipVotes.Add(e.Name);
             if (SkipVotes.Count >= 3)
             {
-                await _serviceBackbone.SendChatMessage($"{e.DisplayName} voted to skip the song and was the 3rd vote. Skipping song.");
+                await ServiceBackbone.SendChatMessage($"{e.DisplayName} voted to skip the song and was the 3rd vote. Skipping song.");
                 await PlayNextSong();
                 return;
             }
 
-            await _serviceBackbone.SendChatMessage($"{e.DisplayName} is trying to skip the current song. {3 - SkipVotes.Count} more votes needed.");
+            await ServiceBackbone.SendChatMessage($"{e.DisplayName} is trying to skip the current song. {3 - SkipVotes.Count} more votes needed.");
         }
 
         private async Task SayNextSong(CommandEventArgs e)
@@ -406,10 +395,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var nextSong = NextSong;
             if (nextSong == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
                 return;
             }
-            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId}");
         }
 
         private async Task SaySong(CommandEventArgs e)
@@ -417,10 +406,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var currentSong = CurrentSong;
             if (currentSong == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
                 return;
             }
-            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The current song was [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song was [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId}");
         }
 
         private async Task SayLastSong(CommandEventArgs e)
@@ -428,10 +417,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var lastSong = LastSong;
             if (lastSong == null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
                 return;
             }
-            await _serviceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId}");
         }
 
         private async Task LoadPlaylist(CommandEventArgs e)
@@ -441,14 +430,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public async Task LoadPlayList(string name)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var playListId = await db.Playlists.Where(y => y.Name.Equals(name)).Select(x => x.Id).FirstOrDefaultAsync();
+            if (playListId != null)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var playListId = await db.Playlists.Where(y => y.Name.Equals(name)).Select(x => x.Id).FirstOrDefaultAsync();
-                if (playListId != null)
-                {
-                    await LoadPlayList((int)playListId);
-                }
+                await LoadPlayList((int)playListId);
             }
 
         }
@@ -461,19 +448,16 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 var playList = await db.Playlists.Include(x => x.Songs).FirstOrDefaultAsync(x => x.Id == id);
                 if (playList == null)
                 {
-                    await _serviceBackbone.SendChatMessage("No playlist found");
+                    await ServiceBackbone.SendChatMessage("No playlist found");
                     return;
                 }
                 BackupPlaylist = playList;
                 var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
-                if (lastPlaylist == null)
-                {
-                    lastPlaylist = new Setting
+                lastPlaylist ??= new Setting
                     {
                         Name = "LastSongList"
                     };
-                }
-                lastPlaylist.IntSetting = playList.Id ?? default(int);
+                lastPlaylist.IntSetting = playList.Id ?? default;
                 // await _serviceBackbone.SendChatMessage($"Loaded playlist {0}", playList.Name);
                 db.Settings.Update(lastPlaylist);
                 await db.SaveChangesAsync();
@@ -486,25 +470,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             try
             {
-                await _serviceBackbone.SendChatMessage("Importing Playlist");
+                await ServiceBackbone.SendChatMessage("Importing Playlist");
                 var playListName = e.Args[0];
                 var playListFile = e.Args[1];
                 if (string.IsNullOrEmpty(playListFile) || string.IsNullOrWhiteSpace(playListName))
                 {
-                    await _serviceBackbone.SendChatMessage("Invalid playlist name or file name");
+                    await ServiceBackbone.SendChatMessage("Invalid playlist name or file name");
                     return;
                 }
 
                 if (File.Exists($"Playlists/{playListFile}") == false)
                 {
-                    await _serviceBackbone.SendChatMessage("File doesn't exists");
+                    await ServiceBackbone.SendChatMessage("File doesn't exists");
                     return;
                 }
 
                 var songLinks = await File.ReadAllLinesAsync($"Playlists/{playListFile}");
                 if (songLinks.Length <= 1)
                 {
-                    await _serviceBackbone.SendChatMessage("No songs in playlist");
+                    await ServiceBackbone.SendChatMessage("No songs in playlist");
                     return;
                 }
 
@@ -513,13 +497,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                     playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(playListName));
-                    if (playList == null)
-                    {
-                        playList = new MusicPlaylist()
+                    playList ??= new MusicPlaylist()
                         {
                             Name = playListName
                         };
-                    }
                 }
 
                 foreach (var songLink in songLinks)
@@ -542,12 +523,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     db.Playlists.Update(playList);
                     await db.SaveChangesAsync();
                 }
-                await _serviceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count()} songs");
+                await ServiceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count()} songs");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to import");
-                await _serviceBackbone.SendChatMessage("Failed to import playlist");
+                await ServiceBackbone.SendChatMessage("Failed to import playlist");
             }
 
         }
@@ -574,7 +555,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task MovePriority(CommandEventArgs e)
         {
-            List<Song> backwardsRequest = new List<Song>();
+            List<Song> backwardsRequest = new();
             lock (RequestsLock)
             {
                 backwardsRequest = Requests.ToList();
@@ -592,11 +573,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (foundSong != null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", foundSong.Title));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", foundSong.Title));
             }
             else
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
                 throw new SkipCooldownException();
             }
         }
@@ -610,13 +591,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (songsInQueue >= 30)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
                 throw new SkipCooldownException();
             }
             var searchResult = await GetSongId(e.Arg);
             if (string.IsNullOrWhiteSpace(searchResult))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
                 throw new SkipCooldownException();
             }
             Song? songInQueue = null;
@@ -632,7 +613,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             if (songInQueue != null)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
                 throw new SkipCooldownException();
             }
 
@@ -643,14 +624,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (song.Duration > new TimeSpan(0, 10, 0) || song.Duration == new TimeSpan(0, 0, 0))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("Your song is to long or is live. Max is 10 minutes and yours is: {0:c}", song.Duration));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Your song is to long or is live. Max is 10 minutes and yours is: {0:c}", song.Duration));
                 return;
             }
 
             await AddSongToRequests(song);
             if (e.IsWhisper) return;
 
-            await _serviceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
         }
 
         private async Task AddSongToRequests(Song song)
@@ -660,10 +641,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 Requests.Add(song);
             }
             await UpdateRequestedSongsState();
-            if (NextSong == null)
-            {
-                NextSong = song;
-            }
+            NextSong ??= song;
         }
 
         private async Task<string> GetSongId(string searchTerm)
@@ -688,15 +666,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (ytResponse != null && ytResponse.Items.Count > 0)
             {
                 var item = ytResponse.Items.First();
-                TimeSpan length = new TimeSpan();
+                TimeSpan length = new();
                 if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
                 {
-                    if (sendChatResponse) await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;
                 }
                 if (item.AgeGating != null && item.AgeGating.Restricted == true)
                 {
-                    if (sendChatResponse) await _serviceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.");
                     return null;
                 }
                 if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
@@ -715,59 +693,57 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (displayName != null)
             {
-                if (sendChatResponse) await _serviceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
+                if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
             }
             return null;
         }
 
         private async Task UpdateRequestedSongsState()
         {
-            List<Song> requests = new List<Song>();
+            List<Song> requests = new();
             lock (RequestsLock)
             {
                 requests = Requests.ToList();
             }
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var id = 1;
+            if (requests.Count == 0)
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var id = 1;
-                if (requests.Count == 0)
-                {
-                    db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
-                    await SendSongRequests(requests);
-                    int v = await db.SaveChangesAsync();
-                    return;
-                }
-                foreach (var request in requests)
-                {
-                    bool newRecord = false;
-                    var item = await db.SongRequestViewItems.Where(x => x.Id == id).FirstOrDefaultAsync();
-                    if (item == null)
-                    {
-                        item = new SongRequestViewItem
-                        {
-                            Id = id
-                        };
-                        newRecord = true;
-                    }
-                    item.Duration = request.Duration;
-                    item.RequestedBy = request.RequestedBy;
-                    item.SongId = request.SongId;
-                    item.Title = request.Title;
-                    if (newRecord)
-                    {
-                        db.Add(item);
-                    }
-                    else
-                    {
-                        db.Update(item);
-                    }
-                    id++;
-                }
-                db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Where(x => x.Id >= id));
+                db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
                 await SendSongRequests(requests);
-                await db.SaveChangesAsync();
+                int v = await db.SaveChangesAsync();
+                return;
             }
+            foreach (var request in requests)
+            {
+                bool newRecord = false;
+                var item = await db.SongRequestViewItems.Where(x => x.Id == id).FirstOrDefaultAsync();
+                if (item == null)
+                {
+                    item = new SongRequestViewItem
+                    {
+                        Id = id
+                    };
+                    newRecord = true;
+                }
+                item.Duration = request.Duration;
+                item.RequestedBy = request.RequestedBy;
+                item.SongId = request.SongId;
+                item.Title = request.Title;
+                if (newRecord)
+                {
+                    db.Add(item);
+                }
+                else
+                {
+                    db.Update(item);
+                }
+                id++;
+            }
+            db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Where(x => x.Id >= id));
+            await SendSongRequests(requests);
+            await db.SaveChangesAsync();
         }
 
         private async Task SendSongRequests(List<Song> requests)

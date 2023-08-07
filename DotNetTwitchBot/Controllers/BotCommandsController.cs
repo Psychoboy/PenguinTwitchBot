@@ -12,9 +12,9 @@ namespace DotNetTwitchBot.Controllers
     [Route("api/[controller]")]
     public class BotCommandsController
     {
-        ServiceBackbone _serviceBackbone;
-        private ILogger<BotCommandsController> _logger;
-        private IConfiguration _configuration;
+        readonly ServiceBackbone _serviceBackbone;
+        private readonly ILogger<BotCommandsController> _logger;
+        private readonly IConfiguration _configuration;
 
         public BotCommandsController(
             ILogger<BotCommandsController> logger,
@@ -41,20 +41,20 @@ namespace DotNetTwitchBot.Controllers
                 var indexOfSpace = message.IndexOf(" ");
                 if (indexOfSpace >= 0)
                 {
-                    messageArg = message.Substring(indexOfSpace).Trim();
-                    command = message.Substring(0, indexOfSpace).Trim();
+                    messageArg = message[indexOfSpace..].Trim();
+                    command = message[..indexOfSpace].Trim();
                 }
                 var args = new CommandEventArgs
                 {
                     Arg = messageArg,
                     Args = messageArg.Split(" ").ToList(),
-                    Command = command.Substring(1),
+                    Command = command[1..],
                     IsWhisper = true,
                     Name = user.ToLower(),
                     DisplayName = user,
-                    isSub = true,
-                    isMod = true,
-                    isBroadcaster = true,
+                    IsSub = true,
+                    IsMod = true,
+                    IsBroadcaster = true,
                     TargetUser = ""
                 };
                 await _serviceBackbone.RunCommand(args);

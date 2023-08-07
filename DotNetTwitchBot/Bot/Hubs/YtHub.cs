@@ -12,11 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public YtHub(YtPlayer ytPlayer)
         {
-            if (ytPlayer == null)
-            {
-                throw new ArgumentNullException("ytplayer");
-            }
-            _ytPlayer = ytPlayer;
+            _ytPlayer = ytPlayer ?? throw new ArgumentNullException("ytplayer");
         }
 
         public async Task PlayNextVideo()

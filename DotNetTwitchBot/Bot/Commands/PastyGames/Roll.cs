@@ -11,11 +11,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Roll : BaseCommandService
     {
-        private ILogger<Roll> _logger;
-        private LoyaltyFeature _loyaltyFeature;
-        private List<string> WinMessages = LoadWinMessages();
-        private List<string> LostMessages = LoadLostMessages();
-        private List<int> prizes = new List<int>{
+        private readonly ILogger<Roll> _logger;
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly List<string> WinMessages = LoadWinMessages();
+        private readonly List<string> LostMessages = LoadLostMessages();
+        private readonly List<int> prizes = new()
+        {
             40, 160,360,
             640, 1000, 1440
         };
@@ -24,9 +25,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<Roll> logger,
             LoyaltyFeature loyaltyFeature,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;
             _loyaltyFeature = loyaltyFeature;
@@ -89,13 +89,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         break;
                 }
                 var winMessage = string.Format(WinMessages.RandomElement(), e.DisplayName);
-                await _serviceBackbone.SendChatMessage(resultMessage + winMessage);
+                await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, prizes[dice1 - 1]);
             }
             else
             {
                 var lostMessage = string.Format(LostMessages.RandomElement(), e.DisplayName);
-                await _serviceBackbone.SendChatMessage(resultMessage + lostMessage);
+                await ServiceBackbone.SendChatMessage(resultMessage + lostMessage);
             }
 
         }

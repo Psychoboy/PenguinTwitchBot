@@ -13,23 +13,23 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         // private static bool ShouldRun = false;
         // private static bool DidRun = false;
-        Timer _taxTimer;
-        private IServiceScopeFactory _scopeFactory;
-        private ILogger<Tax> _logger;
+        readonly Timer _taxTimer;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<Tax> _logger;
 
         public Tax(
             ILogger<Tax> logger,
             IServiceScopeFactory scopeFactory,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
             _taxTimer.Elapsed += Elapsed;
             // _taxTimer.Start();
             _scopeFactory = scopeFactory;
-            _serviceBackbone.StreamEnded += OnStreamEnded;
-            _serviceBackbone.StreamStarted += OnStreamStarted;
+            ServiceBackbone.StreamEnded += OnStreamEnded;
+            ServiceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
         }
 
@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             try
             {
-                if (_serviceBackbone.IsOnline)
+                if (ServiceBackbone.IsOnline)
                 {
                     return;
                 };
@@ -70,19 +70,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 long totalRemoved = 0;
                 foreach (var viewer in viewers)
                 {
-                    await using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        var viewerPoints = await db.ViewerPoints.Where(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
-                        if (viewerPoints == null) continue;
-                        if (viewerPoints.Points <= 25000) continue;
-                        var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
-                        toRemove = toRemove > 200000069 ? 200000069 : toRemove;
-                        totalRemoved += toRemove;
-                        viewerPoints.Points = viewerPoints.Points - toRemove;
-                        db.ViewerPoints.Update(viewerPoints);
-                        await db.SaveChangesAsync();
-                    }
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var viewerPoints = await db.ViewerPoints.Where(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+                    if (viewerPoints == null) continue;
+                    if (viewerPoints.Points <= 25000) continue;
+                    var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
+                    toRemove = toRemove > 200000069 ? 200000069 : toRemove;
+                    totalRemoved += toRemove;
+                    viewerPoints.Points -= toRemove;
+                    db.ViewerPoints.Update(viewerPoints);
+                    await db.SaveChangesAsync();
                 }
                 _logger.LogInformation($"Removed {totalRemoved} pasties via taxes");
             }

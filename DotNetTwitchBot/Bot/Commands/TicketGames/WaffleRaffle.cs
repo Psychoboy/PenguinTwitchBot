@@ -15,10 +15,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public WaffleRaffle(
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
             ILogger<WaffleRaffle> logger
-        ) : base(eventService, ticketsFeature, scopeFactory, commandHandler, "sptvWaffle", "!waffle", "waffle")
+        ) : base(eventService, ticketsFeature, commandHandler, "sptvWaffle", "!waffle", "waffle")
         {
             _logger = logger;
         }

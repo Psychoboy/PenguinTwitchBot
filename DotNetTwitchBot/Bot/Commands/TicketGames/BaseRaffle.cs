@@ -12,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     public abstract class BaseRaffle : BaseCommandService
     {
         DateTime _startTime = DateTime.Now;
-        Timer _intervalTimer;
+        readonly Timer _intervalTimer;
 
-        int _runTime = 75;
+        readonly int _runTime = 75;
         enum State
         {
             NotRunning,
@@ -23,14 +23,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         }
         State CurrentState { get; set; } = State.NotRunning;
 
-        List<string> _entered = new List<string>();
+        readonly List<string> _entered = new();
         bool _joinedSinceLastAnnounce = false;
 
         //Variables to be set by descendants
         protected string _emote;
         protected string _command;
         protected string _name;
-        private TicketsFeature _ticketsFeature;
+        private readonly TicketsFeature _ticketsFeature;
 
         protected int WinAmount { get; set; } = 0;
 
@@ -40,25 +40,24 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected BaseRaffle(
             ServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
             string emote,
             string command,
             string name
-        ) : base(eventService, scopeFactory, commandHandler)
+        ) : base(eventService, commandHandler)
         {
             _emote = emote;
             _command = command;
             _name = name;
             _ticketsFeature = ticketsFeature;
-            _intervalTimer = new Timer(timerCallBack, this, Timeout.Infinite, Timeout.Infinite);
+            _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
         }
 
         public async Task StartRaffle(string Sender, int amountToWin)
         {
             if (CurrentState != State.NotRunning)
             {
-                await _serviceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, _name));
+                await ServiceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, _name));
                 return;
             }
 
@@ -67,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _startTime = DateTime.Now;
             _entered.Clear();
             _joinedSinceLastAnnounce = false;
-            await _serviceBackbone.SendChatMessage(string.Format(raffleStarting, _emote, WinAmount, _command));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleStarting, _emote, WinAmount, _command));
             RunRaffle();
         }
 
@@ -95,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _intervalTimer.Change(15000, 15000);
         }
 
-        private static async void timerCallBack(object? state)
+        private static async void TimerCallBack(object? state)
         {
             if (state == null) return;
             var raffle = (BaseRaffle)state;
@@ -110,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             if (_entered.Count == 0)
             {
                 CurrentState = State.NotRunning;
-                await _serviceBackbone.SendChatMessage(string.Format(raffleNotEnough, _name));
+                await ServiceBackbone.SendChatMessage(string.Format(raffleNotEnough, _name));
                 return;
             }
 
@@ -133,7 +132,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
 
             var eachWins = Math.Ceiling((double)WinAmount / winnerCount);
-            await _serviceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote));
             foreach (var winner in winners)
             {
                 await _ticketsFeature.GiveTicketsToViewer(winner, (long)eachWins);
@@ -143,14 +142,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task SendTimeLeft(int elapsedTime)
         {
-            await _serviceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount));
         }
 
         private async Task SendJoinedMessage()
         {
             if (_joinedSinceLastAnnounce)
             {
-                await _serviceBackbone.SendChatMessage(string.Format(raffleJoined, _name));
+                await ServiceBackbone.SendChatMessage(string.Format(raffleJoined, _name));
                 _joinedSinceLastAnnounce = false;
             }
         }
@@ -164,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var username = e.Name;
             if (_entered.Exists(x => x.ToLower().Equals(username.ToLower())))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.Command));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.Command));
                 return;
             }
             _entered.Add(username);
@@ -172,12 +171,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         }
 
         //Strings
-        private string raffleRunning = "{0} is already running";
-        private string raffleStarting = "{0} a ticket raffle for {1} giveaway tickets has started! type {2} to join! {0}";
-        private string raffleJoined = "Penguins have joined the {0}";
-        private string raffleTimeLeft = "{0} seconds left to type {1} for a chance of extra tickets {2}";
-        private string raffleNotEnough = "Nobody joined the {0} so no body wins.";
-        private string raffleWinners = "{0} are the winners of the {1}! They each get {2} tickets. {3} {3} {3}";
-        private string alreadyJoined = "You already joined the {0}";
+        private readonly string raffleRunning = "{0} is already running";
+        private readonly string raffleStarting = "{0} a ticket raffle for {1} giveaway tickets has started! type {2} to join! {0}";
+        private readonly string raffleJoined = "Penguins have joined the {0}";
+        private readonly string raffleTimeLeft = "{0} seconds left to type {1} for a chance of extra tickets {2}";
+        private readonly string raffleNotEnough = "Nobody joined the {0} so no body wins.";
+        private readonly string raffleWinners = "{0} are the winners of the {1}! They each get {2} tickets. {3} {3} {3}";
+        private readonly string alreadyJoined = "You already joined the {0}";
     }
 }

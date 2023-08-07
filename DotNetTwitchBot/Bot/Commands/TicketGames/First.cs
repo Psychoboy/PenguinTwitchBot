@@ -11,18 +11,16 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class First : BaseCommandService
     {
-        private List<string> Firsts = new List<string>();
-        private TicketsFeature _ticketsFeature;
+        private readonly TicketsFeature _ticketsFeature;
         private readonly ILogger<First> _logger;
-        private List<string> GotTickets = new List<string>();
+        private readonly List<string> GotTickets = new();
 
         public First(
             TicketsFeature ticketsFeature,
             ServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
             CommandHandler commandHandler,
             ILogger<First> logger
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
@@ -43,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 case "first":
                     if (!GotTickets.Contains(e.Name)) throw new SkipCooldownException();
-                    var tickets = await _ticketsFeature.GiveTicketsToViewer(e.Name, Tools.RandomRange(1, 4));
+                    _ = await _ticketsFeature.GiveTicketsToViewer(e.Name, Tools.RandomRange(1, 4));
 
                     GotTickets.Add(e.Name);
                     break;

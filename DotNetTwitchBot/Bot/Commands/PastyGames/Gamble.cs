@@ -11,9 +11,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Gamble : BaseCommandService
     {
-        private LoyaltyFeature _loyaltyFeature;
-        private IServiceScopeFactory _scopeFactory;
-        private TwitchService _twitchServices;
+        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
 
         public Gamble(
@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             TwitchServices.TwitchService twitchServices,
             ServiceBackbone serviceBackbone,
             CommandHandler commandHandler
-            ) : base(serviceBackbone, scopeFactory, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     break;
                 case "jackpot":
                     var jackpot = await GetJackpot();
-                    await _serviceBackbone.SendChatMessage(e.DisplayName,
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
                     string.Format("The current jackpot is {0}", jackpot.ToString("N0")));
                     break;
             }
@@ -64,13 +64,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             if (e.Args.Count == 0)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName,
+                await ServiceBackbone.SendChatMessage(e.DisplayName,
                 "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
                 throw new SkipCooldownException();
             }
 
             var amountStr = e.Args.First();
-            var amount = 0L;
+            long amount;
             if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
@@ -78,14 +78,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName,
+                await ServiceBackbone.SendChatMessage(e.DisplayName,
                 "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
                 throw new SkipCooldownException();
             }
 
             if (amount > LoyaltyFeature.MaxBet || amount < 5)
             {
-                await _serviceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
                 throw new SkipCooldownException();
             }
 
@@ -97,12 +97,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);
                 var winnings = amount * 2;
-                jackpot = jackpot - jackpotWinnings;
+                jackpot -= jackpotWinnings;
                 if (jackpot < JackpotDefault)
                 {
                     jackpot = JackpotDefault;
                 }
-                await updateJackpot(jackpot, true);
+                await UpdateJackpot(jackpot, true);
                 await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
                 await LaunchFireworks();
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
@@ -110,13 +110,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             else if (value > WinRange)
             {
                 var winnings = amount * 2;
-                await _serviceBackbone.SendChatMessage(string.Format("{0} rolled {1} and won the {2} pasties!", e.DisplayName, value, winnings.ToString("N0")));
+                await ServiceBackbone.SendChatMessage(string.Format("{0} rolled {1} and won the {2} pasties!", e.DisplayName, value, winnings.ToString("N0")));
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings);
             }
             else
             {
-                await updateJackpot(Convert.ToInt64(amount * 0.10), false);
-                await _serviceBackbone.SendChatMessage(string.Format("{0} rolled {1} and lost {2} pasties", e.DisplayName, value, amount.ToString("N0")));
+                await UpdateJackpot(Convert.ToInt64(amount * 0.10), false);
+                await ServiceBackbone.SendChatMessage(string.Format("{0} rolled {1} and lost {2} pasties", e.DisplayName, value, amount.ToString("N0")));
             }
         }
 
@@ -139,7 +139,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-        private async Task updateJackpot(long amount, bool reset)
+        private async Task UpdateJackpot(long amount, bool reset)
         {
             var jackpot = await GetJackpot();
             if (reset)
@@ -150,18 +150,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 jackpot += amount;
             }
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var jackpotSetting = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("jackpot"));
-                if (jackpotSetting == null)
-                {
-                    jackpotSetting = new Setting { Name = "jackpot", LongSetting = 0, DataType = Setting.DataTypeEnum.Long };
-                }
-                jackpotSetting.LongSetting = jackpot;
-                db.Settings.Update(jackpotSetting);
-                await db.SaveChangesAsync();
-            }
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var jackpotSetting = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("jackpot"));
+            jackpotSetting ??= new Setting { Name = "jackpot", LongSetting = 0, DataType = Setting.DataTypeEnum.Long };
+            jackpotSetting.LongSetting = jackpot;
+            db.Settings.Update(jackpotSetting);
+            await db.SaveChangesAsync();
         }
 
         private async Task<Int64> GetJackpot()
