@@ -99,7 +99,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    timerGroups = await db.TimerGroups.Where(x => x.NextRun < DateTime.Now).Include(x => x.Messages).ToListAsync();
+                    timerGroups = await db.TimerGroups.Where(x => x.NextRun < DateTime.Now && x.Active == true).Include(x => x.Messages).ToListAsync();
                 }
                 if (timerGroups == null || timerGroups.Any() == false) return;
                 await RunGroups(timerGroups);
