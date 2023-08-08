@@ -289,7 +289,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     delayCounter *= 2;
                     if (delayCounter > 300)
                     {
-                        return;
+                        delayCounter = 300;
                     }
                     await Task.Delay(delayCounter * 1000);
                     _logger.LogError("Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
