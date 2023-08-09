@@ -58,6 +58,7 @@
 @code {
     private List<DotNetTwitchBot.Bot.Models.AliasModel>? aliases;
     private DotNetTwitchBot.Bot.Models.AliasModel? theAlias { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override async Task OnInitializedAsync()
     {
         aliases = await AliasCommand.GetAliasesAsync();
@@ -79,8 +80,15 @@
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.AliasModel item)
     {
-        await AliasCommand.DeleteAliasAsync(item);
-        aliases?.Remove(item);
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await AliasCommand.DeleteAliasAsync(item);
+            aliases?.Remove(item);
+        }
         StateHasChanged();
     }
 }
