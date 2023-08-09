@@ -306,8 +306,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             _logger.LogInformation("Websocket connected");
             if (e.IsRequestedReconnect) return;
-
-            await _twitchService.SubscribeToAllTheStuffs(_eventSubWebsocketClient.SessionId);
+            try
+            {
+                await _twitchService.SubscribeToAllTheStuffs(_eventSubWebsocketClient.SessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error subscribing to the events");
+                await Reconnect()
+            }
             _logger.LogInformation("Subscribed to events");
         }
 
