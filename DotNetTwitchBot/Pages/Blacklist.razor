@@ -78,6 +78,7 @@
 @code {
     private List<WordFilter>? wordFilters;
     private WordFilter? wordFilter { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override Task OnInitializedAsync()
     {
@@ -87,9 +88,16 @@
 
     private async Task Delete(WordFilter wordFilter)
     {
-        await BlacklistApi.DeleteBlacklist(wordFilter);
-        wordFilters = BlacklistApi.GetBlackList();
-        StateHasChanged();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await BlacklistApi.DeleteBlacklist(wordFilter);
+            wordFilters = BlacklistApi.GetBlackList();
+            StateHasChanged();
+        }
     }
 
     public void Edit(WordFilter item)

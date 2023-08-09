@@ -53,6 +53,7 @@
 @code {
     private List<KnownBot>? knownBots;
     private KnownBot? knownBot { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override Task OnInitializedAsync()
     {
@@ -70,9 +71,16 @@
     }
     public async Task Delete(KnownBot item)
     {
-        await KnownBotsApi.RemoveKnownBot(item);
-        knownBots = KnownBotsApi.GetKnownBots();
-        StateHasChanged();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await KnownBotsApi.RemoveKnownBot(item);
+            knownBots = KnownBotsApi.GetKnownBots();
+            StateHasChanged();
+        }
     }
 
     public void CreateFilter()

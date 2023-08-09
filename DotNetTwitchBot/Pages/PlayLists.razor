@@ -110,105 +110,13 @@
     </MudGrid>
 </MudContainer>
 
-@* <style type="text/css">
-.white-text {
-color: white;
-
-}
-</style>
-
-@if (currentSong != null)
-{
-<div>Current Song: @currentSong.Title</div>
-<div>Requested By: @currentSong.RequestedBy</div>
-<div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
-}
-
-@if (songRequests != null)
-{
-<div>Requested Songs: @songRequests.Count</div>
-<table class="table white-text">
-<thead>
-<tr>
-<th>Title</th>
-<th>Length</th>
-<th>Requested By</th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-@foreach (var song in songRequests)
-{
-<tr>
-<td>@song.Title</td>
-<td>@song.Duration</td>
-<td>@song.RequestedBy</td>
-
-<td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSongRequest(song)">Remove</button></td>
-</tr>
-}
-</tbody>
-</table>
-}
-@if (musicPlaylists == null)
-{
-<p><em>Loading...</em></p>
-}
-else
-{
-<table class="table white-text">
-<thead>
-<tr>
-<th>Title</th>
-<th>Load</th>
-</tr>
-</thead>
-<tbody>
-@foreach (var playlist in musicPlaylists)
-{
-<tr>
-<td>@playlist.Name</td>
-<td><button class="btn btn-primary btn-xs" @onclick="() => ViewList(playlist)">View</button></td>
-<td><button class="btn btn-primary btn-xs" @onclick="() => StartPlaylist(playlist)">Load</button></td>
-</tr>
-}
-</tbody>
-</table>
-}
-
-@if (currentPlayList == null)
-{
-<p><em>Loading...</em></p>
-}
-else
-{
-<div>Current Playlist: @currentPlayList.Name Total Songs: @currentPlayList.Songs.Count()</div>
-<table class="table white-text">
-<thead>
-<tr>
-<th>Title</th>
-<th>Length</th>
-<th>Song Id</th>
-</tr>
-</thead>
-<tbody>
-@foreach (var song in currentPlayList.Songs)
-{
-<tr>
-<td>@song.Title</td>
-<td>@song.Duration</td>
-<td>@song.SongId</td>
-</tr>
-}
-</tbody>
-</table>
-} *@
 @code {
     private List<MusicPlaylist>? musicPlaylists;
     private MusicPlaylist? currentPlayList;
     private Song? currentSong;
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -258,12 +166,26 @@ else
 
     private async Task RemoveSong(Song song)
     {
-        await YtPlayer.RemoveSong(song);
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await YtPlayer.RemoveSong(song);
+        }
     }
 
     private async Task RemoveSongRequest(Song song)
     {
-        await YtPlayer.RemoveSongRequest(song);
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await YtPlayer.RemoveSongRequest(song);
+        }
     }
 
 
