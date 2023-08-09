@@ -65,6 +65,7 @@
 @code {
     private List<DotNetTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
     private DotNetTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -91,8 +92,15 @@
     }
     private async Task Delete(AutoShoutout autoShoutout)
     {
-        await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);
-        await ReloadShoutouts();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);
+            await ReloadShoutouts();
+        }
     }
 
     private void Edit(int? id)

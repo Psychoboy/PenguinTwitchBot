@@ -79,6 +79,7 @@
 @code {
     private IEnumerable<DotNetTwitchBot.Bot.Models.KeywordType>? keywords;
     private DotNetTwitchBot.Bot.Models.KeywordType keyword { get; set; } = new KeywordType();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
         keywords = CustomCommand.GetKeywords();
@@ -96,9 +97,16 @@
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.KeywordType keyword)
     {
-        await CustomCommand.DeleteKeyword(keyword);
-        keywords = CustomCommand.GetKeywords();
-        StateHasChanged();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await CustomCommand.DeleteKeyword(keyword);
+            keywords = CustomCommand.GetKeywords();
+            StateHasChanged();
+        }
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.KeywordType item)

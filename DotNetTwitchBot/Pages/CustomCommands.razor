@@ -80,6 +80,7 @@
 @code {
     private Dictionary<string, DotNetTwitchBot.Bot.Models.CustomCommands>? commands;
     private DotNetTwitchBot.Bot.Models.CustomCommands customCommand { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
         commands = CustomCommand.GetCustomCommands();
@@ -107,8 +108,15 @@
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.CustomCommands item)
     {
-        await CustomCommand.DeleteCommand(item);
-        ReloadCommands();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await CustomCommand.DeleteCommand(item);
+            ReloadCommands();
+        }
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.CustomCommands item)

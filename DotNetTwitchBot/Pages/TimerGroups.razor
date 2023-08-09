@@ -70,62 +70,10 @@
     </MudGrid>
 }
 
-@*
-<style type="text/css">
-.white-text {
-color: white;
-
-}
-</style>
-
-@if (timerGroups == null)
-{
-<p><em>Loading...</em></p>
-}
-else
-{
-<table class="table white-text">
-<thead>
-<tr>
-<th>Name</th>
-<th>Active</th>
-<th>Min Time</th>
-<th>Max Time</th>
-<th>Min Messages</th>
-<th>Last Run</th>
-<th>Next Run</th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-@foreach (var item in timerGroups)
-{
-<tr>
-<td>@item.Name</td>
-<td>@item.Active</td>
-<td>@item.IntervalMinimum</td>
-<td>@item.IntervalMaximum</td>
-<td>@item.MinimumMessages</td>
-<td>@item.LastRun</td>
-<td>@item.NextRun</td>
-<td><button class="btn btn-primary btn-xs" data-id="@item.Name" @onclick="() => Edit(item)">Edit</button>
-</td>
-</tr>
-}
-</tbody>
-</table>
-<div>
-<input placeholder="Name" @bind="Name" />
-<input placeholder="response" @bind="MinTime" />
-<input placeholder="response" @bind="MaxTime" />
-<input placeholder="response" @bind="MinMessages" />
-<button class="btn btn-primary" @onclick="AddTimerGroup">Add Timer Group</button>
-</div>
-} *@
-
 @code {
     private List<DotNetTwitchBot.Bot.Models.Timers.TimerGroup>? timerGroups;
     private DotNetTwitchBot.Bot.Models.Timers.TimerGroup timerGroup = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,9 +87,16 @@ else
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.Timers.TimerGroup item)
     {
-        await Timers.DeleteTimerGroup(item);
-        timerGroups = await Timers.GetTimerGroupsAsync();
-        StateHasChanged();
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await Timers.DeleteTimerGroup(item);
+            timerGroups = await Timers.GetTimerGroupsAsync();
+            StateHasChanged();
+        }
     }
 
     private async Task AddTimerGroup()
