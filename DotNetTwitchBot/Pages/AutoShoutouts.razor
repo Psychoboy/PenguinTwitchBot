@@ -86,6 +86,7 @@
     {
         if (autoShoutout == null) return;
         await ShoutoutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+        autoShoutout = new();
         await ReloadShoutouts();
     }
     private async Task Delete(AutoShoutout autoShoutout)

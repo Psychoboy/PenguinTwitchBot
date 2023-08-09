@@ -3,41 +3,6 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Keywords</PageTitle>
-@* <style type="text/css">
-.white-text {
-color: white;
-
-}
-</style>
-<button class="btn btn-primary" @onclick="CreateKeyword">Create Keyword</button>
-@if (keywords == null)
-{
-<p><em>Loading...</em></p>
-}
-else
-{
-<table class="table white-text">
-<thead>
-<tr>
-<th>Keyword</th>
-<th>Response</th>
-<th>Disabled</th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-@foreach (var keyword in keywords)
-{
-<tr>
-<td>@keyword.CommandName</td>
-<td>@keyword.Response</td>
-<td>@keyword.Disabled</td>
-<td><button class="btn btn-primary btn-xs" @onclick="() => Edit(keyword)">Edit</button></td>
-</tr>
-}
-</tbody>
-</table>
-} *@
 
 <MudButton OnClick="CreateKeyword" Variant="Variant.Filled" Color="Color.Primary">Create Keyword</MudButton>
 
