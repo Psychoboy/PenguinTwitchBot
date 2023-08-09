@@ -5,21 +5,35 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Giveaway</PageTitle>
+<MudGrid>
+    <MudItem sm="6">
+        <MudPaper Class="pa-8 ma-2" Outlined="true">
+            <MudText Typo="Typo.h2">Prize</MudText>
+            <MudText Typo="Typo.h3">@prize</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem sm="6">
+        <MudPaper Class="pa-8 ma-2" Outlined="true">
+            <MudText Typo="Typo.h2">Winners</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Close</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Draw">Draw</MudButton>
+            @foreach (var winner in winners)
+            {
+                @if (firstDraw == false)
+                {
+                    <MudDivider />
+                }
+                {firstDraw = false;}
 
-<MudPaper Class="pa-16 ma-2" Outlined="true">
-    <MudText Typo="Typo.h1">Prize</MudText>
-    <MudText Typo="Typo.h2">@prize</MudText>
-</MudPaper>
+             <MudText Typo="Typo.h3">@winner.Username</MudText>
+                <MudText Typo="Typo.h4">@winner.Prize</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
 
-<MudPaper Class="pa-16 ma-2" Outlined="true">
-    <MudText Typo="Typo.h1">Winners</MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Close</MudButton>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Draw">Draw</MudButton>
-    @foreach (var winner in winners)
-    {
-        <MudText Typo="Typo.h2">@winner</MudText>
-    }
-</MudPaper>
+
+
 @if (pastWinners == null)
 {
     <MudAlert Severity="Severity.Info">Loading...</MudAlert>
@@ -47,6 +61,7 @@ else
     private List<GiveawayWinner>? pastWinners;
     private string prize = "";
     private HubConnection? hubConnection;
+    private bool firstDraw = true;
     protected override async Task OnInitializedAsync()
     {
         pastWinners = await GiveawayFeature.PastWinners();
