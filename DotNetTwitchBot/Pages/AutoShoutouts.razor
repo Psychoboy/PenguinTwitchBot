@@ -2,40 +2,69 @@
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>Auto Shoutouts</PageTitle>
-
-<MudButton OnClick="AddShoutout" Variant="Variant.Filled" Color="Color.Primary">Create Auto Shoutout</MudButton>
-
-@if (autoShoutouts == null)
-{
-    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-}
-else
-{
-    <MudTable Items="@autoShoutouts">
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh>Response</MudTh>
-            <MudTh>Last Shoutout</MudTh>
-            <MudTh></MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
-            <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
-            <MudTd DataLabel="Edit">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Id)">Edit</MudButton>
-            </MudTd>
-            <MudTd DataLabel="Delete">
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
-
+<MudContainer MaxWidth="MaxWidth.False">
+    @if (autoShoutouts == null)
+    {
+        <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@autoShoutouts">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Response</MudTh>
+                            <MudTh>Last Shoutout</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Name</MudTd>
+                            <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
+                            <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Id)">
+                                    Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            @if (autoShoutout != null)
+            {
+                <MudItem xs="4">
+                    <MudCard>
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+                                <MudCardContent>
+                                    <MudTextField Label="Name" Required="true" RequiredError="Name is required"
+                                    @bind-Value="autoShoutout.Name" />
+                                    <MudTextField Label="Message" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                        Class="ml-auto">
+                                        Submit
+                                    </MudButton>
+                                </MudCardContent>
+                            </EditForm>
+                        </MudPaper>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
 @code {
     private List<DotNetTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
+    private DotNetTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -53,6 +82,12 @@ else
         navigationManager.NavigateTo($"/autoshoutouts/create");
     }
 
+    public async void OnSubmit()
+    {
+        if (autoShoutout == null) return;
+        await ShoutoutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+        await ReloadShoutouts();
+    }
     private async Task Delete(AutoShoutout autoShoutout)
     {
         await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);

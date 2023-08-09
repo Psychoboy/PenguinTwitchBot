@@ -3,6 +3,7 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Viewers</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
 <MudGrid>
     <MudItem xs="6">
         <MudPaper Elevation="2" Class="pa-4">
@@ -40,7 +41,7 @@
         </MudPaper>
     </MudItem>
 </MudGrid>
-
+</MudContainer>
 @code {
     private List<Viewer>? viewers = new();
     private SearchForm model = new();
