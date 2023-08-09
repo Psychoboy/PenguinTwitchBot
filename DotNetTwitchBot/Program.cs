@@ -7,6 +7,7 @@ using Quartz;
 using DotNetTwitchBot.Bot.Core;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
+using MudBlazor.Services;
 
 using DotNetTwitchBot.Bot.TwitchServices;
 
@@ -37,6 +38,7 @@ internal class Program
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
+        builder.Services.AddMudServices();
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
@@ -203,7 +205,8 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
-                eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException))
+                eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
+                eventArgs.Exception.Message.Contains("JavaScript"))
             {
                 return; //Ignore
             }

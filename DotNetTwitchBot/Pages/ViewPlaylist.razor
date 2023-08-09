@@ -2,48 +2,36 @@
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 
 <PageTitle>View Playlist</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-
-    textarea {
-        width: 100%
-    }
-
-    input {
-        width: 100%;
-    }
-</style>
-
-@if (musicPlaylist == null)
+@if (musicPlaylist != null)
 {
-    <p><em>Loading...</em></p>
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6">Playlist: @musicPlaylist.Name - Total Songs
+                @musicPlaylist.Songs.Count</MudText>
+            <MudTable Items="@musicPlaylist.Songs">
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Length</MudTh>
+                    <MudTh>Song Id</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Title</MudTd>
+                    <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                    <MudTd DataLabel="Song Id">
+                        <MudLink href='@string.Format("https://youtu.be/{0}", @context.SongId)' Target="_blank">
+                            @context.SongId
+                        </MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Remove">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => RemoveSong(context)">
+                            Remove</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
 }
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Song</th>
-                <th>Length</th>
-                <th>Song Id</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var song in musicPlaylist.Songs)
-            {
-                <tr>
-                    <td>@song.Title</td>
-                    <td>@song.Duration</td>
-                    <td>@song.SongId</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
 @code {
     [Parameter]
     public int id { get; set; }
@@ -53,5 +41,10 @@ else
     {
         musicPlaylist = await YtPlayer.GetPlayList(id);
         StateHasChanged();
+    }
+
+    private async Task RemoveSong(Song song)
+    {
+        await YtPlayer.RemoveSong(song);
     }
 }

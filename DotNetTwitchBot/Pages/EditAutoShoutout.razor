@@ -1,41 +1,29 @@
-@page "/editautoshoutout/{id:int}"
+@page "/autoshoutouts/{id:int}"
 @using Meziantou.AspNetCore.Components
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
 
 <PageTitle>Edit Shoutout</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-
-    textarea {
-        width: 100%
-    }
-
-    input {
-        width: 100%;
-    }
-</style>
-
 @if (autoShoutout == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <EditForm Model="autoShoutout" OnSubmit="OnSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <GenericForm Model="autoShoutout" />
-
-        <button type="submit">Submit</button>
-    </EditForm>
+    <MudCard>
+        <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+            <MudCardContent>
+                <MudTextField Label="Name" Required="true" RequiredError="Name is required"
+                @bind-Value="autoShoutout.Name" />
+                <MudTextField Label="Message" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
 }
-
 @code {
     [Parameter]
     public int id { get; set; }

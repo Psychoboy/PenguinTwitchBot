@@ -3,61 +3,95 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Custom Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-
-@if (commands == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Command</th>
-                <th>Response</th>
-                <th>Disabled</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var command in commands)
-            {
-                <tr>
-                    <td>!@command.Key</td>
-                    <td>@command.Value.Response</td>
-                    <td>@command.Value.Disabled</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(command.Value)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <button class="btn btn-primary" @onclick="ReloadCommands">Reload Commands</button>
-    <div>
-        <input placeholder="Name" @bind="commandName" />
-        <input placeholder="response" @bind="commandResponse" />
-        <input placeholder="User CD" @bind="commandUserCd" />
-        <input placeholder="Global CD" @bind="commandGlobalCd" />
-        <button class="btn btn-primary" @onclick="AddCommand">Add Command</button>
-    </div>
-
-}
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (commands != null)
+        {
+            <MudItem xs="9">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@commands">
+                        <HeaderContent>
+                            <MudTh>Command</MudTh>
+                            <MudTh>Response</MudTh>
+                            <MudTh>Disabled</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Command">!@context.Key</MudTd>
+                            <MudTd DataLabel="Response">@context.Value.Response</MudTd>
+                            <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => Edit(context.Value)">Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context.Value)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (customCommand != null)
+        {
+            <MudItem xs="3">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@customCommand" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                        @bind-Value="customCommand.CommandName" />
+                        <MudTextField Label="Response" Lines="8" Required="true" RequiredError="Response is required"
+                        @bind-Value="customCommand.Response" />
+                        <MudNumericField @bind-Value="@customCommand.UserCooldown" Label="User Cooldown"
+                            Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@customCommand.GlobalCooldown" Label="Global Cooldown"
+                            Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudCheckBox @bind-Checked="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox @bind-Checked="@customCommand.SayRankRequirement" Label="Say Rank Requirement?">
+                        </MudCheckBox>
+                        <MudCheckBox @bind-Checked="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDivider />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                            Class="ml-auto">
+                            Create
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
 
 @code {
     private Dictionary<string, DotNetTwitchBot.Bot.Models.CustomCommands>? commands;
-    private string? commandName;
-    private string? commandResponse;
-    private string? commandUserCd;
-    private string? commandGlobalCd;
+    private DotNetTwitchBot.Bot.Models.CustomCommands customCommand { get; set; } = new();
     protected override Task OnInitializedAsync()
     {
         commands = CustomCommand.GetCustomCommands();
         return Task.CompletedTask;
+    }
+
+    public async void OnSubmit()
+    {
+        if (customCommand == null) return;
+        await CustomCommand.AddCommand(customCommand);
+        customCommand = new();
+        ReloadCommands();
     }
 
     private void ReloadCommands()
@@ -66,27 +100,19 @@ else
         StateHasChanged();
     }
 
-    private async Task AddCommand()
+    private void AddCommand()
     {
-        if (!string.IsNullOrWhiteSpace(commandName) &&
-        !string.IsNullOrWhiteSpace(commandResponse) &&
-        !string.IsNullOrWhiteSpace(commandUserCd) &&
-        !string.IsNullOrWhiteSpace(commandGlobalCd))
-        {
-            var command = new DotNetTwitchBot.Bot.Models.CustomCommands
-                {
-                    CommandName = commandName,
-                    UserCooldown = Int32.Parse(commandUserCd),
-                    GlobalCooldown = Int32.Parse(commandGlobalCd),
-                    Response = commandResponse
-                };
-            await CustomCommand.AddCommand(command);
-            ReloadCommands();
-        }
+        navigationManager.NavigateTo($"/customcommands/create");
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.CustomCommands item)
+    {
+        await CustomCommand.DeleteCommand(item);
+        ReloadCommands();
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.CustomCommands item)
     {
-        navigationManager.NavigateTo($"/editcommand/{item.Id}");
+        navigationManager.NavigateTo($"/customcommands/{item.Id}");
     }
 }

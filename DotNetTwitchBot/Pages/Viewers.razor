@@ -3,64 +3,63 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Viewers</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-</style>
-
-<div>
-    <input placeholder="Name" @bind="name" />
-    <button class="btn btn-primary" @onclick="Search">Search</button>
-</div>
-
-@if (viewers == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>Display Name</th>
-                <th>Title</th>
-                <th>Last Seen</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var viewer in viewers)
-            {
-                <tr>
-                    <td>@viewer.Username</td>
-                    <td>@viewer.DisplayName</td>
-                    <td>@viewer.Title</td>
-                    <td>@viewer.LastSeen</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(viewer)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
+<MudContainer MaxWidth="MaxWidth.False">
+<MudGrid>
+    <MudItem xs="6">
+        <MudPaper Elevation="2" Class="pa-4">
+            <EditForm Model="@model" OnValidSubmit="Search">
+                <DataAnnotationsValidator />
+                <MudTextField Label="Name" @bind-Value="model.Username" For="@(() => model.Username)" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                    Class="ml-auto">
+                    Search
+                </MudButton>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable Items="@viewers">
+                <HeaderContent>
+                    <MudTh>Username</MudTh>
+                    <MudTh>Display Name</MudTh>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Last Seen</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Username">@context.Username</MudTd>
+                    <MudTd DataLabel="Display Name">@context.DisplayName</MudTd>
+                    <MudTd DataLabel="Title">@context.Title</MudTd>
+                    <MudTd DataLabel="Last Seen">@context.LastSeen</MudTd>
+                    <MudTd DataLabel="Edit">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+</MudContainer>
 @code {
     private List<Viewer>? viewers = new();
-    private string? name;
+    private SearchForm model = new();
+
+    public class SearchForm
+    {
+        [Required]
+        [StringLength(25, ErrorMessage = "Search must be between 3 and 25 characters", MinimumLength = 3)]
+        public string Username { get; set; } = "";
+    }
+
     private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)
     {
         navigationManager.NavigateTo($"/editviewer/{item.Id}");
     }
     private async Task Search()
     {
-        if (String.IsNullOrWhiteSpace(name))
-        {
-            viewers = new();
-            return;
-        }
-        viewers = await viewerFeature.SearchForViewer(name);
+        viewers = await viewerFeature.SearchForViewer(model.Username);
         StateHasChanged();
     }
 }

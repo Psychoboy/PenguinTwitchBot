@@ -133,6 +133,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
+                customCommand.CommandName = customCommand.CommandName.ToLower();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 if ((await db.CustomCommands.Where(x => x.CommandName.Equals(customCommand.CommandName)).FirstOrDefaultAsync()) != null)
                 {
@@ -141,6 +142,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 await db.CustomCommands.AddAsync(customCommand);
                 Commands[customCommand.CommandName] = customCommand;
+                await db.SaveChangesAsync();
+            }
+            await LoadCommands();
+        }
+
+        public async Task DeleteCommand(CustomCommands customCommand)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                
+                db.CustomCommands.Remove(customCommand);
                 await db.SaveChangesAsync();
             }
             await LoadCommands();
@@ -157,6 +170,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     return;
                 }
                 await db.Keywords.AddAsync(keyword);
+                await db.SaveChangesAsync();
+            }
+            await LoadCommands();
+        }
+
+        public async Task DeleteKeyword(KeywordType keyword)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                
+                db.Keywords.Remove(keyword);
                 await db.SaveChangesAsync();
             }
             await LoadCommands();

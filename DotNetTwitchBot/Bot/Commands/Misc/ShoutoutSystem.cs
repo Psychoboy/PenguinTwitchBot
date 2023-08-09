@@ -51,6 +51,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
+        public async Task DeleteAutoShoutout(AutoShoutout autoShoutout)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.AutoShoutouts.Remove(autoShoutout);
+            await db.SaveChangesAsync();
+        }
+
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             if (ServiceBackbone.IsOnline == false) return;

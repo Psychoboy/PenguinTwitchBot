@@ -3,42 +3,31 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Default Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
 @if (defaultCommands == null)
 {
-    <p><em>Loading...</em></p>
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Configured Name</th>
-                <th>Default Name</th>
-                <th>Module</th>
-                <th>Rank</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var defaultCommand in defaultCommands)
-            {
-                <tr>
-                    <td>!@defaultCommand.CustomCommandName</td>
-                    <td>!@defaultCommand.CommandName</td>
-                    <td>@defaultCommand.ModuleName</td>
-                    <td>@defaultCommand.MinimumRank</td>
-                    <td><button class="btn btn-primary btn-xs" data-id="@defaultCommand.CommandName"
-                        @onclick="() => Edit(defaultCommand)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudTable Items="@defaultCommands">
+        <HeaderContent>
+            <MudTh>Configured Name</MudTh>
+            <MudTh>Default Name</MudTh>
+            <MudTh>Module</MudTh>
+            <MudTh>Rank</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Configured Name">!@context.CustomCommandName</MudTd>
+            <MudTd DataLabel="Default Name">!@context.CommandName</MudTd>
+            <MudTd DataLabel="Module Name">@context.ModuleName</MudTd>
+            <MudTd DataLabel="Minimum Rank">@context.MinimumRank</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {

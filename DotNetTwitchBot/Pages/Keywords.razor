@@ -2,54 +2,103 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Custom Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
+<PageTitle>Keywords</PageTitle>
 
-    }
-</style>
-<button class="btn btn-primary" @onclick="CreateKeyword">Create Keyword</button>
-@if (keywords == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Keyword</th>
-                <th>Response</th>
-                <th>Disabled</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var keyword in keywords)
-            {
-                <tr>
-                    <td>@keyword.CommandName</td>
-                    <td>@keyword.Response</td>
-                    <td>@keyword.Disabled</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(keyword)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (keywords != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@keywords">
+                        <HeaderContent>
+                            <MudTh>Keyword</MudTh>
+                            <MudTh>Response</MudTh>
+                            <MudTh>Disabled</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.CommandName</MudTd>
+                            <MudTd DataLabel="Response">@context.Response</MudTd>
+                            <MudTd DataLabel="Last Shoutout">@context.Disabled</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
+                                    Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (keyword != null)
+        {
+            <MudItem xs="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@keyword" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudTextField Label="Keyword" Required="true" RequiredError="Keyword is required"
+                        @bind-Value="keyword.CommandName" />
+                        <MudCheckBox @bind-Checked="@keyword.IsRegex" Label="Is Regex?"></MudCheckBox>
+                        <MudCheckBox @bind-Checked="@keyword.IsCaseSensitive" Label="Is Case Sensitive?"></MudCheckBox>
+                        <MudTextField Label="Response" Required="true" RequiredError="Response is required"
+                        @bind-Value="keyword.Response" />
+                        <MudNumericField @bind-Value="@keyword.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@keyword.GlobalCooldown" Label="Global Cooldown"
+                            Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@keyword.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                        <MudCheckBox @bind-Checked="@keyword.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox @bind-Checked="@keyword.SayRankRequirement" Label="Say Rank Requirement?">
+                        </MudCheckBox>
+                        <MudCheckBox @bind-Checked="@keyword.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudSelect @bind-Value="@keyword.MinimumRank" Label="Minimum Rank">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
 
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                            Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
 @code {
     private IEnumerable<DotNetTwitchBot.Bot.Models.KeywordType>? keywords;
+    private DotNetTwitchBot.Bot.Models.KeywordType keyword { get; set; } = new KeywordType();
     protected override Task OnInitializedAsync()
     {
         keywords = CustomCommand.GetKeywords();
         return Task.CompletedTask;
     }
 
-    private void CreateKeyword()
+    public async void OnSubmit()
     {
-        navigationManager.NavigateTo($"/keywords/create");
+        if (keyword == null) return;
+        await CustomCommand.AddKeyword(keyword);
+        keywords = CustomCommand.GetKeywords();
+        keyword = new();
+        StateHasChanged();
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.KeywordType keyword)
+    {
+        await CustomCommand.DeleteKeyword(keyword);
+        keywords = CustomCommand.GetKeywords();
+        StateHasChanged();
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.KeywordType item)

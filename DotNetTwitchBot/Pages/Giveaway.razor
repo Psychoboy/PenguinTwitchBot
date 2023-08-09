@@ -4,68 +4,65 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject NavigationManager Navigation
 
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-</style>
-<div>
-    <h1>Prize</h1>
-    <h2>@prize</h2>
-</div>
-<hr />
-<div>
-    <h1>Winners</h1>
-    @foreach (var winner in winners)
-    {
-        <div>
-            <h2>@winner.Username - @winner.Prize</h2>
-        </div>
-    }
-</div>
-<div>
-    <button class="btn btn-primary btn-xs" @onclick="() => Close()">Close</button>
-</div>
-<div>
-    <button class="btn btn-primary btn-xs" @onclick="() => Draw()">Draw</button>
-</div>
-<hr />
-<div>
-    <h1>Past Winners</h1>
-    @if (pastWinners == null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else
-    {
-        <table class="table white-text">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Prize</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var winner in pastWinners)
+<PageTitle>Giveaway</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem sm="6">
+            <MudPaper Class="pa-8 ma-2" Outlined="true">
+                <MudText Typo="Typo.h2">Prize</MudText>
+                <MudText Typo="Typo.h3">@prize</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem sm="6">
+            <MudPaper Class="pa-8 ma-2" Outlined="true">
+                <MudText Typo="Typo.h2">Winners</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Close</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Draw">Draw</MudButton>
+                @foreach (var winner in winners)
                 {
-                    <tr>
-                        <td>@winner.Username</td>
-                        <td>@winner.Prize</td>
-                        <td>@winner.WinningDate.ToShortDateString()</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-</div>
+                    @if (firstDraw == false)
+                    {
+                        <MudDivider />
+                    }
+                    { firstDraw = false; }
 
+                    <MudText Typo="Typo.h3">@winner.Username</MudText>
+                    <MudText Typo="Typo.h4">@winner.Prize</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+</MudContainer>
+
+@if (pastWinners == null)
+{
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-16 ma-2" Outlined="true">
+        <MudText Typo="Typo.h3">Past Winners</MudText>
+        <MudTable Items="@pastWinners">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Prize</MudTh>
+                <MudTh>Date</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Username</MudTd>
+                <MudTd DataLabel="Prize">@context.Prize</MudTd>
+                <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
 @code {
     private List<GiveawayWinner> winners = new List<GiveawayWinner>();
     private List<GiveawayWinner>? pastWinners;
     private string prize = "";
     private HubConnection? hubConnection;
+    private bool firstDraw = true;
     protected override async Task OnInitializedAsync()
     {
         pastWinners = await GiveawayFeature.PastWinners();

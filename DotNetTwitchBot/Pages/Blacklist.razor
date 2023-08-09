@@ -4,47 +4,80 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Blacklist</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-@if (wordFilters == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Phrase</th>
-                <th>Message</th>
-                <th>Length</th>
-                <th>Is Regex</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var wordFilter in wordFilters)
-            {
-                <tr>
-                    <td>@wordFilter.Phrase</td>
-                    <td>@wordFilter.Message</td>
-                    <td>@wordFilter.TimeOutLength</td>
-                    <td>@wordFilter.IsRegex</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(wordFilter)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (wordFilters != null)
+        {
+            <MudItem xs="9">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@wordFilters">
+                        <HeaderContent>
+                            <MudTh>Phrase</MudTh>
+                            <MudTh>Message</MudTh>
+                            <MudTh>Timeout Length</MudTh>
+                            <MudTh>Is Regex</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Phrase">@context.Phrase</MudTd>
+                            <MudTd DataLabel="Message">@context.Message</MudTd>
+                            <MudTd DataLabel="Timeout Length">@context.TimeOutLength</MudTd>
+                            <MudTd DataLabel="Is Regex">@context.IsRegex</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
+                                    Edit</MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (wordFilter != null)
+        {
+            <MudItem xs="3">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudCardContent>
+                            <MudTextField Label="Phrase" Required="true" RequiredError="Phrase is required"
+                            @bind-Value="wordFilter.Phrase" />
+                            <MudCheckBox @bind-Checked="@wordFilter.IsRegex" Label="Is Regex?"></MudCheckBox>
+                            <MudTextField Label="Message" Required="true" RequiredError="Message is required"
+                            @bind-Value="wordFilter.Message" />
+                            <MudTextField Label="Ban Reason" Required="true" RequiredError="Ban Reason is required"
+                            @bind-Value="wordFilter.BanReason" />
+                            <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length"
+                                Variant="Variant.Text">
+                            </MudNumericField>
+                            <MudCheckBox @bind-Checked="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
+                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?">
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?">
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeVips" Label="Exclude Vips?"></MudCheckBox>
 
-    <button class="btn btn-primary" @onclick="() => CreateFilter()">Add Blacklist</button>
-}
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                Class="ml-auto">
+                                Submit
+                            </MudButton>
+                        </MudCardContent>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
 
 @code {
     private List<WordFilter>? wordFilters;
+    private WordFilter? wordFilter { get; set; } = new();
 
     protected override Task OnInitializedAsync()
     {
@@ -52,13 +85,24 @@ else
         return Task.CompletedTask;
     }
 
-    public void Edit(WordFilter item)
+    private async Task Delete(WordFilter wordFilter)
     {
-        navigationManager.NavigateTo($"/editwordfilter/{item.Id}");
+        await BlacklistApi.DeleteBlacklist(wordFilter);
+        wordFilters = BlacklistApi.GetBlackList();
+        StateHasChanged();
     }
 
-    public void CreateFilter()
+    public void Edit(WordFilter item)
     {
-        navigationManager.NavigateTo($"/editwordfilter/0");
+        navigationManager.NavigateTo($"/blacklist/{item.Id}");
+    }
+
+    public async void OnSubmit()
+    {
+        if (wordFilter == null) return;
+        await BlacklistApi.UpdateBlacklist(wordFilter);
+        wordFilters = BlacklistApi.GetBlackList();
+        wordFilter = new();
+        StateHasChanged();
     }
 }

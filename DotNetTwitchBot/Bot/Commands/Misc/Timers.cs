@@ -77,11 +77,27 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
+        public async Task DeleteTimerGroup(TimerGroup group)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.TimerGroups.Remove(group);
+            await db.SaveChangesAsync();
+        }
+
         public async Task UpdateTimerMessage(TimerMessage message)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             db.TimerMessages.Update(message);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task DeleteTimerMessage(TimerMessage message)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.TimerMessages.Remove(message);
             await db.SaveChangesAsync();
         }
 

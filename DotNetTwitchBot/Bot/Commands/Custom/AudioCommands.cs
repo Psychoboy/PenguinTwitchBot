@@ -91,6 +91,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return await db.AudioCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
         }
 
+        public List<string> GetAudioFiles()
+        {
+            return Directory.GetFiles("wwwroot/audio")
+            .Select(f => Path.GetFileNameWithoutExtension(f))
+            .Distinct()
+            .ToList();
+
+
+        }
+
         public async Task RunCommand(CommandEventArgs e)
         {
             if (Commands.ContainsKey(e.Command) == false) return;
