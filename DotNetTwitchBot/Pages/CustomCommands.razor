@@ -4,44 +4,94 @@
 
 <PageTitle>Custom Commands</PageTitle>
 
-<MudButton OnClick="AddCommand" Variant="Variant.Filled" Color="Color.Primary">Create Custom Command</MudButton>
-
-@if (commands == null)
-{
-    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-}
-else
-{
-    <MudTable Items="@commands">
-        <HeaderContent>
-            <MudTh>Command</MudTh>
-            <MudTh>Response</MudTh>
-            <MudTh>Disabled</MudTh>
-            <MudTh></MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Command">!@context.Key</MudTd>
-            <MudTd DataLabel="Response">@context.Value.Response</MudTd>
-            <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
-            <MudTd DataLabel="Edit">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Value)">Edit
-                </MudButton>
-            </MudTd>
-            <MudTd DataLabel="Delete">
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context.Value)">Delete
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (commands != null)
+        {
+            <MudItem xs="9">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@commands">
+                        <HeaderContent>
+                            <MudTh>Command</MudTh>
+                            <MudTh>Response</MudTh>
+                            <MudTh>Disabled</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Command">!@context.Key</MudTd>
+                            <MudTd DataLabel="Response">@context.Value.Response</MudTd>
+                            <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => Edit(context.Value)">Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context.Value)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (customCommand != null)
+        {
+            <MudItem xs="3">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@customCommand" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                        @bind-Value="customCommand.CommandName" />
+                        <MudTextField Label="Response" Lines="8" Required="true" RequiredError="Response is required"
+                        @bind-Value="customCommand.Response" />
+                        <MudNumericField @bind-Value="@customCommand.UserCooldown" Label="User Cooldown"
+                            Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@customCommand.GlobalCooldown" Label="Global Cooldown"
+                            Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudCheckBox @bind-Checked="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox @bind-Checked="@customCommand.SayRankRequirement" Label="Say Rank Requirement?">
+                        </MudCheckBox>
+                        <MudCheckBox @bind-Checked="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDivider />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                            Class="ml-auto">
+                            Create
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
 
 @code {
     private Dictionary<string, DotNetTwitchBot.Bot.Models.CustomCommands>? commands;
+    private DotNetTwitchBot.Bot.Models.CustomCommands customCommand { get; set; } = new();
     protected override Task OnInitializedAsync()
     {
         commands = CustomCommand.GetCustomCommands();
         return Task.CompletedTask;
+    }
+
+    public async void OnSubmit()
+    {
+        if (customCommand == null) return;
+        await CustomCommand.AddCommand(customCommand);
+        customCommand = new();
+        ReloadCommands();
     }
 
     private void ReloadCommands()

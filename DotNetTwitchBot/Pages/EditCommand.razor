@@ -18,7 +18,7 @@ else
             <MudCardContent>
                 <MudTextField Label="Command" Required="true" RequiredError="Command is required"
                 @bind-Value="customCommand.CommandName" />
-                <MudTextField Label="Response" Required="true" RequiredError="Response is required"
+                <MudTextField Label="Response" Lines="5" Required="true" RequiredError="Response is required"
                 @bind-Value="customCommand.Response" />
                 <MudNumericField @bind-Value="@customCommand.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
                 </MudNumericField>
