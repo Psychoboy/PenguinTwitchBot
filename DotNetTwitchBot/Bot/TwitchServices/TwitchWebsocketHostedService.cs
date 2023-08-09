@@ -313,7 +313,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error subscribing to the events");
-                await Reconnect()
+                await _eventSubWebsocketClient.DisconnectAsync();
             }
             _logger.LogInformation("Subscribed to events");
         }
