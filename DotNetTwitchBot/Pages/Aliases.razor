@@ -4,44 +4,72 @@
 
 <PageTitle>Aliases</PageTitle>
 
-<MudButton OnClick="CreateAlias" Variant="Variant.Filled" Color="Color.Primary">Create Alias</MudButton>
-@if (aliases == null)
-{
-    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-}
-else
-{
-    <MudTable Items="@aliases">
-        <HeaderContent>
-            <MudTh>Alias</MudTh>
-            <MudTh>Command</MudTh>
-            <MudTh></MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Alias">@context.AliasName</MudTd>
-            <MudTd DataLabel="Command">@context.CommandName</MudTd>
-            <MudTd DataLabel="Edit">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
-            </MudTd>
-            <MudTd DataLabel="Delete">
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (aliases != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@aliases">
+                        <HeaderContent>
+                            <MudTh>Alias</MudTh>
+                            <MudTh>Command</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Alias">@context.AliasName</MudTd>
+                            <MudTd DataLabel="Command">@context.CommandName</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
+                                    Edit</MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (theAlias != null)
+        {
+            <MudItem xs="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@theAlias" OnValidSubmit="OnSubmit">
+                        <MudTextField Label="Alias" Required="true" RequiredError="Alias is required"
+                        @bind-Value="theAlias.AliasName" />
+                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                        @bind-Value="theAlias.CommandName" />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                            Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+
+    </MudGrid>
+</MudContainer>
 
 @code {
     private List<DotNetTwitchBot.Bot.Models.AliasModel>? aliases;
+    private DotNetTwitchBot.Bot.Models.AliasModel? theAlias { get; set; } = new();
     protected override async Task OnInitializedAsync()
     {
         aliases = await AliasCommand.GetAliasesAsync();
     }
 
-    private void CreateAlias()
+    public async void OnSubmit()
     {
-        navigationManager.NavigateTo($"/aliases/create");
+        if (theAlias == null) return;
+        await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
+        aliases = await AliasCommand.GetAliasesAsync();
+        theAlias = new();
+        StateHasChanged();
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.AliasModel item)
