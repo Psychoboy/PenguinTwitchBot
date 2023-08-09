@@ -6,25 +6,20 @@
 @inject DotNetTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
 @inject NavigationManager Navigation
 
-<style type="text/css">
-    .white-text {
-        color: white;
+<PageTitle>Giveaway Settings</PageTitle>
 
-    }
-</style>
-<div>
-    @* <EditForm Model="Prize" OnSubmit="OnPrizeSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary /> *@
-    <div>
-        <input @bind=@Prize />
-        <button class="btn btn-primary btn-xs" @onclick="() => OnPrizeSubmit()">Submit</button>
-    </div>
-    @* </EditForm> *@
-</div>
-<div>
-    <button class="btn btn-primary btn-xs" @onclick="() => Reset()">Reset</button>
-</div>
+<MudCard>
+    <MudCardContent>
+        <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" />
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto"
+            OnClick="OnPrizeSubmit">
+            Submit
+        </MudButton>
+    </MudCardContent>
+</MudCard>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
+
 @code {
     private string? Prize { get; set; }
 

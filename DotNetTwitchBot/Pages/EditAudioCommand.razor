@@ -1,0 +1,63 @@
+@page "/audiocommands/{id:int}"
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>Edit Audio Command</PageTitle>
+@if (audioCommand == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudCard>
+        <EditForm Model="@audioCommand" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudCardContent>
+                <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                @bind-Value="audioCommand.CommandName" />
+                <MudTextField Label="Response" Required="true" RequiredError="Response is required"
+                @bind-Value="audioCommand.AudioFile" />
+                <MudNumericField @bind-Value="@audioCommand.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@audioCommand.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@audioCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudCheckBox @bind-Checked="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudSelect @bind-Value="@audioCommand.MinimumRank" Label="Minimum Rank">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private DotNetTwitchBot.Bot.Models.AudioCommand? audioCommand { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        audioCommand = await AudioCommands.GetAudioCommand(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (audioCommand == null) return;
+        await AudioCommands.SaveAudioCommand(audioCommand);
+        navigationManager.NavigateTo($"/audiocommands");
+    }
+}

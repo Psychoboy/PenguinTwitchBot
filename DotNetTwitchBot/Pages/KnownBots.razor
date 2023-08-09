@@ -4,38 +4,25 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Known Bots</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-@if (knownBots == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th></th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var knownBot in knownBots)
-            {
-                <tr>
-                    <td>@knownBot.Username</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Delete(knownBot)">Delete</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<MudButton OnClick="CreateFilter" Variant="Variant.Filled" Color="Color.Primary">Add Known Bot</MudButton>
 
-    <button class="btn btn-primary" @onclick="() => CreateFilter()">Add Known Bot</button>
+@if (knownBots != null)
+{
+    <MudTable Items="@knownBots">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Username</MudTd>
+            <MudTd DataLabel="Delete">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {

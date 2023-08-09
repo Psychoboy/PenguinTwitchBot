@@ -4,37 +4,45 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>Create Keyword Command</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-
-    textarea {
-        width: 100%
-    }
-
-    input {
-        width: 100%;
-    }
-</style>
-
 @if (keyword == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <EditForm Model="keyword" OnSubmit="OnSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
 
-        <GenericForm Model="keyword" />
+    <MudCard>
+        <EditForm Model="@keyword" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudCardContent>
+                <MudTextField Label="Keyword" Required="true" RequiredError="Keyword is required"
+                @bind-Value="keyword.CommandName" />
+                <MudCheckBox @bind-Checked="@keyword.IsRegex" Label="Is Regex?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@keyword.IsCaseSensitive" Label="Is Case Sensitive?"></MudCheckBox>
+                <MudTextField Label="Response" Required="true" RequiredError="Response is required"
+                @bind-Value="keyword.Response" />
+                <MudNumericField @bind-Value="@keyword.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@keyword.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@keyword.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudCheckBox @bind-Checked="@keyword.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@keyword.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@keyword.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudSelect @bind-Value="@keyword.MinimumRank" Label="Minimum Rank">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
 
-        <button type="submit">Submit</button>
-    </EditForm>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
 }
-
 
 @code {
 

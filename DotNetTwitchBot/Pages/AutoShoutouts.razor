@@ -2,51 +2,41 @@
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>Auto Shoutouts</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-<button class="btn btn-primary" @onclick="ReloadShoutouts">Reload Shoutouts</button>
+<MudButton OnClick="AddShoutout" Variant="Variant.Filled" Color="Color.Primary">Create Auto Shoutout</MudButton>
+
 @if (autoShoutouts == null)
 {
-    <p><em>Loading...</em></p>
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Response</th>
-                <th>Last Shoutout</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var shoutout in autoShoutouts)
-            {
-                <tr>
-                    <td>@shoutout.Name</td>
-                    <td>@shoutout.CustomMessage</td>
-                    <td>@shoutout.LastShoutout</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(shoutout.Id)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    <div>
-        <input placeholder="Name" @bind="Name" />
-        <input placeholder="response" @bind="Message" />
-        <button class="btn btn-primary" @onclick="AddShoutout">Add Shoutout</button>
-    </div>
+    <MudTable Items="@autoShoutouts">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Response</MudTh>
+            <MudTh>Last Shoutout</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
+            <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Id)">Edit</MudButton>
+            </MudTd>
+            <MudTd DataLabel="Delete">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
+
 @code {
     private List<DotNetTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
-    private string? Name;
-    private string? Message;
+
     protected override async Task OnInitializedAsync()
     {
         autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
@@ -58,22 +48,19 @@ else
         StateHasChanged();
     }
 
-    private async Task AddShoutout()
+    private void AddShoutout()
     {
-        if (!string.IsNullOrWhiteSpace(Name))
-        {
-            var autoShoutout = new DotNetTwitchBot.Bot.Models.AutoShoutout
-                {
-                    Name = Name,
-                    CustomMessage = Message
-                };
-            await ShoutoutSystem.AddAutoShoutout(autoShoutout);
-            await ReloadShoutouts();
-        }
+        navigationManager.NavigateTo($"/autoshoutouts/create");
+    }
+
+    private async Task Delete(AutoShoutout autoShoutout)
+    {
+        await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);
+        await ReloadShoutouts();
     }
 
     private void Edit(int? id)
     {
-        navigationManager.NavigateTo($"/editautoshoutout/{id}");
+        navigationManager.NavigateTo($"/autoshoutouts/{id}");
     }
 }

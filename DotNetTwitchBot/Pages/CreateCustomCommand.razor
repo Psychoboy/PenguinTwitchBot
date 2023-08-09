@@ -1,10 +1,9 @@
-@page "/customcommands/{id:int}"
+@page "/customcommands/create"
 @using Meziantou.AspNetCore.Components
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-
-<PageTitle>Edit Command</PageTitle>
+<PageTitle>Create Custom Command</PageTitle>
 @if (customCommand == null)
 {
     <p><em>Loading...</em></p>
@@ -44,21 +43,13 @@ else
 }
 
 @code {
-    [Parameter]
-    public int id { get; set; }
 
-    private DotNetTwitchBot.Bot.Models.CustomCommands? customCommand { get; set; }
-
-    protected override async void OnParametersSet()
-    {
-        customCommand = await CustomCommand.GetCustomCommand(id);
-        StateHasChanged();
-    }
+    private DotNetTwitchBot.Bot.Models.CustomCommands customCommand { get; set; } = new();
 
     public async void OnSubmit()
     {
         if (customCommand == null) return;
-        await CustomCommand.SaveCommand(customCommand);
+        await CustomCommand.AddCommand(customCommand);
         navigationManager.NavigateTo($"/customcommands");
     }
 }

@@ -4,43 +4,36 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Blacklist</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-</style>
+<MudButton OnClick="CreateFilter" Variant="Variant.Filled" Color="Color.Primary">Create Filter</MudButton>
 @if (wordFilters == null)
 {
-    <p><em>Loading...</em></p>
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Phrase</th>
-                <th>Message</th>
-                <th>Length</th>
-                <th>Is Regex</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var wordFilter in wordFilters)
-            {
-                <tr>
-                    <td>@wordFilter.Phrase</td>
-                    <td>@wordFilter.Message</td>
-                    <td>@wordFilter.TimeOutLength</td>
-                    <td>@wordFilter.IsRegex</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(wordFilter)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    <button class="btn btn-primary" @onclick="() => CreateFilter()">Add Blacklist</button>
+    <MudTable Items="@wordFilters">
+        <HeaderContent>
+            <MudTh>Phrase</MudTh>
+            <MudTh>Message</MudTh>
+            <MudTh>Timeout Length</MudTh>
+            <MudTh>Is Regex</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Phrase">@context.Phrase</MudTd>
+            <MudTd DataLabel="Message">@context.Message</MudTd>
+            <MudTd DataLabel="Timeout Length">@context.TimeOutLength</MudTd>
+            <MudTd DataLabel="Is Regex">@context.IsRegex</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
+            </MudTd>
+            <MudTd DataLabel="Delete">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {
@@ -52,13 +45,20 @@ else
         return Task.CompletedTask;
     }
 
+    private async Task Delete(WordFilter wordFilter)
+    {
+        await BlacklistApi.DeleteBlacklist(wordFilter);
+        wordFilters = BlacklistApi.GetBlackList();
+        StateHasChanged();
+    }
+
     public void Edit(WordFilter item)
     {
-        navigationManager.NavigateTo($"/editwordfilter/{item.Id}");
+        navigationManager.NavigateTo($"/blacklist/{item.Id}");
     }
 
     public void CreateFilter()
     {
-        navigationManager.NavigateTo($"/editwordfilter/0");
+        navigationManager.NavigateTo($"/blacklist/0");
     }
 }

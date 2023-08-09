@@ -6,113 +6,119 @@
 @implements IAsyncDisposable
 
 <PageTitle>Music Player</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
 
-<style type="text/css">
-    .white-text {
-        color: white;
+    <MudGrid>
+        @if (currentSong != null)
+        {
+            <MudItem sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText>Current Song: @currentSong.Title</MudText>
+                    <MudText>Requested By: @currentSong.RequestedBy</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="StealSong">Steal Song</MudButton>
+                </MudPaper>
+            </MudItem>
 
-    }
-</style>
+        }
+        <MudItem xs="6" sm="6" md="6">
+            @* <MudContainer Fixed="true"> *@
+            <MudPaper Elevation="2" Class="pa-4" Height="400px" Width="650px">
+                <div id="player" Height="390"></div>
+            </MudPaper>
+            @* </MudContainer> *@
+        </MudItem>
+        <MudItem xs="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTextField @bind-Value="addSongUrl" Label="Add Song" Variant="Variant.Text"></MudTextField>
+                <MudButton OnClick="AddSongRequest" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                    Color="Color.Primary" Class="ml-auto">
+                    Add Song
+                </MudButton>
+            </MudPaper>
+        </MudItem>
 
-@if (currentSong != null)
-{
-    <div>Current Song: @currentSong.Title</div>
-    <div>Requested By: @currentSong.RequestedBy</div>
-    <div><button class="btn btn-primary btn-xs" @onclick="() => StealSong()">Steal Song</button></div>
-}
+        @if (songRequests != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
+                    <MudTable Items="@songRequests">
+                        <HeaderContent>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Length</MudTh>
+                            <MudTh>Requested By</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Title</MudTd>
+                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => Priority(context)">
+                                    Priority</MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => RemoveSongRequest(context)">Remove
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (musicPlaylists != null)
+        {
+            <MudItem xs="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6">Playlists</MudText>
+                    <MudTable Items="@musicPlaylists">
+                        <HeaderContent>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Load</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Name</MudTd>
+                            <MudTd DataLabel="Load">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => StartPlaylist(context)">
+                                    Load</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (currentPlayList != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6">Curent Playlist: @currentPlayList.Name - Total Songs
+                        @currentPlayList.Songs.Count</MudText>
+                    <MudTable Items="@currentPlayList.Songs">
+                        <HeaderContent>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Length</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Title</MudTd>
+                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => RemoveSong(context)">
+                                    Remove</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
 
-<div id="player" style="background-color: rgb(49, 49, 49);"></div>
-<div>
-    <h1>Add Song</h1>
-</div>
-<div>
-    <input placeholder="Song Url" @bind="addSongUrl" />
-    <button class="btn btn-primary" @onclick="AddSongRequest">Add Song</button>
-</div>
-
-@if (songRequests != null)
-{
-    <div>Requested Songs: @songRequests.Count</div>
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Length</th>
-                <th>Requested By</th>
-                <th></th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var song in songRequests)
-            {
-                <tr>
-                    <td>@song.Title</td>
-                    <td>@song.Duration</td>
-                    <td>@song.RequestedBy</td>
-
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSongRequest(song)">Remove</button></td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Priority(song)">Priority</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-@if (musicPlaylists == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Load</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var playlist in musicPlaylists)
-            {
-                <tr>
-                    <td>@playlist.Name</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => StartPlaylist(playlist)">Load</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-@if (currentPlayList == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <div>Current Playlist: @currentPlayList.Name Total Songs: @currentPlayList.Songs.Count()</div>
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Length</th>
-                <th>Song Id</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var song in currentPlayList.Songs)
-            {
-                <tr>
-                    <td>@song.Title</td>
-                    <td>@song.Duration</td>
-                    <td>@song.SongId</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => RemoveSong(song)">Remove</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
 @code {
     private List<MusicPlaylist>? musicPlaylists;
     private MusicPlaylist? currentPlayList;

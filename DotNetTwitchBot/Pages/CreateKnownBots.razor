@@ -5,38 +5,25 @@
 @inject DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots KnownBots
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Edit Known Bots</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-
-    textarea {
-        width: 100%
-    }
-
-    input {
-        width: 100%;
-    }
-</style>
-
+<PageTitle>Create Known Bots</PageTitle>
 @if (knownBot == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <EditForm Model="knownBot" OnSubmit="OnSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <GenericForm Model="knownBot" />
-
-        <button type="submit">Submit</button>
-    </EditForm>
+    <MudCard>
+        <EditForm Model="@knownBot" OnValidSubmit="OnSubmit">
+            <MudCardContent>
+                <MudTextField Label="Username" Required="true" RequiredError="Username is required"
+                @bind-Value="knownBot.Username" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
 }
-
 @code {
     [Parameter]
     public int id { get; set; }

@@ -1,10 +1,10 @@
-@page "/autoshoutouts/{id:int}"
+@page "/autoshoutouts/create"
 @using Meziantou.AspNetCore.Components
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
 
-<PageTitle>Edit Shoutout</PageTitle>
+<PageTitle>Create Shoutout</PageTitle>
 @if (autoShoutout == null)
 {
     <p><em>Loading...</em></p>
@@ -25,16 +25,7 @@ else
     </MudCard>
 }
 @code {
-    [Parameter]
-    public int id { get; set; }
-
-    private DotNetTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; }
-
-    protected override async void OnParametersSet()
-    {
-        autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
-        StateHasChanged();
-    }
+    private DotNetTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
 
     public async void OnSubmit()
     {

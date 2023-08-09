@@ -3,36 +3,26 @@
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-<PageTitle>Edit Keyword Command</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-
-    textarea {
-        width: 100%
-    }
-
-    input {
-        width: 100%;
-    }
-</style>
-
+<PageTitle>Edit Alias</PageTitle>
 @if (theAlias == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <EditForm Model="theAlias" OnSubmit="OnSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <GenericForm Model="theAlias" />
-
-        <button type="submit">Submit</button>
-    </EditForm>
+    <MudCard>
+        <EditForm Model="@theAlias" OnValidSubmit="OnSubmit">
+            <MudCardContent>
+                <MudTextField Label="Alias" Required="true" RequiredError="Alias is required"
+                @bind-Value="theAlias.AliasName" />
+                <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                @bind-Value="theAlias.CommandName" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
 }
 
 @code {

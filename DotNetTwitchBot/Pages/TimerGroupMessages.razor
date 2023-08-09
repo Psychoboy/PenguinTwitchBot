@@ -4,70 +4,72 @@
 @inject DotNetTwitchBot.Bot.Commands.Misc.Timers Timers
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>Timer Group Edit</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-@if (timerGroup == null)
+@if (timerGroup != null)
 {
-    <p><em>Loading...</em></p>
+    <MudGrid>
+        <MudItem xs="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTextField @bind-Value="Message" Label="Add Message" Variant="Variant.Text"></MudTextField>
+                <MudButton OnClick="AddMessage" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                    Color="Color.Primary" Class="ml-auto">
+                    Add Message
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6">Edit Timer Group</MudText>
+                <EditForm Model="@timerGroup" OnValidSubmit="OnEdit">
+                    <DataAnnotationsValidator />
+                    <MudTextField Label="Name" Required="true" RequiredError="Name is required"
+                    @bind-Value="timerGroup.Name" />
+                    <MudNumericField @bind-Value="@timerGroup.IntervalMinimum" Label="Minimum Interval"
+                        Variant="Variant.Text">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@timerGroup.IntervalMaximum" Label="Maximum Interval"
+                        Variant="Variant.Text">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@timerGroup.MinimumMessages" Label="Minimum Messages"
+                        Variant="Variant.Text">
+                    </MudNumericField>
+
+                    <MudCheckBox @bind-Checked="@timerGroup.Active" Label="Enabled?"></MudCheckBox>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                        Class="ml-auto">
+                        Submit
+                    </MudButton>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@timerGroup.Messages">
+                    <HeaderContent>
+                        <MudTh>Message</MudTh>
+                        <MudTh>Enabled</MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Message">@context.Message</MudTd>
+                        <MudTd DataLabel="Enabled">@context.Enabled</MudTd>
+                        <MudTd DataLabel="Toggle">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Toggle(context)">Edit
+                            </MudButton>
+                        </MudTd>
+                        <MudTd DataLabel="Delete">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">
+                                Delete
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 }
-else
-{
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Message</th>
-                <th>Enabled</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in timerGroup.Messages)
-            {
-                <tr>
-                    <td>@item.Message</td>
-                    <td>@item.Enabled</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Toggle(item)">Toggle</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <div>
-        <input placeholder="Message" @bind="Message" />
-        <button class="btn btn-primary" @onclick="AddMessage">Add Message</button>
-    </div>
-    <hr />
-    <div>
-        <EditForm Model="timerGroup" OnSubmit="OnEdit">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-            <div>
-                <InputText @bind-Value=@timerGroup.Name />
-            </div>
-            <div>
-                <label>Minimum Interval</label>
-                <InputNumber @bind-Value=@timerGroup.IntervalMinimum />
-            </div>
-            <div>
-                <label>Maximum Interval</label>
-                <InputNumber @bind-Value=@timerGroup.IntervalMaximum />
-            </div>
-            <div>
-                <label>Minimum Messages</label>
-                <InputNumber @bind-Value=@timerGroup.MinimumMessages />
-            </div>
-            <div>
-                <label>Enabled</label>
-                <InputCheckbox @bind-Value=@timerGroup.Active />
-            </div>
-            <button type="submit">Submit</button>
-        </EditForm>
-    </div>
-}
+
 @code
 {
     [Parameter]
@@ -85,6 +87,13 @@ else
     {
         message.Enabled = !message.Enabled;
         await Timers.UpdateTimerMessage(message);
+        timerGroup = await Timers.GetTimerGroupAsync(id);
+        StateHasChanged();
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
+    {
+        await Timers.DeleteTimerMessage(message);
         timerGroup = await Timers.GetTimerGroupAsync(id);
         StateHasChanged();
     }

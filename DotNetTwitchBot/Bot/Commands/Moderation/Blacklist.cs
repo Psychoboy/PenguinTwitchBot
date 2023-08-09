@@ -51,6 +51,17 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             await LoadBlacklist();
         }
 
+        public async Task DeleteBlacklist(WordFilter wordFilter)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.WordFilters.Remove(wordFilter);
+                await db.SaveChangesAsync();
+            }
+            await LoadBlacklist();
+        }
+
         public async Task<WordFilter?> GetWordFilter(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();

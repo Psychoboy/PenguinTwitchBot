@@ -16,57 +16,42 @@
 }
 else
 {
-    <div>
+    <MudCard>
         <EditForm Model="defaultCommand" OnSubmit="OnSubmit">
             <DataAnnotationsValidator />
-            <ValidationSummary />
-            <div>
-                Module: @defaultCommand.ModuleName
-            </div>
-            <div>
-                Default Command: @defaultCommand.CommandName
-                <em>Default command is system default command. If custom command is used, it will use that instead.</em>
-            </div>
-            <div>
-                <label>Custom Command</label>
-                <InputText @bind-Value=@defaultCommand.CustomCommandName />
-            </div>
-            <div>
-                <label>Minimum Rank</label>
-                <InputSelect @bind-Value=@defaultCommand.MinimumRank>
-                    @foreach (var rank in Enum.GetValues(typeof(Rank)))
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle1">
+                    Module: @defaultCommand.ModuleName
+                </MudText>
+                <MudText Typo="Typo.subtitle1">
+                    Default Command: @defaultCommand.CommandName
+                </MudText>
+                <MudText Typo="Typo.caption">Default command is system default command. If custom command is defined
+                    differently, it will use that instead.</MudText>
+                <MudTextField Label="Custom Command Name" Required="true" RequiredError="Custom Command Name is required"
+                @bind-Value="defaultCommand.CustomCommandName" />
+                <MudNumericField @bind-Value="@defaultCommand.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@defaultCommand.GlobalCooldown" Label="Global Cooldown"
+                    Variant="Variant.Text">
+                </MudNumericField>
+                <MudNumericField @bind-Value="@defaultCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudCheckBox @bind-Checked="@defaultCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@defaultCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Checked="@defaultCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudSelect @bind-Value="@defaultCommand.MinimumRank" Label="Minimum Rank">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                     {
-                        <option value="@rank">@rank</option>
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
                     }
-                </InputSelect>
-            </div>
-            <div>
-                <label>User Cooldown</label>
-                <InputNumber @bind-Value=@defaultCommand.UserCooldown />
-            </div>
-            <div>
-                <label>Global Cooldown</label>
-                <InputNumber @bind-Value=@defaultCommand.GlobalCooldown />
-            </div>
-            <div>
-                <label>Cost</label>
-                <InputNumber @bind-Value=@defaultCommand.Cost />
-            </div>
-            <div>
-                <label>Disabled</label>
-                <InputCheckbox @bind-Value=@defaultCommand.Disabled />
-            </div>
-            <div>
-                <label>Say Cooldown</label>
-                <InputCheckbox @bind-Value=@defaultCommand.SayCooldown />
-            </div>
-            <div>
-                <label>Say Minimum Rank Required</label>
-                <InputCheckbox @bind-Value=@defaultCommand.SayRankRequirement />
-            </div>
-            <button type="submit">Submit</button>
+                </MudSelect>
+
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
         </EditForm>
-    </div>
+    </MudCard>
 }
 
 @code

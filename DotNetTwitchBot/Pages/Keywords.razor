@@ -2,41 +2,72 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Custom Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
+<PageTitle>Keywords</PageTitle>
+@* <style type="text/css">
+.white-text {
+color: white;
 
-    }
+}
 </style>
 <button class="btn btn-primary" @onclick="CreateKeyword">Create Keyword</button>
 @if (keywords == null)
 {
-    <p><em>Loading...</em></p>
+<p><em>Loading...</em></p>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Keyword</th>
-                <th>Response</th>
-                <th>Disabled</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var keyword in keywords)
-            {
-                <tr>
-                    <td>@keyword.CommandName</td>
-                    <td>@keyword.Response</td>
-                    <td>@keyword.Disabled</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(keyword)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<table class="table white-text">
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Response</th>
+<th>Disabled</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+@foreach (var keyword in keywords)
+{
+<tr>
+<td>@keyword.CommandName</td>
+<td>@keyword.Response</td>
+<td>@keyword.Disabled</td>
+<td><button class="btn btn-primary btn-xs" @onclick="() => Edit(keyword)">Edit</button></td>
+</tr>
+}
+</tbody>
+</table>
+} *@
+
+<MudButton OnClick="CreateKeyword" Variant="Variant.Filled" Color="Color.Primary">Create Keyword</MudButton>
+
+@if (keywords == null)
+{
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+}
+else
+{
+    <MudTable Items="@keywords">
+        <HeaderContent>
+            <MudTh>Keyword</MudTh>
+            <MudTh>Response</MudTh>
+            <MudTh>Disabled</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.CommandName</MudTd>
+            <MudTd DataLabel="Response">@context.Response</MudTd>
+            <MudTd DataLabel="Last Shoutout">@context.Disabled</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
+            </MudTd>
+            <MudTd DataLabel="Delete">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {
@@ -50,6 +81,13 @@ else
     private void CreateKeyword()
     {
         navigationManager.NavigateTo($"/keywords/create");
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.KeywordType keyword)
+    {
+        await CustomCommand.DeleteKeyword(keyword);
+        keywords = CustomCommand.GetKeywords();
+        StateHasChanged();
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.KeywordType item)

@@ -3,57 +3,34 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Audio Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
-
-    }
-</style>
-
+<MudButton OnClick="AddCommand" Variant="Variant.Filled" Color="Color.Primary">Create Audio Command</MudButton>
 @if (audioCommands == null)
 {
-    <p><em>Loading...</em></p>
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Command</th>
-                <th>Audio File</th>
-                <th>Disabled</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var command in audioCommands)
-            {
-                <tr>
-                    <td>!@command.Key</td>
-                    <td>@command.Value.AudioFile</td>
-                    <td>@command.Value.Disabled</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(command.Value)">Edit</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <button class="btn btn-primary" @onclick="ReloadCommands">Reload Audio Commands</button>
-    <div>
-        <input placeholder="Name" @bind="commandName" />
-        <input placeholder="Audio File" @bind="audioFile" />
-        <input placeholder="User CD" @bind="commandUserCd" />
-        <input placeholder="Global CD" @bind="commandGlobalCd" />
-        <button class="btn btn-primary" @onclick="AddCommand">Add Audio Command</button>
-    </div>
-
+    <MudTable Items="@audioCommands">
+        <HeaderContent>
+            <MudTh>Commands</MudTh>
+            <MudTh>Audio File</MudTh>
+            <MudTh>Disabled</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Command">!@context.Key</MudTd>
+            <MudTd DataLabel="AudioFile">@context.Value.AudioFile</MudTd>
+            <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Value)">Edit
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {
     private Dictionary<string, DotNetTwitchBot.Bot.Models.AudioCommand>? audioCommands;
-    private string? commandName;
-    private string? audioFile;
-    private string? commandUserCd;
-    private string? commandGlobalCd;
     protected override Task OnInitializedAsync()
     {
         audioCommands = AudioCommand.GetAudioCommands();
@@ -66,27 +43,13 @@ else
         StateHasChanged();
     }
 
-    private async Task AddCommand()
+    private void AddCommand()
     {
-        if (!string.IsNullOrWhiteSpace(commandName) &&
-        !string.IsNullOrWhiteSpace(audioFile) &&
-        !string.IsNullOrWhiteSpace(commandUserCd) &&
-        !string.IsNullOrWhiteSpace(commandGlobalCd))
-        {
-            var command = new DotNetTwitchBot.Bot.Models.AudioCommand
-                {
-                    CommandName = commandName,
-                    UserCooldown = Int32.Parse(commandUserCd),
-                    GlobalCooldown = Int32.Parse(commandGlobalCd),
-                    AudioFile = audioFile
-                };
-            await AudioCommand.AddAudioCommand(command);
-            ReloadCommands();
-        }
+        navigationManager.NavigateTo($"/audiocommands/create");
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.AudioCommand item)
     {
-        navigationManager.NavigateTo($"/editaudiocommand/{item.Id}");
+        navigationManager.NavigateTo($"/audiocommands/{item.Id}");
     }
 }

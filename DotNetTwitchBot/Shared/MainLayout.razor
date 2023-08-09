@@ -1,8 +1,31 @@
 ﻿@inherits LayoutComponentBase
 
-<PageTitle>DotNetTwitchBot</PageTitle>
+<PageTitle>SPTV Twitch Bot</PageTitle>
+<MudThemeProvider IsDarkMode=true />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudLayout>
+    <MudAppBar>
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+            OnClick="@((e) => DrawerToggle())" />
+        Super Waffle Bot
+    </MudAppBar>
+    <MudDrawer @bind-Open="@_drawerOpen">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+@code {
+    bool _drawerOpen = true;
 
-<div class="page">
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}
+<!--<div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
@@ -16,4 +39,4 @@
             @Body
         </article>
     </main>
-</div>
+</div>-->

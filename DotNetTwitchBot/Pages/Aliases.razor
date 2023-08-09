@@ -2,41 +2,34 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Custom Commands</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
+<PageTitle>Aliases</PageTitle>
 
-    }
-</style>
-<button class="btn btn-primary" @onclick="CreateAlias">Create Alias</button>
+<MudButton OnClick="CreateAlias" Variant="Variant.Filled" Color="Color.Primary">Create Alias</MudButton>
 @if (aliases == null)
 {
-    <p><em>Loading...</em></p>
+    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
 }
 else
 {
-    <table class="table white-text">
-        <thead>
-            <tr>
-                <th>Alias</th>
-                <th>Command</th>
-                <th></th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var alias in aliases)
-            {
-                <tr>
-                    <td>!@alias.AliasName</td>
-                    <td>!@alias.CommandName</td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Edit(alias)">Edit</button></td>
-                    <td><button class="btn btn-primary btn-xs" @onclick="() => Delete(alias)">Delete</button></td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudTable Items="@aliases">
+        <HeaderContent>
+            <MudTh>Alias</MudTh>
+            <MudTh>Command</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Alias">@context.AliasName</MudTd>
+            <MudTd DataLabel="Command">@context.CommandName</MudTd>
+            <MudTd DataLabel="Edit">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
+            </MudTd>
+            <MudTd DataLabel="Delete">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">Delete
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {
