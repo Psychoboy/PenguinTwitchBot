@@ -131,7 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     Method = HttpMethod.Post,
                     Content = new StringContent("{\"action\":{\"id\":\"c4a5e3b8-a607-4b34-b8fe-ff7b36c3f3d4\",\"name\":\"Fireworks - General - 50 fireworks\"},\"args\": {}}")
                 };
-                var result = await httpClient.SendAsync(request);
+                await httpClient.SendAsync(request);
             }
             catch (Exception)
             {

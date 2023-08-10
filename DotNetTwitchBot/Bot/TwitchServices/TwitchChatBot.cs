@@ -159,7 +159,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 EventService.IsOnline = await _twitchService.IsStreamOnline();
-                // await _twitchService.GetAllSubscriptions();
             }
             catch (Exception ex)
             {

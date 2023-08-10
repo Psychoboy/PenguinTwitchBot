@@ -51,7 +51,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await ValidateAndRefreshToken();
-            // await ValidateAndRefreshBotToken();
         }
 
         public async Task<List<Subscription>> GetAllSubscriptions()
@@ -80,8 +79,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
-            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
-            // return users.Users.FirstOrDefault()?.Id;
             return await GetUserId(broadcaster);
         }
 
@@ -89,16 +86,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var bot = _configuration["botName"];
             if (bot == null) return null;
-            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchAccessToken"]);
-
-            // return users.Users.FirstOrDefault()?.Id;
             return await GetUserId(bot);
         }
 
         public async Task<string?> GetUserId(string user)
         {
-            // var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
-            // return users.Users.FirstOrDefault()?.Id;
             return (await GetUser(user))?.Id;
         }
 
@@ -353,7 +345,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                var response = await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+                await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
             }
             catch (HttpResponseException ex)
             {
@@ -531,7 +523,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
+                    TimeSpan.FromSeconds(validToken.ExpiresIn);
                     _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
                 }
                 else

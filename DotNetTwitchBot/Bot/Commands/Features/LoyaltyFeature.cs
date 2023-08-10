@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public const Int64 MaxBet = 200000069;
+        public static Int64 MaxBet { get; } = 200000069;
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {

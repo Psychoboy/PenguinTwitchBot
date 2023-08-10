@@ -65,8 +65,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
             .ToView(nameof(ViewerTicketWithRanks))
             .HasKey(t => t.Id);
 
-            // modelBuilder.Entity<KeywordType>().Ignore(c => c.Regex);
-
             modelBuilder.Entity<SongRequestViewItem>()
             .HasKey(c => c.Id);
 

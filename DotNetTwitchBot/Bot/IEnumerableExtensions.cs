@@ -8,7 +8,11 @@ namespace DotNetTwitchBot.Bot
 {
     public static class IEnumerableExtensions
     {
-        public static T RandomElement<T>(this IEnumerable<T> list, ILogger? logger = null)
+        public static T RandomElement<T>(this IEnumerable<T> list)
+        {
+            return RandomElement(list, null);
+        }
+        public static T RandomElement<T>(this IEnumerable<T> list, ILogger? logger)
         {
 #pragma warning disable CS8603 //disable the possible null warning
             if (list.Count() == 0) return default;
