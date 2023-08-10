@@ -569,7 +569,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                var alertSound = new AlertSound()
+                var alertSound = new AlertSound
                 {
                     AudioHook = args
                 };

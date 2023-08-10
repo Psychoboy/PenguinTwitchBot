@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task AddKnownBot(string username)
         {
-            var knownBot = new KnownBot()
+            var knownBot = new KnownBot
             {
                 Username = username
             };

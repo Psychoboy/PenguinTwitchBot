@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<SettingsFileManager> _logger;
+        private readonly object lockObject = new();
 
         public SettingsFileManager(ILogger<SettingsFileManager> logger, IConfiguration configuration)
         {
@@ -19,11 +20,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         }
         public void AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {
-            lock (this)
+            lock (lockObject)
             {
                 try
                 {
-                    var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration"); //Path.Combine(AppContext.BaseDirectory, "appsettings.secrets.json");
+                    var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
                     string json = File.ReadAllText(filePath);
                     dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
 

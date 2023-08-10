@@ -212,7 +212,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             existingDuel = await GetExistingDuel(defender.Username);
             if (existingDuel != null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out."); ;
+                await ServiceBackbone.SendChatMessage(e.DisplayName, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out.");
                 throw new SkipCooldownException();
             }
 

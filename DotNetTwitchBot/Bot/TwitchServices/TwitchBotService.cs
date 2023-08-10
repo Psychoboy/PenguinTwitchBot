@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly TwitchAPI _twitchApi = new();
         private readonly ILogger<TwitchBotService> _logger;
         private readonly IConfiguration _configuration;
-        readonly Timer _timer;
+        readonly Timer _timer = new(300000); //5 minutes;
         private readonly SettingsFileManager _settingsFileManager;
 
         public TwitchBotService(ILogger<TwitchBotService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
@@ -31,8 +31,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _twitchApi.Settings.ClientId = _configuration["twitchBotClientId"];
             _twitchApi.Settings.AccessToken = _configuration["twitchBotAccessToken"];
             _twitchApi.Settings.Scopes = new List<AuthScopes>();
-            _timer = new Timer();
-            _timer = new Timer(300000); //5 minutes
+
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
 
@@ -107,7 +106,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         _configuration["twitchBotAccessToken"] = refreshToken.AccessToken;
                         _configuration["botExpiresIn"] = refreshToken.ExpiresIn.ToString();
                         _configuration["twitchBotRefreshToken"] = refreshToken.RefreshToken;
-                        //_twitchApi.Settings.AccessToken = refreshToken.AccessToken;
+
                         _settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
                         _settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
                         _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());

@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
+            _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer
             {
                 ApiKey = configuration["youtubeApi"],
                 ApplicationName = "DotNetBot"
@@ -369,7 +369,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     Requests.Remove(song);
                 }
                 await UpdateRequestedSongsState();
-                return;
             }
         }
 
@@ -454,16 +453,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 BackupPlaylist = playList;
                 var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
                 lastPlaylist ??= new Setting
-                    {
-                        Name = "LastSongList"
-                    };
+                {
+                    Name = "LastSongList"
+                };
                 lastPlaylist.IntSetting = playList.Id ?? default;
-                // await _serviceBackbone.SendChatMessage($"Loaded playlist {0}", playList.Name);
+
                 db.Settings.Update(lastPlaylist);
                 await db.SaveChangesAsync();
             }
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
-            //await _serviceBackbone.SendChatMessage($"{BackupPlaylist.Name} loaded with {BackupPlaylist.Songs.Count} songs");
         }
 
         private async Task ImportPlaylist(CommandEventArgs e)
@@ -498,9 +496,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                     playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(playListName));
                     playList ??= new MusicPlaylist()
-                        {
-                            Name = playListName
-                        };
+                    {
+                        Name = playListName
+                    };
                 }
 
                 foreach (var songLink in songLinks)
@@ -535,7 +533,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
-            songLink.Trim();
+            songLink = songLink.Trim();
             string songId;
             if (songLink.Contains("https://"))
             {
@@ -555,7 +553,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task MovePriority(CommandEventArgs e)
         {
-            List<Song> backwardsRequest = new();
+            List<Song> backwardsRequest;
             lock (RequestsLock)
             {
                 backwardsRequest = Requests.ToList();
@@ -597,7 +595,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var searchResult = await GetSongId(e.Arg);
             if (string.IsNullOrWhiteSpace(searchResult))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Could not get or had an issue finding your song request"));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "Could not get or had an issue finding your song request");
                 throw new SkipCooldownException();
             }
             Song? songInQueue = null;
@@ -700,7 +698,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task UpdateRequestedSongsState()
         {
-            List<Song> requests = new();
+            List<Song> requests;
             lock (RequestsLock)
             {
                 requests = Requests.ToList();
@@ -712,7 +710,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
                 await SendSongRequests(requests);
-                int v = await db.SaveChangesAsync();
+                await db.SaveChangesAsync();
                 return;
             }
             foreach (var request in requests)

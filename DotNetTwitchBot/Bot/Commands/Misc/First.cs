@@ -13,7 +13,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
         private readonly int MaxClaims = 60;
-        private static int CurrentClaims = 0;
         private readonly TicketsFeature _ticketsFeature;
         private readonly ILogger<First> _logger;
 
@@ -27,6 +26,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _ticketsFeature = ticketsFeature;
             _logger = logger;
         }
+
+        public static int CurrentClaims { get; set; } = 0;
 
         public override async Task Register()
         {
@@ -79,9 +80,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (ClaimedFirst.Contains(sender.ToLower())) throw new SkipCooldownException();
 
             ClaimedFirst.Add(sender.ToLower());
-            // var awardPoints = Tools.RandomRange(1, 25);
-            // int awardPoints = 25;
-            // if(CurrentClaims > 0)
             var awardPoints = (int)Math.Floor(((double)MaxClaims - CurrentClaims) / 2);
             if (awardPoints == 0)
             {

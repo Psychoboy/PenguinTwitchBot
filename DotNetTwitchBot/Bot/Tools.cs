@@ -10,15 +10,6 @@ namespace DotNetTwitchBot.Bot
 {
     public static class Tools
     {
-
-        // [ThreadStatic]
-        // private static Random? local;
-
-        // public static Random CurrentThreadRandom
-        // {
-        //     get { return local ?? (local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
-        // }
-
         public static int Next(int max)
         {
             return RandomNumberGenerator.GetInt32(max);
@@ -32,8 +23,6 @@ namespace DotNetTwitchBot.Bot
 
         public static int RandomRange(int min, int max)
         {
-            //return CurrentThreadRandom.Next(min, max + 1);
-            //return TrueRandom.NextRange(min, max);
             return RandomNumberGenerator.GetInt32(min, max + 1);
         }
 
@@ -43,12 +32,12 @@ namespace DotNetTwitchBot.Bot
             while (n > 1)
             {
                 n--;
-                int k = RandomNumberGenerator.GetInt32(n + 1); //TrueRandom.Next(n); //CurrentThreadRandom.Next(n + 1);
+                int k = RandomNumberGenerator.GetInt32(n + 1);
                 (list[n], list[k]) = (list[k], list[n]);
             }
         }
 
-        
+
 
         public static string ConvertToCompoundDuration(long seconds)
         {

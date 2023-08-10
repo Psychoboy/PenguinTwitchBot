@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Notifications
     public class WebSocketMessenger : IWebSocketMessenger
     {
         private readonly BlockingCollection<string> _queue = new();
-        public List<SocketConnection> websocketConnections = new();
+        private List<SocketConnection> websocketConnections = new();
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
 

@@ -147,16 +147,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await db.SaveChangesAsync();
         }
 
-        // private async void timerCallback(object? state)
-        // {
-        //     if (state == null)
-        //     {
-        //         _logger.LogError("State was null, state should never be null!");
-        //         return;
-        //     }
-
-        // }
-
         private async Task UpdatePointsAndTime()
         {
             var currentViewers = _viewerFeature.GetCurrentViewers();
