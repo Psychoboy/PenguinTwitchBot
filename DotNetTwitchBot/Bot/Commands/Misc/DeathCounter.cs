@@ -85,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     case "set":
                         if (e.IsBroadcaster || e.IsMod)
                         {
-                            if (!(modifiers.Count > 1)) throw new SkipCooldownException();
+                            if (modifiers.Count <= 1) throw new SkipCooldownException();
                             if (Int32.TryParse(modifiers[1], out var amount))
                             {
                                 var counter = await GetCounter(game);

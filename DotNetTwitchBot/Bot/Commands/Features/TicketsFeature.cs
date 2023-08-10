@@ -19,15 +19,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        // private TicketsData _ticketsData;
-
-
-
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
             ServiceBackbone serviceBackbone,
-            // TicketsData ticketsData, 
-            // ApplicationDbContext applicationDbContext,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
             CommandHandler commandHandler)
@@ -38,7 +32,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _autoPointsTimer = new Timer(300000); //5 minutes
             _autoPointsTimer.Elapsed += OnTimerElapsed;
             _viewerFeature = viewerFeature;
-            // _ticketsData = ticketsData;
             _scopeFactory = scopeFactory;
             _autoPointsTimer.Start();
 
@@ -102,8 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 viewerPoints = await db.ViewerTickets.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
             }
-            // var viewerPoints = await _applicationDbContext.ViewerTickets.Where(x => x.Username.Equals(viewer, StringComparison.CurrentCultureIgnoreCase)).FirstAsync();
-            viewerPoints ??= new Models.ViewerTicket()
+            viewerPoints ??= new ViewerTicket
             {
                 Username = viewer.ToLower(),
                 Points = 0
@@ -116,22 +108,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new Exception("Points would have went negative. ABORTING");
             }
 
-            // await _ticketsData.InsertOrUpdate(viewerPoints);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 db.ViewerTickets.Update(viewerPoints);
                 await db.SaveChangesAsync();
             }
-            // _logger.LogInformation("Gave points to {0}", viewer);
+
             return viewerPoints.Points;
         }
 
         public async Task<long> GetViewerTickets(string viewer)
         {
-            //var viewerPoints = await _ticketsData.FindOne(viewer);
+
             ViewerTicket? viewerPoints;
-            // var viewerPoints = await _applicationDbContext.ViewerTickets.Where(x => x.Username.Equals(viewer, StringComparison.CurrentCultureIgnoreCase)).FirstAsync();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -143,7 +133,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<ViewerTicketWithRanks?> GetViewerTicketsWithRank(string viewer)
         {
             ViewerTicketWithRanks? viewerTickets;
-            // var viewerPoints = await _applicationDbContext.ViewerTickets.Where(x => x.Username.Equals(viewer, StringComparison.CurrentCultureIgnoreCase)).FirstAsync();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -194,7 +183,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public override async Task Register()
         {
             var moduleName = "TicketsFeature";
-            // await RegisterDefaultCommand("t", this, moduleName); add alias
             await RegisterDefaultCommand("tickets", this, moduleName);
             await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);

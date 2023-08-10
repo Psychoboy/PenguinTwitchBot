@@ -22,7 +22,6 @@ namespace DotNetTwitchBot.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                // await Echo(webSocket);
                 await WebSocketMessenger.Handle(Guid.NewGuid(), webSocket);
             }
             else

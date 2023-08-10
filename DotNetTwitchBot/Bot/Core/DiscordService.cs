@@ -37,13 +37,13 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
-            var config = new DiscordSocketConfig()
+            var config = new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
                 AlwaysDownloadUsers = true
             };
             _client = new DiscordSocketClient(config);
-            // _client.Log += LogAsync;
+
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;
@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Core
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
-            Initialize(settings.DiscordToken);
+            Initialize(settings.DiscordToken).Wait();
         }
 
         private async Task StreamStarted(object? sender)
@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Core
 
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var imageUrl = await _twitchService.GetStreamThumbnail();
-                //https://static-cdn.jtvnw.net/previews-ttv/live_user_superpenguintv-{width}x{height}.jpg
+
                 imageUrl = imageUrl.Replace("{width}", "1920").Replace("{height}", "1080");
                 _logger.LogInformation("Thumbnail Url: {0}", imageUrl);
                 var embed = new EmbedBuilder()
@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Core
                 if (_settings.PingRoleWhenLive != 0)
                 {
                     var role = guild.GetRole(_settings.PingRoleWhenLive);
-                    message += role.Mention; ;
+                    message += role.Mention;
                 }
                 await channel.SendMessageAsync(message, embed: embed);
             }
@@ -198,7 +198,7 @@ namespace DotNetTwitchBot.Bot.Core
         private async Task DoDadJoke(SocketSlashCommand arg)
         {
             var httpClient = new HttpClient();
-            var request = new HttpRequestMessage()
+            var request = new HttpRequestMessage
             {
                 RequestUri = new Uri("https://icanhazdadjoke.com/"),
                 Method = HttpMethod.Get
@@ -294,7 +294,7 @@ namespace DotNetTwitchBot.Bot.Core
             return Task.CompletedTask;
         }
 
-        private async void Initialize(string? discordToken)
+        private async Task Initialize(string? discordToken)
         {
             await _client.LoginAsync(TokenType.Bot, discordToken);
             await _client.StartAsync();

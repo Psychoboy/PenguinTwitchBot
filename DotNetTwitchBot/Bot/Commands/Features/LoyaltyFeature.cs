@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        public const Int64 MaxBet = 200000069;
+        public static Int64 MaxBet { get; } = 200000069;
 
         private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
@@ -146,16 +146,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             db.ViewerMessageCounts.Update(viewer);
             await db.SaveChangesAsync();
         }
-
-        // private async void timerCallback(object? state)
-        // {
-        //     if (state == null)
-        //     {
-        //         _logger.LogError("State was null, state should never be null!");
-        //         return;
-        //     }
-
-        // }
 
         private async Task UpdatePointsAndTime()
         {
@@ -277,7 +267,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
-        public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max = MaxBet)
+        public async Task<Int64> GetMaxPointsFromUser(string target)
+        {
+            return await GetMaxPointsFromUser(target, MaxBet);
+        }
+
+        public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max)
         {
             var viewerPoints = await GetUserPasties(target);
             long maxPoints;
@@ -379,7 +374,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewerMessage = await db.ViewerMessageCountWithRanks.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
 
-            return viewerMessage ?? new ViewerMessageCountWithRank() { Ranking = int.MaxValue };
+            return viewerMessage ?? new ViewerMessageCountWithRank { Ranking = int.MaxValue };
         }
 
         public async Task<List<ViewerMessageCountWithRank>> GetTopNLoudest(int topN)

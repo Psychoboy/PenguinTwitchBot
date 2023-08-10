@@ -16,7 +16,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class GiveawayFeature : BaseCommandService
     {
         private readonly ILogger<GiveawayFeature> _logger;
-        // private GiveawayData _giveawayData;
         private readonly TicketsFeature _ticketsFeature;
         private readonly ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -35,7 +34,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;
-            //_giveawayData = giveawayData;
             _ticketsFeature = ticketsFeature;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
@@ -120,9 +118,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var prize = await db.Settings.Where(x => x.Name.Equals("GiveawayPrize")).FirstOrDefaultAsync();
                 prize ??= new Setting()
-                    {
-                        Name = "GiveawayPrize"
-                    };
+                {
+                    Name = "GiveawayPrize"
+                };
                 prize.StringSetting = arg;
                 db.Update(prize);
                 await db.SaveChangesAsync();
@@ -154,15 +152,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (Tickets.Count == 0)
             {
-                //await _serviceBackbone.SendChatMessage("Closing Giveaway prior to drawing ticket");
                 await Close();
             }
-            if (Tickets.Count == 0) return;
-            var winningTicket = Tickets.RandomElement(_logger);
-            var viewer = await _viewerFeature.GetViewer(winningTicket);
-            var isFollower = await _viewerFeature.IsFollower(winningTicket);
-            await ServiceBackbone.SendChatMessage(string.Format("{0} won the {1} and {2} following", viewer != null ? viewer.NameWithTitle() : winningTicket, await GetPrize(), isFollower ? "is" : "is not"));
-            await AddWinner(viewer);
+            try
+            {
+                var winningTicket = Tickets.RandomElement(_logger);
+                var viewer = await _viewerFeature.GetViewer(winningTicket);
+                var isFollower = await _viewerFeature.IsFollower(winningTicket);
+                await ServiceBackbone.SendChatMessage(string.Format("{0} won the {1} and {2} following", viewer != null ? viewer.NameWithTitle() : winningTicket, await GetPrize(), isFollower ? "is" : "is not"));
+                await AddWinner(viewer);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error drawing a ticket.");
+            }
         }
 
         public async Task<List<GiveawayWinner>> PastWinners()
@@ -241,9 +244,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var giveawayEntries = await db.GiveawayEntries.FirstOrDefaultAsync(x => x.Username.Equals(sender));
                 giveawayEntries ??= new GiveawayEntry
-                    {
-                        Username = sender
-                    };
+                {
+                    Username = sender
+                };
                 giveawayEntries.Tickets += points;
                 db.GiveawayEntries.Update(giveawayEntries);
                 await db.SaveChangesAsync();
@@ -256,9 +259,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var giveawayEntries = await db.GiveawayEntries.FirstOrDefaultAsync(x => x.Username.Equals(sender));
             giveawayEntries ??= new GiveawayEntry
-                {
-                    Username = sender
-                };
+            {
+                Username = sender
+            };
             return giveawayEntries.Tickets;
         }
 
@@ -266,7 +269,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var entries = await GetEntriesCount(sender);
             await ServiceBackbone.SendWhisperMessage(sender, $"You have {entries} entries");
-            // await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 
 

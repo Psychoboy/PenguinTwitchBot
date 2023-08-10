@@ -11,10 +11,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class FFA : BaseCommandService
     {
-        public int Cooldown = 300;
-        public int JoinTime = 180;
-        public int Cost = 100;
-        public List<string> Entered = new();
+        private readonly int Cooldown = 300;
+        private readonly int JoinTime = 180;
+        private readonly int Cost = 100;
+        private readonly List<string> Entered = new();
         private readonly Timer _joinTimer;
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly ViewerFeature _viewFeature;
@@ -48,10 +48,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             if (state == null) return;
             var ffa = (FFA)state;
-            ffa.Finish();
+            var result = ffa.Finish();
+            result.Wait();
         }
 
-        private async void Finish()
+        private async Task Finish()
         {
             GameState = State.Finishing;
             if (Entered.Count == 1)
@@ -94,13 +95,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             if (GameState == State.Finishing)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry you were to late to join this one"));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "Sorry you were to late to join this one");
                 throw new SkipCooldownException();
             }
 
             if (Entered.Contains(e.Name))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("You have already joined the FFA!"));
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "You have already joined the FFA!");
                 throw new SkipCooldownException();
             }
 

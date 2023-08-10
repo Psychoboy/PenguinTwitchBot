@@ -11,9 +11,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Defuse : BaseCommandService
     {
-        public List<string> Wires = new() { "red", "blue", "yellow" };
-        public int Cost = 500;
-        public int Cooldown = 10;
+        private readonly List<string> Wires = new() { "red", "blue", "yellow" };
+        private readonly int Cost = 500;
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Defuse> _logger;
         private readonly SendAlerts _sendAlerts;

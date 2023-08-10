@@ -92,7 +92,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
                 if (match)
                 {
-                    //await _serviceBackbone.SendChatMessage($"/timeout {e.DisplayName} {wordFilter.TimeOutLength} {wordFilter.BanReason}");
                     await _twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
                     await ServiceBackbone.SendChatMessage(wordFilter.Message);
                     break;

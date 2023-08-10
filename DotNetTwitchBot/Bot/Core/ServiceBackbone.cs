@@ -138,7 +138,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (CommandEvent != null)
             {
-                var eventArgs = new CommandEventArgs()
+                var eventArgs = new CommandEventArgs
                 {
                     Arg = command.ArgumentsAsString,
                     Args = command.ArgumentsAsList,
@@ -282,7 +282,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (CheerEvent != null)
             {
-                await CheerEvent(this, new CheerEventArgs()
+                await CheerEvent(this, new CheerEventArgs
                 {
                     Name = ev.UserLogin,
                     DisplayName = ev.UserName,
@@ -297,7 +297,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (FollowEvent != null)
             {
-                await FollowEvent(this, new FollowEventArgs()
+                await FollowEvent(this, new FollowEventArgs
                 {
                     Username = ev.UserLogin,
                     DisplayName = ev.UserName,
@@ -325,7 +325,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (ChatMessageEvent != null)
             {
-                await ChatMessageEvent(this, new ChatMessageEventArgs()
+                await ChatMessageEvent(this, new ChatMessageEventArgs
                 {
                     Message = message.Message,
                     Name = message.Username.ToLower(),
@@ -358,7 +358,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (SubscriptionEndEvent != null)
             {
-                await SubscriptionEndEvent(this, new SubscriptionEndEventArgs() { Name = userName });
+                await SubscriptionEndEvent(this, new SubscriptionEndEventArgs { Name = userName });
             }
         }
 
@@ -366,7 +366,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (ChannelPointRedeemEvent != null)
             {
-                await ChannelPointRedeemEvent(this, new ChannelPointRedeemEventArgs()
+                await ChannelPointRedeemEvent(this, new ChannelPointRedeemEventArgs
                 {
                     Sender = userName,
                     Title = title,
@@ -379,7 +379,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (UserJoinedEvent != null)
             {
-                await UserJoinedEvent(this, new UserJoinedEventArgs() { Username = username });
+                await UserJoinedEvent(this, new UserJoinedEventArgs { Username = username });
             }
         }
 
@@ -387,7 +387,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (UserLeftEvent != null)
             {
-                await UserLeftEvent(this, new UserLeftEventArgs() { Username = username });
+                await UserLeftEvent(this, new UserLeftEventArgs { Username = username });
             }
         }
     }

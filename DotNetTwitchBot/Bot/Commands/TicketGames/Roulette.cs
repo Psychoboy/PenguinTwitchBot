@@ -58,7 +58,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             await SendChatMessage(e.DisplayName, "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
                             throw new SkipCooldownException();
                         }
-                        // var maxBet = false;
                         var amount = e.Args[0];
                         if (amount.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                             amount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
@@ -69,7 +68,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 viewerPoints = (Int32.MaxValue - 1) / 2;
                             }
                             amount = viewerPoints.ToString();
-                            // maxBet = true;
                         }
 
                         if (!Int32.TryParse(amount, out int amountToBet))
