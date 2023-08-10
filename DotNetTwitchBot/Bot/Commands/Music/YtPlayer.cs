@@ -691,7 +691,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (displayName != null)
             {
-                if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, string.Format("Could not get or had an issue finding your song request"));
+                if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, "Could not get or had an issue finding your song request");
             }
             return null;
         }

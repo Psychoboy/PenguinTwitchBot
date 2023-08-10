@@ -17,7 +17,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly ConcurrentBag<string> MessageIds = new();
-        // private TwitchPubSub _twitchPubSub;
         private readonly TwitchService _twitchService;
         private readonly ServiceBackbone _eventService;
         private readonly SubscriptionTracker _subscriptionHistory;
@@ -49,12 +48,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
-
-            // _twitchPubSub = new TwitchPubSub(tbsLogger);
-            // _twitchPubSub.OnPubSubServiceConnected += OnPubSubConnect;
-            // _twitchPubSub.OnPubSubServiceClosed += OnPubSubDisconnect;
-            // // _twitchPubSub.OnChannelSubscription += OnPubSubSubscription;
-            // _twitchPubSub.OnListenResponse += OnPubSubListenResponse;
 
             _twitchService = twitchService;
             _eventService = eventService;
@@ -324,33 +317,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
-            //await _eventSubWebsocketClient.ConnectAsync(new Uri("http://localhost:8080/eventsub/subscription"));
-            // try
-            // {
-
-            //     _twitchPubSub.ListenToSubscriptions(await _twitchService.GetBroadcasterUserId());
-            //     _twitchPubSub.Connect();
-            // }
-            // catch (Exception ex)
-            // {
-            //     _logger.LogError(ex, "Error connecting to twitchpub");
-            // }
-        }
-
-        private void OnPubSubListenResponse(object? sender, OnListenResponseArgs e)
-        {
-            _logger.LogInformation("PubSub Listen Successful: {0} Error {1} Topic: {2}", e.Response.Successful, e.Response.Error, e.Topic);
-        }
-
-        private void OnPubSubConnect(object? sender, EventArgs e)
-        {
-            // _logger.LogInformation("PubSub Connected");
-            // _twitchPubSub.SendTopics(_configuration["twitchAccessToken"]);
-        }
-
-        private void OnPubSubDisconnect(object? sender, EventArgs e)
-        {
-            _logger.LogInformation("PubSub Disconnected");
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

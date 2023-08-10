@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Commands
     {
         protected CommandHandler CommandHandler { get; }
 
-        public BaseCommandService(ServiceBackbone serviceBackbone, CommandHandler commandHandler)
+        protected BaseCommandService(ServiceBackbone serviceBackbone, CommandHandler commandHandler)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;

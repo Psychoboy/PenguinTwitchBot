@@ -46,7 +46,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
         {
-            //_twitchClient.SendWhisper(e, e2);
             await _twitchBotService.SendWhisper(e, e2);
             _logger.LogInformation("BOTWHISPERMSG: {0}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
         }
