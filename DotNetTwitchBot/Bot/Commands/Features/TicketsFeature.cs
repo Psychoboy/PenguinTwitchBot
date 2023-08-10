@@ -214,8 +214,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         await ResetAllPoints();
                     }
                     break;
-                default:
-                    break;
             }
         }
 

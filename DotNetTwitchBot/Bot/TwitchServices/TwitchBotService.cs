@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly TwitchAPI _twitchApi = new();
         private readonly ILogger<TwitchBotService> _logger;
         private readonly IConfiguration _configuration;
-        readonly Timer _timer = new(300000); //5 minutes;
+        readonly Timer _timer = new(300000);
         private readonly SettingsFileManager _settingsFileManager;
 
         public TwitchBotService(ILogger<TwitchBotService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
@@ -94,7 +94,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchBotAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    var expiresIn = TimeSpan.FromSeconds(validToken.ExpiresIn);
                     _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
                 }
                 else

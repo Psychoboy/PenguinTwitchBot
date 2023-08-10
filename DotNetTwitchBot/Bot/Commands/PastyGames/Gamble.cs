@@ -125,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             try
             {
                 var httpClient = new HttpClient();
-                var request = new HttpRequestMessage()
+                var request = new HttpRequestMessage
                 {
                     RequestUri = new Uri("http://127.0.0.1:7474/DoAction"),
                     Method = HttpMethod.Post,

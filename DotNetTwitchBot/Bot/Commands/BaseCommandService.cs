@@ -26,9 +26,6 @@ namespace DotNetTwitchBot.Bot.Commands
             await ServiceBackbone.SendChatMessage(name, message);
         }
 
-        // public virtual Task StartAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
-        // public virtual Task StopAsync(CancellationToken cancellationToken) { return Task.CompletedTask; }
-
         public abstract Task OnCommand(object? sender, CommandEventArgs e);
         public abstract Task Register();
 

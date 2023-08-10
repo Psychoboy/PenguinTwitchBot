@@ -16,7 +16,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class GiveawayFeature : BaseCommandService
     {
         private readonly ILogger<GiveawayFeature> _logger;
-        // private GiveawayData _giveawayData;
         private readonly TicketsFeature _ticketsFeature;
         private readonly ViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -35,7 +34,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;
-            //_giveawayData = giveawayData;
             _ticketsFeature = ticketsFeature;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
@@ -154,7 +152,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (Tickets.Count == 0)
             {
-                //await _serviceBackbone.SendChatMessage("Closing Giveaway prior to drawing ticket");
                 await Close();
             }
             if (Tickets.Count == 0) return;
@@ -266,7 +263,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var entries = await GetEntriesCount(sender);
             await ServiceBackbone.SendWhisperMessage(sender, $"You have {entries} entries");
-            // await _serviceBackbone.SendChatMessage($"@{sender}, you have {entries} entries.");
         }
 
 

@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly TwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds); //30 minutes;
+        private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
@@ -140,7 +140,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 if (follower == null)
                 {
-                    follower = new Follower()
+                    follower = new Follower
                     {
                         Username = args.Username,
                         DisplayName = args.DisplayName,
@@ -356,7 +356,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     foreach (var subscriber in subscribers)
                     {
                         var viewer = await GetViewer(subscriber.UserLogin);
-                        viewer ??= new Viewer()
+                        viewer ??= new Viewer
                         {
                             Username = subscriber.UserLogin,
                             DisplayName = subscriber.UserName
