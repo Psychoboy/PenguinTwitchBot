@@ -152,7 +152,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                
+
                 db.CustomCommands.Remove(customCommand);
                 await db.SaveChangesAsync();
             }
@@ -180,7 +180,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                
+
                 db.Keywords.Remove(keyword);
                 await db.SaveChangesAsync();
             }
@@ -263,77 +263,81 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task RunCommand(CommandEventArgs e)
         {
-            if (Commands.ContainsKey(e.Command))
+            if (Commands.ContainsKey(e.Command) == false) return;
+
+            if (Commands[e.Command].Disabled)
             {
-                if (Commands[e.Command].Disabled)
-                {
-                    return;
-                }
-
-                switch (Commands[e.Command].MinimumRank)
-                {
-                    case Rank.Viewer:
-                        break; //everyone gets this
-                    case Rank.Follower:
-                        if (await _viewerFeature.IsFollower(e.Name) == false)
-                        {
-                            await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
-                            return;
-                        }
-                        break;
-                    case Rank.Subscriber:
-                        if (await _viewerFeature.IsSubscriber(e.Name) == false)
-                        {
-                            await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
-                            return;
-                        }
-                        break;
-                    case Rank.Moderator:
-                        if (await _viewerFeature.IsModerator(e.Name) == false)
-                        {
-                            await SendChatMessage(e.DisplayName, "only moderators can do that...");
-                            return;
-                        }
-                        break;
-                    case Rank.Streamer:
-                        if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
-                        {
-                            await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
-                            return;
-                        }
-                        break;
-                }
-                try
-                {
-                    await _semaphoreSlim.WaitAsync();
-
-                    var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                    if (isCoolDownExpired == false) return;
-                    if (Commands[e.Command].Cost > 0)
-                    {
-                        if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
-                        {
-                            await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
-                            return;
-                        }
-                    }
-
-                    if (Commands[e.Command].GlobalCooldown > 0)
-                    {
-                        CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
-                    }
-                    if (Commands[e.Command].UserCooldown > 0)
-                    {
-                        CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
-                    }
-                }
-                finally
-                {
-                    _semaphoreSlim.Release();
-                }
-
-                await ProcessTagsAndSayMessage(e, Commands[e.Command].Response);
+                return;
             }
+
+            switch (Commands[e.Command].MinimumRank)
+            {
+                case Rank.Viewer:
+                    break; //everyone gets this
+                case Rank.Follower:
+                    if (await _viewerFeature.IsFollower(e.Name) == false)
+                    {
+                        await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
+                        return;
+                    }
+                    break;
+                case Rank.Subscriber:
+                    if (await _viewerFeature.IsSubscriber(e.Name) == false)
+                    {
+                        await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
+                        return;
+                    }
+                    break;
+                case Rank.Moderator:
+                    if (await _viewerFeature.IsModerator(e.Name) == false)
+                    {
+                        await SendChatMessage(e.DisplayName, "only moderators can do that...");
+                        return;
+                    }
+                    break;
+                case Rank.Streamer:
+                    if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
+                    {
+                        await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
+                        return;
+                    }
+                    break;
+            }
+            await ExecuteCommand(e);
+        }
+
+        private async Task ExecuteCommand(CommandEventArgs e)
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+
+                var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
+                if (isCoolDownExpired == false) return;
+                if (Commands[e.Command].Cost > 0)
+                {
+                    if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                    {
+                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                        return;
+                    }
+                }
+
+                if (Commands[e.Command].GlobalCooldown > 0)
+                {
+                    CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                }
+                if (Commands[e.Command].UserCooldown > 0)
+                {
+                    CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                }
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
+            }
+
+            await ProcessTagsAndSayMessage(e, Commands[e.Command].Response);
         }
 
         public override async Task Register()

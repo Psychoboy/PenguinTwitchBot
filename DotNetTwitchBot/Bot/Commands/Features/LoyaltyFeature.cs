@@ -160,12 +160,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task UpdatePointsAndTime()
         {
             var currentViewers = _viewerFeature.GetCurrentViewers();
-            //_logger.LogInformation("(Loyalty) Currently a total of {0} viewers", currentViewers.Count());
+
             if (!ServiceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
-                // if (viewer.Equals(_serviceBackbone.BotName, StringComparison.CurrentCultureIgnoreCase)) continue;
                 if (ServiceBackbone.IsKnownBot(viewer)) continue;
+
                 try
                 {
                     await AddPointsToViewer(viewer, 5);
@@ -174,7 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     _logger.LogError(ex, "Couldn't add points");
                 }
-                finally { }
+
                 try
                 {
                     await AddTimeToViewer(viewer, 60);
@@ -183,7 +183,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     _logger.LogError(ex, "Couldn't add time");
                 }
-                finally { }
             }
             var activeViewers = _viewerFeature.GetActiveViewers();
             foreach (var viewer in activeViewers)
@@ -252,26 +251,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.Args.Count < 2 || e.TargetUser.Equals(e.Name))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-                throw new SkipCooldownException(); ;
+                throw new SkipCooldownException();
             }
 
             if (!Int64.TryParse(e.Args[1], out long amount))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-                throw new SkipCooldownException(); ;
+                throw new SkipCooldownException();
             }
 
             var target = await _viewerFeature.GetViewer(e.TargetUser);
             if (target == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
-                throw new SkipCooldownException(); ;
+                throw new SkipCooldownException();
             }
 
             if (!(await RemovePointsFromUser(e.Name, amount)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
-                throw new SkipCooldownException(); ;
+                throw new SkipCooldownException();
             }
 
             await AddPointsToViewer(e.TargetUser, amount);
