@@ -241,28 +241,50 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnWebsocketDisconnected(object? sender, EventArgs e)
         {
+
+            await ForceReconnect();
+            // try
+            // {
+            //     // var stopwatch = new Stopwatch();
+            //     // stopwatch.Start();
+            //     bool fullConnect = false;
+            //     _logger.LogWarning("Websocket Disconnected");
+            //     var delayCounter = 1;
+            //     while (!await _eventSubWebsocketClient.ReconnectAsync())
+            //     {
+            //         delayCounter *= 2;
+            //         if (delayCounter > 60) delayCounter = 60;
+            //         _logger.LogError("Websocket reconnection failed! Attempting again in {0} seconds.", delayCounter);
+            //         await Task.Delay(delayCounter * 1000);
+            //         // if (stopwatch.Elapsed.TotalSeconds >= 30.0)
+            //         // {
+            //         //     fullConnect = true;
+            //         //     break;
+            //         // }
+            //     }
+            //     // if (fullConnect)
+            //     // {
+            //     //     await Reconnect();
+            //     // }
+            // }
+            // catch (Exception ex)
+            // {
+            //     _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
+            // }
+        }
+
+        public async Task ForceReconnect()
+        {
             try
             {
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
-                bool fullConnect = false;
                 _logger.LogWarning("Websocket Disconnected");
                 var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ReconnectAsync())
                 {
                     delayCounter *= 2;
                     if (delayCounter > 60) delayCounter = 60;
-                    _logger.LogError("Websocket reconnected failed! Attempting again in {0} seconds.", delayCounter);
+                    _logger.LogError("Websocket reconnection failed! Attempting again in {0} seconds.", delayCounter);
                     await Task.Delay(delayCounter * 1000);
-                    if (stopwatch.Elapsed.TotalSeconds >= 30.0)
-                    {
-                        fullConnect = true;
-                        break;
-                    }
-                }
-                if (fullConnect)
-                {
-                    await Reconnect();
                 }
             }
             catch (Exception ex)

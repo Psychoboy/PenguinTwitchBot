@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Notifications;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
@@ -12,16 +13,21 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
     {
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly ILogger<Admin> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ServiceBackbone _serviceBackbone;
 
         public Admin(
             ILogger<Admin> logger,
             IWebSocketMessenger webSocketMessenger,
             ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            CommandHandler commandHandler,
+            IServiceScopeFactory scopeFactory
             ) : base(serviceBackbone, commandHandler)
         {
             _webSocketMessenger = webSocketMessenger;
             _logger = logger;
+            _scopeFactory = scopeFactory;
+            _serviceBackbone = serviceBackbone;
         }
 
         public override async Task Register()
@@ -58,6 +64,26 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             _webSocketMessenger.Pause();
             await ServiceBackbone.SendChatMessage("Alerts paused.");
+        }
+
+        public async Task ReconnectTwitchWebsocket()
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var websocketService = scope.ServiceProvider.GetServices<IHostedService>().OfType<TwitchWebsocketHostedService>().Single();
+                await websocketService.ForceReconnect();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reconnect manually.");
+            }
+        }
+
+        public async Task ForceStreamOnline()
+        {
+            _serviceBackbone.IsOnline = true;
+            await _serviceBackbone.OnStreamStarted();
         }
     }
 }

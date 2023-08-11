@@ -18,6 +18,8 @@ color: white;
 
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
 
 @code {
     private async Task PauseAlerts()
@@ -28,5 +30,15 @@ color: white;
     private async Task ResumeAlerts()
     {
         await Admin.ResumeAlerts();
+    }
+
+    private async Task Reconnect()
+    {
+        await Admin.ReconnectTwitchWebsocket();
+    }
+
+    private async Task ForceOnline()
+    {
+        await Admin.ForceStreamOnline();
     }
 }

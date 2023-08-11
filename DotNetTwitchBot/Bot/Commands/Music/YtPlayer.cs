@@ -571,7 +571,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         }
 
-        private async Task<Song?> GetSongByLinkOrId(string songLink)
+    private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
             songLink = songLink.Trim();
             string songId;
