@@ -16,7 +16,7 @@
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
     <PackageReference Include="Meziantou.AspNetCore.Components" Version="2.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.9">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
