@@ -235,7 +235,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await RegisterDefaultCommand("priority", this, moduleName, userCooldown: 1800);
             await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("steal", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("stealsong", this, moduleName, Rank.Streamer);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -286,7 +286,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await LoadPlaylist(e);
                     break;
 
-                case "steal":
+                case "stealsong":
                     await StealCurrentSong();
                     break;
             }
