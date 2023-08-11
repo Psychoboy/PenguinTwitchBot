@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private Song? CurrentSong = null;
         private Song? NextSong = null;
         private readonly List<string> SkipVotes = new();
+        private readonly TimeLeft timeLeft = new();
         enum PlayerState
         {
             UnStarted = -1,
@@ -27,6 +28,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             Paused = 2,
             Buffer = 3,
             VideoCued = 5
+        }
+
+        private class TimeLeft
+        {
+            public TimeSpan SongTime { get; set; } = new();
+            public DateTime StartTime { get; set; } = DateTime.Now;
         }
 
         public YtPlayer(
@@ -136,11 +143,39 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 await PlayNextSong();
             }
+
+            if (State == PlayerState.Paused)
+            {
+                if (timeLeft.SongTime.Ticks > 0)
+                {
+                    timeLeft.SongTime -= DateTime.Now - timeLeft.StartTime;
+                    timeLeft.StartTime = DateTime.Now;
+                    timeLeft.SongTime = timeLeft.SongTime.Ticks < 0 ? new() : timeLeft.SongTime;
+                }
+            }
+            else if (State == PlayerState.Playing)
+            {
+                if (timeLeft.SongTime.Ticks > 0)
+                {
+                    timeLeft.StartTime = DateTime.Now;
+                }
+            }
+
         }
 
         public async Task PlayNextSong()
         {
             await _hubContext.Clients.All.SendAsync("PlayVideo", await GetNextSong());
+            if (CurrentSong != null)
+            {
+                timeLeft.SongTime = CurrentSong.Duration;
+                timeLeft.StartTime = DateTime.Now;
+            }
+            else
+            {
+                timeLeft.SongTime = new();
+                timeLeft.StartTime = DateTime.Now;
+            }
         }
 
         public async Task Pause()
@@ -155,9 +190,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
         }
 
-        public async Task LoadNextSong()
+        private TimeSpan GetCurrentSongTimeLeft()
         {
-            await _hubContext.Clients.All.SendAsync("PlayVideo", await GetNextSong());
+            if (timeLeft.SongTime.Ticks <= 0) return new();
+            if (State == PlayerState.Paused)
+            {
+                return timeLeft.SongTime;
+            }
+            return timeLeft.SongTime - (DateTime.Now - timeLeft.StartTime);
         }
 
         public async Task SongError(object errorCode)
@@ -626,10 +666,23 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 return;
             }
 
+            List<Song> currentRequestedSongs;
+            int requestCount;
+            lock (RequestsLock)
+            {
+                currentRequestedSongs = Requests.ToList();
+                requestCount = Requests.Count;
+            }
+
+            var timeToWait = new TimeSpan(currentRequestedSongs.Sum(r => r.Duration.Ticks));
+            timeToWait += GetCurrentSongTimeLeft();
+
             await AddSongToRequests(song);
             if (e.IsWhisper) return;
 
-            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added to the song queue in position #{1}, you have a total of {2} in queue.", song.Title, Requests.Count, Requests.Where(x => x.RequestedBy.Equals(song.RequestedBy)).Count()));
+            requestCount++;
+
+            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString()));
         }
 
         private async Task AddSongToRequests(Song song)
