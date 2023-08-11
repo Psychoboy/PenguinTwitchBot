@@ -81,7 +81,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 return; //Raffle Ended
             }
             await SendJoinedMessage();
-            await SendTimeLeft((int)elapsedTime.TotalSeconds);
+            if ((int)elapsedTime.TotalSeconds >= 10)
+                await SendTimeLeft((int)elapsedTime.TotalSeconds);
         }
 
         protected virtual void UpdateNumberOfWinners()
