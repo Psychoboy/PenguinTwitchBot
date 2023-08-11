@@ -235,7 +235,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await RegisterDefaultCommand("priority", this, moduleName, userCooldown: 1800);
             await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("steal", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("stealsong", this, moduleName, Rank.Streamer);
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -269,7 +269,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     break;
                 case "wrongsong":
                 case "wrong":
-                    if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
                     await WrongSong(e);
                     break;
                 case "sr":
@@ -279,14 +278,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await MovePriority(e);
                     break;
                 case "importpl":
-                    if (e.Args.Count < 2) throw new SkipCooldownException();
                     await ImportPlaylist(e);
                     break;
                 case "loadpl":
                     await LoadPlaylist(e);
                     break;
 
-                case "steal":
+                case "stealsong":
                     await StealCurrentSong();
                     break;
             }
@@ -336,6 +334,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task WrongSong(CommandEventArgs e)
         {
+            if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
             Song? song;
             lock (RequestsLock)
             {
@@ -466,6 +465,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task ImportPlaylist(CommandEventArgs e)
         {
+            if (e.Args.Count < 2) throw new SkipCooldownException();
             try
             {
                 await ServiceBackbone.SendChatMessage("Importing Playlist");
