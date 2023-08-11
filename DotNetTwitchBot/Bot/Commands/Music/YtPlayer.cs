@@ -269,7 +269,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     break;
                 case "wrongsong":
                 case "wrong":
-                    if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
                     await WrongSong(e);
                     break;
                 case "sr":
@@ -279,7 +278,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await MovePriority(e);
                     break;
                 case "importpl":
-                    if (e.Args.Count < 2) throw new SkipCooldownException();
                     await ImportPlaylist(e);
                     break;
                 case "loadpl":
@@ -336,6 +334,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task WrongSong(CommandEventArgs e)
         {
+            if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
             Song? song;
             lock (RequestsLock)
             {
@@ -466,6 +465,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task ImportPlaylist(CommandEventArgs e)
         {
+            if (e.Args.Count < 2) throw new SkipCooldownException();
             try
             {
                 await ServiceBackbone.SendChatMessage("Importing Playlist");
