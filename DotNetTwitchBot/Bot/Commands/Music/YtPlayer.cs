@@ -457,7 +457,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song was [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId} it has been requested {await GetSongRequestedCount(currentSong)} times");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song is [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId} it has been requested {await GetSongRequestedCount(currentSong)} times");
         }
 
         private async Task SayLastSong(CommandEventArgs e)
@@ -581,7 +581,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         }
 
-        private async Task<Song?> GetSongByLinkOrId(string songLink)
+    private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
             songLink = songLink.Trim();
             string songId;
