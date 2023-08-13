@@ -133,7 +133,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
             return null;
         }
@@ -152,7 +152,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+                _logger.LogError("Error doing IsUserSub(): {0}", error);
             }
             return false;
         }
@@ -170,7 +170,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
+                _logger.LogError("Error doing IsUserMod(): {0}", error);
             }
             return false;
         }
@@ -188,22 +188,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         public async Task<bool> IsStreamOnline()
         {
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
-            try
-            {
-                var streams = await GetStreams(userId);
-                if (streams.Streams == null)
-                {
-                    return false;
-                }
-
-                return streams.Streams.Count() > 0;
-            }
-            catch (HttpResponseException ex)
-            {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing IsStreamOnline(): {0}", error);
-            }
-            return false;
+            return await IsStreamOnline(userId);
         }
 
         public async Task<bool> IsStreamOnline(string userId)
@@ -293,11 +278,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return await GetCurrentGame(userId);
         }
 
+        private async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.GetChannelInformationResponse> GetChannelInformation(string userId)
+        {
+            return await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+        }
+
         public async Task<string> GetCurrentGame(string userId)
         {
             try
             {
-                var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+                var channelInfo = await GetChannelInformation(userId);
                 if (channelInfo.Data.Length > 0)
                 {
                     return channelInfo.Data[0].GameName;
@@ -316,7 +306,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                var channelInfo = await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+                var channelInfo = await GetChannelInformation(userId);
                 if (channelInfo.Data.Length > 0)
                 {
                     return channelInfo.Data[0].Title;
