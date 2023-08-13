@@ -72,8 +72,15 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task RunCommand(CommandEventArgs eventArgs)
         {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
+            if (await alias.RunCommand(eventArgs))
+            {
+                return;
+            }
             try
             {
+
                 if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
                     _logger.LogWarning("Lock expired while waiting...");
@@ -111,14 +118,10 @@ namespace DotNetTwitchBot.Bot.Core
                 }
 
                 //Run the Generic services
-                await using var scope = _scopeFactory.CreateAsyncScope();
                 var customCommand = scope.ServiceProvider.GetRequiredService<Commands.Custom.CustomCommand>();
                 await customCommand.RunCommand(eventArgs);
                 var audioCommands = scope.ServiceProvider.GetRequiredService<Commands.Custom.AudioCommands>();
                 await audioCommands.RunCommand(eventArgs);
-                var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
-                await alias.RunCommand(eventArgs);
-
             }
             catch (SkipCooldownException)
             {
