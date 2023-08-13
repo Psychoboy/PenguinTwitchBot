@@ -693,6 +693,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             await UpdateRequestedSongsState();
             NextSong ??= song;
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
+            await SongRequestMetrics.IncrementSongCount(song);
         }
 
         private async Task<string> GetSongId(string searchTerm)
