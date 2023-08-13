@@ -45,17 +45,20 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public void UpdateCommandName(string oldCommandName, string newCommandName)
         {
-            var commandService = GetCommand(oldCommandName);
-            if (commandService == null) return;
-            Commands.Remove(oldCommandName, out var _);
-            Commands[newCommandName] = commandService;
+            var commandService = RemoveCommand(oldCommandName);
+            if (commandService != null)
+            {
+                Commands[newCommandName] = commandService;
+            }
         }
 
-        public void RemoveCommand(string commandName)
+        public Command? RemoveCommand(string commandName)
         {
-            var commandService = GetCommand(commandName);
-            if (commandService == null) return;
-            Commands.Remove(commandName, out var _);
+            if (Commands.Remove(commandName, out var commandService))
+            {
+                return commandService;
+            }
+            return null;
         }
 
         public async Task UpdateDefaultCommand(DefaultCommand defaultCommand)
