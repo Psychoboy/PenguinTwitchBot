@@ -46,6 +46,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<AliasModel> Aliases { get; set; } = null!;
         public DbSet<KnownBot> KnownBots { get; set; } = null!;
         public DbSet<DefaultCommand> DefaultCommands { get; set; } = null!;
+        public DbSet<Models.Metrics.SongRequestMetric> SongRequestMetrics { get; set; } = null!;
+        public DbSet<Models.Metrics.SongRequestMetricWithRank> SongRequestMetricsWithRank { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -72,7 +74,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
             .Property(c => c.Id)
             .ValueGeneratedNever();
 
-
+            modelBuilder.Entity<Models.Metrics.SongRequestMetricWithRank>()
+            .HasKey(c => c.SongId);
         }
     }
 }

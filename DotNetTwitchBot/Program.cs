@@ -50,7 +50,7 @@ internal class Program
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots, DotNetTwitchBot.Bot.Commands.Moderation.KnownBots>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
-        
+
 
         //Add Features Here:
         var commands = new List<Type>
@@ -89,7 +89,8 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax),
             typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer),
             typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist),
-            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin)
+            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin),
+            typeof(DotNetTwitchBot.Bot.Commands.Metrics.SongRequests)
         };
 
         //Add Alerts

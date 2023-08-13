@@ -388,10 +388,20 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 }
                 await UpdateRequestedSongsState();
                 await ServiceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
+                await SongRequestMetrics.DecrementSongCount(song);
                 return;
             }
             await ServiceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
             throw new SkipCooldownException();
+        }
+
+        private async Task<int> GetSongRequestedCount(Song song)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
+            return await SongRequestMetrics.GetRequestedCount(song);
         }
 
         public async Task RemoveSongRequest(Song requestedSong)
@@ -436,7 +446,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId} it has been requested {await GetSongRequestedCount(nextSong)} times");
         }
 
         private async Task SaySong(CommandEventArgs e)
@@ -447,7 +457,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song is [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song is [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId} it has been requested {await GetSongRequestedCount(currentSong)} times");
         }
 
         private async Task SayLastSong(CommandEventArgs e)
@@ -458,7 +468,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId}");
+            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId} it has been requested {await GetSongRequestedCount(lastSong)} times");
         }
 
         private async Task LoadPlaylist(CommandEventArgs e)
@@ -682,7 +692,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             requestCount++;
 
-            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString()));
+            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), await GetSongRequestedCount(song)));
         }
 
         private async Task AddSongToRequests(Song song)
@@ -693,6 +703,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             await UpdateRequestedSongsState();
             NextSong ??= song;
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
+            await SongRequestMetrics.IncrementSongCount(song);
         }
 
         private async Task<string> GetSongId(string searchTerm)
