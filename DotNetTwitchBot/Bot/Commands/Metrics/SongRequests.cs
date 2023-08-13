@@ -59,6 +59,18 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
             await db.SaveChangesAsync();
         }
 
+        public async Task DecrementSongCount(Song song)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var songRequestMetric = await db.SongRequestMetrics.Where(x => x.SongId == song.SongId).FirstOrDefaultAsync();
+            if (songRequestMetric == null) return;
+
+            songRequestMetric.RequestedCount--;
+            db.SongRequestMetrics.Update(songRequestMetric);
+            await db.SaveChangesAsync();
+        }
+
         public async Task<int> GetRequestedCount(Song song)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
