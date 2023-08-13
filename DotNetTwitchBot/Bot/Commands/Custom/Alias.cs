@@ -53,13 +53,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await db.SaveChangesAsync();
         }
 
-        public async Task RunCommand(CommandEventArgs e)
+        public async Task<bool> RunCommand(CommandEventArgs e)
         {
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
                 await ServiceBackbone.RunCommand(e);
+                return true;
             }
+            return false;
         }
 
         public override Task<bool> OnCommand(object? sender, CommandEventArgs e)
