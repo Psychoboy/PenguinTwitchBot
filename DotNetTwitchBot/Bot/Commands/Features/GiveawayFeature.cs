@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     {
         private readonly ILogger<GiveawayFeature> _logger;
         private readonly TicketsFeature _ticketsFeature;
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<GiveawayHub> _hubContext;
         private readonly List<string> Tickets = new();
@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<GiveawayFeature> logger,
             IServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             IHubContext<GiveawayHub> hubContext,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler

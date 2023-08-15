@@ -16,14 +16,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         readonly Timer _autoPointsTimer;
 
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
             IServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             ICommandHandler commandHandler)
             : base(serviceBackbone, commandHandler)
         {

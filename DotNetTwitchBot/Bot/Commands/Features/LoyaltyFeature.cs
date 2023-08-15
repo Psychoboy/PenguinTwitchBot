@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class LoyaltyFeature : BaseCommandService
     {
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly TicketsFeature _ticketsFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _intervalTimer;
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public LoyaltyFeature(
             ILogger<LoyaltyFeature> logger,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone eventService,
             TicketsFeature ticketsFeature,

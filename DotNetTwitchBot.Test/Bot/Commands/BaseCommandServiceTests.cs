@@ -71,7 +71,37 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             await commandHandlerSubstitute.Received(1).AddDefaultCommand(defaultCommandSubstitute);
         }
 
-        // Add more tests for other methods
+        [Fact]
+        public async Task ShouldSendChatMessage()
+        {
+            // Arrange
+            var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
+            var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+
+            // Act
+            await baseCommandService.SendChatMessage("Test Message");
+
+            // Assert
+            await serviceBackboneSubstitute.Received(1).SendChatMessage("Test Message");
+        }
+
+        [Fact]
+        public async Task ShouldSendChatMessage_WithName()
+        {
+            // Arrange
+            var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
+            var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+
+            // Act
+            await baseCommandService.SendChatMessage("TestName", "Test Message");
+
+            // Assert
+            await serviceBackboneSubstitute.Received(1).SendChatMessage("TestName", "Test Message");
+        }
     }
 
     internal class TestCommandService : BaseCommandService
