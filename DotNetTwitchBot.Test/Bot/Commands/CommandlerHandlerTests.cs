@@ -271,9 +271,6 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
             scopeFactory.CreateScope().Returns(scope);
 
-            //defaultCommandRepository.Find(x => true).ReceivedWithAnyArgs(var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();)
-            //    .FirstOrDefaultAsync().Returns(expectedCommand);
-
             // Act
             var result = await commandHandler.GetDefaultCommandFromDb("testCommand");
 
@@ -307,9 +304,6 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             scope.ServiceProvider.Returns(serviceProvider);
 
             scopeFactory.CreateScope().Returns(scope);
-
-            //defaultCommandRepository.Find(Arg.Any<Func<DefaultCommand, bool>>())
-            //    .FirstOrDefaultAsync().Returns(expectedCommand);
 
             // Act
             var result = await commandHandler.GetDefaultCommandById(1);
