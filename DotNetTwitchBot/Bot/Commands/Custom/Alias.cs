@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class Alias : BaseCommandService
     {
-        private DataAccess.IAlias _aliasDb;
+        private readonly DataAccess.IAlias _aliasDb;
 
         public Alias(
             DataAccess.IAlias alias,
