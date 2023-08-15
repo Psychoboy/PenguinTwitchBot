@@ -171,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Core
                 case Rank.Follower:
                     using (var scope = _scopeFactory.CreateAsyncScope())
                     {
-                        var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
+                        var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
                         return await viewerService.IsFollower(eventArgs.Name);
                     }
                 case Rank.Subscriber:
@@ -237,7 +237,7 @@ namespace DotNetTwitchBot.Bot.Core
             if (SendMessageEvent != null)
             {
                 using var scope = _scopeFactory.CreateAsyncScope();
-                var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.ViewerFeature>();
+                var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
                 var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
                 await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
             }

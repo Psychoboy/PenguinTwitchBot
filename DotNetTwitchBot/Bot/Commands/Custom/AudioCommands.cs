@@ -14,14 +14,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     public class AudioCommands : BaseCommandService
     {
         readonly Dictionary<string, AudioCommand> Commands = new();
-        private SendAlerts SendAlerts { get; }
-        private ViewerFeature ViewerFeature { get; }
+        private ISendAlerts SendAlerts { get; }
+        private IViewerFeature ViewerFeature { get; }
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AudioCommands> _logger;
 
         public AudioCommands(
-            SendAlerts sendAlerts,
-            ViewerFeature viewerFeature,
+            ISendAlerts sendAlerts,
+            IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<AudioCommands> logger,
             IServiceBackbone eventService,

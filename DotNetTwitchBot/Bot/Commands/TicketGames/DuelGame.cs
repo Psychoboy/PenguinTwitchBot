@@ -14,14 +14,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly TicketsFeature _ticketsFeature;
         private readonly ILogger<DuelGame> _logger;
 
         public DuelGame(
             IServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
             ILogger<DuelGame> logger
             ) : base(serviceBackbone, commandHandler)

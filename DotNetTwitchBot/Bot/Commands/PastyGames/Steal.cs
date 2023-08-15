@@ -13,13 +13,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;
         private readonly LoyaltyFeature _loyaltyFeature;
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly ILogger<Steal> _logger;
 
         public Steal(
             ILogger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

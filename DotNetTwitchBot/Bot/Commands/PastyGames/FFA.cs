@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly List<string> Entered = new();
         private readonly Timer _joinTimer;
         private readonly LoyaltyFeature _loyaltyFeature;
-        private readonly ViewerFeature _viewFeature;
+        private readonly IViewerFeature _viewFeature;
         private readonly ILogger<FFA> _logger;
         readonly string CommandName = "ffa";
 
@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             LoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             ILogger<FFA> logger,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {

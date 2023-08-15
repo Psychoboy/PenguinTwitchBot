@@ -15,14 +15,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly int Cost = 500;
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Defuse> _logger;
-        private readonly SendAlerts _sendAlerts;
-        private readonly ViewerFeature _viewerFeature;
+        private readonly ISendAlerts _sendAlerts;
+        private readonly IViewerFeature _viewerFeature;
 
         public Defuse(
             LoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
-            ViewerFeature viewerFeature,
-            SendAlerts sendAlerts,
+            IViewerFeature viewerFeature,
+            ISendAlerts sendAlerts,
             ILogger<Defuse> logger,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

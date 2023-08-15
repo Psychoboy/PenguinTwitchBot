@@ -15,7 +15,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class ViewerFeature : BaseCommandService
+    public class ViewerFeature : BaseCommandService, IViewerFeature
     {
         private readonly ConcurrentDictionary<string, DateTime> _usersLastActive = new();
         private readonly ConcurrentDictionary<string, byte> _users = new();

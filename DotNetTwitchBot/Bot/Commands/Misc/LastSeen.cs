@@ -10,12 +10,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class LastSeen : BaseCommandService
     {
-        private readonly ViewerFeature _viewerFeature;
+        private readonly IViewerFeature _viewerFeature;
         private readonly ILogger<LastSeen> _logger;
 
         public LastSeen(
             ILogger<LastSeen> logger,
-            ViewerFeature viewerFeature,
+            IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

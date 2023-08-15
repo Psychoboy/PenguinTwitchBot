@@ -6,7 +6,7 @@ using DotNetTwitchBot.Bot.Notifications;
 
 namespace DotNetTwitchBot.Bot.Alerts
 {
-    public class SendAlerts
+    public class SendAlerts : ISendAlerts
     {
         private readonly IWebSocketMessenger _webSocketMessenger;
         public SendAlerts(IWebSocketMessenger webSocketMessenger)

@@ -48,7 +48,7 @@ internal class Program
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.SendAlerts>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.ISendAlerts, DotNetTwitchBot.Bot.Alerts.SendAlerts>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots, DotNetTwitchBot.Bot.Commands.Moderation.KnownBots>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
@@ -59,7 +59,6 @@ internal class Program
         //Add Features Here:
         var commands = new List<Type>
         {
-            typeof(DotNetTwitchBot.Bot.Commands.Features.ViewerFeature),
             typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature),
             typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
             typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature),
@@ -104,6 +103,8 @@ internal class Program
         {
             builder.Services.AddSingleton(cmd);
         }
+
+        commands.AddRange(RegisterCommandServices(builder.Services));
 
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
@@ -231,5 +232,14 @@ internal class Program
 
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IDefaultCommandRepository, DefaultCommandRepository>();
+    }
+
+    private static List<Type> RegisterCommandServices(IServiceCollection services)
+    {
+        var commands = new List<Type>();
+        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.IViewerFeature, DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature));
+
+        return commands;
     }
 }

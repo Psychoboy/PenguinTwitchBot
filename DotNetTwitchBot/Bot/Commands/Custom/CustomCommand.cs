@@ -21,8 +21,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         readonly Dictionary<string, Models.CustomCommands> Commands = new();
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<Models.KeywordWithRegex> Keywords = new();
-        private readonly SendAlerts _sendAlerts;
-        private readonly ViewerFeature _viewerFeature;
+        private readonly ISendAlerts _sendAlerts;
+        private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly TwitchService _twitchService;
@@ -30,8 +30,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly GiveawayFeature _giveawayFeature;
 
         public CustomCommand(
-            SendAlerts sendAlerts,
-            ViewerFeature viewerFeature,
+            ISendAlerts sendAlerts,
+            IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             TwitchService twitchService,
