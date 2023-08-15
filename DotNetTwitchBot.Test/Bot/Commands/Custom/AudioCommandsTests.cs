@@ -150,5 +150,216 @@ namespace DotNetTwitchBot.Tests
             // Assert
             Assert.Equal(audiCommand, testAudioCommand);
         }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotFollower()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var sendAlerts = Substitute.For<ISendAlerts>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            
+
+            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Follower };
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            viewerFeature.IsFollower(Arg.Any<string>()).Returns(false);
+
+            // Act
+
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotSubscriber()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var sendAlerts = Substitute.For<ISendAlerts>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Subscriber };
+            viewerFeature.IsSubscriber(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotModerator()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var sendAlerts = Substitute.For<ISendAlerts>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Moderator };
+            viewerFeature.IsModerator(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNoStreamer()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var sendAlerts = Substitute.For<ISendAlerts>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Streamer };
+            serviceBackbone.IsBroadcasterOrBot(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldSucceedForAll()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var sendAlerts = Substitute.For<ISendAlerts>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Viewer, GlobalCooldown = 5, UserCooldown = 5 };
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            sendAlerts.Received(1).QueueAlert(Arg.Any<AlertSound>());
+        }
     }
 }
