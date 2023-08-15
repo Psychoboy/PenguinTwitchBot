@@ -79,8 +79,6 @@ namespace DotNetTwitchBot.Bot.Commands
 
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            //db.DefaultCommands.Update(defaultCommand);
-            //await db.SaveChangesAsync();
             db.Update(defaultCommand);
             await db.SaveChangesAsync();
             var command = GetCommand(defaultCommand.CustomCommandName);
