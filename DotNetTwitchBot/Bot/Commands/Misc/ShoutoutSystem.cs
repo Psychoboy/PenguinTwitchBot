@@ -20,8 +20,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<ShoutoutSystem> logger,
             IServiceScopeFactory scopeFactory,
             TwitchService twitchService,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             serviceBackbone.ChatMessageEvent += OnChatMessage;

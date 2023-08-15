@@ -30,10 +30,10 @@ internal class Program
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
-        builder.Services.AddSingleton<ServiceBackbone>();
+        builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
         builder.Services.AddSingleton<TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.CommandHandler>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<DiscordService>();
 
         builder.Services.AddRazorPages();
@@ -50,6 +50,8 @@ internal class Program
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots, DotNetTwitchBot.Bot.Commands.Moderation.KnownBots>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
+
+        RegisterDbServices(builder.Services);
 
 
         //Add Features Here:
@@ -219,5 +221,10 @@ internal class Program
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
         app.Run(); //Start in future to read input
+    }
+
+    private static void RegisterDbServices(IServiceCollection services)
+    {
+        services.AddSingleton<DotNetTwitchBot.Bot.DataAccess.IAlias, DotNetTwitchBot.Bot.DataAccess.Alias>();
     }
 }

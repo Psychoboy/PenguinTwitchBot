@@ -24,8 +24,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Roll(
             ILogger<Roll> logger,
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;

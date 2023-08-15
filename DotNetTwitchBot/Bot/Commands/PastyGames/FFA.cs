@@ -32,10 +32,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public FFA(
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             ILogger<FFA> logger,
             ViewerFeature viewerFeature,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);

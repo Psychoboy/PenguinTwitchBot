@@ -2,5 +2,6 @@
     "search.exclude": {
         "**/.git": true,
         "**/Data": true,
-    }
+    },
+    "dotnet.defaultSolution": "DotNetTwitchBot.sln"
 }

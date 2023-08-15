@@ -19,9 +19,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private readonly ILogger<Roulette> _logger;
 
         public Roulette(
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler,
+            ICommandHandler commandHandler,
             ILogger<Roulette> logger
         ) : base(serviceBackbone, commandHandler)
         {

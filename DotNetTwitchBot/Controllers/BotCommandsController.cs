@@ -12,14 +12,14 @@ namespace DotNetTwitchBot.Controllers
     [Route("api/[controller]")]
     public class BotCommandsController
     {
-        readonly ServiceBackbone _serviceBackbone;
+        readonly IServiceBackbone _serviceBackbone;
         private readonly ILogger<BotCommandsController> _logger;
         private readonly IConfiguration _configuration;
 
         public BotCommandsController(
             ILogger<BotCommandsController> logger,
             IConfiguration configuration,
-            ServiceBackbone serviceBackbone
+            IServiceBackbone serviceBackbone
             )
         {
             _serviceBackbone = serviceBackbone;

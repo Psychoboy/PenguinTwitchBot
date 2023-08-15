@@ -20,8 +20,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<Steal> logger,
             LoyaltyFeature loyaltyFeature,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;

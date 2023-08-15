@@ -17,10 +17,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ILogger<First> _logger;
 
         public First(
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             ILogger<First> logger,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
         ) : base(eventService, commandHandler)
         {
             _ticketsFeature = ticketsFeature;

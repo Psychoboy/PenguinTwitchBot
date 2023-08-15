@@ -24,8 +24,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<AudioCommands> logger,
-            ServiceBackbone eventService,
-            CommandHandler commandHandler) : base(eventService, commandHandler)
+            IServiceBackbone eventService,
+            ICommandHandler commandHandler) : base(eventService, commandHandler)
         {
             SendAlerts = sendAlerts;
             ViewerFeature = viewerFeature;

@@ -17,9 +17,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public DailyCounter(
             ILogger<DailyCounter> logger,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;

@@ -16,8 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public LastSeen(
             ILogger<LastSeen> logger,
             ViewerFeature viewerFeature,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _viewerFeature = viewerFeature;

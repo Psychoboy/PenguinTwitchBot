@@ -15,9 +15,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public QuoteSystem(
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             ILogger<QuoteSystem> logger,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;

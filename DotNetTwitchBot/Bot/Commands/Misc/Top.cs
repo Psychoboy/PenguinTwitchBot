@@ -16,8 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public Top(
             ILogger<Top> logger,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;

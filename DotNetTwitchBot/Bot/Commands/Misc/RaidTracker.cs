@@ -23,8 +23,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<RaidTracker> logger,
             IServiceScopeFactory scopeFactory,
             TwitchService twitchService,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;

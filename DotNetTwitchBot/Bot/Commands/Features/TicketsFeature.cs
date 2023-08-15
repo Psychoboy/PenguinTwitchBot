@@ -21,10 +21,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
             ViewerFeature viewerFeature,
-            CommandHandler commandHandler)
+            ICommandHandler commandHandler)
             : base(serviceBackbone, commandHandler)
         {
             _logger = logger;

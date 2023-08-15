@@ -18,8 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Tax(
             ILogger<Tax> logger,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);

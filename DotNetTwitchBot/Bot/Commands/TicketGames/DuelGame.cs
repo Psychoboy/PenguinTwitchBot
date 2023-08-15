@@ -19,10 +19,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private readonly ILogger<DuelGame> _logger;
 
         public DuelGame(
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature,
-            CommandHandler commandHandler,
+            ICommandHandler commandHandler,
             ILogger<DuelGame> logger
             ) : base(serviceBackbone, commandHandler)
         {

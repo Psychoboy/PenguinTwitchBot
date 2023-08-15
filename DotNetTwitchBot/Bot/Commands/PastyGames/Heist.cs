@@ -39,9 +39,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Heist(
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
