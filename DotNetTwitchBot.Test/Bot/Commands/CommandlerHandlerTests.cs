@@ -8,6 +8,7 @@ using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Pages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -433,6 +434,88 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Assert
             Assert.False(result);
             await serviceBackbone.Received(1).SendChatMessage(displayName, Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task IsCoolDownExpiredWithMessage_UsingCommand_WhenCooldownNotActive()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var user = "testUser";
+            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
+
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            serviceProvider.GetService(typeof(IServiceBackbone)).Returns(serviceBackbone);
+            // Act
+            var result = await commandHandler.IsCoolDownExpiredWithMessage(user, user, defaultCommand);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsCoolDownExpiredWithMessage_UsingDefaultCommand_WhenCooldownActive()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var user = "testUser";
+            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
+
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            serviceProvider.GetService(typeof(IServiceBackbone)).Returns(serviceBackbone);
+            commandHandler.AddCoolDown(user, "testCommand", DateTime.Now.AddSeconds(10));
+            // Act
+            var result = await commandHandler.IsCoolDownExpiredWithMessage(user, user, defaultCommand);
+
+            // Assert
+            Assert.False(result);
+            await serviceBackbone.Received(1).SendChatMessage(user, Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task IsCoolDownExpiredWithMessage_UsingOtherCommand_WhenCooldownActive()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var user = "testUser";
+            var defaultCommand = new BaseCommandProperties { Id = 1, CommandName = "testCommand" };
+
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            serviceProvider.GetService(typeof(IServiceBackbone)).Returns(serviceBackbone);
+            commandHandler.AddCoolDown(user, "testCommand", DateTime.Now.AddSeconds(10));
+            // Act
+            var result = await commandHandler.IsCoolDownExpiredWithMessage(user, user, defaultCommand);
+
+            // Assert
+            Assert.False(result);
+            await serviceBackbone.Received(1).SendChatMessage(user, Arg.Any<string>());
         }
 
         private IQueryable<DefaultCommand> GetDefaultCommandDbSet()
