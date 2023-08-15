@@ -154,7 +154,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
             // Assert
             Assert.False(result);
             Assert.False(commandEventArgs.FromAlias);
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             await serviceBackboneSubstitute.DidNotReceiveWithAnyArgs().RunCommand(null);
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
         // Add more tests for other methods
