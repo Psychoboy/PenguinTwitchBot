@@ -232,6 +232,7 @@ internal class Program
 
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IDefaultCommandRepository, DefaultCommandRepository>();
+        services.AddScoped<IAudioCommandsRepository, AudioCommandsRepository>();
     }
 
     private static List<Type> RegisterCommandServices(IServiceCollection services)
