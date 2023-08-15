@@ -13,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private readonly ILogger<BaconRaffle> _logger;
 
         public BaconRaffle(
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler,
+            ICommandHandler commandHandler,
             ILogger<BaconRaffle> logger
             ) : base(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon")
         {

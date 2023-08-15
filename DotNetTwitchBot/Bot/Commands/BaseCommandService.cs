@@ -5,16 +5,16 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public abstract class BaseCommandService : IBaseCommandService //: IHostedService
     {
-        protected CommandHandler CommandHandler { get; }
+        protected ICommandHandler CommandHandler { get; }
 
-        protected BaseCommandService(ServiceBackbone serviceBackbone, CommandHandler commandHandler)
+        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
             CommandHandler = commandHandler;
         }
 
-        protected ServiceBackbone ServiceBackbone { get; }
+        protected IServiceBackbone ServiceBackbone { get; }
 
         public async Task SendChatMessage(string message)
         {

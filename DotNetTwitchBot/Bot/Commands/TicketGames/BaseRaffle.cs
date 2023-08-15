@@ -38,9 +38,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected int NumberEntered { get { return _entered.Count; } }
 
         protected BaseRaffle(
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler,
+            ICommandHandler commandHandler,
             string emote,
             string command,
             string name

@@ -41,8 +41,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             ILogger<YtPlayer> logger,
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
         ) : base(serviceBackbone, commandHandler)
         {
             _hubContext = hubContext;

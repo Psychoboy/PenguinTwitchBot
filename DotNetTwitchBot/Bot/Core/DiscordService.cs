@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Core
     {
         private readonly DiscordSocketClient _client;
         private readonly ILogger<DiscordService> _logger;
-        private readonly ServiceBackbone _serviceBackbone;
+        private readonly IServiceBackbone _serviceBackbone;
         private readonly CustomCommand _customCommands;
         private readonly TwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Core
         public DiscordService(
             CustomCommand customCommands,
             ILogger<DiscordService> logger,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             TwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             IConfiguration configuration)

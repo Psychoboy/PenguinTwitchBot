@@ -20,11 +20,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Defuse(
             LoyaltyFeature loyaltyFeature,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             ViewerFeature viewerFeature,
             SendAlerts sendAlerts,
             ILogger<Defuse> logger,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;

@@ -14,13 +14,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly ILogger<Admin> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ServiceBackbone _serviceBackbone;
+        private readonly IServiceBackbone _serviceBackbone;
 
         public Admin(
             ILogger<Admin> logger,
             IWebSocketMessenger webSocketMessenger,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler,
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler,
             IServiceScopeFactory scopeFactory
             ) : base(serviceBackbone, commandHandler)
         {

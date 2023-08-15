@@ -18,14 +18,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly ConcurrentBag<string> MessageIds = new();
         private readonly TwitchService _twitchService;
-        private readonly ServiceBackbone _eventService;
+        private readonly IServiceBackbone _eventService;
         private readonly SubscriptionTracker _subscriptionHistory;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
             TwitchService twitchService)

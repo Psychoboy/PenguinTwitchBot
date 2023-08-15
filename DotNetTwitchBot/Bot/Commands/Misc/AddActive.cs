@@ -20,9 +20,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public AddActive(
             ILogger<AddActive> logger,
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
         ) : base(eventService, commandHandler)
         {
             _ticketsFeature = ticketsFeature;

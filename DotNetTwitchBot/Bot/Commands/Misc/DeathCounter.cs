@@ -19,10 +19,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public DeathCounter(
             TwitchService twitchService,
             ILogger<DeathCounter> logger,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _twitchService = twitchService;

@@ -28,10 +28,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TwitchService twitchService,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(eventService, commandHandler)
         {
             _logger = logger;

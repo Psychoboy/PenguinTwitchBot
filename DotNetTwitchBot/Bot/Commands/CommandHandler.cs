@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public class CommandHandler
+    public class CommandHandler : ICommandHandler
     {
         readonly ConcurrentDictionary<string, Command> Commands = new();
         readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new();
@@ -146,7 +146,7 @@ namespace DotNetTwitchBot.Bot.Commands
             if (!IsCoolDownExpired(user, command))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
+                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command)));
 
                 return false;
@@ -159,7 +159,7 @@ namespace DotNetTwitchBot.Bot.Commands
             if (!IsCoolDownExpired(user, command.CommandName))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.ServiceBackbone>();
+                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 if (command is DefaultCommand commandProperties)
                 {
                     await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, CooldownLeft(user, command.CommandName)));

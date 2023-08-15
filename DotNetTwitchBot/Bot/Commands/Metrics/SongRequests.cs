@@ -13,8 +13,8 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
         public SongRequests(
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _scopeFactory = scopeFactory;

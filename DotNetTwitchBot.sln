@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.33414.496
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetTwitchBot", "DotNetTwitchBot\DotNetTwitchBot.csproj", "{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetTwitchBot.Test", "DotNetTwitchBot.Test\DotNetTwitchBot.Test.csproj", "{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,14 @@ Global
 		{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F96B5364-8CE1-41FB-AFC2-587FA3178EF7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F96B5364-8CE1-41FB-AFC2-587FA3178EF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F96B5364-8CE1-41FB-AFC2-587FA3178EF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F96B5364-8CE1-41FB-AFC2-587FA3178EF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

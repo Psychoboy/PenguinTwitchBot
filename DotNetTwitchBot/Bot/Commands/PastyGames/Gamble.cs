@@ -20,9 +20,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<Gamble> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
-            TwitchServices.TwitchService twitchServices,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            TwitchService twitchServices,
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;

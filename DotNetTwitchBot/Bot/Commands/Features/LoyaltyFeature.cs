@@ -26,9 +26,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<LoyaltyFeature> logger,
             ViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(eventService, commandHandler)
         {
             _viewerFeature = viewerFeature;

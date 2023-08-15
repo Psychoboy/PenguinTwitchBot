@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly IConfiguration _configuration;
         private TwitchClient TwitchClient { get; set; }
-        private ServiceBackbone EventService { get; set; }
+        private IServiceBackbone EventService { get; set; }
 
         private readonly TwitchService _twitchService;
         private readonly TwitchBotService _twitchBotService;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         public TwitchChatBot(
             ILogger<TwitchChatBot> logger,
              IConfiguration configuration,
-             ServiceBackbone eventService,
+             IServiceBackbone eventService,
              TwitchBotService twitchBotService,
              TwitchService twitchService)
         {

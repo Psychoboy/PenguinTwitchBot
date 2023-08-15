@@ -20,8 +20,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Slots(
             ILogger<Slots> logger,
             LoyaltyFeature loyaltyService,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyService;

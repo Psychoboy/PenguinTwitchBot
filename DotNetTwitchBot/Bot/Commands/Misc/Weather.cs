@@ -16,8 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public Weather(
             ILogger<Weather> logger,
             IConfiguration configuration,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>() ?? throw new Exception("Invalid Configuration. Weather settings missing.");

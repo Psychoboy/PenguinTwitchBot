@@ -19,8 +19,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public ModSpam(
             AddActive addActive,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler,
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler,
             ILogger<ModSpam> logger
             ) : base(serviceBackbone, commandHandler)
         {

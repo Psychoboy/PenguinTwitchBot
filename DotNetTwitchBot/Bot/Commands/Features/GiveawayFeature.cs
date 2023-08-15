@@ -25,12 +25,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
-            ServiceBackbone serviceBackbone,
+            IServiceBackbone serviceBackbone,
             TicketsFeature ticketsFeature,
             ViewerFeature viewerFeature,
             IHubContext<GiveawayHub> hubContext,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler
+            ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;

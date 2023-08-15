@@ -13,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private readonly ILogger<PancakeRaffle> _logger;
 
         public PancakeRaffle(
-            ServiceBackbone eventService,
+            IServiceBackbone eventService,
             TicketsFeature ticketsFeature,
-            CommandHandler commandHandler,
+            ICommandHandler commandHandler,
             ILogger<PancakeRaffle> logger
         ) : base(eventService, ticketsFeature, commandHandler, "sptvPancake", "!pancake", "pancake")
         {

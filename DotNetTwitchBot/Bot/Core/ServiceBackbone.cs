@@ -10,12 +10,12 @@ using DotNetTwitchBot.Bot.Commands;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class ServiceBackbone
+    public class ServiceBackbone : IServiceBackbone
     {
         private readonly ILogger<ServiceBackbone> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IKnownBots _knownBots;
-        private readonly CommandHandler _commandHandler;
+        private readonly ICommandHandler _commandHandler;
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Core
             IKnownBots knownBots,
             IConfiguration configuration,
             IServiceScopeFactory scopeFactory,
-            CommandHandler commandHandler)
+            ICommandHandler commandHandler)
         {
             _logger = logger;
             RawBroadcasterName = configuration["broadcaster"];

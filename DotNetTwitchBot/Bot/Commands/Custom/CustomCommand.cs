@@ -37,8 +37,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             TwitchService twitchService,
             LoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
-            ServiceBackbone serviceBackbone,
-            CommandHandler commandHandler) : base(serviceBackbone, commandHandler)
+            IServiceBackbone serviceBackbone,
+            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler)
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
