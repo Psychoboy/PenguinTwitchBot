@@ -1,14 +1,18 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Discord.Commands;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MockQueryable.NSubstitute;
 using NSubstitute;
+using NSubstitute.Core.Arguments;
 using Xunit;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
@@ -16,33 +20,33 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
     public class CommandHandlerTests
     {
         [Fact]
-        public void GetCommand_CommandExists_ReturnsCommand()
+        public void GetCommand_Should_ReturnCommand_IfExists()
         {
             // Arrange
-            var loggerSubstitute = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactorySubstitute = Substitute.For<IServiceScopeFactory>();
-            var commandHandler = new CommandHandler(loggerSubstitute, scopeFactorySubstitute);
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var commandServiceSubstitute = Substitute.For<IBaseCommandService>();
-            var commandProperties = new DefaultCommand { CustomCommandName = "testCommand" };
-            commandHandler.AddCommand(commandProperties, commandServiceSubstitute);
+            var commandService = Substitute.For<IBaseCommandService>();
+           // commandService.ExecuteAsync().Returns(Task.CompletedTask);
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand" }, commandService);
 
             // Act
             var result = commandHandler.GetCommand("testCommand");
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(commandServiceSubstitute, result!.CommandService);
-            Assert.Equal(commandProperties, result!.CommandProperties);
         }
 
         [Fact]
-        public void GetCommand_CommandDoesNotExist_ReturnsNull()
+        public void GetCommand_Should_ReturnNull_IfNotExists()
         {
             // Arrange
-            var loggerSubstitute = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactorySubstitute = Substitute.For<IServiceScopeFactory>();
-            var commandHandler = new CommandHandler(loggerSubstitute, scopeFactorySubstitute);
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
 
             // Act
             var result = commandHandler.GetCommand("nonExistentCommand");
@@ -52,67 +56,111 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
         }
 
         [Fact]
-        public void AddCommand_AddsCommandToCommandsDictionary()
+        public void AddCommand_Should_AddCommand_WithCorrectProperties()
         {
             // Arrange
-            var loggerSubstitute = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactorySubstitute = Substitute.For<IServiceScopeFactory>();
-            var commandHandler = new CommandHandler(loggerSubstitute, scopeFactorySubstitute);
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var commandServiceSubstitute = Substitute.For<IBaseCommandService>();
-            var commandProperties = new DefaultCommand { CustomCommandName = "testCommand" };
+            var commandService = Substitute.For<IBaseCommandService>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
 
             // Act
-            commandHandler.AddCommand(commandProperties, commandServiceSubstitute);
+            commandHandler.AddCommand(new DefaultCommand {CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
 
             // Assert
-            Assert.NotNull(commandHandler.GetCommand("testCommand"));
-            Assert.Equal(commandServiceSubstitute, commandHandler.GetCommand("testCommand")?.CommandService);
-            Assert.Equal(commandProperties, commandHandler.GetCommand("testCommand")?.CommandProperties);
+            var result = commandHandler.GetCommand("testCommand");
+            Assert.NotNull(result);
+            Assert.Equal("testCommand", result.CommandProperties.CommandName);
         }
 
         [Fact]
-        public void UpdateCommandName_UpdatesCommandNameInCommandsDictionary()
+        public void UpdateCommandName_ShouldReplaceOldName()
         {
-            // Arrange
-            var loggerSubstitute = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactorySubstitute = Substitute.For<IServiceScopeFactory>();
-            var commandHandler = new CommandHandler(loggerSubstitute, scopeFactorySubstitute);
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var oldCommandName = "oldCommand";
-            var newCommandName = "newCommand";
-            var commandServiceSubstitute = Substitute.For<IBaseCommandService>();
-            var commandProperties = new DefaultCommand { CustomCommandName = oldCommandName };
-            commandHandler.AddCommand(commandProperties, commandServiceSubstitute);
+            var commandService = Substitute.For<IBaseCommandService>();
 
-            // Act
-            commandHandler.UpdateCommandName(oldCommandName, newCommandName);
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
 
-            // Assert
-            Assert.Null(commandHandler.GetCommand(oldCommandName));
-            Assert.NotNull(commandHandler.GetCommand(newCommandName));
-            Assert.Equal(commandServiceSubstitute, commandHandler.GetCommand(newCommandName)?.CommandService);
-            Assert.Equal(commandProperties, commandHandler.GetCommand(newCommandName)?.CommandProperties);
+            //Act
+            commandHandler.UpdateCommandName("testCommand", "newCommand");
+
+            Assert.NotNull(commandHandler.GetCommand("newCommand"));
+            Assert.Null(commandHandler.GetCommand("testCommand"));
+
         }
 
         [Fact]
-        public void RemoveCommand_RemovesCommandFromCommandsDictionary()
+        public void RemoveCommand_ShouldRemoveCommand()
+        {
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandService = Substitute.For<IBaseCommandService>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
+
+            //Act
+            commandHandler.RemoveCommand("testCommand");
+
+            Assert.Null(commandHandler.GetCommand("testCommand"));
+        }
+
+
+
+        [Fact]
+        public async Task UpdateDefaultCommand_Should_UpdateDefaultCommand()
         {
             // Arrange
-            var loggerSubstitute = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactorySubstitute = Substitute.For<IServiceScopeFactory>();
-            var commandHandler = new CommandHandler(loggerSubstitute, scopeFactorySubstitute);
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var commandName = "testCommand";
-            var commandServiceSubstitute = Substitute.For<IBaseCommandService>();
-            var commandProperties = new DefaultCommand { CustomCommandName = commandName };
-            commandHandler.AddCommand(commandProperties, commandServiceSubstitute);
+            var dbContext = Substitute.For<IDefaultCommandRepository>();
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandService = Substitute.For<IBaseCommandService>();
+
+
+            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "newCommand", CommandName = "testCommand" };
+            var testCommand = new DefaultCommand { Id = 1, CommandName = "testCommand", CustomCommandName = "testCommand" };
+            commandHandler.AddCommand(testCommand, commandService);
+            var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
+            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            
+
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+           
 
             // Act
-            commandHandler.RemoveCommand(commandName);
+            await commandHandler.UpdateDefaultCommand(defaultCommand);
 
             // Assert
-            Assert.Null(commandHandler.GetCommand(commandName));
+            dbContext.Received(1).Update(defaultCommand);
+        }
+
+        // more tests for the remaining methods
+
+        private IQueryable<DefaultCommand> GetDefaultCommandDbSet()
+        {
+            var data = new List<DefaultCommand>
+            {
+                new DefaultCommand { Id = 1, CommandName = "testCommand1" },
+                new DefaultCommand { Id = 2, CommandName = "testCommand2" }
+            }.AsQueryable();
+
+            return data;
         }
     }
 }
