@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
-        private readonly TwitchService _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly GiveawayFeature _giveawayFeature;
 
@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
-            TwitchService twitchService,
+            ITwitchService twitchService,
             LoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,

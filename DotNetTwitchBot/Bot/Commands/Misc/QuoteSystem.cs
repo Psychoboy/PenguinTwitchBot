@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 throw new SkipCooldownException();
             }
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var twitchService = scope.ServiceProvider.GetRequiredService<TwitchService>();
+            var twitchService = scope.ServiceProvider.GetRequiredService<ITwitchService>();
             QuoteType quote = new()
             {
                 CreatedOn = DateTime.Now,

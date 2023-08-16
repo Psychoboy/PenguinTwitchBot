@@ -33,7 +33,7 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
-        builder.Services.AddSingleton<TwitchService>();
+        builder.Services.AddSingleton<ITwitchService, TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<DiscordService>();
@@ -234,6 +234,7 @@ internal class Program
         services.AddScoped<IDefaultCommandRepository, DefaultCommandRepository>();
         services.AddScoped<IAudioCommandsRepository, AudioCommandsRepository>();
         services.AddScoped<ISongRequestMetricsRepository, SongRequestMetricsRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
     }
 
     private static List<Type> RegisterCommandServices(IServiceCollection services)

@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly ConcurrentBag<string> MessageIds = new();
-        private readonly TwitchService _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly IServiceBackbone _eventService;
         private readonly SubscriptionTracker _subscriptionHistory;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             IServiceBackbone eventService,
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
-            TwitchService twitchService)
+            ITwitchService twitchService)
         {
             _logger = logger;
             _eventSubWebsocketClient = eventSubWebsocketClient;

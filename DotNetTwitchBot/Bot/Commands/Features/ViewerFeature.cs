@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ConcurrentDictionary<string, byte> _users = new();
         private readonly ConcurrentDictionary<string, DateTime> _lurkers = new();
 
-        private readonly TwitchService _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
             IServiceBackbone eventService,
-            TwitchService twitchService,
+            ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler
             ) : base(eventService, commandHandler)

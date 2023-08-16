@@ -29,17 +29,17 @@ namespace DotNetTwitchBot.Tests
             var sendAlerts = Substitute.For<ISendAlerts>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.AddAudioCommand(audioCommand);
 
             // Assert
-            await dbContext.Received(1).AddAsync(audioCommand);
+            await dbContext.AudioCommands.Received(1).AddAsync(audioCommand);
             await dbContext.Received(1).SaveChangesAsync();
         }
 
@@ -62,17 +62,17 @@ namespace DotNetTwitchBot.Tests
             var sendAlerts = Substitute.For<ISendAlerts>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
             var audioCommand = new AudioCommand { CommandName = "testCommand" };
             var queryable = new List<AudioCommand> { audioCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.AddAudioCommand(audioCommand);
 
             // Assert
-            await dbContext.Received(0).AddAsync(audioCommand);
+            await dbContext.AudioCommands.Received(0).AddAsync(audioCommand);
             await dbContext.Received(0).SaveChangesAsync();
         }
 
@@ -93,17 +93,17 @@ namespace DotNetTwitchBot.Tests
             var sendAlerts = Substitute.For<ISendAlerts>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
@@ -115,7 +115,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.SaveAudioCommand(audioCommand);
 
             // Assert
-            dbContext.Received(1).Update(audioCommand);
+            dbContext.AudioCommands.Received(1).Update(audioCommand);
             await dbContext.Received(1).SaveChangesAsync();
         }
 
@@ -126,18 +126,18 @@ namespace DotNetTwitchBot.Tests
             var sendAlerts = Substitute.For<ISendAlerts>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var audiCommand = new AudioCommand { Id = 1, CommandName = "TestCommand" };
             var queryable = new List<AudioCommand> { audiCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
@@ -159,7 +159,7 @@ namespace DotNetTwitchBot.Tests
             var viewerFeature = Substitute.For<IViewerFeature>();
             var sendAlerts = Substitute.For<ISendAlerts>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
@@ -167,10 +167,10 @@ namespace DotNetTwitchBot.Tests
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
             
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
@@ -180,7 +180,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Follower };
             var testResult = new List<AudioCommand> { audioCommand };
-            dbContext.GetAllAsync().Returns(testResult);
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
@@ -203,7 +203,7 @@ namespace DotNetTwitchBot.Tests
             var viewerFeature = Substitute.For<IViewerFeature>();
             var sendAlerts = Substitute.For<ISendAlerts>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
@@ -211,10 +211,10 @@ namespace DotNetTwitchBot.Tests
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
@@ -225,7 +225,7 @@ namespace DotNetTwitchBot.Tests
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Subscriber };
             viewerFeature.IsSubscriber(Arg.Any<string>()).Returns(false);
             var testResult = new List<AudioCommand> { audioCommand };
-            dbContext.GetAllAsync().Returns(testResult);
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
@@ -245,7 +245,7 @@ namespace DotNetTwitchBot.Tests
             var viewerFeature = Substitute.For<IViewerFeature>();
             var sendAlerts = Substitute.For<ISendAlerts>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
@@ -253,10 +253,10 @@ namespace DotNetTwitchBot.Tests
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
@@ -267,7 +267,7 @@ namespace DotNetTwitchBot.Tests
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Moderator };
             viewerFeature.IsModerator(Arg.Any<string>()).Returns(false);
             var testResult = new List<AudioCommand> { audioCommand };
-            dbContext.GetAllAsync().Returns(testResult);
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
@@ -287,7 +287,7 @@ namespace DotNetTwitchBot.Tests
             var viewerFeature = Substitute.For<IViewerFeature>();
             var sendAlerts = Substitute.For<ISendAlerts>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
@@ -295,10 +295,10 @@ namespace DotNetTwitchBot.Tests
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
@@ -309,7 +309,7 @@ namespace DotNetTwitchBot.Tests
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Streamer };
             serviceBackbone.IsBroadcasterOrBot(Arg.Any<string>()).Returns(false);
             var testResult = new List<AudioCommand> { audioCommand };
-            dbContext.GetAllAsync().Returns(testResult);
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
@@ -329,7 +329,7 @@ namespace DotNetTwitchBot.Tests
             var viewerFeature = Substitute.For<IViewerFeature>();
             var sendAlerts = Substitute.For<ISendAlerts>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<IAudioCommandsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
@@ -337,10 +337,10 @@ namespace DotNetTwitchBot.Tests
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IAudioCommandsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
@@ -350,7 +350,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Viewer, GlobalCooldown = 5, UserCooldown = 5 };
             var testResult = new List<AudioCommand> { audioCommand };
-            dbContext.GetAllAsync().Returns(testResult);
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);

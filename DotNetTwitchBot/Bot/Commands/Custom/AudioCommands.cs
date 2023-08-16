@@ -40,9 +40,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var count = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<IAudioCommandsRepository>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 Commands.Clear(); //Make sure we don't double up
-                var commands = await db.GetAllAsync();
+                var commands = await db.AudioCommands.GetAllAsync();
                 foreach (var command in commands)
                 {
                     Commands[command.CommandName] = command;
@@ -56,13 +56,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<IAudioCommandsRepository>();
-                if ((await db.Find(x => x.CommandName.Equals(audioCommand.CommandName)).FirstOrDefaultAsync()) != null)
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if ((await db.AudioCommands.Find(x => x.CommandName.Equals(audioCommand.CommandName)).FirstOrDefaultAsync()) != null)
                 {
                     _logger.LogWarning("Audio command already exists");
                     return;
                 }
-                await db.AddAsync(audioCommand);
+                await db.AudioCommands.AddAsync(audioCommand);
                 Commands[audioCommand.CommandName] = audioCommand;
                 await db.SaveChangesAsync();
             }
@@ -73,8 +73,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<IAudioCommandsRepository>();
-                db.Update(audioCommand);
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                db.AudioCommands.Update(audioCommand);
                 await db.SaveChangesAsync();
             }
             await LoadAudioCommands();
@@ -88,8 +88,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public async Task<AudioCommand?> GetAudioCommand(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IAudioCommandsRepository>();
-            return await db.Find(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.AudioCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public List<string> GetAudioFiles()
@@ -210,8 +210,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (!Commands.ContainsKey(e.Arg)) return;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<IAudioCommandsRepository>();
-                var command = await db.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var command = await db.AudioCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
                     await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
@@ -219,7 +219,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 command.Disabled = disabled;
                 Commands[e.Arg].Disabled = disabled;
-                db.Update(command);
+                db.AudioCommands.Update(command);
                 await db.SaveChangesAsync();
             }
             await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));

@@ -48,14 +48,14 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
             songRequestMetric.RequestedCount++;
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ISongRequestMetricsRepository>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             if (create)
             {
-                await db.AddAsync(songRequestMetric);
+                await db.SongRequestMetrics.AddAsync(songRequestMetric);
             }
             else
             {
-                db.Update(songRequestMetric);
+                db.SongRequestMetrics.Update(songRequestMetric);
             }
             await db.SaveChangesAsync();
         }
@@ -69,8 +69,8 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
             songRequestMetric.RequestedCount--;
 
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ISongRequestMetricsRepository>();
-            db.Update(songRequestMetric);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.SongRequestMetrics.Update(songRequestMetric);
             await db.SaveChangesAsync();
         }
 
@@ -83,8 +83,8 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         private async Task<Models.Metrics.SongRequestMetric?> GetRequestedSongMetric(Song song)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ISongRequestMetricsRepository>();
-            return await db.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.SongRequestMetrics.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
         }
     }
 }
