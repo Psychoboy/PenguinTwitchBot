@@ -13,12 +13,16 @@ namespace DotNetTwitchBot.Bot.Repository
             DefaultCommands = new DefaultCommandRepository(_context);
             SongRequestMetrics = new SongRequestMetricsRepository(_context);
             RaidHistory = new RaidHistoryRepository(_context);
+            ViewerTickets = new TicketRepository(_context);
+            ViewerTicketsWithRank = new TicketsWithRankRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
         public IDefaultCommandRepository DefaultCommands { get; private set; }
         public ISongRequestMetricsRepository SongRequestMetrics { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
+        public ITicketsRepository ViewerTickets { get; private set; }
+        public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
 
         public void Dispose()
         {

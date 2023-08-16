@@ -8,6 +8,8 @@ namespace DotNetTwitchBot.Bot.Repository
         IDefaultCommandRepository DefaultCommands { get; }
         ISongRequestMetricsRepository SongRequestMetrics { get; }
         IRaidHistoryRepository RaidHistory { get; }
+        ITicketsRepository ViewerTickets { get; }
+        ITicketsWithRankRepository ViewerTicketsWithRank { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
