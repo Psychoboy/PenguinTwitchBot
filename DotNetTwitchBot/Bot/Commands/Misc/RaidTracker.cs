@@ -15,14 +15,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class RaidTracker : BaseCommandService
     {
         private readonly ILogger<RaidTracker> _logger;
-        private readonly TwitchService _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly Timer _timer;
+        private readonly Timer _timer = new(60000);
 
         public RaidTracker(
             ILogger<RaidTracker> logger,
             IServiceScopeFactory scopeFactory,
-            TwitchService twitchService,
+            ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)
@@ -31,7 +31,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ServiceBackbone.IncomingRaidEvent += OnIncomingRaid;
             _logger = logger;
             _twitchService = twitchService;
-            _timer = new Timer(60000);
             _timer.Elapsed += UpdateOnlineStatus;
             _timer.Start();
         }
@@ -54,6 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async void UpdateOnlineStatus(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            if (ServiceBackbone.IsOnline == false) return;
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();

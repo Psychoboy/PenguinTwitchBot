@@ -15,7 +15,7 @@ using TwitchLib.Api.Core.Exceptions;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchService
+    public class TwitchService : ITwitchService
     {
         private readonly TwitchAPI _twitchApi = new();
         private readonly ILogger<TwitchService> _logger;

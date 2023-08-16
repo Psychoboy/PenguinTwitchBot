@@ -68,16 +68,5 @@ namespace DotNetTwitchBot.Bot.Repository
         {
             _context.Set<T>().Update(entity);
         }
-
-        public void SaveChanges()
-        { 
-            _context.SaveChanges(); 
-        }
-
-        public Task SaveChangesAsync()
-        {
-            return _context.SaveChangesAsync();
-        }
-
     }
 }

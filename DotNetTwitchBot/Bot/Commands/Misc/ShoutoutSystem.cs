@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class ShoutoutSystem : BaseCommandService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly TwitchService _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly ILogger<ShoutoutSystem> _logger;
         private readonly DateTime LastShoutOut = DateTime.Now;
         private readonly Dictionary<string, DateTime> UserLastShoutout = new();
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public ShoutoutSystem(
             ILogger<ShoutoutSystem> logger,
             IServiceScopeFactory scopeFactory,
-            TwitchService twitchService,
+            ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

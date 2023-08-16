@@ -13,14 +13,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly TwitchService _twitchServices;
+        private readonly ITwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
 
         public Gamble(
             ILogger<Gamble> logger,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
-            TwitchService twitchServices,
+            ITwitchService twitchServices,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

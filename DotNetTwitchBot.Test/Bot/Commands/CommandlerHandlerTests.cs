@@ -142,7 +142,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -152,11 +152,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var testCommand = new DefaultCommand { Id = 1, CommandName = "testCommand", CustomCommandName = "testCommand" };
             commandHandler.AddCommand(testCommand, commandService);
             var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
             
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
@@ -169,7 +169,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             await commandHandler.UpdateDefaultCommand(defaultCommand);
 
             // Assert
-            dbContext.Received(1).Update(defaultCommand);
+            dbContext.DefaultCommands.Received(1).Update(defaultCommand);
         }
 
 
@@ -180,7 +180,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -190,11 +190,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var testCommand = new DefaultCommand { Id = 1, CommandName = "testCommand", CustomCommandName = "testCommand" };
             commandHandler.AddCommand(testCommand, commandService);
             var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
@@ -207,7 +207,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             await commandHandler.UpdateDefaultCommand(defaultCommand);
 
             // Assert
-            dbContext.Received(0).Update(defaultCommand);
+            dbContext.DefaultCommands.Received(0).Update(defaultCommand);
         }
 
 
@@ -218,7 +218,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -227,11 +227,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "newCommand", CommandName = "testCommand" };
            
             var queryable = new List<DefaultCommand> {  }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
@@ -242,7 +242,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             await commandHandler.UpdateDefaultCommand(defaultCommand);
 
             // Assert
-            dbContext.Received(0).Update(defaultCommand);
+            dbContext.DefaultCommands.Received(0).Update(defaultCommand);
         }
 
         [Fact]
@@ -252,7 +252,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -261,11 +261,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
 
             var queryable = new List<DefaultCommand> { defaultCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
@@ -286,7 +286,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -295,11 +295,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
 
             var queryable = new List<DefaultCommand> { defaultCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
@@ -320,7 +320,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -334,18 +334,18 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             };
             var queryable = commands.AsQueryable().BuildMockDbSet();
 
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);
 
             scopeFactory.CreateScope().Returns(scope);
             var expectedCommands =
-            dbContext.GetAllAsync().Returns(commands);
+            dbContext.DefaultCommands.GetAllAsync().Returns(commands);
 
             // Act
             var result = await commandHandler.GetDefaultCommandsFromDb();
@@ -399,7 +399,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var dbContext = Substitute.For<IDefaultCommandRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             var commandService = Substitute.For<IBaseCommandService>();
@@ -408,11 +408,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
 
             var queryable = new List<DefaultCommand> { defaultCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
             var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IDefaultCommandRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var scope = Substitute.For<IServiceScope>();
             scope.ServiceProvider.Returns(serviceProvider);

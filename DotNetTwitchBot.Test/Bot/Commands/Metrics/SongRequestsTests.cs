@@ -21,17 +21,17 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
         {
             //Arrange
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<ISongRequestMetricsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
 
-            serviceProvider.GetService(typeof(ISongRequestMetricsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<SongRequestMetric> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
             
@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
             await songRequests.IncrementSongCount(new DotNetTwitchBot.Bot.Models.Song());
 
             //Assert
-            await dbContext.Received(1).AddAsync(Arg.Any<SongRequestMetric>());
+            await dbContext.SongRequestMetrics.Received(1).AddAsync(Arg.Any<SongRequestMetric>());
             await dbContext.Received(1).SaveChangesAsync();
         }
 
@@ -48,18 +48,18 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
         {
             //Arrange
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<ISongRequestMetricsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
 
-            serviceProvider.GetService(typeof(ISongRequestMetricsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var testMetric = new SongRequestMetric { RequestedCount = 1};
             var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
 
@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
             await songRequests.IncrementSongCount(new DotNetTwitchBot.Bot.Models.Song());
 
             //Assert
-            dbContext.Received(1).Update(Arg.Any<SongRequestMetric>());
+            dbContext.SongRequestMetrics.Received(1).Update(Arg.Any<SongRequestMetric>());
             await dbContext.Received(1).SaveChangesAsync();
             Assert.Equal(2, testMetric.RequestedCount);
         }
@@ -77,18 +77,18 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
         {
             //Arrange
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<ISongRequestMetricsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
 
-            serviceProvider.GetService(typeof(ISongRequestMetricsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var testMetric = new SongRequestMetric { RequestedCount = 1 };
             var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
 
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
             await songRequests.DecrementSongCount(new DotNetTwitchBot.Bot.Models.Song());
 
             //Assert
-            dbContext.Received(1).Update(Arg.Any<SongRequestMetric>());
+            dbContext.SongRequestMetrics.Received(1).Update(Arg.Any<SongRequestMetric>());
             await dbContext.Received(1).SaveChangesAsync();
             Assert.Equal(0, testMetric.RequestedCount);
         }
@@ -106,17 +106,17 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
         {
             //Arrange
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<ISongRequestMetricsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
 
-            serviceProvider.GetService(typeof(ISongRequestMetricsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var queryable = new List<SongRequestMetric> {}.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
 
@@ -132,18 +132,18 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
         {
             //Arrange
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var dbContext = Substitute.For<ISongRequestMetricsRepository>();
+            var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
 
-            serviceProvider.GetService(typeof(ISongRequestMetricsRepository)).Returns(dbContext);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var testMetric = new SongRequestMetric { RequestedCount = 1 };
             var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-            dbContext.Find(x => true).ReturnsForAnyArgs(queryable);
+            dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
 

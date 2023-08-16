@@ -78,8 +78,8 @@ namespace DotNetTwitchBot.Bot.Commands
             }
 
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            db.Update(defaultCommand);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.DefaultCommands.Update(defaultCommand);
             await db.SaveChangesAsync();
             var command = GetCommand(defaultCommand.CustomCommandName);
             if (command == null)
@@ -93,29 +93,29 @@ namespace DotNetTwitchBot.Bot.Commands
         public async Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            return await db.Find(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.DefaultCommands.Find(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
         }
 
         public async Task<DefaultCommand?> GetDefaultCommandById(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            return await db.Find(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.DefaultCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<List<DefaultCommand>> GetDefaultCommandsFromDb()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            return (await db.GetAllAsync()).ToList();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.DefaultCommands.GetAllAsync()).ToList();
         }
 
         public async Task<DefaultCommand> AddDefaultCommand(DefaultCommand defaultCommand)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IDefaultCommandRepository>();
-            var newDefaultCommand = await db.AddAsync(defaultCommand);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var newDefaultCommand = await db.DefaultCommands.AddAsync(defaultCommand);
             await db.SaveChangesAsync();
             await newDefaultCommand.ReloadAsync();
             return newDefaultCommand.Entity;
