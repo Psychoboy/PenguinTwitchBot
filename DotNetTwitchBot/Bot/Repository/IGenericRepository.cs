@@ -17,5 +17,6 @@ namespace DotNetTwitchBot.Bot.Repository
         void Remove(T entity);
         void RemoveRange(IEnumerable<T> entities);
         void Update(T entity);
+        void UpdateRange(IEnumerable<T> entities);
     }
 }

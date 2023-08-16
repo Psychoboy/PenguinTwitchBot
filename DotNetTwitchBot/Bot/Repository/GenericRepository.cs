@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Repository
         }
         public IEnumerable<T> GetAll()
         {
-            return _context.Set<T>().ToList();
+            return _context.Set<T>();
         }
 
         public async Task<IEnumerable<T>> GetAllAsync()
@@ -67,6 +67,11 @@ namespace DotNetTwitchBot.Bot.Repository
         public void Update(T entity)
         {
             _context.Set<T>().Update(entity);
+        }
+
+        public void UpdateRange(IEnumerable<T> entities)
+        {
+            _context.Set<T>().UpdateRange(entities);
         }
     }
 }

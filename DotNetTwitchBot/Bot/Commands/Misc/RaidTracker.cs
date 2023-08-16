@@ -9,6 +9,8 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Bot.Commands.Features;
 using Timer = System.Timers.Timer;
+using DotNetTwitchBot.Bot.Repository;
+using System.Reflection;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -40,8 +42,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var history = await db.RaidHistory.OrderByDescending(x => x.IsOnline).ThenBy(x => x.TotalIncomingRaids).ToListAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var history = (await db.RaidHistory.GetAllAsync()).AsQueryable().OrderByDescending(x => x.IsOnline).ThenBy(x => x.TotalIncomingRaids).ToList();
                 return history;
             }
             catch (Exception ex)
@@ -53,15 +55,20 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async void UpdateOnlineStatus(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            await UpdateOnlineStatus();
+        }
+
+        public async Task UpdateOnlineStatus()
+        {
             if (ServiceBackbone.IsOnline == false) return;
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 while (true)
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var tenMinsAgo = DateTime.Now.AddMinutes(-10);
-                    var raidHistory = await db.RaidHistory.Where(x => x.LastCheckOnline < tenMinsAgo).OrderBy(x => x.LastCheckOnline).Take(100).ToListAsync();
+                    var raidHistory = await db.RaidHistory.Find(x => x.LastCheckOnline < tenMinsAgo).OrderBy(x => x.LastCheckOnline).Take(100).ToListAsync();
                     if (raidHistory == null || raidHistory.Count == 0) return;
                     var userIds = raidHistory.Select(x => x.UserId);
                     if (userIds == null)
@@ -85,15 +92,19 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 _logger.LogError(ex, "Error Updating Incoming Raid");
             }
         }
-
         private async Task OnIncomingRaid(object? sender, RaidEventArgs e)
+        {
+            await OnIncomingRaid(e);
+        }
+
+        public async Task OnIncomingRaid(RaidEventArgs e)
         {
             await ServiceBackbone.SendChatMessage($"{e.DisplayName} just raided with {e.NumberOfViewers} viewers! sptvHype");
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var raidHistory = await db.RaidHistory.Where(x => x.Name.Equals(e.Name)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var raidHistory = await db.RaidHistory.Find(x => x.Name.Equals(e.Name)).FirstOrDefaultAsync();
                 if (raidHistory == null)
                 {
                     string? userId = "";
@@ -144,26 +155,26 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task Raid(string targetUser)
         {
+            var user = await _twitchService.GetUser(targetUser);
+            if (user == null)
+            {
+                await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.");
+                throw new SkipCooldownException();
+            }
+
+            var isOnline = await _twitchService.IsStreamOnline(user.Id);
+            if (isOnline == false)
+            {
+                await ServiceBackbone.SendChatMessage("That stream is offline");
+                throw new SkipCooldownException();
+            }
             try
             {
-                var user = await _twitchService.GetUser(targetUser);
-                if (user == null)
-                {
-                    await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.");
-                    throw new SkipCooldownException();
-                }
-
-                var isOnline = await _twitchService.IsStreamOnline(user.Id);
-                if (isOnline == false)
-                {
-                    await ServiceBackbone.SendChatMessage("That stream is offline");
-                    throw new SkipCooldownException();
-                }
                 await _twitchService.RaidStreamer(user.Id);
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var raidHistory = await db.RaidHistory.Where(x => x.Name.Equals(user.Login)).FirstOrDefaultAsync();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var raidHistory = await db.RaidHistory.Find(x => x.Name.Equals(user.Login)).FirstOrDefaultAsync();
                     raidHistory ??= new RaidHistoryEntry
                         {
                             UserId = user.Id,
