@@ -31,6 +31,16 @@ namespace DotNetTwitchBot.Bot.Repository
             return _context.Set<T>().AddRangeAsync(entities);
         }
 
+        public int ExecuteDelete()
+        {
+            return _context.Set<T>().ExecuteDelete();
+        }
+
+        public Task<int> ExecuteDeleteAsync()
+        {
+            return _context.Set<T>().ExecuteDeleteAsync();
+        }
+
         public IQueryable<T> Find(Expression<Func<T, bool>> expression)
         {
             return _context.Set<T>().Where(expression);

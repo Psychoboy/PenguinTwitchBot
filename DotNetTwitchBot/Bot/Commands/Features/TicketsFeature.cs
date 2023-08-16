@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using DotNetTwitchBot.Bot.Core.Database;
+using DotNetTwitchBot.Bot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -66,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await GiveTicketsWithBonusToViewers(activeViewers.Distinct(), amount, 0);
         }
 
-        public async Task GiveTicketsToAllOnlineViewersWithBonus(long amount, long bonusAmount)
+        private async Task GiveTicketsToAllOnlineViewersWithBonus(long amount, long bonusAmount)
         {
             var viewers = _viewerFeature.GetCurrentViewers();
             await GiveTicketsWithBonusToViewers(viewers, amount, bonusAmount);
@@ -92,8 +93,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerTicket? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerPoints = await db.ViewerTickets.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerPoints = await db.ViewerTickets.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
             }
             viewerPoints ??= new ViewerTicket
             {
@@ -110,7 +111,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.ViewerTickets.Update(viewerPoints);
                 await db.SaveChangesAsync();
             }
@@ -124,8 +125,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerTicket? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerPoints = await db.ViewerTickets.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerPoints = await db.ViewerTickets.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
             }
             return viewerPoints == null ? 0 : viewerPoints.Points;
         }
@@ -135,8 +136,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerTicketWithRanks? viewerTickets;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerTickets = await db.ViewerTicketWithRanks.Where(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerTickets = await db.ViewerTicketsWithRank.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
             }
             return viewerTickets;
         }
@@ -220,7 +221,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task ResetAllPoints()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.ViewerTickets.ExecuteDeleteAsync();
             await db.SaveChangesAsync();
         }
