@@ -13,6 +13,7 @@ using System.Timers;
 using Timer = System.Timers.Timer;
 using DotNetTwitchBot.Bot.Repository;
 using TwitchLib.Api.Helix.Models.Users.GetUserFollows;
+using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -130,16 +131,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await AddFollow(e);
         }
 
+        private async Task<Follower?> GetFollower(string username)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Followers.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
+            
+        }
+
         private async Task AddFollow(FollowEventArgs args)
         {
             try
             {
-                Follower? follower;
-                await using (var scope = _scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    follower = await db.Followers.Find(x => x.Username.Equals(args.Username)).FirstOrDefaultAsync();
-                }
+                Follower? follower = await GetFollower(args.Username);
                 if (follower == null)
                 {
                     follower = new Follower
@@ -168,12 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Follower?> GetFollowerAsync(string username)
         {
-            Follower? follower;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                follower = await db.Followers.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
-            }
+            Follower? follower = await GetFollower(username);
             if (follower != null)
             {
                 return follower;
