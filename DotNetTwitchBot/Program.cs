@@ -12,6 +12,7 @@ using MudBlazor.Services;
 using DotNetTwitchBot.Bot.TwitchServices;
 using System.CodeDom;
 using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Bot.Repository.Repositories;
 
 internal class Program
 {
@@ -228,7 +229,7 @@ internal class Program
 
     private static void RegisterDbServices(IServiceCollection services)
     {
-        services.AddSingleton<DotNetTwitchBot.Bot.DataAccess.IAlias, DotNetTwitchBot.Bot.DataAccess.Alias>();
+        services.AddSingleton<DotNetTwitchBot.Bot.DataAccess.IAlias, Alias>();
 
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IDefaultCommandRepository, DefaultCommandRepository>();

@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
-namespace DotNetTwitchBot.Bot.Repository
+namespace DotNetTwitchBot.Bot.Repository.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {

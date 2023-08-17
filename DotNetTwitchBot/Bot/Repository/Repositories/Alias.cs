@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.DataAccess;
 
-namespace DotNetTwitchBot.Bot.DataAccess
+namespace DotNetTwitchBot.Bot.Repository.Repositories
 {
     public class Alias : IAlias
     {

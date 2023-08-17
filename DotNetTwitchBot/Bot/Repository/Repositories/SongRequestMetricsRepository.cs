@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Models.Metrics;
 
-namespace DotNetTwitchBot.Bot.Repository
+namespace DotNetTwitchBot.Bot.Repository.Repositories
 {
     public class SongRequestMetricsRepository : GenericRepository<SongRequestMetric>, ISongRequestMetricsRepository
     {

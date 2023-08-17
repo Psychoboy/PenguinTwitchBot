@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.DataAccess
+﻿namespace DotNetTwitchBot.Bot.Repository.Repositories
 {
     public class CommandHandlerRepository
     {
