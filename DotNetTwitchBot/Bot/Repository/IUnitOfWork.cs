@@ -10,6 +10,8 @@ namespace DotNetTwitchBot.Bot.Repository
         IRaidHistoryRepository RaidHistory { get; }
         ITicketsRepository ViewerTickets { get; }
         ITicketsWithRankRepository ViewerTicketsWithRank { get; }
+        IViewersRepository Viewers { get; }
+        IFollowerRepository Followers { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

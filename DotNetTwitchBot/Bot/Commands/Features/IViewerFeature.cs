@@ -11,7 +11,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<string> GetNameWithTitle(string username);
         Task<Viewer?> GetViewer(int id);
         Task<Viewer?> GetViewer(string username);
-        Task<List<Viewer>> GetViewers();
         Task<bool> IsFollower(string username);
         Task<bool> IsModerator(string username);
         Task<bool> IsSubscriber(string username);

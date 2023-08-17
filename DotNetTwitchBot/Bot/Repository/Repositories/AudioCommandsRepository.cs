@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Repository
+﻿namespace DotNetTwitchBot.Bot.Repository.Repositories
 {
     public class AudioCommandsRepository : GenericRepository<AudioCommand>, IAudioCommandsRepository
     {
