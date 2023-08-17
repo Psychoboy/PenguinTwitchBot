@@ -380,5 +380,37 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             Assert.Null(result);
         }
 
+        [Fact]
+        public async Task IsFollower_ShouldReturnFalse()
+        {
+            //Arrange
+            var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
+            var followerQueryable = new List<Follower> {  }.AsQueryable().BuildMockDbSet();
+            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
+            twitchService.GetUserFollow("test").ReturnsNull();
+
+            //Act
+            var result = await viewerFeature.IsFollower("test");
+
+            //Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task IsFollower_ShouldReturnTrue()
+        {
+            //Arrange
+            var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
+            var followerQueryable = new List<Follower> { testFollower }.AsQueryable().BuildMockDbSet();
+            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
+            twitchService.GetUserFollow("test").ReturnsNull();
+
+            //Act
+            var result = await viewerFeature.IsFollower("test");
+
+            //Assert
+            Assert.True(result);
+        }
+
     }
 }
