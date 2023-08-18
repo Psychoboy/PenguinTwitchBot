@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
@@ -151,8 +148,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 jackpot += amount;
             }
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var jackpotSetting = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("jackpot"));
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var jackpotSetting = await db.Settings.Find(x => x.Name.Equals("jackpot")).FirstOrDefaultAsync();
             jackpotSetting ??= new Setting { Name = "jackpot", LongSetting = 0, DataType = Setting.DataTypeEnum.Long };
             jackpotSetting.LongSetting = jackpot;
             db.Settings.Update(jackpotSetting);
@@ -164,8 +161,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var jackpot = JackpotDefault;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var jackpotSetting = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("jackpot"));
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var jackpotSetting = await db.Settings.Find(x => x.Name.Equals("jackpot")).FirstOrDefaultAsync();
                 if (jackpotSetting != null)
                 {
                     jackpot = jackpotSetting.LongSetting;

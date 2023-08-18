@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -70,8 +67,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task<int> GetCounterValue()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var counterValue = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var counterValue = await db.Settings.Find(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
             if (counterValue == null)
             {
                 return 0;
@@ -84,12 +81,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var counterValue = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var counterValue = await db.Settings.Find(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
                 counterValue ??= new Setting()
-                    {
-                        Name = CountValue
-                    };
+                {
+                    Name = CountValue
+                };
                 counterValue.IntSetting = value;
                 db.Settings.Update(counterValue);
                 await db.SaveChangesAsync();
@@ -101,12 +98,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var setting = await db.Settings.Where(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var setting = await db.Settings.Find(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
                 setting ??= new Setting()
-                    {
-                        Name = SettingName
-                    };
+                {
+                    Name = SettingName
+                };
                 setting.StringSetting = format;
                 db.Settings.Update(setting);
                 await db.SaveChangesAsync();
@@ -117,17 +114,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task UpdateCounter()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var setting = await db.Settings.Where(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = await db.Settings.Find(x => x.Name.Equals(SettingName)).FirstOrDefaultAsync();
             if (setting == null)
             {
                 return;
             }
-            var count = await db.Settings.Where(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
+            var count = await db.Settings.Find(x => x.Name.Equals(CountValue)).FirstOrDefaultAsync();
             count ??= new Setting()
-                {
-                    IntSetting = 0
-                };
+            {
+                IntSetting = 0
+            };
             var format = setting.StringSetting;
             var value = count.IntSetting;
             var text = format.Replace("{value}", value.ToString()).Replace("{nextgoal}", NextValue(value).ToString());

@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using Microsoft.AspNetCore.SignalR;
 using Google.Apis.YouTube.v3;
+using Microsoft.AspNetCore.SignalR;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
@@ -581,7 +581,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         }
 
-    private async Task<Song?> GetSongByLinkOrId(string songLink)
+        private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
             songLink = songLink.Trim();
             string songId;
