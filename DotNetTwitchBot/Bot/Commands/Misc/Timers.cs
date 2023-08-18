@@ -1,13 +1,10 @@
-using System.Collections.Concurrent;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Timers;
+using DotNetTwitchBot.Bot.Repository;
+using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
-using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -50,8 +47,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task<List<TimerGroup>> GetTimerGroupsAsync()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.TimerGroups.Include(x => x.Messages).ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.TimerGroups.Include(x => x.Messages)).ToList();
         }
 
         public async Task<TimerGroup?> GetTimerGroupAsync(int id)

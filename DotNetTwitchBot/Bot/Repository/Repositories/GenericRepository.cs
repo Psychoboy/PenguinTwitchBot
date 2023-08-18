@@ -1,5 +1,4 @@
-﻿using Google;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
 namespace DotNetTwitchBot.Bot.Repository.Repositories
@@ -63,6 +62,17 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
         public async Task<T?> GetByIdAsync(int id)
         {
             return await _context.Set<T>().FindAsync(id);
+        }
+
+        public async Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList)
+        {
+            var query = _context.Set<T>().AsQueryable();
+            foreach (var expression in expressionList)
+            {
+                query = query.Include(expression);
+            }
+
+            return await query.ToListAsync();
         }
 
         public void Remove(T entity)
