@@ -184,9 +184,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<List<GiveawayWinner>> PastWinners()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await db.GiveawayWinners.GetAllAsync()).OrderByDescending(x => x.WinningDate).ToList();
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var winners = await db.GiveawayWinners.GetAllAsync();
+                return winners.OrderByDescending(x => x.WinningDate).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting past winners");
+                return new List<GiveawayWinner> { };
+            }
         }
 
         private async Task AddWinner(Viewer? viewer)
