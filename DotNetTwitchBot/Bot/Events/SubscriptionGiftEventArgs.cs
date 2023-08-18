@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace DotNetTwitchBot.Bot.Events
 {
     public class SubscriptionGiftEventArgs
@@ -10,6 +5,6 @@ namespace DotNetTwitchBot.Bot.Events
         public string? Name { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
         public int GiftAmount { get; set; }
-        public int? TotalGifted { get; internal set; }
+        public int? TotalGifted { get; set; }
     }
 }

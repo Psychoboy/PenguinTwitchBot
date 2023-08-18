@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await db.TimerGroups.Include(x => x.Messages)).ToList();
+            return await db.TimerGroups.GetAsync(includeProperties: "Messages");
         }
 
         public async Task<TimerGroup?> GetTimerGroupAsync(int id)

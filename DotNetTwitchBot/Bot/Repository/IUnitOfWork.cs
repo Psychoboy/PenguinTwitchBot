@@ -16,6 +16,12 @@
         IGiveawayWinnersRepository GiveawayWinners { get; }
         ITimerGroupsRepository TimerGroups { get; }
         IDeathCountersRepository DeathCounters { get; }
+        IViewerMessageCountsRepository ViewerMessageCounts { get; }
+        IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; }
+        IViewerPointsRepository ViewerPoints { get; }
+        IViewerPointWithRanksRepository ViewerPointWithRanks { get; }
+        IViewersTimeRepository ViewersTime { get; }
+        IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

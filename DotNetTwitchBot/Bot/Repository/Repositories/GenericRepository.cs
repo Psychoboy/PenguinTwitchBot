@@ -44,6 +44,67 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
         {
             return _context.Set<T>().Where(expression);
         }
+
+        public IEnumerable<T> Get(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, string includeProperties = "")
+        {
+            IQueryable<T> query = _context.Set<T>();
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (limit != null)
+            {
+                query = query.Take((int)limit);
+            }
+
+            if (orderBy != null)
+            {
+                return orderBy(query).ToList();
+            }
+            else
+            {
+                return query.ToList();
+            }
+        }
+
+        public Task<List<T>> GetAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, string includeProperties = "")
+        {
+            IQueryable<T> query = _context.Set<T>();
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (limit != null)
+            {
+                query = query.Take((int)limit);
+            }
+
+            if (orderBy != null)
+            {
+                return orderBy(query).ToListAsync();
+            }
+            else
+            {
+                return query.ToListAsync();
+            }
+        }
+
         public IEnumerable<T> GetAll()
         {
             return _context.Set<T>();
@@ -64,16 +125,37 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
             return await _context.Set<T>().FindAsync(id);
         }
 
-        public async Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList)
-        {
-            var query = _context.Set<T>().AsQueryable();
-            foreach (var expression in expressionList)
-            {
-                query = query.Include(expression);
-            }
+        //public async Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList)
+        //{
+        //    var query = _context.Set<T>().AsQueryable();
+        //    foreach (var expression in expressionList)
+        //    {
+        //        query = query.Include(expression);
+        //    }
 
-            return await query.ToListAsync();
-        }
+        //    return await query.ToListAsync();
+        //}
+
+        //public async Task<IEnumerable<T>> OrderBy(params Expression<Func<T, object>>[] expressionList)
+        //{
+        //    var query = _context.Set<T>().AsQueryable();
+        //    foreach (var expression in expressionList)
+        //    {
+        //        query = query.OrderBy(expression);
+        //    }
+
+        //    return await query.ToListAsync();
+        //}
+
+        //public IQueryable<T> Query(Expression<Func<T, bool>> expression)
+        //{
+        //    return _context.Set<T>().Where(expression);
+        //}
+
+        //public IQueryable<T> Query()
+        //{
+        //    return _context.Set<T>();
+        //}
 
         public void Remove(T entity)
         {
