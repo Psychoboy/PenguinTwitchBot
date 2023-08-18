@@ -69,7 +69,7 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive),
             typeof(DotNetTwitchBot.Bot.Commands.Misc.First),
             typeof(DotNetTwitchBot.Bot.Commands.Misc.DailyCounter),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounter),
+            typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounters),
             typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen),
             typeof(DotNetTwitchBot.Bot.Commands.Misc.Top),
             typeof(DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem),

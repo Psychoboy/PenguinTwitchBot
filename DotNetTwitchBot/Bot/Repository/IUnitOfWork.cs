@@ -15,6 +15,7 @@
         IGiveawayEntriesRepository GiveawayEntries { get; }
         IGiveawayWinnersRepository GiveawayWinners { get; }
         ITimerGroupsRepository TimerGroups { get; }
+        IDeathCountersRepository DeathCounters { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

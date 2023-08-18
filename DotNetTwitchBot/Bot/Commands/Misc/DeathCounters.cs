@@ -1,24 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DeathCounter : BaseCommandService
+    public class DeathCounters : BaseCommandService
     {
         private readonly ITwitchService _twitchService;
-        private readonly ILogger<DeathCounter> _logger;
+        private readonly ILogger<DeathCounters> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IViewerFeature _viewerFeature;
 
-        public DeathCounter(
+        public DeathCounters(
             ITwitchService twitchService,
-            ILogger<DeathCounter> logger,
+            ILogger<DeathCounters> logger,
             IServiceBackbone serviceBackbone,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
@@ -116,8 +113,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task<Models.DeathCounter> GetCounter(string counterName)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var counter = await db.DeathCounters.FirstOrDefaultAsync(x => x.Game.Equals(counterName));
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var counter = await db.DeathCounters.Find(x => x.Game.Equals(counterName)).FirstOrDefaultAsync();
             counter ??= new Models.DeathCounter
             {
                 Game = counterName
@@ -128,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task UpdateCounter(Models.DeathCounter counter)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.DeathCounters.Update(counter);
             await db.SaveChangesAsync();
         }
