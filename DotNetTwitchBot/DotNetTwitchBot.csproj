@@ -47,7 +47,7 @@
     <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
     <PackageReference Include="TwitchLib.EventSub.Core" Version="2.4.3" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.4.0" />
-    <PackageReference Include="MudBlazor" Version="6.8.0" />
+    <PackageReference Include="MudBlazor" Version="6.9.0" />
   </ItemGroup>
 
   <ItemGroup>
