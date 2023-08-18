@@ -1,9 +1,5 @@
-using System.Collections.Concurrent;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Repository;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -30,6 +26,17 @@ namespace DotNetTwitchBot.Bot.Commands
                 return command;
             }
             return null;
+        }
+
+
+
+        public string GetCommandDefaultName(string commandName)
+        {
+            if (Commands.TryGetValue(commandName, out var command))
+            {
+                return command.CommandProperties.CommandName;
+            }
+            return "";
         }
 
         public void AddCommand(BaseCommandProperties commandProperties, IBaseCommandService commandService)

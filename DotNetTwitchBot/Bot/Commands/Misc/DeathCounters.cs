@@ -37,9 +37,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommand(e.Command);
-            if (command == null) return;
-            if (!command.CommandProperties.CommandName.Equals("death")) return;
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            if (!command.Equals("death")) return;
 
             var game = await _twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))

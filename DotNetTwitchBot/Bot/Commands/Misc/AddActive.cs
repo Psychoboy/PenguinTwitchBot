@@ -37,9 +37,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommand(e.Command);
-            if (command == null) return Task.CompletedTask;
-            switch (command.CommandProperties.CommandName)
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            switch (command)
             {
                 case "addactive":
                     {

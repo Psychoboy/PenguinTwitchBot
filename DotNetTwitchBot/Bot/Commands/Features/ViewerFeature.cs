@@ -1,19 +1,11 @@
-using System.Collections.Concurrent;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Core.Database;
-using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
-using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
-using DotNetTwitchBot.Bot.Repository;
-using TwitchLib.Api.Helix.Models.Users.GetUserFollows;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -136,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.Followers.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
-            
+
         }
 
         private async Task AddFollow(FollowEventArgs args)
@@ -392,9 +384,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommand(e.Command);
-            if (command == null) return Task.CompletedTask;
-            if (command.CommandProperties.CommandName.Equals("lurk"))
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            if (command.Equals("lurk"))
             {
                 _lurkers[e.Name] = DateTime.Now;
             }

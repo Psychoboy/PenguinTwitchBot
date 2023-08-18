@@ -220,10 +220,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "enter" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("enter").Returns(command);
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
 
             // Act
             await giveawayFeature.OnCommand(new object(), commandEvent);
@@ -251,10 +248,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "enter" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("enter").Returns(command);
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
 
             // Act
 
@@ -276,10 +270,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "enter" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("enter").Returns(command);
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
 
             // Act
 
@@ -301,10 +292,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
 
             var commandEvent = new CommandEventArgs { Command = "draw" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "draw" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("draw").Returns(command);
+            commandHandler.GetCommandDefaultName("draw").Returns("draw");
 
             // Act
             await giveawayFeature.OnCommand(new object(), commandEvent);
@@ -329,10 +317,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
 
             var commandEvent = new CommandEventArgs { Command = "close" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "close" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("close").Returns(command);
+            commandHandler.GetCommandDefaultName("close").Returns("close");
 
             // Act
             await giveawayFeature.OnCommand(new object(), commandEvent);
@@ -349,10 +334,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             await giveawayFeature.Close();
 
             var commandEvent = new CommandEventArgs { Command = "resetdraw" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "resetdraw" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("resetdraw").Returns(command);
+            commandHandler.GetCommandDefaultName("resetdraw").Returns("resetdraw");
 
             // Act
             await giveawayFeature.OnCommand(new object(), commandEvent);
@@ -367,10 +349,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
             var commandEvent = new CommandEventArgs { Command = "setprize", Arg = "New Prize Name 2" };
-            var commandBaseProps = new BaseCommandProperties { CommandName = "setprize" };
-            var commandBaseSvc = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandBaseProps, commandBaseSvc);
-            commandHandler.GetCommand("setprize").Returns(command);
+            commandHandler.GetCommandDefaultName("setprize").Returns("setprize");
 
             // Act
             await giveawayFeature.OnCommand(new object(), commandEvent);

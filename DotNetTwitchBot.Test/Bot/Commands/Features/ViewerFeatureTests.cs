@@ -1,7 +1,5 @@
-﻿using Castle.Core.Logging;
-using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
-using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -14,11 +12,6 @@ using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Test.Bot.Commands.Features
 {
@@ -37,7 +30,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly DbSet<Viewer> emptyViewerQueryable;
         private readonly ViewerFeature viewerFeature;
 
-        public ViewerFeatureTests() 
+        public ViewerFeatureTests()
         {
             scopeFactory = Substitute.For<IServiceScopeFactory>();
             dbContext = Substitute.For<IUnitOfWork>();
@@ -52,9 +45,9 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            testViewer = new Viewer { Id = 1, Username = "test", DisplayName = "Test", Title = "Test Title"};
+            testViewer = new Viewer { Id = 1, Username = "test", DisplayName = "Test", Title = "Test Title" };
             viewerQueryable = new List<Viewer> { testViewer }.AsQueryable().BuildMockDbSet();
-            emptyViewerQueryable = new List<Viewer> {  }.AsQueryable().BuildMockDbSet();
+            emptyViewerQueryable = new List<Viewer> { }.AsQueryable().BuildMockDbSet();
 
             viewerFeature = new ViewerFeature(logger, serviceBackbone, twitchService, scopeFactory, commandHandler);
         }
@@ -316,12 +309,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         [Fact]
         public async Task OnCommand_Lurk_ShouldAddToActive()
         {
-            //Arrange
-            var commandProperties = new BaseCommandProperties { CommandName = "lurk"};
-            var commandService = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandProperties, commandService);
-            
-            commandHandler.GetCommand("lurk").Returns(command);
+            //Arrange           
+            commandHandler.GetCommandDefaultName("lurk").Returns("lurk");
 
             //Act
             await viewerFeature.OnCommand(new(), new CommandEventArgs { Name = "test", Command = "lurk" });
@@ -335,7 +324,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> {  }.AsQueryable().BuildMockDbSet();
+            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
             dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").Returns(testFollower);
 
@@ -369,7 +358,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> {  }.AsQueryable().BuildMockDbSet();
+            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
             dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").ReturnsNull();
 
@@ -385,7 +374,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> {  }.AsQueryable().BuildMockDbSet();
+            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
             dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").ReturnsNull();
 

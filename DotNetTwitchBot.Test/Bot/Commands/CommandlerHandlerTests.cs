@@ -1,21 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Discord.Commands;
-using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Repository;
-using DotNetTwitchBot.Pages;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
-using NSubstitute.Core.Arguments;
-using Xunit;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
 {
@@ -29,7 +19,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
-           // commandService.ExecuteAsync().Returns(Task.CompletedTask);
+            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
 
             var commandHandler = new CommandHandler(logger, scopeFactory);
             commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand" }, commandService);
@@ -39,6 +29,48 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
             // Assert
             Assert.NotNull(result);
+        }
+
+        [Fact]
+        public void GetCommandDefaultName_Should_ReturnCommand_IfExists()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandService = Substitute.For<IBaseCommandService>();
+            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand", CommandName = "testcommand" }, commandService);
+
+            // Act
+            var result = commandHandler.GetCommandDefaultName("testCommand");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal("testcommand", result);
+        }
+
+        [Fact]
+        public void GetCommandDefaultName_Should_ReturnEmpty()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var commandService = Substitute.For<IBaseCommandService>();
+            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+
+
+            // Act
+            var result = commandHandler.GetCommandDefaultName("testCommand");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal("", result);
         }
 
         [Fact]
@@ -69,7 +101,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var commandHandler = new CommandHandler(logger, scopeFactory);
 
             // Act
-            commandHandler.AddCommand(new DefaultCommand {CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
+            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
 
             // Assert
             var result = commandHandler.GetCommand("testCommand");
@@ -153,7 +185,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             commandHandler.AddCommand(testCommand, commandService);
             var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
             dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-            
+
 
             var serviceProvider = Substitute.For<IServiceProvider>();
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -163,7 +195,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
             scopeFactory.CreateScope().Returns(scope);
 
-           
+
 
             // Act
             await commandHandler.UpdateDefaultCommand(defaultCommand);
@@ -225,8 +257,8 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
 
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "newCommand", CommandName = "testCommand" };
-           
-            var queryable = new List<DefaultCommand> {  }.AsQueryable().BuildMockDbSet();
+
+            var queryable = new List<DefaultCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 

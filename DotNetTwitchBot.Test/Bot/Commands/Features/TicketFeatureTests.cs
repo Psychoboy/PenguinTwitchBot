@@ -1,8 +1,5 @@
-﻿using Castle.Core.Logging;
-using Discord.Rest;
-using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
-using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Repository;
@@ -10,11 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Test.Bot.Commands.Features
 {
@@ -109,7 +101,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
             //Act
-            await ticketFeature.GiveTicketsWithBonusToViewers(new List<string> { "test"}, 5, 5);
+            await ticketFeature.GiveTicketsWithBonusToViewers(new List<string> { "test" }, 5, 5);
 
             //Assert
             Assert.Equal(5, testUser.Points);
@@ -138,7 +130,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicket> { testUser }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var testViewer = new Viewer { isSub = true};
+            var testViewer = new Viewer { isSub = true };
             viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
@@ -393,7 +385,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<ViewerTicket> {}.AsQueryable().BuildMockDbSet();
+            var queryable = new List<ViewerTicket> { }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
@@ -543,9 +535,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicketWithRanks> { viewerTicket }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTicketsWithRank.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var testCommandProperties = new BaseCommandProperties { CommandName = "tickets" };
-            var testCommand = new Command(testCommandProperties, Substitute.For<IBaseCommandService>());
-            commandHandler.GetCommand("tickets").Returns(testCommand);
+            commandHandler.GetCommandDefaultName("tickets").Returns("tickets");
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
             var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
@@ -581,9 +571,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicketWithRanks> { }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTicketsWithRank.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var testCommandProperties = new BaseCommandProperties { CommandName = "tickets" };
-            var testCommand = new Command(testCommandProperties, Substitute.For<IBaseCommandService>());
-            commandHandler.GetCommand("tickets").Returns(testCommand);
+            commandHandler.GetCommandDefaultName("tickets").Returns("tickets");
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
             var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
@@ -620,9 +608,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicket> { testViewerTickets }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var testCommandProperties = new BaseCommandProperties { CommandName = "givetickets" };
-            var testCommand = new Command(testCommandProperties, Substitute.For<IBaseCommandService>());
-            commandHandler.GetCommand("givetickets").Returns(testCommand);
+            commandHandler.GetCommandDefaultName("givetickets").Returns("givetickets");
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
             var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
@@ -631,7 +617,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
                 Name = "Test",
                 DisplayName = "Test",
                 TargetUser = "Test",
-                Args = new List<string> {"", "10"}
+                Args = new List<string> { "", "10" }
             };
             //Act
             await ticketFeature.OnCommand(null, eventArgs);
@@ -686,9 +672,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
 
-            var testCommandProperties = new BaseCommandProperties { CommandName = "resettickets" };
-            var testCommand = new Command(testCommandProperties, Substitute.For<IBaseCommandService>());
-            commandHandler.GetCommand("resettickets").Returns(testCommand);
+            commandHandler.GetCommandDefaultName("resettickets").Returns("resettickets");
 
             var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
             {
