@@ -6,7 +6,7 @@ using DotNetTwitchBot.Bot.Models;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
-namespace DotNetTwitchBot.Test.Bot.Commands.Metrics
+namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 {
     public class AddActiveTests
     {

@@ -22,6 +22,7 @@ namespace DotNetTwitchBot.Bot.Repository
             GiveawayEntries = new GiveawayEntriesRepository(_context);
             GiveawayWinners = new GiveawayWinnersRepository(_context);
             TimerGroups = new TimerGroupsRepository(_context);
+            DeathCounters = new DeathCountersRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -37,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public IGiveawayEntriesRepository GiveawayEntries { get; private set; }
         public IGiveawayWinnersRepository GiveawayWinners { get; private set; }
         public ITimerGroupsRepository TimerGroups { get; private set; }
+        public IDeathCountersRepository DeathCounters { get; private set; }
 
         public void Dispose()
         {
