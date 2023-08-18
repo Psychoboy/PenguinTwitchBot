@@ -1,5 +1,4 @@
-﻿using Discord.Commands;
-using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
@@ -9,13 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
-using NSubstitute.ClearExtensions;
 using NSubstitute.ReturnsExtensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Test.Bot.Commands.Misc
@@ -153,7 +146,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<RaidHistoryEntry> {}.AsQueryable().BuildMockDbSet();
+            var queryable = new List<RaidHistoryEntry> { }.AsQueryable().BuildMockDbSet();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             twitchService.GetUserId(Arg.Any<string>()).Returns("");
@@ -187,7 +180,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
                 UserId = "123"
             };
             var queryable = new List<RaidHistoryEntry> { testRaidHistory }.AsQueryable().BuildMockDbSet();
-            var emptyQueryable = new List<RaidHistoryEntry> {  }.AsQueryable().BuildMockDbSet();
+            var emptyQueryable = new List<RaidHistoryEntry> { }.AsQueryable().BuildMockDbSet();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable, emptyQueryable);
 
             serviceBackbone.IsOnline = true;
@@ -226,14 +219,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             twitchService.GetUser("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
-            var commandProperties = new BaseCommandProperties
-            { CommandName = "raid"};
-
-            commandHandler.GetCommand("raid").Returns(new Command
-            (
-                 commandProperties,
-                Substitute.For<IBaseCommandService>()
-            ));
+            commandHandler.GetCommandDefaultName("raid").Returns("raid");
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, commandHandler);
             //Act

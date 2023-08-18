@@ -1,16 +1,9 @@
-using System.Collections.Concurrent;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
-using DotNetTwitchBot.Bot.TwitchServices;
-using DotNetTwitchBot.Bot.Commands.Features;
-using Timer = System.Timers.Timer;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
-using System.Reflection;
+using DotNetTwitchBot.Bot.TwitchServices;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -143,9 +136,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommand(e.Command);
-            if (command == null) return;
-            switch (command.CommandProperties.CommandName)
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            switch (command)
             {
                 case "raid":
                     await Raid(e.TargetUser);
@@ -176,11 +168,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var raidHistory = await db.RaidHistory.Find(x => x.Name.Equals(user.Login)).FirstOrDefaultAsync();
                     raidHistory ??= new RaidHistoryEntry
-                        {
-                            UserId = user.Id,
-                            Name = user.Login,
-                            DisplayName = user.DisplayName
-                        };
+                    {
+                        UserId = user.Id,
+                        Name = user.Login,
+                        DisplayName = user.DisplayName
+                    };
                     raidHistory.TotalOutgoingRaids++;
                     raidHistory.TotalOutGoingRaidViewers += await _twitchService.GetViewerCount();
                     raidHistory.LastOutgoingRaid = DateTime.Now;

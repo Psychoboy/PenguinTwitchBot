@@ -50,11 +50,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
             deathCounters = new DeathCounters(twitchService, logger, serviceBackbone, viewerFeature, scopeFactory, commandHandler);
 
-            var commandProperties = new BaseCommandProperties { CommandName = "death" };
-            var commandService = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandProperties, commandService);
 
-            commandHandler.GetCommand("death").Returns(command);
+            commandHandler.GetCommandDefaultName("death").Returns("death");
             viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("TheStreamer");
         }
 

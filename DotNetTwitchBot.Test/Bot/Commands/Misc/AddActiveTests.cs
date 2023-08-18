@@ -2,7 +2,6 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Models;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -64,11 +63,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var addActive = new AddActiveStub(dateTime, logger, serviceBackbone, ticketsFeature, commandHandler);
             addActive.ExecuteTimesUntilNow = 2;
 
-            var commandProperties = new BaseCommandProperties { CommandName = "addactive" };
-            var commandService = Substitute.For<IBaseCommandService>();
-            var command = new Command(commandProperties, commandService);
-
-            commandHandler.GetCommand("addactive").Returns(command);
+            commandHandler.GetCommandDefaultName("addactive").Returns("addactive");
 
             //Act
             await addActive.OnCommand(new(), new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs { Command = "addactive", Args = new List<string> { "10" } });
