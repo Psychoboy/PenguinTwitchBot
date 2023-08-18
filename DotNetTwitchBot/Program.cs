@@ -229,12 +229,7 @@ internal class Program
 
     private static void RegisterDbServices(IServiceCollection services)
     {
-        services.AddSingleton<DotNetTwitchBot.Bot.DataAccess.IAlias, Alias>();
-
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-        services.AddScoped<IDefaultCommandRepository, DefaultCommandRepository>();
-        services.AddScoped<IAudioCommandsRepository, AudioCommandsRepository>();
-        services.AddScoped<ISongRequestMetricsRepository, SongRequestMetricsRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
     }
 
