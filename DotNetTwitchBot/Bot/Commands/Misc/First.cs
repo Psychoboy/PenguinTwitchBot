@@ -13,13 +13,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
         private readonly int MaxClaims = 60;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         private readonly ILogger<First> _logger;
 
         public First(
             IServiceBackbone eventService,
             ILogger<First> logger,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
         ) : base(eventService, commandHandler)
         {

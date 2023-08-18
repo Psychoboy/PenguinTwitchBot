@@ -1,17 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using System.Timers;
 using Timer = System.Timers.Timer;
-using DotNetTwitchBot.Bot.Core.Database;
-using DotNetTwitchBot.Bot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class TicketsFeature : BaseCommandService
+    public class TicketsFeature : BaseCommandService, ITicketsFeature
     {
         private readonly ILogger<TicketsFeature> _logger;
 

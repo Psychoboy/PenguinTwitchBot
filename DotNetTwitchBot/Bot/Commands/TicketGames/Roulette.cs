@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     public class Roulette : BaseCommandService
     {
         private readonly int MustBeatValue = 52;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         private readonly ConcurrentDictionary<string, int> TotalGambled = new();
         private readonly int MaxAmount = 1000;
         private readonly int MaxPerBet = 500;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public Roulette(
             IServiceBackbone serviceBackbone,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler,
             ILogger<Roulette> logger
         ) : base(serviceBackbone, commandHandler)

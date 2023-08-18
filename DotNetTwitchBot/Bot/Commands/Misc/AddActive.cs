@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class AddActive : BaseCommandService
     {
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         readonly Timer _ticketsToActiveCommandTimer;
         private long _ticketsToGiveOut = 0;
         private DateTime _lastTicketsAdded = DateTime.Now;
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public AddActive(
             ILogger<AddActive> logger,
             IServiceBackbone eventService,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
         ) : base(eventService, commandHandler)
         {

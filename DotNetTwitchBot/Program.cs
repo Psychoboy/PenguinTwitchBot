@@ -1,18 +1,16 @@
+global using DotNetTwitchBot.Bot.Core.Database;
+global using DotNetTwitchBot.Bot.Models;
+global using Microsoft.EntityFrameworkCore;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
-global using Microsoft.EntityFrameworkCore;
-global using DotNetTwitchBot.Bot.Models;
-global using DotNetTwitchBot.Bot.Core.Database;
-using Quartz;
 using DotNetTwitchBot.Bot.Core;
-using Serilog;
-using TwitchLib.EventSub.Websockets.Extensions;
-using MudBlazor.Services;
-
-using DotNetTwitchBot.Bot.TwitchServices;
-using System.CodeDom;
 using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.Repository.Repositories;
+using DotNetTwitchBot.Bot.TwitchServices;
+using MudBlazor.Services;
+using Quartz;
+using Serilog;
+using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program
 {
@@ -60,7 +58,6 @@ internal class Program
         //Add Features Here:
         var commands = new List<Type>
         {
-            typeof(DotNetTwitchBot.Bot.Commands.Features.TicketsFeature),
             typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
             typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle),
@@ -238,6 +235,8 @@ internal class Program
         var commands = new List<Type>();
         services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.IViewerFeature, DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature));
+        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature, DotNetTwitchBot.Bot.Commands.Features.TicketsFeature>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature));
 
         return commands;
     }

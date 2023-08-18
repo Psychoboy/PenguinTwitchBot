@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected string _emote;
         protected string _command;
         protected string _name;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
 
         protected int WinAmount { get; set; } = 0;
 
@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         protected BaseRaffle(
             IServiceBackbone eventService,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler,
             string emote,
             string command,

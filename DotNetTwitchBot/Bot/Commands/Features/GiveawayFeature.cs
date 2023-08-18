@@ -1,32 +1,27 @@
-using System.Security.Cryptography;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models.Giveaway;
-using EFCore.BulkExtensions;
-using Microsoft.AspNetCore.SignalR;
 using DotNetTwitchBot.Bot.Hubs;
+using DotNetTwitchBot.Bot.Models.Giveaway;
+using DotNetTwitchBot.Bot.Repository;
+using Microsoft.AspNetCore.SignalR;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
     public class GiveawayFeature : BaseCommandService
     {
         private readonly ILogger<GiveawayFeature> _logger;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<GiveawayHub> _hubContext;
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
+        private readonly string PrizeSettingName = "GiveawayPrize";
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
             IServiceBackbone serviceBackbone,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             IViewerFeature viewerFeature,
             IHubContext<GiveawayHub> hubContext,
             IServiceScopeFactory scopeFactory,
@@ -98,9 +93,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<string> GetPrize()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var prize = await db.Settings.Where(x => x.Name.Equals("GiveawayPrize")).FirstOrDefaultAsync();
+            var prize = await GetCurrentPrize();
             if (prize == null)
             {
                 return "No Prize";
@@ -111,29 +104,49 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
+        private async Task<Setting?> GetCurrentPrize()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var prize = await db.Settings.Find(x => x.Name.Equals(PrizeSettingName)).FirstOrDefaultAsync();
+            return prize;
+        }
+
         public async Task SetPrize(string arg)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            var prize = await GetCurrentPrize();
+            prize ??= new Setting()
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var prize = await db.Settings.Where(x => x.Name.Equals("GiveawayPrize")).FirstOrDefaultAsync();
-                prize ??= new Setting()
-                {
-                    Name = "GiveawayPrize"
-                };
-                prize.StringSetting = arg;
-                db.Update(prize);
-                await db.SaveChangesAsync();
-            }
+                Name = PrizeSettingName
+            };
+            prize.StringSetting = arg;
+            await AddOrUpdatePrize(prize);
             await _hubContext.Clients.All.SendAsync("Prize", arg);
         }
+
+        private async Task AddOrUpdatePrize(Setting prize)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            if (prize.Id == null)
+            {
+                await db.Settings.AddAsync(prize);
+            }
+            else
+            {
+                db.Settings.Update(prize);
+            }
+            await db.SaveChangesAsync();
+        }
+
+        public List<string> ClosedTickets { get { return Tickets; } }
 
         public async Task Close()
         {
             Tickets.Clear();
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var entries = await db.GiveawayEntries.ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var entries = await db.GiveawayEntries.GetAllAsync();
             foreach (var entry in entries)
             {
                 Tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
@@ -143,9 +156,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task Reset()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.GiveawayEntries.ExecuteDeleteAsync();
             await db.SaveChangesAsync();
+            Tickets.Clear();
         }
 
         public async Task Draw()
@@ -171,8 +185,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<List<GiveawayWinner>> PastWinners()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.GiveawayWinners.OrderByDescending(x => x.WinningDate).ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.GiveawayWinners.GetAllAsync()).OrderByDescending(x => x.WinningDate).ToList();
         }
 
         private async Task AddWinner(Viewer? viewer)
@@ -182,14 +196,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var prize = await GetPrize();
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var winner = new GiveawayWinner()
                 {
                     Username = viewer.DisplayName,
                     Prize = prize
                 };
                 Winners.Add(winner);
-                db.GiveawayWinners.Add(winner);
+                await db.GiveawayWinners.AddAsync(winner);
                 await db.SaveChangesAsync();
             }
             await _hubContext.Clients.All.SendAsync("Winners", Winners);
@@ -241,8 +255,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var giveawayEntries = await db.GiveawayEntries.FirstOrDefaultAsync(x => x.Username.Equals(sender));
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
                 giveawayEntries ??= new GiveawayEntry
                 {
                     Username = sender
@@ -256,8 +270,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task<long> GetEntriesCount(string sender)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var giveawayEntries = await db.GiveawayEntries.FirstOrDefaultAsync(x => x.Username.Equals(sender));
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
             giveawayEntries ??= new GiveawayEntry
             {
                 Username = sender

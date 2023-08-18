@@ -11,6 +11,9 @@
         IViewersRepository Viewers { get; }
         IFollowerRepository Followers { get; }
         IAliasRepository Aliases { get; }
+        ISettingsRepository Settings { get; }
+        IGiveawayEntriesRepository GiveawayEntries { get; }
+        IGiveawayWinnersRepository GiveawayWinners { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

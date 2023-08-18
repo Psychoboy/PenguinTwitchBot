@@ -1,14 +1,6 @@
-using System.Data.Common;
-using System.ComponentModel.Design;
-using System.Drawing;
-using System.Collections;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -17,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class LoyaltyFeature : BaseCommandService
     {
         private readonly IViewerFeature _viewerFeature;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _intervalTimer;
         private readonly ILogger<LoyaltyFeature> _logger;
@@ -27,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone eventService,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
             ) : base(eventService, commandHandler)
         {

@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Repository
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
-        
+
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
@@ -18,6 +18,9 @@ namespace DotNetTwitchBot.Bot.Repository
             Viewers = new ViewersRepository(_context);
             Followers = new FollowerRepository(_context);
             Aliases = new AliasRepository(_context);
+            Settings = new SettingsRepository(_context);
+            GiveawayEntries = new GiveawayEntriesRepository(_context);
+            GiveawayWinners = new GiveawayWinnersRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -26,9 +29,12 @@ namespace DotNetTwitchBot.Bot.Repository
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public ITicketsRepository ViewerTickets { get; private set; }
         public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
-        public IViewersRepository Viewers{ get; private set; }
+        public IViewersRepository Viewers { get; private set; }
         public IFollowerRepository Followers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
+        public ISettingsRepository Settings { get; private set; }
+        public IGiveawayEntriesRepository GiveawayEntries { get; private set; }
+        public IGiveawayWinnersRepository GiveawayWinners { get; private set; }
 
         public void Dispose()
         {

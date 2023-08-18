@@ -15,12 +15,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
         private readonly IViewerFeature _viewerFeature;
-        private readonly TicketsFeature _ticketsFeature;
+        private readonly ITicketsFeature _ticketsFeature;
         private readonly ILogger<DuelGame> _logger;
 
         public DuelGame(
             IServiceBackbone serviceBackbone,
-            TicketsFeature ticketsFeature,
+            ITicketsFeature ticketsFeature,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
             ILogger<DuelGame> logger
