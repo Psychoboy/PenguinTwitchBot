@@ -14,6 +14,7 @@
         ISettingsRepository Settings { get; }
         IGiveawayEntriesRepository GiveawayEntries { get; }
         IGiveawayWinnersRepository GiveawayWinners { get; }
+        ITimerGroupsRepository TimerGroups { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

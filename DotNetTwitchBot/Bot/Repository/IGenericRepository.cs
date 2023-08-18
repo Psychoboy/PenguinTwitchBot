@@ -20,5 +20,6 @@ namespace DotNetTwitchBot.Bot.Repository
         void UpdateRange(IEnumerable<T> entities);
         int ExecuteDelete();
         Task<int> ExecuteDeleteAsync();
+        Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList);
     }
 }
