@@ -1,5 +1,4 @@
-﻿using DotNetTwitchBot.Bot.DataAccess;
-using DotNetTwitchBot.Bot.Repository.Repositories;
+﻿using DotNetTwitchBot.Bot.Repository.Repositories;
 
 namespace DotNetTwitchBot.Bot.Repository
 {
@@ -18,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Repository
             ViewerTicketsWithRank = new TicketsWithRankRepository(_context);
             Viewers = new ViewersRepository(_context);
             Followers = new FollowerRepository(_context);
+            Aliases = new AliasRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -28,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
         public IViewersRepository Viewers{ get; private set; }
         public IFollowerRepository Followers { get; private set; }
+        public IAliasRepository Aliases { get; private set; }
 
         public void Dispose()
         {
