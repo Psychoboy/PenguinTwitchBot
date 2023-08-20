@@ -1,13 +1,9 @@
-using System.Collections.Concurrent;
-using System.Reflection.Emit;
-using System.Text.RegularExpressions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
@@ -33,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 await db.WordFilters.AddAsync(wordFilter);
                 await db.SaveChangesAsync();
             }
@@ -44,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.WordFilters.Update(wordFilter);
                 await db.SaveChangesAsync();
             }
@@ -55,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.WordFilters.Remove(wordFilter);
                 await db.SaveChangesAsync();
             }
@@ -65,8 +61,8 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public async Task<WordFilter?> GetWordFilter(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.WordFilters.Where(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.WordFilters.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public List<WordFilter> GetBlackList()
@@ -102,9 +98,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public async Task LoadBlacklist()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             _blackList.Clear();
-            _blackList.AddRange(await db.WordFilters.OrderBy(x => x.Id).ToListAsync());
+            _blackList.AddRange(await db.WordFilters.GetAsync(orderBy: x => x.OrderBy(y => y.Id)));
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

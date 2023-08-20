@@ -1,10 +1,5 @@
-using System;
+using DotNetTwitchBot.Bot.Repository;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
@@ -58,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.KnownBots.Add(knownBot);
                 await db.SaveChangesAsync();
             }
@@ -69,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.KnownBots.Remove(knownBot);
                 await db.SaveChangesAsync();
             }
@@ -84,8 +79,8 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public async Task LoadKnownBots()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var knownBots = await db.KnownBots.ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var knownBots = await db.KnownBots.GetAllAsync();
             _knownBots.Clear();
             _knownBots.AddRange(knownBots);
         }

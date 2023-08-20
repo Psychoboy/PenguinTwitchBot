@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
@@ -65,8 +62,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (Int32.TryParse(e.Args[0], out var id))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var quote = await db.Quotes.FirstOrDefaultAsync(x => x.Id == id);
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var quote = await db.Quotes.Find(x => x.Id == id).FirstOrDefaultAsync();
                 if (quote == null)
                 {
                     await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't find that id.");
@@ -106,7 +103,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task<QuoteType> AddQuote(QuoteType quote)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.Quotes.Add(quote);
             await db.SaveChangesAsync();
             return quote;
@@ -121,8 +118,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 if (int.TryParse(searchParam.Trim(), out int quoteId))
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    quote = await db.Quotes.Where(x => x.Id == quoteId).FirstOrDefaultAsync();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    quote = await db.Quotes.Find(x => x.Id == quoteId).FirstOrDefaultAsync();
                 }
                 else
                 {
@@ -134,16 +131,16 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (quote == null && !string.IsNullOrWhiteSpace(searchParam))
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                quote = db.Quotes.Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                quote = db.Quotes.Find(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
             }
 
 
             if (quote == null)
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                quote = db.Quotes.RandomElement();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                quote = (await db.Quotes.GetAllAsync()).RandomElement();
             }
             if (quote != null)
             {
