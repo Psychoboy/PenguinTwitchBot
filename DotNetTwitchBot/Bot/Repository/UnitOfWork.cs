@@ -37,6 +37,10 @@ namespace DotNetTwitchBot.Bot.Repository
             TimerMessages = new TimerMessagesRepository(_context);
             WordFilters = new WordFiltersRepository(_context);
             KnownBots = new KnowBotsRepository(_context);
+            Playlists = new PlaylistsRepository(_context);
+            SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
+            Songs = new SongsRepository(_context);
+            SongRequestViewItems = new SongRequestViewItemsRepository(_context);
 
         }
 
@@ -68,6 +72,10 @@ namespace DotNetTwitchBot.Bot.Repository
         public ITimerMessagesRepository TimerMessages { get; private set; }
         public IWordFiltersRepository WordFilters { get; private set; }
         public IKnownBotsRepository KnownBots { get; private set; }
+        public IPlaylistsRepository Playlists { get; private set; }
+        public ISubscriptionHistoriesRepository SubscriptionHistories { get; private set; }
+        public ISongsRepository Songs { get; private set; }
+        public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
 
         public void Dispose()
         {

@@ -30,6 +30,10 @@
         ITimerMessagesRepository TimerMessages { get; }
         IWordFiltersRepository WordFilters { get; }
         IKnownBotsRepository KnownBots { get; }
+        IPlaylistsRepository Playlists { get; }
+        ISubscriptionHistoriesRepository SubscriptionHistories { get; }
+        ISongsRepository Songs { get; }
+        ISongRequestViewItemsRepository SongRequestViewItems { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
