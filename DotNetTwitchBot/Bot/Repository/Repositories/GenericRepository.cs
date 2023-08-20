@@ -125,37 +125,6 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
             return await _context.Set<T>().FindAsync(id);
         }
 
-        //public async Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList)
-        //{
-        //    var query = _context.Set<T>().AsQueryable();
-        //    foreach (var expression in expressionList)
-        //    {
-        //        query = query.Include(expression);
-        //    }
-
-        //    return await query.ToListAsync();
-        //}
-
-        //public async Task<IEnumerable<T>> OrderBy(params Expression<Func<T, object>>[] expressionList)
-        //{
-        //    var query = _context.Set<T>().AsQueryable();
-        //    foreach (var expression in expressionList)
-        //    {
-        //        query = query.OrderBy(expression);
-        //    }
-
-        //    return await query.ToListAsync();
-        //}
-
-        //public IQueryable<T> Query(Expression<Func<T, bool>> expression)
-        //{
-        //    return _context.Set<T>().Where(expression);
-        //}
-
-        //public IQueryable<T> Query()
-        //{
-        //    return _context.Set<T>();
-        //}
 
         public void Remove(T entity)
         {

@@ -20,10 +20,6 @@ namespace DotNetTwitchBot.Bot.Repository
         void UpdateRange(IEnumerable<T> entities);
         int ExecuteDelete();
         Task<int> ExecuteDeleteAsync();
-        //Task<IEnumerable<T>> Include(params Expression<Func<T, object>>[] expressionList);
-        //IQueryable<T> Query(Expression<Func<T, bool>> expression);
-        //IQueryable<T> Query();
-
         IEnumerable<T> Get(
            Expression<Func<T, bool>>? filter = null,
            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,

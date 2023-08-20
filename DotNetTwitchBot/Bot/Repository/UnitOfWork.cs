@@ -55,6 +55,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public void Dispose()
         {
             _context.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public int SaveChanges()

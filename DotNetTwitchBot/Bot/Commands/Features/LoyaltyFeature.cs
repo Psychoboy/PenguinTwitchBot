@@ -171,6 +171,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var activeViewers = _viewerFeature.GetActiveViewers();
             foreach (var viewer in activeViewers)
             {
+                if (ServiceBackbone.IsKnownBot(viewer)) continue;
                 await AddPointsToViewer(viewer, 10);
             }
         }
@@ -204,7 +205,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "addpasties":
                     if (e.Args.Count < 2) return;
                     if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
-                    if (Int32.TryParse(e.Args[1], out var points))
+                    if (long.TryParse(e.Args[1], out var points))
                     {
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
@@ -237,7 +238,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException();
             }
 
-            if (!Int64.TryParse(e.Args[1], out long amount))
+            if (!long.TryParse(e.Args[1], out long amount))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
                 throw new SkipCooldownException();
@@ -260,12 +261,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
-        public async Task<Int64> GetMaxPointsFromUser(string target)
+        public async Task<long> GetMaxPointsFromUser(string target)
         {
             return await GetMaxPointsFromUser(target, MaxBet);
         }
 
-        public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max)
+        public async Task<long> GetMaxPointsFromUser(string target, long max)
         {
             var viewerPoints = await GetUserPasties(target);
             long maxPoints;
@@ -373,8 +374,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            //return await db.ViewerMessageCountsWithRank.GetTopN(topN);
-            return await db.ViewerMessageCountsWithRank.GetAsync(limit: 10);
+            return await db.ViewerMessageCountsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
         public async Task<ViewerPoint> GetUserPasties(string Name)

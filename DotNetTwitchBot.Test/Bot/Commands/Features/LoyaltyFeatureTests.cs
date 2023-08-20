@@ -136,7 +136,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
 
         [Fact]
-        public async Task OnChangeMessage_ShouldUpdateMessageCount()
+        public async Task OnChatMessage_ShouldUpdateMessageCount()
         {
             // Arrange
             var testViewer = new ViewerMessageCount();
@@ -156,7 +156,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         }
 
         [Fact]
-        public async Task OnChangeMessage_ShouldCreateMessageCount()
+        public async Task OnChatMessage_ShouldCreateMessageCount()
         {
             // Arrange
             var queryable = new List<ViewerMessageCount> { }.AsQueryable().BuildMockDbSet();
@@ -171,6 +171,378 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Assert
             dbContext.ViewerMessageCounts.Received(1).Update(Arg.Any<ViewerMessageCount>());
             await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task AddPointsToViewer_ShouldCreateViewer()
+        {
+            // Arrange
+            var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            await loyaltyFeature.AddPointsToViewer("test", 5);
+
+            // Assert
+            dbContext.ViewerPoints.Received(1).Update(Arg.Any<ViewerPoint>());
+            await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task AddPointsToViewer_ShouldUpdateViewer()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint();
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            await loyaltyFeature.AddPointsToViewer("test", 5);
+
+            // Assert
+            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
+            await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task UpdatePointsAndTime_ShouldGivePointsAndUpdateTime()
+        {
+            // Arrange
+            var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            var timeQuerable = new List<ViewerTime> { }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewersTime.Find(x => true).ReturnsForAnyArgs(timeQuerable);
+            viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
+            viewerFeature.GetActiveViewers().Returns(new List<string> { "test" });
+            serviceBackbone.IsKnownBot("test").Returns(false);
+            serviceBackbone.IsOnline = true;
+
+            // Act
+            await loyaltyFeature.UpdatePointsAndTime();
+
+            // Assert
+            dbContext.ViewerPoints.Received(2).Update(Arg.Any<ViewerPoint>());
+            await dbContext.Received(3).SaveChangesAsync();
+        }
+
+
+        [Fact]
+        public async Task OnCommand_CheckPasties_NoPasties()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint();
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            var commandEventArgs = new CommandEventArgs { TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
+            commandHandler.GetCommandDefaultName("check").Returns("check");
+
+            // Act
+            await loyaltyFeature.OnCommand(new object(), commandEventArgs);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage("TestDisplay", "TestTarget has no pasties or doesn't exist.");
+
+        }
+
+        [Fact]
+        public async Task OnCommand_CheckPasties_HasPasties()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 1000 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            var commandEventArgs = new CommandEventArgs { TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
+            commandHandler.GetCommandDefaultName("check").Returns("check");
+
+            // Act
+            await loyaltyFeature.OnCommand(new object(), commandEventArgs);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage("TestDisplay", "TestTarget has 1,000 pasties.");
+
+        }
+
+        [Fact]
+        public async Task OnCommand_Gift_ShouldGiftPasaties()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 100 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            var targetViewerPoint = new ViewerPoint { Points = 10 };
+            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "gift",
+                Name = "TestName",
+                Args = new List<string> { "testuser", "10" }
+            };
+            commandHandler.GetCommandDefaultName("gift").Returns("gift");
+
+            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+
+            // Act
+            await loyaltyFeature.OnCommand(this, commandEventArgs);
+
+            // Assert
+            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
+            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
+            Assert.Equal(90, viewerPoint.Points);
+            Assert.Equal(20, targetViewerPoint.Points);
+            await dbContext.Received(2).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task OnCommand_Gift_CantGiftToSelf()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 100 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            var targetViewerPoint = new ViewerPoint { Points = 10 };
+            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestName",
+                DisplayName = "TestDisplay",
+                Command = "gift",
+                Name = "TestName",
+                Args = new List<string> { "testuser", "10" }
+            };
+            commandHandler.GetCommandDefaultName("gift").Returns("gift");
+
+            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+
+            // Act
+
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await loyaltyFeature.OnCommand(this, commandEventArgs));
+        }
+
+        [Fact]
+        public async Task OnCommand_Gift_ShouldThrowBadAmount()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 100 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            var targetViewerPoint = new ViewerPoint { Points = 10 };
+            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "gift",
+                Name = "TestName",
+                Args = new List<string> { "testuser", "bad" }
+            };
+            commandHandler.GetCommandDefaultName("gift").Returns("gift");
+
+            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+
+            // Act
+
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await loyaltyFeature.OnCommand(this, commandEventArgs));
+        }
+
+        [Fact]
+        public async Task OnCommand_Gift_ShouldThrowNoViewer()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 100 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            var targetViewerPoint = new ViewerPoint { Points = 10 };
+            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "gift",
+                Name = "TestName",
+                Args = new List<string> { "testuser", "10" }
+            };
+            commandHandler.GetCommandDefaultName("gift").Returns("gift");
+
+            // Act
+
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await loyaltyFeature.OnCommand(this, commandEventArgs));
+        }
+
+        [Fact]
+        public async Task OnCommand_Gift_ShouldThrowNotEnough()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 1 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            var targetViewerPoint = new ViewerPoint { Points = 10 };
+            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "gift",
+                Name = "TestName",
+                Args = new List<string> { "testuser", "10" }
+            };
+            commandHandler.GetCommandDefaultName("gift").Returns("gift");
+
+            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+
+            // Act
+
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await loyaltyFeature.OnCommand(this, commandEventArgs));
+        }
+
+        [Fact]
+        public async Task OnCommand_Pasties_ShouldSayPasties()
+        {
+            // Arrange
+            var viewerPointWithRank = new ViewerPointWithRank { Points = 1 };
+            var pointQueryable = new List<ViewerPointWithRank> { viewerPointWithRank }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPointWithRanks.Find(x => true).ReturnsForAnyArgs(pointQueryable);
+
+            var viewerTimeWithRank = new ViewerTimeWithRank();
+            var timeQueryable = new List<ViewerTimeWithRank> { viewerTimeWithRank }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewersTimeWithRank.Find(x => true).ReturnsForAnyArgs(timeQueryable);
+
+            var viewerMessageCountWithRank = new ViewerMessageCountWithRank();
+            var messageQueryable = new List<ViewerMessageCountWithRank> { viewerMessageCountWithRank }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerMessageCountsWithRank.Find(x => true).ReturnsForAnyArgs(messageQueryable);
+
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "pasties",
+                Name = "TestName"
+            };
+            commandHandler.GetCommandDefaultName("pasties").Returns("pasties");
+            viewerFeature.GetNameWithTitle("TestName").Returns("TestNameWithTitle");
+
+            // Act
+            await loyaltyFeature.OnCommand(this, commandEventArgs);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage("TestNameWithTitle Watch time: [0 sec] - sptvBacon Pasties: [#0, 1] - Messages: [#0, 0 Messages]");
+        }
+
+        [Fact]
+        public async Task OnCommand_AddPasties_ShouldAddPasties()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 10 };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            var commandEventArgs = new CommandEventArgs
+            {
+                TargetUser = "TestTarget",
+                DisplayName = "TestDisplay",
+                Command = "addpasties",
+                Name = "TestName",
+                Args = new List<string> { "targetuser", "100" }
+            };
+            commandHandler.GetCommandDefaultName("addpasties").Returns("addpasties");
+
+            // Act
+            await loyaltyFeature.OnCommand(this, commandEventArgs);
+
+            // Assert
+            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
+            await dbContext.Received(1).SaveChangesAsync();
+            Assert.Equal(110, viewerPoint.Points);
+        }
+
+        [Fact]
+        public async Task GetUserPasties_ShouldReturnPoints()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 10, Username = "testname" };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            var points = await loyaltyFeature.GetUserPasties("testname");
+
+            // Assert
+            Assert.Equal(viewerPoint, points);
+        }
+
+        [Fact]
+        public async Task GetUserPasties_NewViewer_ShouldReturnNewPoints()
+        {
+            // Arrange
+            var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            var points = await loyaltyFeature.GetUserPasties("testname");
+
+            // Assert
+            Assert.Equal(0, points.Points);
+        }
+
+        [Fact]
+        public async Task GetTopNLoudes_ShouldReturnList()
+        {
+            // Arrange
+            var viewerPoint = new ViewerMessageCountWithRank { MessageCount = 10, Username = "testname" };
+            var queryable = new List<ViewerMessageCountWithRank> { viewerPoint };
+            dbContext.ViewerMessageCountsWithRank.GetAsync(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            var points = await loyaltyFeature.GetTopNLoudest(10);
+
+            // Assert
+            Assert.Contains(viewerPoint, points);
+        }
+
+
+        [Fact]
+        public async Task GetMaxPointsFromUser_ShouldReturnMax()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = LoyaltyFeature.MaxBet + 10, Username = "testname" };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            var points = await loyaltyFeature.GetMaxPointsFromUser("testname");
+
+            // Assert
+            Assert.Equal(LoyaltyFeature.MaxBet, points);
+
+        }
+
+        [Fact]
+        public async Task GetMaxPointsFromUser_ShouldReturnPoints()
+        {
+            // Arrange
+            var viewerPoint = new ViewerPoint { Points = 10, Username = "testname" };
+            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
+            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            var points = await loyaltyFeature.GetMaxPointsFromUser("testname");
+
+            // Assert
+            Assert.Equal(10, points);
+
         }
     }
 }
