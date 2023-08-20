@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
 
@@ -102,11 +103,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals("LastSongList")).FirstOrDefaultAsync();
                 if (lastPlaylist != null)
                 {
-                    var playList = await db.Playlists.Include(x => x.Songs).FirstOrDefaultAsync(x => x.Id == lastPlaylist.IntSetting);
+                    var playList = (await db.Playlists.GetAsync(filter: x => x.Id == lastPlaylist.IntSetting, includeProperties: "Songs")).FirstOrDefault();
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
@@ -116,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     }
                 }
                 {
-                    var playList = await db.Playlists.Include(x => x.Songs).OrderBy(x => x.Id).FirstOrDefaultAsync();
+                    var playList = (await db.Playlists.GetAsync(orderBy: x => x.OrderBy(y => y.Id), includeProperties: "Songs")).FirstOrDefault();
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
                         BackupPlaylist = playList;
@@ -221,15 +222,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task<List<MusicPlaylist>> Playlists()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.Playlists.ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.Playlists.GetAllAsync()).ToList();
         }
 
         public async Task<MusicPlaylist> GetPlayList(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.Playlists.Include(x => x.Songs).Where(x => x.Id == id).FirstAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.Playlists.GetAsync(x => x.Id == id, includeProperties: "Songs")).First();
         }
 
         public async Task AddSongToRequests(string url)
@@ -343,7 +344,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 BackupPlaylist.Songs.Remove(song);
                 db.Playlists.Update(BackupPlaylist);
                 db.Songs.Remove(song);
@@ -365,7 +366,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             BackupPlaylist.Songs.Add(CurrentSong);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.Playlists.Update(BackupPlaylist);
                 await db.SaveChangesAsync();
             }
@@ -479,8 +480,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task LoadPlayList(string name)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var playListId = await db.Playlists.Where(y => y.Name.Equals(name)).Select(x => x.Id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var playListId = await db.Playlists.Find(y => y.Name.Equals(name)).Select(x => x.Id).FirstOrDefaultAsync();
             if (playListId != null)
             {
                 await LoadPlayList((int)playListId);
@@ -492,15 +493,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var playList = await db.Playlists.Include(x => x.Songs).FirstOrDefaultAsync(x => x.Id == id);
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == id, includeProperties: "Songs")).FirstOrDefault();
                 if (playList == null)
                 {
                     await ServiceBackbone.SendChatMessage("No playlist found");
                     return;
                 }
                 BackupPlaylist = playList;
-                var lastPlaylist = await db.Settings.FirstOrDefaultAsync(x => x.Name.Equals("LastSongList"));
+                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals("LastSongList")).FirstOrDefaultAsync();
                 lastPlaylist ??= new Setting
                 {
                     Name = "LastSongList"
@@ -543,8 +544,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 MusicPlaylist? playList;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    playList = await db.Playlists.FirstOrDefaultAsync(x => x.Name.Equals(playListName));
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    playList = await db.Playlists.Find(x => x.Name.Equals(playListName)).FirstOrDefaultAsync();
                     playList ??= new MusicPlaylist()
                     {
                         Name = playListName
@@ -567,7 +568,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     db.Playlists.Update(playList);
                     await db.SaveChangesAsync();
                 }
@@ -770,11 +771,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 requests = Requests.ToList();
             }
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var id = 1;
             if (requests.Count == 0)
             {
-                db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems);
+                db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.GetAll());
                 await SendSongRequests(requests);
                 await db.SaveChangesAsync();
                 return;
@@ -782,7 +783,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             foreach (var request in requests)
             {
                 bool newRecord = false;
-                var item = await db.SongRequestViewItems.Where(x => x.Id == id).FirstOrDefaultAsync();
+                var item = await db.SongRequestViewItems.Find(x => x.Id == id).FirstOrDefaultAsync();
                 if (item == null)
                 {
                     item = new SongRequestViewItem
@@ -797,15 +798,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 item.Title = request.Title;
                 if (newRecord)
                 {
-                    db.Add(item);
+                    db.SongRequestViewItems.Add(item);
                 }
                 else
                 {
-                    db.Update(item);
+                    db.SongRequestViewItems.Update(item);
                 }
                 id++;
             }
-            db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Where(x => x.Id >= id));
+            db.SongRequestViewItems.RemoveRange(db.SongRequestViewItems.Find(x => x.Id >= id));
             await SendSongRequests(requests);
             await db.SaveChangesAsync();
         }

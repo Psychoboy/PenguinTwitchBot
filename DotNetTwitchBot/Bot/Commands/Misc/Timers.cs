@@ -54,14 +54,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task<TimerGroup?> GetTimerGroupAsync(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.TimerGroups.Where(x => x.Id == id).Include(x => x.Messages).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.TimerGroups.Find(x => x.Id == id).Include(x => x.Messages).FirstOrDefaultAsync();
         }
 
         public async Task AddTimerGroup(TimerGroup group)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.TimerGroups.AddAsync(group);
             await db.SaveChangesAsync();
         }
@@ -69,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task UpdateTimerGroup(TimerGroup group)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.TimerGroups.Update(group);
             await db.SaveChangesAsync();
         }
@@ -77,7 +77,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task DeleteTimerGroup(TimerGroup group)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.TimerGroups.Remove(group);
             await db.SaveChangesAsync();
         }
@@ -85,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task UpdateTimerMessage(TimerMessage message)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.TimerMessages.Update(message);
             await db.SaveChangesAsync();
         }
@@ -93,7 +93,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task DeleteTimerMessage(TimerMessage message)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.TimerMessages.Remove(message);
             await db.SaveChangesAsync();
         }
@@ -111,8 +111,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 List<TimerGroup> timerGroups;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    timerGroups = await db.TimerGroups.Where(x => x.NextRun < DateTime.Now && x.Active == true).Include(x => x.Messages).ToListAsync();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true, includeProperties: "Messages");
                 }
                 if (timerGroups == null || timerGroups.Any() == false) return;
                 await RunGroups(timerGroups);
@@ -156,7 +156,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
                 group.LastRun = DateTime.Now;
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.TimerGroups.Update(group);
                 await db.SaveChangesAsync();
             }

@@ -1,17 +1,11 @@
-using System.Runtime.CompilerServices;
-using System.Net;
-using System.ComponentModel.Design;
-using System.Text.RegularExpressions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
-using System.Text.Json;
+using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
@@ -86,15 +80,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public async Task<CustomCommands?> GetCustomCommand(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.CustomCommands.Where(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.CustomCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<KeywordType?> GetKeyword(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.Keywords.Where(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Keywords.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
 
@@ -105,9 +99,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var count = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 Commands.Clear();
-                var commands = await db.CustomCommands.ToListAsync();
+                var commands = await db.CustomCommands.GetAllAsync();
                 foreach (var command in commands)
                 {
                     Commands[command.CommandName] = command;
@@ -116,7 +110,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 _logger.LogInformation("Loading keywords");
                 Keywords.Clear();
-                Keywords = (await db.Keywords.ToListAsync()).Select(x => new KeywordWithRegex(x)).ToList();
+                Keywords = (await db.Keywords.GetAllAsync()).Select(x => new KeywordWithRegex(x)).ToList();
             }
 
             foreach (var keyword in Keywords)
@@ -134,8 +128,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 customCommand.CommandName = customCommand.CommandName.ToLower();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                if ((await db.CustomCommands.Where(x => x.CommandName.Equals(customCommand.CommandName)).FirstOrDefaultAsync()) != null)
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if ((await db.CustomCommands.Find(x => x.CommandName.Equals(customCommand.CommandName)).FirstOrDefaultAsync()) != null)
                 {
                     _logger.LogWarning("Command already exists");
                     return;
@@ -151,7 +145,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 db.CustomCommands.Remove(customCommand);
                 await db.SaveChangesAsync();
@@ -163,8 +157,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                if ((await db.Keywords.Where(x => x.CommandName.Equals(keyword.CommandName)).FirstOrDefaultAsync()) != null)
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if ((await db.Keywords.Find(x => x.CommandName.Equals(keyword.CommandName)).FirstOrDefaultAsync()) != null)
                 {
                     _logger.LogWarning("Keyword already exists");
                     return;
@@ -179,7 +173,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 db.Keywords.Remove(keyword);
                 await db.SaveChangesAsync();
@@ -191,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.CustomCommands.Update(customCommand);
                 await db.SaveChangesAsync();
             }
@@ -202,7 +196,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.Keywords.Update(keyword);
                 await db.SaveChangesAsync();
             }
@@ -392,8 +386,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         if (!Commands.ContainsKey(e.Arg)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
-                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                            var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
                                 await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
@@ -401,7 +395,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             }
                             command.Disabled = true;
                             Commands[e.Arg].Disabled = true;
-                            db.Update(command);
+                            db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
                         await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
@@ -413,8 +407,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         if (!Commands.ContainsKey(e.Arg)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
-                            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                            var command = await db.CustomCommands.Where(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
                                 await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
@@ -422,7 +416,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             }
                             command.Disabled = false;
                             Commands[e.Arg].Disabled = false;
-                            db.Update(command);
+                            db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
                         await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
@@ -688,8 +682,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             //Fix counter here for alerts!
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var counter = await db.Counters.Where(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var counter = await db.Counters.Find(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync();
                 if (counter == null)
                 {
                     counter = new Counter()

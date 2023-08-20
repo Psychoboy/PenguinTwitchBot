@@ -22,6 +22,18 @@
         IViewerPointWithRanksRepository ViewerPointWithRanks { get; }
         IViewersTimeRepository ViewersTime { get; }
         IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
+        ICustomCommandsRepository CustomCommands { get; }
+        IKeywordsRepository Keywords { get; }
+        ICountersRepository Counters { get; }
+        IQuotesRepository Quotes { get; }
+        IAutoShoutoutsRepository AutoShoutouts { get; }
+        ITimerMessagesRepository TimerMessages { get; }
+        IWordFiltersRepository WordFilters { get; }
+        IKnownBotsRepository KnownBots { get; }
+        IPlaylistsRepository Playlists { get; }
+        ISubscriptionHistoriesRepository SubscriptionHistories { get; }
+        ISongsRepository Songs { get; }
+        ISongRequestViewItemsRepository SongRequestViewItems { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -56,8 +53,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 List<Viewer>? viewers;
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    viewers = await db.Viewers.Where(x => x.LastSeen < DateTime.Now.AddDays(-1)).ToListAsync();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    viewers = await db.Viewers.Find(x => x.LastSeen < DateTime.Now.AddDays(-1)).ToListAsync();
                 }
                 if (viewers == null)
                 {
@@ -68,8 +65,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 foreach (var viewer in viewers)
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var viewerPoints = await db.ViewerPoints.Where(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
                     if (viewerPoints == null) continue;
                     if (viewerPoints.Points <= 25000) continue;
                     var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);

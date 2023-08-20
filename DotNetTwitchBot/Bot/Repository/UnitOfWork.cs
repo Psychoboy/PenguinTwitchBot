@@ -29,6 +29,19 @@ namespace DotNetTwitchBot.Bot.Repository
             ViewerPointWithRanks = new ViewerPointWithRanksRepository(_context);
             ViewersTime = new ViewersTimeRepository(_context);
             ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
+            CustomCommands = new CustomCommandsRepository(_context);
+            Keywords = new KeywordsRepository(_context);
+            Counters = new CountersRepository(_context);
+            Quotes = new QuotesRepository(_context);
+            AutoShoutouts = new AutoShoutoutsRepository(_context);
+            TimerMessages = new TimerMessagesRepository(_context);
+            WordFilters = new WordFiltersRepository(_context);
+            KnownBots = new KnowBotsRepository(_context);
+            Playlists = new PlaylistsRepository(_context);
+            SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
+            Songs = new SongsRepository(_context);
+            SongRequestViewItems = new SongRequestViewItemsRepository(_context);
+
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -51,6 +64,18 @@ namespace DotNetTwitchBot.Bot.Repository
         public IViewerPointWithRanksRepository ViewerPointWithRanks { get; private set; }
         public IViewersTimeRepository ViewersTime { get; private set; }
         public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
+        public ICustomCommandsRepository CustomCommands { get; private set; }
+        public IKeywordsRepository Keywords { get; private set; }
+        public ICountersRepository Counters { get; private set; }
+        public IQuotesRepository Quotes { get; private set; }
+        public IAutoShoutoutsRepository AutoShoutouts { get; private set; }
+        public ITimerMessagesRepository TimerMessages { get; private set; }
+        public IWordFiltersRepository WordFilters { get; private set; }
+        public IKnownBotsRepository KnownBots { get; private set; }
+        public IPlaylistsRepository Playlists { get; private set; }
+        public ISubscriptionHistoriesRepository SubscriptionHistories { get; private set; }
+        public ISongsRepository Songs { get; private set; }
+        public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
 
         public void Dispose()
         {

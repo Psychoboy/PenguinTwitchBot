@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
@@ -33,15 +30,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task<List<AutoShoutout>> GetAutoShoutoutsAsync()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.AutoShoutouts.OrderBy(x => x.Name).ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.AutoShoutouts.GetAsync(orderBy: (x => x.OrderBy(y => y.Name)));
         }
 
         public async Task AddAutoShoutout(AutoShoutout autoShoutout)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var autoShoutExists = await db.AutoShoutouts.Where(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var autoShoutExists = await db.AutoShoutouts.Find(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
             if (autoShoutExists != null)
             {
                 _logger.LogWarning("{0} autoshoutout already exists.", autoShoutout.Name);
@@ -54,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task DeleteAutoShoutout(AutoShoutout autoShoutout)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.AutoShoutouts.Remove(autoShoutout);
             await db.SaveChangesAsync();
         }
@@ -66,9 +63,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var beforeTime = DateTime.Now.AddHours(-12);
-                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
+                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(name) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
             }
             if (autoShoutout != null)
             {
@@ -81,8 +78,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                autoShoutout = await db.AutoShoutouts.Where(x => x.Name.Equals(name.ToLower())).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(name.ToLower())).FirstOrDefaultAsync();
             }
 
             await UpdateLastShoutout(autoShoutout);
@@ -125,7 +122,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             if (autoShoutout == null) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             autoShoutout.LastShoutout = DateTime.Now;
             db.AutoShoutouts.Update(autoShoutout);
             await db.SaveChangesAsync();
@@ -134,14 +131,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task<AutoShoutout?> GetAutoShoutoutAsync(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.AutoShoutouts.Where(x => x.Id == id).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.AutoShoutouts.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task UpdateAutoShoutoutAsync(AutoShoutout autoShoutout)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.AutoShoutouts.Update(autoShoutout);
             await db.SaveChangesAsync();
         }
