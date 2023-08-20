@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Repository;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -18,10 +19,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<LoyaltyFeature> logger,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            IServiceBackbone eventService,
+            IServiceBackbone serviceBackbone,
             ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
-            ) : base(eventService, commandHandler)
+            ) : base(serviceBackbone, commandHandler)
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
@@ -127,8 +128,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (!ServiceBackbone.IsOnline) return;
             if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var viewer = await db.ViewerMessageCounts.Where(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var viewer = await db.ViewerMessageCounts.Find(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
             viewer ??= new ViewerMessageCount
             {
                 Username = e.Name,
@@ -139,11 +140,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await db.SaveChangesAsync();
         }
 
-        private async Task UpdatePointsAndTime()
+        public async Task UpdatePointsAndTime()
         {
+            if (!ServiceBackbone.IsOnline) return;
+
             var currentViewers = _viewerFeature.GetCurrentViewers();
 
-            if (!ServiceBackbone.IsOnline) return;
             foreach (var viewer in currentViewers)
             {
                 if (ServiceBackbone.IsKnownBot(viewer)) continue;
@@ -169,6 +171,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var activeViewers = _viewerFeature.GetActiveViewers();
             foreach (var viewer in activeViewers)
             {
+                if (ServiceBackbone.IsKnownBot(viewer)) continue;
                 await AddPointsToViewer(viewer, 10);
             }
         }
@@ -186,9 +189,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommand(e.Command);
-            if (command == null) return;
-            switch (command.CommandProperties.CommandName)
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            switch (command)
             {
                 case "pasties":
                     await SayLoyalty(e);
@@ -203,7 +205,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "addpasties":
                     if (e.Args.Count < 2) return;
                     if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
-                    if (Int32.TryParse(e.Args[1], out var points))
+                    if (long.TryParse(e.Args[1], out var points))
                     {
                         if (points <= 0) return;
                         await AddPointsToViewer(e.TargetUser, points);
@@ -236,7 +238,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException();
             }
 
-            if (!Int64.TryParse(e.Args[1], out long amount))
+            if (!long.TryParse(e.Args[1], out long amount))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
                 throw new SkipCooldownException();
@@ -259,12 +261,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
-        public async Task<Int64> GetMaxPointsFromUser(string target)
+        public async Task<long> GetMaxPointsFromUser(string target)
         {
             return await GetMaxPointsFromUser(target, MaxBet);
         }
 
-        public async Task<Int64> GetMaxPointsFromUser(string target, Int64 max)
+        public async Task<long> GetMaxPointsFromUser(string target, long max)
         {
             var viewerPoints = await GetUserPasties(target);
             long maxPoints;
@@ -282,8 +284,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<bool> RemovePointsFromUser(string target, long points)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var viewerPoint = await db.ViewerPoints.FirstOrDefaultAsync(x => x.Username.Equals(target));
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(target)).FirstOrDefaultAsync();
             if (viewerPoint == null) return false;
             if (viewerPoint.Points < points) return false;
             viewerPoint.Points -= points;
@@ -299,12 +301,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task AddPointsToViewer(string target, long points)
         {
-
-            await using var scope = _scopeFactory.CreateAsyncScope();
             try
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var viewerPoint = await db.ViewerPoints.Where(x => x.Username.Equals(target)).FirstOrDefaultAsync();
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(target)).FirstOrDefaultAsync();
                 viewerPoint ??= new ViewerPoint
                 {
                     Username = target.ToLower()
@@ -332,8 +333,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
 
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var viewerTime = await db.ViewersTime.FirstOrDefaultAsync(x => x.Username.Equals(viewer));
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var viewerTime = await db.ViewersTime.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
                 viewerTime ??= new ViewerTime
                 {
                     Username = viewer
@@ -362,8 +363,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerMessageCountWithRank? viewerMessage;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerMessage = await db.ViewerMessageCountWithRanks.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerMessage = await db.ViewerMessageCountsWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
 
             return viewerMessage ?? new ViewerMessageCountWithRank { Ranking = int.MaxValue };
@@ -372,8 +373,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<List<ViewerMessageCountWithRank>> GetTopNLoudest(int topN)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.ViewerMessageCountWithRanks.OrderBy(x => x.Ranking).Take(topN).ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.ViewerMessageCountsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
         public async Task<ViewerPoint> GetUserPasties(string Name)
@@ -381,8 +382,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerPoint? viewerPoint;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerPoint = await db.ViewerPoints.Where(x => x.Username.Equals(Name)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(Name)).FirstOrDefaultAsync();
             }
 
             return viewerPoint ?? new ViewerPoint();
@@ -393,8 +394,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerPointWithRank? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerPoints = await db.ViewerPointWithRanks.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerPoints = await db.ViewerPointWithRanks.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
 
             return viewerPoints ?? new ViewerPointWithRank() { Ranking = int.MaxValue };
@@ -405,8 +406,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ViewerTimeWithRank? viewerTime;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                viewerTime = await db.ViewersTimeWithRank.Where(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
         }

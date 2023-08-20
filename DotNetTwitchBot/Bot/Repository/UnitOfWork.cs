@@ -23,6 +23,12 @@ namespace DotNetTwitchBot.Bot.Repository
             GiveawayWinners = new GiveawayWinnersRepository(_context);
             TimerGroups = new TimerGroupsRepository(_context);
             DeathCounters = new DeathCountersRepository(_context);
+            ViewerMessageCounts = new ViewerMessageCountsRepository(_context);
+            ViewerMessageCountsWithRank = new ViewerMessageCountsWithRankRepository(_context);
+            ViewerPoints = new ViewerPointsRepository(_context);
+            ViewerPointWithRanks = new ViewerPointWithRanksRepository(_context);
+            ViewersTime = new ViewersTimeRepository(_context);
+            ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -39,10 +45,17 @@ namespace DotNetTwitchBot.Bot.Repository
         public IGiveawayWinnersRepository GiveawayWinners { get; private set; }
         public ITimerGroupsRepository TimerGroups { get; private set; }
         public IDeathCountersRepository DeathCounters { get; private set; }
+        public IViewerMessageCountsRepository ViewerMessageCounts { get; private set; }
+        public IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; private set; }
+        public IViewerPointsRepository ViewerPoints { get; private set; }
+        public IViewerPointWithRanksRepository ViewerPointWithRanks { get; private set; }
+        public IViewersTimeRepository ViewersTime { get; private set; }
+        public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
 
         public void Dispose()
         {
             _context.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public int SaveChanges()
