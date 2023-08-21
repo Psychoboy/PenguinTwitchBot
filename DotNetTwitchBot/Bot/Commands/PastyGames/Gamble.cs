@@ -12,9 +12,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
+        private readonly ILanguage _language;
 
         public Gamble(
             ILogger<Gamble> logger,
+            ILanguage language,
             LoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchServices,
@@ -26,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _scopeFactory = scopeFactory;
             _twitchServices = twitchServices;
             _logger = logger;
+            _language = language;
         }
 
         public int JackPotNumber { get; } = 69;
@@ -52,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 case "jackpot":
                     var jackpot = await GetJackpot();
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
-                    string.Format("The current jackpot is {0}", jackpot.ToString("N0")));
+                    _language.Get("game.jackpot.response").Replace("(jackpot)", jackpot.ToString("N0")));
                     break;
             }
         }

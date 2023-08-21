@@ -1,0 +1,2 @@
+﻿# Strings that start with # are ignored
+test.custom=This is a test custom string

@@ -54,4 +54,10 @@
     <Folder Include="Bot\Events\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Language\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
