@@ -1,0 +1,15 @@
+﻿# These define the strings for the various messages used via Audio commands
+
+# Rank checks
+audiocommands.rankcheck.fail.notFollower=you must be a follower to use that command
+audiocommands.rankcheck.fail.notSubscriber=you must be a subscriber to use that command
+audiocommands.rankcheck.fail.notModerator=only moderators can do that...
+audiocommands.rankcheck.fail.notStreamer=yeah ummm... no... go away
+
+# Enable/Disable Messages
+audiocommands.fail.enable=Failed to enabled (command)
+audiocommands.success.enable=Enabled (command)
+
+# Add audio commands
+audiocommands.success.add=Successfully added audio command
+audiocommands.fail.add=Failed to add audio command

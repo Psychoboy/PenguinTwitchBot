@@ -3,6 +3,6 @@
     public interface ILanguage
     {
         string Get(string id);
-        Task LoadLanguage();
+        void LoadLanguage();
     }
 }

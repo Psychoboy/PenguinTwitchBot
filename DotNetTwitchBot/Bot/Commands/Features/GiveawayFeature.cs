@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<GiveawayHub> _hubContext;
+        private readonly ILanguage lang;
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
         private readonly string PrizeSettingName = "GiveawayPrize";
@@ -25,7 +26,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IViewerFeature viewerFeature,
             IHubContext<GiveawayHub> hubContext,
             IServiceScopeFactory scopeFactory,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            ILanguage language
             ) : base(serviceBackbone, commandHandler)
         {
             _logger = logger;
@@ -33,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _hubContext = hubContext;
+            lang = language;
         }
 
         public override async Task Register()
@@ -56,7 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (e.Args.Count() == 0)
                         {
-                            await ServiceBackbone.SendChatMessage(e.Name, "To enter tickets, please use !enter AMOUNT/MAX/ALL");
+                            await ServiceBackbone.SendChatMessage(e.Name, lang.Get("giveawayfeature.help.enter"));
                             throw new SkipCooldownException();
                         }
                         await Enter(e.Name, e.Args.First());
@@ -172,7 +175,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var winningTicket = Tickets.RandomElement(_logger);
                 var viewer = await _viewerFeature.GetViewer(winningTicket);
                 var isFollower = await _viewerFeature.IsFollower(winningTicket);
-                await ServiceBackbone.SendChatMessage(string.Format("{0} won the {1} and {2} following", viewer != null ? viewer.NameWithTitle() : winningTicket, await GetPrize(), isFollower ? "is" : "is not"));
+
+                await ServiceBackbone.SendChatMessage(lang.Get("giveawayfeature.draw.winner")
+                    .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket)
+                    .Replace("(prize)", await GetPrize())
+                    .Replace("(isFollowingCheck)", isFollower ? "is" : "is not")
+                    );
                 await AddWinner(viewer);
             }
             catch (Exception ex)
@@ -229,18 +237,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var displayName = await _viewerFeature.GetDisplayName(sender);
             if (!Int32.TryParse(amount, out var points))
             {
-                await ServiceBackbone.SendChatMessage(string.Format("@{0}, please use a number or max/all when entering.", displayName));
+                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.notvalid"));
                 throw new SkipCooldownException();
             }
             if (points == 0 || points > viewerPoints)
             {
-                await ServiceBackbone.SendChatMessage(string.Format("@{0}, you do not have enough or that many tickets to enter.", displayName));
+                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.notenough"));
                 throw new SkipCooldownException();
             }
 
             if (points < 0)
             {
-                await ServiceBackbone.SendChatMessage(string.Format("@{0}, don't be dumb.", displayName));
+                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.minus"));
                 throw new SkipCooldownException();
             }
 
@@ -248,7 +256,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (points + enteredTickets > 1000000)
             {
                 points = 1000000 - points;
-                await ServiceBackbone.SendChatMessage(displayName, string.Format("Max entries is 1,000,000, so entering {0} instead to max you out.", points));
+                await ServiceBackbone.SendChatMessage(displayName,
+                    lang.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString()));
                 if (points == 0)
                 {
                     throw new SkipCooldownException();
@@ -257,7 +266,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
             {
-                await ServiceBackbone.SendChatMessage(displayName, "failed to enter giveaway. Please try again.");
+                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.failure"));
                 throw new SkipCooldownException();
             }
 
@@ -273,7 +282,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.GiveawayEntries.Update(giveawayEntries);
                 await db.SaveChangesAsync();
             }
-            await ServiceBackbone.SendChatMessage($"@{sender}, you have bought {points} entries.");
+            await ServiceBackbone.SendChatMessage(sender, lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString()));
         }
         private async Task<long> GetEntriesCount(string sender)
         {
@@ -290,7 +299,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task Entries(string sender)
         {
             var entries = await GetEntriesCount(sender);
-            await ServiceBackbone.SendWhisperMessage(sender, $"You have {entries} entries");
+            await ServiceBackbone.SendWhisperMessage(sender, lang.Get("giveawayfeature.enter.entries").Replace("(amount)", entries.ToString()));
         }
 
 

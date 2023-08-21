@@ -4,32 +4,37 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class Language : ILanguage
     {
+        public Language()
+        {
+            LoadLanguage();
+        }
+
         private readonly ConcurrentDictionary<string, string> languageStrings = new ConcurrentDictionary<string, string>();
-        public async Task LoadLanguage()
+        public void LoadLanguage()
         {
             var files = Directory.GetFiles(@"Language/english", "*.txt", SearchOption.AllDirectories);
-            await ProcessFiles(files);
+            ProcessFiles(files);
 
 
             if (Directory.Exists(@"Language/custom"))
             {
                 files = Directory.GetFiles(@"Language/custom", "*.txt", SearchOption.AllDirectories);
-                await ProcessFiles(files);
+                ProcessFiles(files);
             }
 
         }
 
-        private async Task ProcessFiles(string[] files)
+        private void ProcessFiles(string[] files)
         {
             foreach (var file in files)
             {
-                await ParseFile(file);
+                ParseFile(file);
             }
         }
 
-        private async Task ParseFile(string file)
+        private void ParseFile(string file)
         {
-            var lines = await File.ReadAllLinesAsync(file);
+            var lines = File.ReadAllLines(file);
             foreach (var line in lines)
             {
                 if (string.IsNullOrEmpty(line)) continue;
