@@ -31,6 +31,7 @@ internal class Program
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
+        builder.Services.AddSingleton<ILanguage, Language>();
         builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
         builder.Services.AddSingleton<ITwitchService, TwitchService>();
         builder.Services.AddSingleton<TwitchBotService>();
@@ -156,6 +157,7 @@ internal class Program
             await commandService.Register();
         }
 
+        await app.Services.GetRequiredService<ILanguage>().LoadLanguage();
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
 
