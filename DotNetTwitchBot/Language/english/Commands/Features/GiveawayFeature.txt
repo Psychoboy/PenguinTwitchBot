@@ -1,0 +1,11 @@
+﻿giveawayfeature.help.enter=To enter tickets, please use !enter AMOUNT/MAX/ALL
+
+giveawayfeature.draw.winner=(name) won the (prize) and (isfollowingCheck) following
+
+giveawayfeature.enter.notvalid=please use a number or max/all when entering.
+giveawayfeature.enter.notenough=you do not have enough or that many tickets to enter.
+giveawayfeature.enter.minus=don't be dumb.
+giveawayfeature.enter.max=Max entries is (maxallowed), so entering (amount) instead to max you out.
+giveawayfeature.enter.failure=failed to enter giveaway. Please try again.
+giveawayfeature.enter.success=you have bought (amount) entries.
+giveawayfeature.enter.entries=You have (amount) entries

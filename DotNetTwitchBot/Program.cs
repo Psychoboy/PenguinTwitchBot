@@ -157,8 +157,6 @@ internal class Program
             await commandService.Register();
         }
 
-        await app.Services.GetRequiredService<ILanguage>().LoadLanguage();
-
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
 
         app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();

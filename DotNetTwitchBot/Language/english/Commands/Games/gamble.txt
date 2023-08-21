@@ -1,0 +1,1 @@
+﻿game.jackpot.response=The current jackpot is (jackpot)

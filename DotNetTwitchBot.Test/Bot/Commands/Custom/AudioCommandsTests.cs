@@ -1,27 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using DotNetTwitchBot.Bot.Alerts;
+using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
-using Xunit;
-using DotNetTwitchBot.Bot.Commands.Custom;
-using DotNetTwitchBot.Bot.Repository;
-using DotNetTwitchBot.Bot.Alerts;
-using DotNetTwitchBot.Bot.Commands.Features;
-using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models;
 using MockQueryable.NSubstitute;
-using NSubstitute.Extensions;
-using System.Linq.Expressions;
+using NSubstitute;
 
 namespace DotNetTwitchBot.Tests
 {
     public class AudioCommandsTests
     {
+        private readonly ILanguage _langage;
+
+        public AudioCommandsTests()
+        {
+            _langage = new Language();
+            _langage.LoadLanguage();
+        }
         [Fact]
         public async Task AddAudioCommand_ShouldAddCommandToDatabase()
         {
@@ -43,10 +42,10 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
-                Substitute.For<ICommandHandler>());
+                _langage, Substitute.For<ICommandHandler>());
 
 
-            var audioCommand = new AudioCommand { CommandName = "testCommand"};
+            var audioCommand = new AudioCommand { CommandName = "testCommand" };
             // Act
             await audioCommands.AddAudioCommand(audioCommand);
 
@@ -76,7 +75,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
-                Substitute.For<ICommandHandler>());
+                _langage, Substitute.For<ICommandHandler>());
 
             // Act
             await audioCommands.AddAudioCommand(audioCommand);
@@ -107,7 +106,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
-                Substitute.For<ICommandHandler>());
+                _langage, Substitute.For<ICommandHandler>());
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand" };
@@ -141,7 +140,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
-                Substitute.For<ICommandHandler>());
+                _langage, Substitute.For<ICommandHandler>());
 
 
             // Act
@@ -171,11 +170,11 @@ namespace DotNetTwitchBot.Tests
 
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-            
+
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
-                commandHandler);
+                _langage, commandHandler);
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Follower };
@@ -192,7 +191,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "you must be a follower to use that command");
         }
 
         [Fact]
@@ -219,7 +218,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
-                commandHandler);
+                _langage, commandHandler);
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Subscriber };
@@ -234,7 +233,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "you must be a subscriber to use that command");
         }
 
         [Fact]
@@ -261,7 +260,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
-                commandHandler);
+                _langage, commandHandler);
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Moderator };
@@ -276,7 +275,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "only moderators can do that...");
         }
 
         [Fact]
@@ -303,7 +302,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
-                commandHandler);
+                _langage, commandHandler);
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Streamer };
@@ -318,7 +317,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<string>());
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "yeah ummm... no... go away");
         }
 
         [Fact]
@@ -345,7 +344,7 @@ namespace DotNetTwitchBot.Tests
 
             var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
-                commandHandler);
+                _langage, commandHandler);
 
 
             var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Viewer, GlobalCooldown = 5, UserCooldown = 5 };

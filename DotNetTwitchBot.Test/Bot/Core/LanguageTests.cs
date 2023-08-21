@@ -6,25 +6,24 @@ namespace DotNetTwitchBot.Test.Bot.Core
     {
 
         [Fact]
-        public async Task LoadAndGetString_ShouldReturnString()
+        public void LoadAndGetString_ShouldReturnString()
         {
             // Arrange
             var language = new Language();
-            await language.LoadLanguage();
+            language.LoadLanguage();
             // Act
             var result = language.Get("game.jackpot.response");
 
             // Assert
             Assert.Equal("The current jackpot is (jackpot)", result);
-
         }
 
         [Fact]
-        public async Task LoadAndGetString_ShouldNotReturnString()
+        public void LoadAndGetString_ShouldNotReturnString()
         {
             // Arrange
             var language = new Language();
-            await language.LoadLanguage();
+            language.LoadLanguage();
             // Act
             var result = language.Get("Some.Test.String");
 
@@ -34,11 +33,11 @@ namespace DotNetTwitchBot.Test.Bot.Core
         }
 
         [Fact]
-        public async Task LoadedCustomStrings()
+        public void LoadedCustomStrings()
         {
             // Arrange
             var language = new Language();
-            await language.LoadLanguage();
+            language.LoadLanguage();
             // Act
             var result = language.Get("test.custom");
 

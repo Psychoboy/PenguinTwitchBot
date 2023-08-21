@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
 
-            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, ticketsFeature, viewerFeature, hubContext, scopeFactory, commandHandler);
+            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, ticketsFeature, viewerFeature, hubContext, scopeFactory, commandHandler, new Language());
 
         }
 
@@ -216,7 +216,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
-            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("");
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
             ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
@@ -229,14 +229,84 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.GiveawayEntries.Received(1).Update(Arg.Any<GiveawayEntry>());
             await dbContext.Received(1).SaveChangesAsync();
             dbContext.GiveawayEntries.Received(1).Update(Arg.Is<GiveawayEntry>(x => x.Tickets == 20));
+            await serviceBackbone.Received(1).SendChatMessage("user", $"you have bought 10 entries.");
         }
 
         [Theory]
         [InlineData("foobar")]
-        [InlineData("20")]
-        [InlineData("-10")]
         [InlineData("")]
         public async Task OnCommand_Enter_ShouldThrow(string enterAmount)
+        {
+            // Arrange
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
+
+            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
+            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
+
+            // Act
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+            await serviceBackbone.Received().SendChatMessage("user", "please use a number or max/all when entering.");
+        }
+
+        [Theory]
+        [InlineData("-10")]
+        [InlineData("-1")]
+        public async Task OnCommand_Enter_Negative_ShouldThrow(string enterAmount)
+        {
+            // Arrange
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
+
+            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
+            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
+
+            // Act
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+            await serviceBackbone.Received().SendChatMessage("user", "don't be dumb.");
+        }
+
+        [Theory]
+        [InlineData("11")]
+        [InlineData("20")]
+        public async Task OnCommand_Enter_ToMuch_ShouldThrow(string enterAmount)
+        {
+            // Arrange
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
+
+            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
+            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
+
+            // Act
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+            await serviceBackbone.Received().SendChatMessage("user", "you do not have enough or that many tickets to enter.");
+        }
+
+
+        [Fact]
+        public async Task OnCommand_Enter_NoArgs_ShouldThrow()
         {
             // Arrange
             dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
@@ -247,13 +317,36 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("");
             ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
 
-            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
 
             // Act
 
             // Assert
             await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+            await serviceBackbone.Received(1).SendChatMessage("user", "To enter tickets, please use !enter AMOUNT/MAX/ALL");
+        }
+
+        [Fact]
+        public async Task OnCommand_Enter_FailToRemove_ShouldThrow()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
+
+            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
+            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(false);
+
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { "10" }, DisplayName = "user", Name = "user" };
+            commandHandler.GetCommandDefaultName("enter").Returns("enter");
+
+            // Act
+
+            // Assert
+            await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+            await serviceBackbone.Received(1).SendChatMessage("user", "failed to enter giveaway. Please try again.");
         }
 
         [Theory]
@@ -276,6 +369,28 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
+        }
+
+        [Fact]
+        public async Task OnCommand_Entries()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
+            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
+            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
+
+            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
+            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+
+            var commandEvent = new CommandEventArgs { Command = "entries", Args = new List<string> { }, DisplayName = "user", Name = "user" };
+            commandHandler.GetCommandDefaultName("entries").Returns("entries");
+
+            // Act
+            await giveawayFeature.OnCommand(new object(), commandEvent);
+
+            // Assert
+            await serviceBackbone.Received(1).SendWhisperMessage("user", "You have 10 entries");
         }
 
 

@@ -1,14 +1,9 @@
-using System.Runtime.Serialization.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using System.Text.Json;
 using DotNetTwitchBot.Bot.Repository;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
@@ -19,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private IViewerFeature ViewerFeature { get; }
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AudioCommands> _logger;
+        private readonly ILanguage _language;
 
         public AudioCommands(
             ISendAlerts sendAlerts,
@@ -26,12 +22,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<AudioCommands> logger,
             IServiceBackbone eventService,
+            ILanguage language,
             ICommandHandler commandHandler) : base(eventService, commandHandler)
         {
             SendAlerts = sendAlerts;
             ViewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _language = language;
         }
 
         private async Task LoadAudioCommands()
@@ -117,28 +115,28 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 case Rank.Follower:
                     if (await ViewerFeature.IsFollower(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
+                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notFollower"));
                         return;
                     }
                     break;
                 case Rank.Subscriber:
                     if (await ViewerFeature.IsSubscriber(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
+                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notSubscriber"));
                         return;
                     }
                     break;
                 case Rank.Moderator:
                     if (await ViewerFeature.IsModerator(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, "only moderators can do that...");
+                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notModerator"));
                         return;
                     }
                     break;
                 case Rank.Streamer:
                     if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
+                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notStreamer"));
                         return;
                     }
                     break;
@@ -214,7 +212,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var command = await db.AudioCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
-                    await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.fail.enable").Replace("(command)", e.Arg));
                     return;
                 }
                 command.Disabled = disabled;
@@ -222,7 +220,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 db.AudioCommands.Update(command);
                 await db.SaveChangesAsync();
             }
-            await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+            await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.success.enable").Replace("(command)", e.Arg));
         }
 
         private async Task RefreshAudio()
@@ -238,11 +236,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);
-                    await ServiceBackbone.SendChatMessage("Successfully added audio command");
+                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.success.add"));
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage("Failed to add audio command");
+                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.fail.add"));
                 }
 
             }
