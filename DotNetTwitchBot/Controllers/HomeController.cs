@@ -10,9 +10,12 @@ namespace DotNetTwitchBot.Controllers
     public class HomeController : Controller
     {
         private readonly IConfiguration _configuration;
-        public HomeController(IConfiguration configuration)
+        private readonly ILogger<HomeController> _logger;
+
+        public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
         public IActionResult Index()
         {
@@ -84,6 +87,7 @@ namespace DotNetTwitchBot.Controllers
                     new ClaimsPrincipal(claimsIdentity),
                     authProperties
                 );
+                _logger.LogInformation("{0} logged in to web interface", user.Login);
             }
             return Redirect("/");
         }

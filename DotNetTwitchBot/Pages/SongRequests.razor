@@ -1,0 +1,117 @@
+﻿@page "/songrequests"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@implements IAsyncDisposable
+
+<PageTitle>Song Requests</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
+
+    <MudGrid>
+        @if (currentSong != null)
+        {
+            <MudItem sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText>Current Song: @currentSong.Title</MudText>
+                    <MudText>Requested By: @currentSong.RequestedBy</MudText>
+                    <MudText>Duration: @currentSong.Duration</MudText>
+                </MudPaper>
+            </MudItem>
+
+        }
+        
+        @if (songRequests != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
+                    <MudTable Items="@songRequests">
+                        <HeaderContent>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Length</MudTh>
+                            <MudTh>Requested By</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Title</MudTd>
+                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                            
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+
+        <MudItem xs="8">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6">Top 10 Requested Songs</MudText>
+                <MudTable Items="@topSongRequests">
+                    <HeaderContent>
+                        <MudTh>Rank</MudTh>
+                        <MudTh>Title</MudTh>
+                        <MudTh>Length</MudTh>
+                        <MudTh>Times Requested</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
+                        <MudTd DataLabel="Name">@context.Title</MudTd>
+                        <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                        <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
+                        <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">@GetYoutubeLink(context.SongId)</MudLink></MudTd>
+
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+
+@code {
+    private Song? currentSong;
+    private List<Song> songRequests = new();
+    private HubConnection? hubConnection;
+    private List<Bot.Models.Metrics.SongRequestMetricWithRank> topSongRequests = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentSong = YtPlayer.GetCurrentSong();
+        songRequests = YtPlayer.GetRequestedSongs();
+        topSongRequests = await SongRequestMetrics.GetTopN(10);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        hubConnection = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+
+        hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
+        {
+            currentSong = song;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        {
+            songRequests = playlist;
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

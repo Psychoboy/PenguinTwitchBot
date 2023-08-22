@@ -68,6 +68,11 @@ else
     {
         pastWinners = await GiveawayFeature.PastWinners();
         prize = await GiveawayFeature.GetPrize();
+        
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
         hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>

@@ -1,5 +1,7 @@
 ﻿@page "/"
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 <CascadingAuthenticationState>  
     <AuthorizeView Roles="Streamer">
         <Authorized>
@@ -12,6 +14,19 @@
 </CascadingAuthenticationState>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity is null || !user.Identity.IsAuthenticated || !user.IsInRole("Streamer"))
+        {
+            Navigation.NavigateTo("/viewergiveaway");
+        }
+    }
+
+
     private async Task PauseAlerts()
     {
         await Admin.PauseAlerts();

@@ -18,6 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
         private readonly string PrizeSettingName = "GiveawayPrize";
+        private readonly string ImageSettingName = "GiveawayPrizeImage";
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
@@ -106,11 +108,44 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
+        public async Task<int> GetEntrantsCount()
+        {
+            return (await GetEntries()).Count();
+        }
+
+        public async Task<int> GetEntriesCount()
+        {
+            var entries = await GetEntries();
+            return entries.Sum(x => x.Tickets);
+        }
+
+        private async Task<IEnumerable<GiveawayEntry>> GetEntries()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.GiveawayEntries.GetAllAsync();
+        }
+
+        public async Task<string> GetImageUrl()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var prize = await db.Settings.Find(x => x.Name.Equals(ImageSettingName)).FirstOrDefaultAsync();
+            return prize != null ? prize.StringSetting : "";
+        }
+
         private async Task<Setting?> GetCurrentPrize()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(PrizeSettingName)).FirstOrDefaultAsync();
+            return prize;
+        }
+        private async Task<Setting?> GetCurrentPrizeImage()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var prize = await db.Settings.Find(x => x.Name.Equals(ImageSettingName)).FirstOrDefaultAsync();
             return prize;
         }
 
@@ -124,6 +159,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             prize.StringSetting = arg;
             await AddOrUpdatePrize(prize);
             await _hubContext.Clients.All.SendAsync("Prize", arg);
+        }
+
+        public async Task SetImageUrl(string? arg)
+        {
+            var prize = await GetCurrentPrizeImage();
+            prize ??= new Setting()
+            {
+                Name = ImageSettingName
+            };
+            prize.StringSetting = arg ?? "";
+            await AddOrUpdatePrize(prize);
+            await _hubContext.Clients.All.SendAsync("PrizeImage", arg);
         }
 
         private async Task AddOrUpdatePrize(Setting prize)
@@ -146,9 +193,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task Close()
         {
             Tickets.Clear();
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var entries = await db.GiveawayEntries.GetAllAsync();
+            var entries = await GetEntries();
             foreach (var entry in entries)
             {
                 Tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
@@ -224,67 +269,100 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             await _hubContext.Clients.All.SendAsync("Winners", Winners);
         }
-
-
         private async Task Enter(string sender, string amount)
         {
-            amount = amount.ToLower();
-            var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
-            if (amount == "max" || amount == "all")
-            {
-                amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
-            }
-            var displayName = await _viewerFeature.GetDisplayName(sender);
-            if (!Int32.TryParse(amount, out var points))
-            {
-                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.notvalid"));
-                throw new SkipCooldownException();
-            }
-            if (points == 0 || points > viewerPoints)
-            {
-                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.notenough"));
-                throw new SkipCooldownException();
-            }
+            await Enter(sender, amount, false);
+        }
 
-            if (points < 0)
-            {
-                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.minus"));
-                throw new SkipCooldownException();
-            }
 
-            var enteredTickets = await GetEntriesCount(sender);
-            if (points + enteredTickets > 1000000)
+        public async Task<string> Enter(string sender, string amount, bool fromUi)
+        {
+            try
             {
-                points = 1000000 - points;
-                await ServiceBackbone.SendChatMessage(displayName,
-                    lang.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString()));
-                if (points == 0)
+                if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
-                    throw new SkipCooldownException();
+                    _logger.LogWarning("Lock expired while waiting...");
+                }
+                amount = amount.ToLower();
+                var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
+                if (amount == "max" || amount == "all")
+                {
+                    amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
+                }
+                var displayName = await _viewerFeature.GetDisplayName(sender);
+                if (!Int32.TryParse(amount, out var points))
+                {
+                    var message = lang.Get("giveawayfeature.enter.notvalid");
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+
+                    throw new SkipCooldownException(message);
+                }
+                if (points == 0 || points > viewerPoints)
+                {
+                    var message = lang.Get("giveawayfeature.enter.notenough");
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+
+                    throw new SkipCooldownException(message);
+                }
+
+                if (points < 0)
+                {
+                    var message = lang.Get("giveawayfeature.enter.minus");
+                    await ServiceBackbone.SendChatMessage(displayName, message);
+                    throw new SkipCooldownException(message);
+                }
+
+                var enteredTickets = await GetEntriesCount(sender);
+                if (points + enteredTickets > 1000000)
+                {
+                    points = 1000000 - points;
+                    var message = lang.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
+                    if (!fromUi)
+                    {
+                        await ServiceBackbone.SendChatMessage(displayName, message);
+                    }
+
+                    if (points == 0)
+                    {
+                        throw new SkipCooldownException("Unknown error, try via chat.");
+                    }
+                }
+
+                if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
+                {
+                    var message = lang.Get("giveawayfeature.enter.failure");
+                    if (!fromUi)
+                    {
+                        await ServiceBackbone.SendChatMessage(displayName, message);
+                    }
+
+                    throw new SkipCooldownException(message);
+                }
+
+                using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
+                    giveawayEntries ??= new GiveawayEntry
+                    {
+                        Username = sender
+                    };
+                    giveawayEntries.Tickets += points;
+                    db.GiveawayEntries.Update(giveawayEntries);
+                    await db.SaveChangesAsync();
+                }
+                {
+                    var message = lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                    return message;
                 }
             }
-
-            if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
+            finally
             {
-                await ServiceBackbone.SendChatMessage(displayName, lang.Get("giveawayfeature.enter.failure"));
-                throw new SkipCooldownException();
+                _semaphoreSlim.Release();
             }
-
-            using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
-                giveawayEntries ??= new GiveawayEntry
-                {
-                    Username = sender
-                };
-                giveawayEntries.Tickets += points;
-                db.GiveawayEntries.Update(giveawayEntries);
-                await db.SaveChangesAsync();
-            }
-            await ServiceBackbone.SendChatMessage(sender, lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString()));
         }
-        private async Task<long> GetEntriesCount(string sender)
+        public async Task<long> GetEntriesCount(string sender)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

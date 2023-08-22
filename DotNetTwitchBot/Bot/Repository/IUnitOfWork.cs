@@ -5,6 +5,7 @@
         IAudioCommandsRepository AudioCommands { get; }
         IDefaultCommandRepository DefaultCommands { get; }
         ISongRequestMetricsRepository SongRequestMetrics { get; }
+        ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; }
         IRaidHistoryRepository RaidHistory { get; }
         ITicketsRepository ViewerTickets { get; }
         ITicketsWithRankRepository ViewerTicketsWithRank { get; }

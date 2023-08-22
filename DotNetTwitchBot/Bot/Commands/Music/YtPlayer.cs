@@ -714,7 +714,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var client = new HttpClient();
             var httpRequest = new HttpRequestMessage()
             {
-                RequestUri = new Uri(string.Format("https://beta.decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm))),
+                RequestUri = new Uri(string.Format("https://decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm))),
                 Method = HttpMethod.Get
             };
             var searchResponse = await client.SendAsync(httpRequest);
@@ -761,6 +761,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, "Could not get or had an issue finding your song request");
             }
             return null;
+        }
+
+        public List<Song> GetRequestedSongs()
+        {
+            lock (RequestsLock)
+            {
+                return Requests.ToList();
+            }
         }
 
         private async Task UpdateRequestedSongsState()

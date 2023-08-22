@@ -1,17 +1,110 @@
 ﻿@page "/viewergiveaway"
-@attribute [Authorize]
+
 @using System.Security.Claims
+@using Microsoft.AspNetCore.SignalR.Client
+@using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
+@inject NavigationManager Navigation
 
 <PageTitle>Viewer Giveaway</PageTitle>
-<h3>Giveaway</h3>
-<p>User: @Username</p>
-<img src="@ProfilePicture" />
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem sm="4">
+            @*<MudPaper Class="d-flex align-content-start flex-wrap flex-grow-1 gap-4 pa-8 ma-2">*@
+            <MudPaper Class="pa-8 ma-2" Outlined="true">
+                <MudText Typo="Typo.h5">Prize</MudText>
+                <MudText Typo="Typo.h6">@prize</MudText>
+                <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" />
+                </MudPaper>
+
+               
+
+            @*</MudPaper>*@
+        </MudItem>
+        <MudItem sm="4">
+            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5">Total Entrants</MudText>
+                <MudDivider />
+                <MudText Align="Align.Center" Typo="Typo.h6">@entrants</MudText>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5">Total Entries</MudText>
+                <MudDivider />
+                <MudText Align="Align.Center" Typo="Typo.h6">@entries</MudText>
+            </MudPaper>
+        </MudItem>
+        <AuthorizeView>
+            <Authorized Context="Auth">
+                <MudItem sm="4">
+                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5">Your Tickets</MudText>
+                        <MudDivider />
+                        <MudText Align="Align.Center" Typo="Typo.h4">@userTickets</MudText>
+                    </MudPaper>
+                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5">Your Entries</MudText>
+                        <MudDivider />
+                        <MudText Align="Align.Center" Typo="Typo.h4">@userEntries</MudText>
+                    </MudPaper>
+                    <MudPaper Class=" pa-4 ma-1 flex-wrap-reverse" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5">Enter Tickets</MudText>
+                        <EditForm Model="@model" OnValidSubmit="EnterTickets">
+                            <DataAnnotationsValidator />
+                            <MudNumericField  @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                       Class="ml-auto" Disabled=@isSubmitting>
+                                Enter
+                            </MudButton>
+                            @if(!string.IsNullOrWhiteSpace(AlertText))
+                            {
+                                <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
+                            }
+                        </EditForm>
+                    </MudPaper>
+                </MudItem>
+                <MudItem sm="4">
+                    
+                </MudItem>
+            </Authorized>
+            <NotAuthorized>
+                <MudItem sm="4">
+                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5"><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
+
+                    </MudPaper>
+                </MudItem>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudGrid>
+    
+</MudContainer>
 
 @code {
+    private HubConnection? hubConnection;
+    private List<GiveawayWinner> winners = new List<GiveawayWinner>();
+    private string prize = "";
+    private string? imageUrl;
+    private int entries;
+    private int entrants;
+    private long userTickets;
+    private long userEntries;
     private string Username = "";
-    private string ProfilePicture = "";
-    private string DisplayName = "";
+    private string AlertText = "";
+    private MudBlazor.Severity AlertSeverity = Severity.Info;
+    private bool isSubmitting;
+
+    private EnterTicketsForm model = new();
+
+    public class EnterTicketsForm
+    {
+        [Range(1, 1000000)]
+        public int EnterAmount { get; set; } = 1;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider
@@ -21,9 +114,55 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
             Username = user.Identity.Name;
-            var claims = user.Claims.ToList();
-            ProfilePicture = claims.FirstOrDefault(x => x.Type.Equals("ProfilePicture")).Value;
-            DisplayName = claims.FirstOrDefault(x => x.Type.Equals("DisplayName")).Value;
+            userTickets = await TicketFeature.GetViewerTickets(Username);
+            userEntries = await GiveawayFeature.GetEntriesCount(Username);
+        }
+        prize = await GiveawayFeature.GetPrize();
+        imageUrl = await GiveawayFeature.GetImageUrl();
+        entries = await GiveawayFeature.GetEntriesCount();
+        entrants = await GiveawayFeature.GetEntrantsCount();
+
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        hubConnection = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
+        hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
+        {
+            winners = Winners;
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string>("Prize", (Prize) =>
+        {
+            prize = Prize;
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
+    }
+
+    private async Task EnterTickets()
+    {
+        if (isSubmitting)
+            return;
+
+        isSubmitting = true;
+        try
+        {
+            var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
+            AlertText = result;
+            AlertSeverity = Severity.Success;
+            userTickets = await TicketFeature.GetViewerTickets(Username);
+            userEntries = await GiveawayFeature.GetEntriesCount(Username);
+        } catch (SkipCooldownException ex)
+        {
+            AlertText = ex.Message;
+            AlertSeverity = Severity.Error;
+        }
+        finally
+        {
+            isSubmitting = false;
         }
     }
 }

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
@@ -78,6 +74,13 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         {
             var songRequestMetric = await GetRequestedSongMetric(song);
             return songRequestMetric == null ? 0 : songRequestMetric.RequestedCount;
+        }
+
+        public async Task<List<Models.Metrics.SongRequestMetricWithRank>> GetTopN(int topN)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.SongRequestMetricsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
         private async Task<Models.Metrics.SongRequestMetric?> GetRequestedSongMetric(Song song)

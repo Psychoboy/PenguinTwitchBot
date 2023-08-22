@@ -124,6 +124,11 @@
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
