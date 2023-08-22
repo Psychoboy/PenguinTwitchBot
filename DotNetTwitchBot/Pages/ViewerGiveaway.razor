@@ -65,9 +65,21 @@
                             }
                         </EditForm>
                     </MudPaper>
-                </MudItem>
-                <MudItem sm="4">
-                    
+                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5">How to earn tickets</MudText>
+                        <MudDivider />
+                        <MudText>50 tickets for every sub</MudText>
+                        <MudText>50 tickets for every gifted sub</MudText>
+                        <MudText>10 tickets per 100 bits</MudText>
+                        <MudDivider />
+                        <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
+                        <MudText>+1 Ticket for everyone</MudText>
+                        <MudText>+2 Tickets for Subscribers</MudText>
+                        <MudText>+5 Tickets for Active Viewers</MudText>
+                        <MudText>+5 Tickets for Active Subscribers</MudText>
+                        <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
+                        <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
+                    </MudPaper>
                 </MudItem>
             </Authorized>
             <NotAuthorized>
@@ -76,9 +88,36 @@
                         <MudText Typo="Typo.h5"><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
 
                     </MudPaper>
+                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5">How to earn tickets</MudText>
+                        <MudDivider />
+                        <MudText>50 tickets for every sub</MudText>
+                        <MudText>50 tickets for every gifted sub</MudText>
+                        <MudText>10 tickets per 100 bits</MudText>
+                        <MudDivider />
+                        <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
+                        <MudText>+1 Ticket for everyone</MudText>
+                        <MudText>+2 Tickets for Subscribers</MudText>
+                        <MudText>+5 Tickets for Active Viewers</MudText>
+                        <MudText>+5 Tickets for Active Subscribers</MudText>
+                        <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
+                        <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
+                    </MudPaper>
                 </MudItem>
             </NotAuthorized>
         </AuthorizeView>
+        <MudItem>
+            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5">Rules</MudText>
+                <MudText>Winners for primary giveaway do NOT have to be present. Primary winner can only win once every 3 months! If primary winner has won in last 3 months a re-draw will be done. Primary winner is decided by first prize of the night unless 2nd prize value is over $100 which then both and any others would be considered primary.</MudText>
+            </MudPaper>
+            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5">Terms</MudText>
+                <MudText>Winner(s) will be whispered via Twitch and only Twitch. Winner(s) must respond within 48 hours. Once the prize is sent the winner has 1 week to collect otherwise will be cancelled.</MudText>
+                <MudText>Right to change giveaway at any time. Giveaways illegal where it is not legal. Must be 18+ to participate.</MudText>
+                <MudText>Giveaways can change at any time without reason.</MudText>
+            </MudPaper>
+        </MudItem>
     </MudGrid>
     
 </MudContainer>
