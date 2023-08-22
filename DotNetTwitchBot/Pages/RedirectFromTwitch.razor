@@ -3,10 +3,22 @@
 @using Microsoft.AspNetCore.WebUtilities;
 @inject IConfiguration Configuration
 @inject NavigationManager NavManager
-
+@if(string.IsNullOrEmpty(profilePicture) == false)
+{
+    <img src="@profilePicture" />
+    <MudText>@displayName</MudText>
+}
 @code {
+    private string? displayName;
+    private string? profilePicture;
     protected override async Task OnInitializedAsync()
     {
+
+    }
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
         var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
         var code = "";
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var twitchcode))
@@ -17,6 +29,14 @@
         api.Settings.ClientId = Configuration["twitchClientId"];
         var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, Configuration["twitchClientSecret"], "https://localhost:7293/redirect");
         api.Settings.AccessToken = resp.AccessToken;
-        var user = await api.Helix.Users.GetUsersAsync();
+        var users = await api.Helix.Users.GetUsersAsync();
+        if (users.Users.Length > 0)
+        {
+            var user = users.Users[0];
+            profilePicture = user.ProfileImageUrl;
+            displayName = user.DisplayName;
+            StateHasChanged();
+        }
+
     }
 }
