@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Models;
+﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -11,11 +12,16 @@ namespace DotNetTwitchBot.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<HomeController> _logger;
+        private readonly IViewerFeature _viewerFeature;
 
-        public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
+        public HomeController(
+            IConfiguration configuration,
+            ILogger<HomeController> logger,
+            IViewerFeature viewerFeature)
         {
             _configuration = configuration;
             _logger = logger;
+            _viewerFeature = viewerFeature;
         }
         public IActionResult Index()
         {
@@ -71,6 +77,30 @@ namespace DotNetTwitchBot.Controllers
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName)
                 };
+
+
+                if (await _viewerFeature.IsFollower(user.Login))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Follower"));
+                }
+                var viewer = await _viewerFeature.GetViewer(user.Login);
+                if (viewer != null)
+                {
+                    if (viewer.isMod)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Moderator"));
+                    }
+
+                    if (viewer.isSub)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Subscriber"));
+                    }
+
+                    if (viewer.isVip)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "VIP"));
+                    }
+                }
 
                 var claimsIdentity = new ClaimsIdentity(
                     claims, CookieAuthenticationDefaults.AuthenticationScheme
