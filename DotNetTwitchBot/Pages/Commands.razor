@@ -18,6 +18,7 @@
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Command</MudTh>
+                <MudTh>Category</MudTh>
                 <MudTh>Description</MudTh>
                 <MudTh>Rank</MudTh>
                 <MudTh>Cost</MudTh>
@@ -26,6 +27,7 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Command">!@context.Command</MudTd>
+                <MudTd DataLabel="Category">@context.Category</MudTd>
                 <MudTd DataLabel="Description">@context.Description</MudTd>
                 <MudTd DataLabel="Rank">@context.Rank</MudTd>
                 <MudTd DataLabel="Cost">@context.Cost</MudTd>
@@ -52,6 +54,7 @@
         public Rank Rank { get; set; } = Rank.Viewer;
         public int Cost { get; set; }
         public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
 
     }
 
@@ -71,7 +74,9 @@
                     GlobalCooldown = command.GlobalCooldown,
                     Rank = command.MinimumRank,
                     Cost = command.Cost,
-                    Description = command.ModuleName
+                    Description = command.ModuleName,
+                    Category = SplitModuleName(command.ModuleName)
+
                 });
         }
 
@@ -85,7 +90,8 @@
                     GlobalCooldown = command.Value.GlobalCooldown,
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
-                    Description = command.Value.Response
+                    Description = command.Value.Response,
+                    Category = "Custom"
                 });
         }
 
@@ -99,16 +105,17 @@
                     GlobalCooldown = command.Value.GlobalCooldown,
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
-                    Description = command.Value.AudioFile
+                    Description = command.Value.AudioFile,
+                    Category = "Sounds"
                 });
         }
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
         {
-            commands = tempCommands;
+            commands = tempCommands.OrderBy(x => x.Command).ToList();
         } else
         {
-            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).ToList();
+            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
 
     }
@@ -121,10 +128,17 @@
             return true;
         if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
+        if (element.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
         if (element.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         if (element.Rank.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         return false;
+    }
+
+    private string SplitModuleName(string moduleName)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
     }
 }
