@@ -38,7 +38,11 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/signin")]
         public IActionResult Signin()
         {
+#if DEBUG
             var url = getAuthorizationCodeUrl("https://localhost:7293/redirect", new());
+#else
+            var url = getAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect", new());
+#endif
             return Redirect(url);
         }
 
@@ -47,7 +51,11 @@ namespace DotNetTwitchBot.Controllers
         {
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = _configuration["twitchClientId"];
+#if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/redirect");
+#else
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
+#endif
             api.Settings.AccessToken = resp.AccessToken;
             var users = await api.Helix.Users.GetUsersAsync();
             if (users.Users.Length > 0)
@@ -56,7 +64,9 @@ namespace DotNetTwitchBot.Controllers
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),
-                    new Claim(ClaimTypes.Role, _configuration["broadcaster"].Equals(user.Login) ? "Streamer": "Viewer")
+                    new Claim(ClaimTypes.Role, _configuration["broadcaster"].Equals(user.Login) ? "Streamer": "Viewer"),
+                    new Claim("ProfilePicture", user.ProfileImageUrl),
+                    new Claim("DisplayName", user.DisplayName)
                 };
 
                 var claimsIdentity = new ClaimsIdentity(

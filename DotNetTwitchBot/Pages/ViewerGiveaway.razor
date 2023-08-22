@@ -1,0 +1,29 @@
+﻿@page "/viewergiveaway"
+@attribute [Authorize]
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Viewer Giveaway</PageTitle>
+<h3>Giveaway</h3>
+<p>User: @Username</p>
+<img src="@ProfilePicture" />
+
+@code {
+    private string Username = "";
+    private string ProfilePicture = "";
+    private string DisplayName = "";
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
+        {
+            Username = user.Identity.Name;
+            var claims = user.Claims.ToList();
+            ProfilePicture = claims.FirstOrDefault(x => x.Type.Equals("ProfilePicture")).Value;
+            DisplayName = claims.FirstOrDefault(x => x.Type.Equals("DisplayName")).Value;
+        }
+    }
+}

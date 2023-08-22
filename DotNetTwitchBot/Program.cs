@@ -216,6 +216,7 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
+                eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.Message.Contains("JavaScript"))
             {
                 return; //Ignore
