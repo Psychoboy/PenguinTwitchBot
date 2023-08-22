@@ -1,0 +1,22 @@
+﻿@page "/redirect"
+@using System.Configuration;
+@using Microsoft.AspNetCore.WebUtilities;
+@inject IConfiguration Configuration
+@inject NavigationManager NavManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var code = "";
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var twitchcode))
+        {
+            code = twitchcode;
+        }
+        var api = new TwitchLib.Api.TwitchAPI();
+        api.Settings.ClientId = Configuration["twitchClientId"];
+        var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, Configuration["twitchClientSecret"], "https://localhost:7293/redirect");
+        api.Settings.AccessToken = resp.AccessToken;
+        var user = await api.Helix.Users.GetUsersAsync();
+    }
+}
