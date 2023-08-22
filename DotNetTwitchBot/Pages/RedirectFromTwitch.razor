@@ -1,8 +1,12 @@
-﻿@page "/redirect"
+﻿@page "/redirectold"
 @using System.Configuration;
+@using Microsoft.AspNetCore.Authentication.Cookies;
+@using Microsoft.AspNetCore.Authentication;
 @using Microsoft.AspNetCore.WebUtilities;
+@using System.Security.Claims;
 @inject IConfiguration Configuration
 @inject NavigationManager NavManager
+@inject IHttpContextAccessor _httpContextAccessor
 @if(string.IsNullOrEmpty(profilePicture) == false)
 {
     <img src="@profilePicture" />
@@ -11,10 +15,6 @@
 @code {
     private string? displayName;
     private string? profilePicture;
-    protected override async Task OnInitializedAsync()
-    {
-
-    }
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -35,8 +35,37 @@
             var user = users.Users[0];
             profilePicture = user.ProfileImageUrl;
             displayName = user.DisplayName;
+
+            await SetClaims(user);
+
             StateHasChanged();
         }
+
+    }
+
+    private async Task SetClaims(TwitchLib.Api.Helix.Models.Users.GetUsers.User user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.Login),
+            new Claim(ClaimTypes.Role, "Streamer")
+        };
+
+        var claimsIdentity = new ClaimsIdentity(
+            claims, CookieAuthenticationDefaults.AuthenticationScheme
+        );
+
+        var authProperties = new AuthenticationProperties
+        {
+
+        };
+       
+
+        await _httpContextAccessor.HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity),
+            authProperties
+        );
 
     }
 }

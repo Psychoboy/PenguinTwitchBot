@@ -1,9 +1,9 @@
 @page "/aliases"
+@attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
 <PageTitle>Aliases</PageTitle>
-
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>
         @if (aliases != null)
