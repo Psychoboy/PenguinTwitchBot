@@ -128,6 +128,36 @@ namespace DotNetTwitchBot.Bot.Commands
             return newDefaultCommand.Entity;
         }
 
+        public async Task<IEnumerable<ExternalCommands>> GetExternalCommands()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.ExternalCommands.GetAllAsync();
+        }
+
+        public async Task<ExternalCommands?> GetExternalCommand(int id)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.ExternalCommands.GetByIdAsync(id);
+        }
+
+        public async Task AddOrUpdateExternalCommand(ExternalCommands externalCommand)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.ExternalCommands.Update(externalCommand);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task DeleteExternalCommand(ExternalCommands externalCommand)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.ExternalCommands.Remove(externalCommand);
+            await db.SaveChangesAsync();
+        }
+
         public bool IsCoolDownExpired(string user, string command)
         {
             if (

@@ -1,0 +1,126 @@
+﻿@page "/externalcommands"
+@attribute [Authorize(Roles = "Streamer")]
+@inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>External Commands</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (commands != null)
+        {
+            <MudItem xs="9">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@commands">
+                        <HeaderContent>
+                            <MudTh>Command</MudTh>
+                            <MudTh>Category</MudTh>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Disabled</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Command">!@context.CommandName</MudTd>
+                            <MudTd DataLabel="Category">@context.Category</MudTd>
+                            <MudTd DataLabel="Description">@context.Description</MudTd>
+                            <MudTd DataLabel="Disabled">@context.Disabled</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => Edit(context)">
+                                    Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (externalCommand != null)
+        {
+            <MudItem xs="3">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@externalCommand" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                        @bind-Value="externalCommand.CommandName" />
+
+                        <MudTextField Label="Category"
+                        @bind-Value="externalCommand.Category" />
+
+                        <MudTextField Label="Description"
+                        @bind-Value="externalCommand.Description" />
+                        <MudNumericField @bind-Value="@externalCommand.UserCooldown" Label="User Cooldown"
+                                         Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudNumericField @bind-Value="@externalCommand.GlobalCooldown" Label="Global Cooldown"
+                                         Variant="Variant.Text">
+                        </MudNumericField>
+
+                        <MudCheckBox @bind-Checked="@externalCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudSelect @bind-Value="@externalCommand.MinimumRank" Label="Minimum Rank">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDivider />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<DotNetTwitchBot.Bot.Models.ExternalCommands>? commands;
+    private DotNetTwitchBot.Bot.Models.ExternalCommands externalCommand { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        commands = (await CommandHandler.GetExternalCommands()).ToList();
+    }
+
+    public async void OnSubmit()
+    {
+        if (externalCommand == null) return;
+        await CommandHandler.AddOrUpdateExternalCommand(externalCommand);
+        externalCommand = new();
+        await ReloadCommands();
+    }
+
+    private async Task ReloadCommands()
+    {
+        commands = (await CommandHandler.GetExternalCommands()).ToList();
+        StateHasChanged();
+    }
+
+    private async Task Delete(DotNetTwitchBot.Bot.Models.ExternalCommands item)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await CommandHandler.DeleteExternalCommand(item);
+            await ReloadCommands();
+        }
+    }
+
+    private void Edit(DotNetTwitchBot.Bot.Models.ExternalCommands item)
+    {
+        externalCommand = item;
+    }
+}
