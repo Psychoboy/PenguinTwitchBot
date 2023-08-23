@@ -73,7 +73,7 @@
     private Song? currentSong;
     private List<Song> songRequests = new();
     private HubConnection? hubConnection;
-    private List<Bot.Models.Metrics.SongRequestMetricWithRank> topSongRequests = new();
+    private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
 
     protected override async Task OnInitializedAsync()
     {

@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
             return songRequestMetric == null ? 0 : songRequestMetric.RequestedCount;
         }
 
-        public async Task<List<Models.Metrics.SongRequestMetricWithRank>> GetTopN(int topN)
+        public async Task<List<Models.Metrics.SongRequestMetricsWithRank>> GetTopN(int topN)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Repository
 {
-    public interface ISongRequestMetricsWithRankRepository : IGenericRepository<SongRequestMetricWithRank>
+    public interface ISongRequestMetricsWithRankRepository : IGenericRepository<SongRequestMetricsWithRank>
     {
     }
 }
