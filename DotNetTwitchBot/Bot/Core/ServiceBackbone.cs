@@ -1,12 +1,8 @@
-﻿using System.Collections.Concurrent;
-using System.Runtime.ExceptionServices;
-using System.Reflection.Emit;
-using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Events;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
-using TwitchLib.Client.Models;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Moderation;
-using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -86,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Core
                     _logger.LogWarning("Lock expired while waiting...");
                 }
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
-                if (commandService != null)
+                if (commandService != null && commandService.CommandProperties.Disabled == false)
                 {
                     if (await CheckPermission(commandService.CommandProperties, eventArgs))
                     {
