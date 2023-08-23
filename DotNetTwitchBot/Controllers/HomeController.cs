@@ -65,6 +65,9 @@ namespace DotNetTwitchBot.Controllers
 #else
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
 #endif
+            var broadcaster = _configuration["broadcaster"];
+            if (broadcaster == null) { throw new ArgumentNullException("Broadcaster is not set"); }
+
             api.Settings.AccessToken = resp.AccessToken;
             var users = await api.Helix.Users.GetUsersAsync();
             if (users.Users.Length > 0)
@@ -73,7 +76,7 @@ namespace DotNetTwitchBot.Controllers
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),
-                    new Claim(ClaimTypes.Role, _configuration["broadcaster"].Equals(user.Login) ? "Streamer": "Viewer"),
+                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) ? "Streamer": "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName)
                 };
