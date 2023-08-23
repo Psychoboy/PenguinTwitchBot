@@ -1,4 +1,5 @@
 @page "/playlists"
+@attribute [Authorize(Roles = "Streamer")]
 @using Microsoft.AspNetCore.SignalR.Client
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -123,6 +124,11 @@
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 

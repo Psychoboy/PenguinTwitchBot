@@ -1,4 +1,5 @@
 @page "/customcommands"
+@attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

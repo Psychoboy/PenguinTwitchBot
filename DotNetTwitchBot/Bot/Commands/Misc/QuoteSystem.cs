@@ -52,6 +52,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
+        public async Task<IEnumerable<QuoteType>> GetQuotes()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Quotes.GetAllAsync();
+        }
+
         private async Task DeleteQuote(CommandEventArgs e)
         {
             if (e.Args.Count == 0)

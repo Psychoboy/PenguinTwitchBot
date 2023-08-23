@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.Repository.Repositories;
 using DotNetTwitchBot.Bot.TwitchServices;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using MudBlazor.Services;
 using Quartz;
 using Serilog;
@@ -37,6 +38,9 @@ internal class Program
         builder.Services.AddSingleton<TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<DiscordService>();
+
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie();
 
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor();
@@ -139,6 +143,8 @@ internal class Program
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
         var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         if (!app.Environment.IsDevelopment())
         {
@@ -210,6 +216,8 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
+                eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
+                eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
                 eventArgs.Exception.Message.Contains("JavaScript"))
             {
                 return; //Ignore

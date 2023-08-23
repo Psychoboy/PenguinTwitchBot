@@ -1,27 +1,32 @@
 ﻿@page "/"
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
-
-@* <style type="text/css">
-.white-text {
-color: white;
-
-}
-</style>
-
-<div>
-<button class="btn btn-primary btn-xs" @onclick="PauseAlerts">Pause Alerts</button>
-</div>
-
-<div>
-<button class="btn btn-primary btn-xs" @onclick="ResumeAlerts">Resume Alerts</button>
-</div> *@
-
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+<CascadingAuthenticationState>  
+    <AuthorizeView Roles="Streamer">
+        <Authorized>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
+</Authorized>
+</AuthorizeView>
+</CascadingAuthenticationState>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity is null || !user.Identity.IsAuthenticated || !user.IsInRole("Streamer"))
+        {
+            Navigation.NavigateTo("/viewergiveaway");
+        }
+    }
+
+
     private async Task PauseAlerts()
     {
         await Admin.PauseAlerts();

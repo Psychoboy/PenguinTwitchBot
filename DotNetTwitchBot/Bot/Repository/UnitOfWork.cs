@@ -41,12 +41,15 @@ namespace DotNetTwitchBot.Bot.Repository
             SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
             Songs = new SongsRepository(_context);
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
+            SongRequestMetricsWithRank = new SongRequestMetricsWithRankRepository(_context);
+            ExternalCommands = new ExternalCommandsRepository(_context);
 
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
         public IDefaultCommandRepository DefaultCommands { get; private set; }
         public ISongRequestMetricsRepository SongRequestMetrics { get; private set; }
+        public ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public ITicketsRepository ViewerTickets { get; private set; }
         public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
@@ -76,6 +79,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public ISubscriptionHistoriesRepository SubscriptionHistories { get; private set; }
         public ISongsRepository Songs { get; private set; }
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
+        public IExternalCommandsRepository ExternalCommands { get; private set; }
 
         public void Dispose()
         {

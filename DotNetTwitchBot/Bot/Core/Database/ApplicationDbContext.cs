@@ -42,7 +42,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<KnownBot> KnownBots { get; set; } = null!;
         public DbSet<DefaultCommand> DefaultCommands { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetric> SongRequestMetrics { get; set; } = null!;
-        public DbSet<Models.Metrics.SongRequestMetricWithRank> SongRequestMetricsWithRank { get; set; } = null!;
+        public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
+        public DbSet<ExternalCommands> ExternalCommands { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -69,7 +70,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
             .Property(c => c.Id)
             .ValueGeneratedNever();
 
-            modelBuilder.Entity<Models.Metrics.SongRequestMetricWithRank>()
+            modelBuilder.Entity<Models.Metrics.SongRequestMetricsWithRank>()
+                .ToView(nameof(Models.Metrics.SongRequestMetricsWithRank))
             .HasKey(c => c.SongId);
         }
     }

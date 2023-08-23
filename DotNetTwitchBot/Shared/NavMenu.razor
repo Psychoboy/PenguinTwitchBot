@@ -1,26 +1,51 @@
-﻿<MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
-    <MudNavLink Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
-    <MudNavGroup Title="Commands" Expanded="false">
-        <MudNavLink Href="/defaultcommands" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
-        <MudNavLink Href="/customcommands" Match="NavLinkMatch.Prefix">Custom Commands</MudNavLink>
-        <MudNavLink Href="/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
-        <MudNavLink Href="/keywords" Match="NavLinkMatch.Prefix">Keywords</MudNavLink>
-        <MudNavLink Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
-    </MudNavGroup>
-    <MudNavGroup Title="Giveaways" Expanded="false">
-        <MudNavLink Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
-        <MudNavLink Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
-    </MudNavGroup>
-    <MudNavGroup Title="Viewers/Bots" Expanded="false">
-        <MudNavLink Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
-        <MudNavLink Href="/autoshoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
-        <MudNavLink Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
-    </MudNavGroup>
-    <MudNavGroup Title="Music" Expanded="false">
-        <MudNavLink Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
-        <MudNavLink Href="/playlists" Match="NavLinkMatch.Prefix">Play Lists</MudNavLink>
-    </MudNavGroup>
-    <MudNavLink Href="/timergroups" Match="NavLinkMatch.Prefix">Timers</MudNavLink>
-    <MudNavLink Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
-</MudNavMenu>
+﻿<CascadingAuthenticationState>  
+    <AuthorizeView Roles="Streamer">
+        <Authorized>
+                <MudNavMenu>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
+                    <MudNavLink Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
+                    <MudNavGroup Title="Commands" Expanded="false">
+                        <MudNavLink Href="/defaultcommands" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
+                        <MudNavLink Href="/customcommands" Match="NavLinkMatch.Prefix">Custom Commands</MudNavLink>
+                        <MudNavLink Href="/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
+                        <MudNavLink Href="/keywords" Match="NavLinkMatch.Prefix">Keywords</MudNavLink>
+                        <MudNavLink Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
+                        <MudNavLink Href="/externalcommands" Match="NavLinkMatch.Prefix">External Commands</MudNavLink>
+                    </MudNavGroup>
+                    <MudNavGroup Title="Giveaways" Expanded="false">
+                        <MudNavLink Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
+                        <MudNavLink Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
+                    </MudNavGroup>
+                    <MudNavGroup Title="Viewers/Bots" Expanded="false">
+                        <MudNavLink Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
+                        <MudNavLink Href="/autoshoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
+                        <MudNavLink Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
+                    </MudNavGroup>
+                    <MudNavGroup Title="Music" Expanded="false">
+                        <MudNavLink Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
+                        <MudNavLink Href="/playlists" Match="NavLinkMatch.Prefix">Play Lists</MudNavLink>
+                    </MudNavGroup>
+                    <MudNavLink Href="/timergroups" Match="NavLinkMatch.Prefix">Timers</MudNavLink>
+                    <MudNavLink Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
+                    
+                </MudNavMenu>
+        </Authorized>
+        <NotAuthorized>
+            
+        </NotAuthorized>
+    </AuthorizeView>
+    <MudNavLink Href="/commands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.SystemSecurityUpdateWarning">Commands</MudNavLink>
+    <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.NewReleases">Giveaway</MudNavLink>
+    <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
+    <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/signout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Log Out</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="/signin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+    </NotAuthorized>
+    </AuthorizeView>
+
+</CascadingAuthenticationState>
+<MudNavLink Href="https://forms.gle/1xbqeJb43HiaZqEF7" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Feedback" Target="_blank">Feedback</MudNavLink>

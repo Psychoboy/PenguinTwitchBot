@@ -1,4 +1,5 @@
 @page "/viewers"
+@attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

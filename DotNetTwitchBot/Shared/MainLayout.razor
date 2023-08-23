@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <PageTitle>SPTV Twitch Bot</PageTitle>
 <MudThemeProvider IsDarkMode=true />
@@ -9,6 +11,18 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@((e) => DrawerToggle())" />
         Super Waffle Bot
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized Context="Auth">
+                <MudImage Width="48" Src="@ProfileImage" />
+                <MudMenu Label="@Username" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter">
+                    <MudMenuItem OnClick="Signout">Sign out</MudMenuItem>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudLink Href="/signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>
+            </NotAuthorized>
+         </AuthorizeView>
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen">
         <NavMenu />
@@ -19,6 +33,35 @@
 </MudLayout>
 @code {
     bool _drawerOpen = true;
+    private string Username = "";
+    private string ProfileImage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
+        {
+            Username = user.Identity.Name;
+            if (user.HasClaim(x => x.Type.Equals("DisplayName")))
+            {
+                Username = user.Claims.Where(x => x.Type.Equals("DisplayName")).First().Value;
+            }
+
+            if (user.HasClaim(x => x.Type.Equals("ProfilePicture")))
+            {
+                ProfileImage = user.Claims.Where(x => x.Type.Equals("ProfilePicture")).First().Value;
+            }
+        }
+
+    }
+
+    private void Signout()
+    {
+        Navigation.NavigateTo("/signout", true);
+    }
 
     void DrawerToggle()
     {

@@ -19,5 +19,9 @@
         void RemoveCommand(string commandName);
         void UpdateCommandName(string oldCommandName, string newCommandName);
         Task UpdateDefaultCommand(DefaultCommand defaultCommand);
+        Task<IEnumerable<ExternalCommands>> GetExternalCommands();
+        Task<ExternalCommands?> GetExternalCommand(int id);
+        Task AddOrUpdateExternalCommand(ExternalCommands externalCommand);
+        Task DeleteExternalCommand(ExternalCommands externalCommand);
     }
 }

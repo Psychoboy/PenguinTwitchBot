@@ -1,0 +1,225 @@
+﻿@page "/commands"
+@using System.Security.Claims
+@using DotNetTwitchBot.Bot.Commands;
+@using DotNetTwitchBot.Bot.Commands.Custom;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ICommandHandler CommandHandler
+@inject CustomCommand CustomCommand
+@inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
+
+<PageTitle>Commands</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudPaper>
+        <MudTable Items="@commands" Striped="true" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Commands</MudText>
+                <MudChipSet SelectedChipsChanged="ChipsChanged" MultiSelection="true" Filter="true">
+                    <MudChip Text="Giveaway"></MudChip>
+                    <MudChip Text="HFX"></MudChip>
+                    <MudChip Text="Sounds"></MudChip>
+                    <MudChip Text="Ticket Games"></MudChip>
+                    <MudChip Text="Pasties & Games"></MudChip>
+                </MudChipSet>
+                <MudSpacer />
+                <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent >
+                <MudTh>Command</MudTh>
+                <MudTh>Category</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh>Rank</MudTh>
+                <MudTh>Cost</MudTh>
+                <MudTh>User Cooldown</MudTh>
+                <MudTh>Global Cooldown</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Command">@context.Command</MudTd>
+                <MudTd DataLabel="Category">@context.Category</MudTd>
+                <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                <MudTd DataLabel="Cost">@context.Cost</MudTd>
+                <MudTd DataLabel="UserCooldown">@context.UserCooldown</MudTd>
+                <MudTd DataLabel="GlobalCooldown">@context.GlobalCooldown</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
+
+
+@code {
+    private List<CommandModel> originalCommands = new();
+    private List<CommandModel> commands = new();
+    private string searchString1 = "";
+    MudChip[]? selected;
+
+    public class CommandModel
+    {
+        public string Command { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int GlobalCooldown { get; set; }
+        public Rank Rank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        var commandHandlerCommands = await CommandHandler.GetDefaultCommandsFromDb();
+        var tempCommands = new List<CommandModel>();
+        foreach(var command in commandHandlerCommands.Where(x => x.Disabled == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CustomCommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = SplitModuleName(command.ModuleName),
+                    Category = SplitModuleName(command.ModuleName)
+
+                });
+        }
+
+        var customCommands = CustomCommand.GetCustomCommands();
+        foreach (var command in customCommands.Where(x => x.Value.Disabled == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.Value.CommandName,
+                    UserCooldown = command.Value.UserCooldown,
+                    GlobalCooldown = command.Value.GlobalCooldown,
+                    Rank = command.Value.MinimumRank,
+                    Cost = command.Value.Cost,
+                    Description = command.Value.Response,
+                    Category = "Custom"
+                });
+        }
+
+        var audioCommands = AudioCommands.GetAudioCommands();
+        foreach (var command in audioCommands.Where(x => x.Value.Disabled == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.Value.CommandName,
+                    UserCooldown = command.Value.UserCooldown,
+                    GlobalCooldown = command.Value.GlobalCooldown,
+                    Rank = command.Value.MinimumRank,
+                    Cost = command.Value.Cost,
+                    Description = command.Value.AudioFile,
+                    Category = "Sounds"
+                });
+        }
+
+        var externalCommands = await CommandHandler.GetExternalCommands();
+        foreach (var command in externalCommands.Where(x => x.Disabled == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = command.Description,
+                    Category = command.Category
+                });
+        }
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
+        {
+            commands = tempCommands.OrderBy(x => x.Command).ToList();
+        } else
+        {
+            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
+        }
+        originalCommands = commands.ToList();
+    }
+
+    private void ChipsChanged(MudChip[] chips)
+    {
+        selected = chips;
+        if(chips.Length == 0)
+        {
+            commands = originalCommands.OrderBy(x => x.Command).ToList();
+            return;
+        }
+        commands = new();
+        if (chips.Where(x => x.Text.Equals("Giveaway")).Any())
+        {
+            commands.AddRange(originalCommands.Where(x => 
+                x.Category.Contains("Giveaway") ||
+                x.Category.Contains("Tickets") ||
+                x.Category.Contains("Bacon") ||
+                x.Category.Contains("Duel") ||
+                x.Category.Contains("ModSpam") ||
+                x.Category.Contains("Pancake") ||
+                x.Category.Contains("Roulette") ||
+                x.Category.Contains("Waffle")
+            ));
+        }
+        if (chips.Where(x => x.Text.Equals("HFX")).Any())
+        {
+            commands.AddRange(originalCommands.Where(x => x.Category.Equals("HFX")));
+        }
+        if (chips.Where(x => x.Text.Equals("Sounds")).Any())
+        {
+            commands.AddRange(originalCommands.Where(x => x.Category.Equals("Sounds")));
+        }
+        if(chips.Where(x => x.Text.Equals("Ticket Games")).Any())
+        {
+            commands.AddRange(originalCommands.Where(x =>
+                x.Category.Contains("Bacon") ||
+                x.Category.Contains("Duel") ||
+                x.Category.Contains("ModSpam") ||
+                x.Category.Contains("Pancake") ||
+                x.Category.Contains("Roulette") ||
+                x.Category.Contains("Waffle")
+            ));
+        }
+        if (chips.Where(x => x.Text.Equals("Pasties & Games")).Any())
+        {
+            commands.AddRange(originalCommands.Where(x => 
+                 x.Category.Contains("Pastie") ||
+                x.Category.Contains("defuse") ||
+                x.Category.Contains("FFA") ||
+                x.Category.Contains("Gamble") ||
+                x.Category.Contains("Heist") ||
+                x.Category.Contains("Roll") ||
+                x.Category.Contains("Slots") ||
+                x.Category.Contains("Loyalty")
+            ));
+        }
+        commands = commands.OrderBy(x => x.Command).ToList();
+    }
+
+    private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
+
+    private bool FilterFunc(CommandModel element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Rank.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SplitModuleName(string moduleName)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
+    }
+}

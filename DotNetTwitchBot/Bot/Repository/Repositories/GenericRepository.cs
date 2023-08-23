@@ -60,17 +60,21 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
                 query = query.Include(includeProperty);
             }
 
-            if (limit != null)
-            {
-                query = query.Take((int)limit);
-            }
-
             if (orderBy != null)
             {
+                if (limit != null)
+                {
+                    return orderBy(query).Take((int)limit).ToList();
+                }
+
                 return orderBy(query).ToList();
             }
             else
             {
+                if (limit != null)
+                {
+                    return query.Take((int)limit).ToList();
+                }
                 return query.ToList();
             }
         }
@@ -90,17 +94,21 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
                 query = query.Include(includeProperty);
             }
 
-            if (limit != null)
-            {
-                query = query.Take((int)limit);
-            }
-
             if (orderBy != null)
             {
+                if (limit != null)
+                {
+                    return orderBy(query).Take((int)limit).ToListAsync();
+                }
+
                 return orderBy(query).ToListAsync();
             }
             else
             {
+                if (limit != null)
+                {
+                    return query.Take((int)limit).ToListAsync();
+                }
                 return query.ToListAsync();
             }
         }

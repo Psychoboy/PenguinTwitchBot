@@ -5,6 +5,7 @@
         IAudioCommandsRepository AudioCommands { get; }
         IDefaultCommandRepository DefaultCommands { get; }
         ISongRequestMetricsRepository SongRequestMetrics { get; }
+        ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; }
         IRaidHistoryRepository RaidHistory { get; }
         ITicketsRepository ViewerTickets { get; }
         ITicketsWithRankRepository ViewerTicketsWithRank { get; }
@@ -34,6 +35,7 @@
         ISubscriptionHistoriesRepository SubscriptionHistories { get; }
         ISongsRepository Songs { get; }
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
+        IExternalCommandsRepository ExternalCommands { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

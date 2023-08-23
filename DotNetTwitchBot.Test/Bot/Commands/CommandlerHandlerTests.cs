@@ -387,6 +387,123 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
         }
 
         [Fact]
+        public async Task GetExternalCommands_ShouldReturnCommands()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+
+            var commands = new List<ExternalCommands>
+            {
+                new ExternalCommands { Id = 1, CommandName = "cmd1" },
+                new ExternalCommands { Id = 2, CommandName = "cmd2" }
+            };
+            var queryable = commands.AsQueryable().BuildMockDbSet();
+
+            dbContext.ExternalCommands.GetAllAsync().Returns(commands);
+
+            // Act
+            var result = await commandHandler.GetExternalCommands();
+
+            // Assert
+            Assert.Equal(commands, result);
+        }
+
+        [Fact]
+        public async Task GetExternalCommand_ShouldReturnCommand()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
+
+            dbContext.ExternalCommands.GetByIdAsync(1).Returns(testCommand);
+
+            // Act
+            var result = await commandHandler.GetExternalCommand(1);
+
+            // Assert
+            Assert.Equal(testCommand, result);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateExternalCommand_ShouldUpdate()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
+
+            // Act
+            await commandHandler.AddOrUpdateExternalCommand(testCommand);
+
+            // Assert
+            dbContext.ExternalCommands.Received().Update(testCommand);
+            await dbContext.Received().SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task DeleteExternalCommand_ShouldDelete()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<CommandHandler>>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(serviceProvider);
+
+            scopeFactory.CreateScope().Returns(scope);
+
+
+            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
+
+            // Act
+            await commandHandler.DeleteExternalCommand(testCommand);
+
+            // Assert
+            dbContext.ExternalCommands.Received().Remove(testCommand);
+            await dbContext.Received().SaveChangesAsync();
+        }
+
+
+        [Fact]
         public void IsCoolDownExpired_ShouldReturnTrue_WhenNoCooldowns()
         {
             // Arrange
@@ -548,17 +665,6 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Assert
             Assert.False(result);
             await serviceBackbone.Received(1).SendChatMessage(user, Arg.Any<string>());
-        }
-
-        private IQueryable<DefaultCommand> GetDefaultCommandDbSet()
-        {
-            var data = new List<DefaultCommand>
-            {
-                new DefaultCommand { Id = 1, CommandName = "testCommand1" },
-                new DefaultCommand { Id = 2, CommandName = "testCommand2" }
-            }.AsQueryable();
-
-            return data;
         }
     }
 }
