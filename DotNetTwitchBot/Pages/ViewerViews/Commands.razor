@@ -10,7 +10,7 @@
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
-        <MudTable Items="@commands" Striped="true" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+        <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Commands</MudText>
                 <MudChipSet SelectedChipsChanged="ChipsChanged" MultiSelection="true" Filter="true">

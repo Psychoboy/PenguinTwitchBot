@@ -216,7 +216,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await db.ViewerTickets.ExecuteDeleteAsync();
+            await db.ViewerTickets.ExecuteDeleteAllAsync();
             await db.SaveChangesAsync();
         }
     }

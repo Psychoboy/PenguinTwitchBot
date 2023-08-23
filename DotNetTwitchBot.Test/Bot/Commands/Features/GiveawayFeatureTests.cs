@@ -162,7 +162,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             Assert.Empty(giveawayFeature.ClosedTickets);
-            await dbContext.GiveawayEntries.Received(1).ExecuteDeleteAsync();
+            await dbContext.GiveawayEntries.Received(1).ExecuteDeleteAllAsync();
             await dbContext.Received(1).SaveChangesAsync();
         }
 

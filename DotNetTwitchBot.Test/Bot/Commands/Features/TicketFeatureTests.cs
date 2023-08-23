@@ -649,7 +649,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             await ticketFeature.ResetAllPoints();
 
             //Assert
-            await dbContext.ViewerTickets.Received(1).ExecuteDeleteAsync();
+            await dbContext.ViewerTickets.Received(1).ExecuteDeleteAllAsync();
             await dbContext.Received(1).SaveChangesAsync();
         }
 
@@ -686,7 +686,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             await ticketFeature.OnCommand(null, eventArgs);
 
             //Assert
-            await dbContext.ViewerTickets.Received(1).ExecuteDeleteAsync();
+            await dbContext.ViewerTickets.Received(1).ExecuteDeleteAllAsync();
             await dbContext.Received(1).SaveChangesAsync();
         }
     }

@@ -30,12 +30,12 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
             return _context.Set<T>().AddRangeAsync(entities);
         }
 
-        public int ExecuteDelete()
+        public int ExecuteDeleteAll()
         {
             return _context.Set<T>().ExecuteDelete();
         }
 
-        public Task<int> ExecuteDeleteAsync()
+        public Task<int> ExecuteDeleteAllAsync()
         {
             return _context.Set<T>().ExecuteDeleteAsync();
         }
@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
             return _context.Set<T>().Where(expression);
         }
 
-        public IEnumerable<T> Get(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, string includeProperties = "")
+        public IEnumerable<T> Get(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, int? offset = null, string includeProperties = "")
         {
             IQueryable<T> query = _context.Set<T>();
 
@@ -62,24 +62,22 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
 
             if (orderBy != null)
             {
-                if (limit != null)
-                {
-                    return orderBy(query).Take((int)limit).ToList();
-                }
+                query = orderBy(query).AsQueryable();
+            }
 
-                return orderBy(query).ToList();
-            }
-            else
+            if (offset != null)
             {
-                if (limit != null)
-                {
-                    return query.Take((int)limit).ToList();
-                }
-                return query.ToList();
+                query = query.Skip((int)offset);
             }
+
+            if (limit != null)
+            {
+                query = query.Take((int)limit);
+            }
+            return query.ToList();
         }
 
-        public Task<List<T>> GetAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, string includeProperties = "")
+        public async Task<List<T>> GetAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, int? limit = null, int? offset = null, string includeProperties = "")
         {
             IQueryable<T> query = _context.Set<T>();
 
@@ -96,21 +94,20 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
 
             if (orderBy != null)
             {
-                if (limit != null)
-                {
-                    return orderBy(query).Take((int)limit).ToListAsync();
-                }
+                query = orderBy(query).AsQueryable();
+            }
 
-                return orderBy(query).ToListAsync();
-            }
-            else
+            if (offset != null)
             {
-                if (limit != null)
-                {
-                    return query.Take((int)limit).ToListAsync();
-                }
-                return query.ToListAsync();
+                query = query.Skip((int)offset);
             }
+
+            if (limit != null)
+            {
+                query = query.Take((int)limit);
+            }
+
+            return await query.ToListAsync();
         }
 
         public IEnumerable<T> GetAll()
@@ -151,6 +148,16 @@ namespace DotNetTwitchBot.Bot.Repository.Repositories
         public void UpdateRange(IEnumerable<T> entities)
         {
             _context.Set<T>().UpdateRange(entities);
+        }
+
+        public int Count()
+        {
+            return _context.Set<T>().Count();
+        }
+
+        public Task<int> CountAsync()
+        {
+            return _context.Set<T>().CountAsync();
         }
     }
 }
