@@ -8,7 +8,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
 
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
-<MudContainer MaxWidth="MaxWidth.False">
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudTable Items="@commands" Striped="true" Filter="new Func<CommandModel,bool>(FilterFunc1)">
             <ToolBarContent>
