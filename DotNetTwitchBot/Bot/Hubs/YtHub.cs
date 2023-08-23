@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
@@ -15,21 +12,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             _ytPlayer = ytPlayer ?? throw new ArgumentNullException("ytplayer");
         }
 
+        [Authorize(Roles = "Streamer")]
         public async Task PlayNextVideo()
         {
             await _ytPlayer.PlayNextSong();
         }
 
+        [Authorize(Roles = "Streamer")]
         public void UpdateState(int state)
         {
             _ytPlayer.UpdateState(state);
         }
 
+        [Authorize(Roles = "Streamer")]
         public async Task LoadNextSong()
         {
             await _ytPlayer.PlayNextSong();
         }
 
+        [Authorize(Roles = "Streamer")]
         public async Task SongError(object errorCode)
         {
             await _ytPlayer.SongError(errorCode);

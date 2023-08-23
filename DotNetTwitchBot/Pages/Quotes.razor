@@ -22,7 +22,7 @@
                 <MudTd DataLabel="Quote">@context.Quote</MudTd>
                 <MudTd DataLabel="Game">@context.Game</MudTd>
                 <MudTd DataLabel="CreatedBy">@context.CreatedBy</MudTd>
-                <MudTd DataLabel="CreatedOn">@context.CreatedOn</MudTd>
+                <MudTd DataLabel="CreatedOn">@context.CreatedOn.ToShortDateString()</MudTd>
             </RowTemplate>
             <PagerContent>
                 <MudTablePager />
