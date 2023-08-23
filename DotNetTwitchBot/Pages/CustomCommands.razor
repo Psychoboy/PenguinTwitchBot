@@ -48,6 +48,11 @@
                         @bind-Value="customCommand.CommandName" />
                         <MudTextField Label="Response" Lines="8" Required="true" RequiredError="Response is required"
                         @bind-Value="customCommand.Response" />
+                        <MudTextField Label="Category"
+                        @bind-Value="customCommand.Category" />
+
+                        <MudTextField Label="Description"
+                        @bind-Value="customCommand.Description" />
                         <MudNumericField @bind-Value="@customCommand.UserCooldown" Label="User Cooldown"
                             Variant="Variant.Text">
                         </MudNumericField>

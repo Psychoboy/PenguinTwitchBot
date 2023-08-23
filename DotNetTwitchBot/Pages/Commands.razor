@@ -83,8 +83,8 @@
                     GlobalCooldown = command.GlobalCooldown,
                     Rank = command.MinimumRank,
                     Cost = command.Cost,
-                    Description = SplitModuleName(command.ModuleName),
-                    Category = SplitModuleName(command.ModuleName)
+                    Description = string.IsNullOrWhiteSpace(command.Description) ? SplitModuleName(command.ModuleName) : command.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Category) ? SplitModuleName(command.ModuleName) : command.Category,
 
                 });
         }
@@ -99,8 +99,8 @@
                     GlobalCooldown = command.Value.GlobalCooldown,
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
-                    Description = command.Value.Response,
-                    Category = "Custom"
+                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.Response : command.Value.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Custom" : command.Value.Category
                 });
         }
 
@@ -114,8 +114,8 @@
                     GlobalCooldown = command.Value.GlobalCooldown,
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
-                    Description = command.Value.AudioFile,
-                    Category = "Sounds"
+                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
                 });
         }
 

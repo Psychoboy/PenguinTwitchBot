@@ -31,6 +31,11 @@ else
                     differently, it will use that instead.</MudText>
                 <MudTextField Label="Custom Command Name" Required="true" RequiredError="Custom Command Name is required"
                 @bind-Value="defaultCommand.CustomCommandName" />
+                <MudTextField Label="Category"
+                @bind-Value="defaultCommand.Category" />
+
+                <MudTextField Label="Description"
+                @bind-Value="defaultCommand.Description" />
                 <MudNumericField @bind-Value="@defaultCommand.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@defaultCommand.GlobalCooldown" Label="Global Cooldown"

@@ -22,6 +22,11 @@ else
                 <MudCheckBox @bind-Checked="@keyword.IsCaseSensitive" Label="Is Case Sensitive?"></MudCheckBox>
                 <MudTextField Label="Response" Required="true" RequiredError="Response is required"
                 @bind-Value="keyword.Response" />
+                <MudTextField Label="Category"
+                @bind-Value="keyword.Category" />
+
+                <MudTextField Label="Description"
+                @bind-Value="keyword.Description" />
                 <MudNumericField @bind-Value="@keyword.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@keyword.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">

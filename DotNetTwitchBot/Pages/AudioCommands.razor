@@ -48,6 +48,11 @@
                                 <MudSelectItem Value="@file">@file</MudSelectItem>
                             }
                         </MudSelect>
+                        <MudTextField Label="Category"
+                        @bind-Value="audioCommand.Category" />
+
+                        <MudTextField Label="Description"
+                        @bind-Value="audioCommand.Description" />
                         <MudNumericField @bind-Value="@audioCommand.UserCooldown" Label="User Cooldown"
                             Variant="Variant.Text">
                         </MudNumericField>
