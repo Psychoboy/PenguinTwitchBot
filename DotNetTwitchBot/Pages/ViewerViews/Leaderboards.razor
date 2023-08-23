@@ -1,0 +1,232 @@
+﻿@page "/leaderboards"
+@using DotNetTwitchBot.Bot;
+@using DotNetTwitchBot.Models;
+@inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+<PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem sm="6">
+            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(PastieReload))"
+                      Dense="true" Hover="true" @ref="pastieTable">
+                <ToolBarContent>
+                    <MudText Class="pa-4" Typo="Typo.h6">Pasties</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnPastieSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No matching records found</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Loading...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+        <MudItem sm="6">
+            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(TicketsReload))"
+                      Dense="true" Hover="true" @ref="ticketsTable">
+                <ToolBarContent>
+                    <MudText Class="pa-4" Typo="Typo.h6">Tickets</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTicketsSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No matching records found</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Loading...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+        <MudItem sm="6">
+            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(LoudestReload))"
+                      Dense="true" Hover="true" @ref="loudestTable">
+                <ToolBarContent>
+                    <MudText Class="pa-4" Typo="Typo.h6">Loudest</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnLoudestSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No matching records found</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Loading...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+        <MudItem sm="6">
+            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(TimeReload))"
+                      Dense="true" Hover="true" @ref="timeTable">
+                <ToolBarContent>
+                    <MudText Class="pa-4" Typo="Typo.h6">Watched Time</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTimeSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Amount">@Tools.ConvertToCompoundDuration(context.Amount)</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No matching records found</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Loading...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+
+</MudContainer>
+
+@code {
+    private MudTable<LeaderPosition>? pastieTable;
+    private string? pastieSearch = null;
+
+    private MudTable<LeaderPosition>? ticketsTable;
+    private string? ticketsSearch = null;
+
+    private MudTable<LeaderPosition>? loudestTable;
+    private string? loudestSearch = null;
+
+    private MudTable<LeaderPosition>? timeTable;
+    private string? timeSearch = null;
+
+    private async Task<TableData<LeaderPosition>> PastieReload(TableState state)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        if (pastieSearch != null)
+        {
+            pageFilter.Filter = pastieSearch;
+        }
+        var response = await leaderBoards.GetPasties(pageFilter);
+        return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+    private async Task<TableData<LeaderPosition>> TicketsReload(TableState state)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        if (ticketsSearch != null)
+        {
+            pageFilter.Filter = ticketsSearch;
+        }
+        var response = await leaderBoards.GetTickets(pageFilter);
+        return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+    private async Task<TableData<LeaderPosition>> LoudestReload(TableState state)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        if (loudestSearch != null)
+        {
+            pageFilter.Filter = loudestSearch;
+        }
+        var response = await leaderBoards.GetLoudest(pageFilter);
+        return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+    private async Task<TableData<LeaderPosition>> TimeReload(TableState state)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        if (timeSearch != null)
+        {
+            pageFilter.Filter = timeSearch;
+        }
+        var response = await leaderBoards.GetTime(pageFilter);
+        return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+    private void OnPastieSearch(string text)
+    {
+        pastieSearch = text;
+        if (pastieTable != null)
+        {
+            pastieTable.ReloadServerData();
+        }
+    }
+
+    private void OnTicketsSearch(string text)
+    {
+        ticketsSearch = text;
+        if (ticketsTable != null)
+        {
+            ticketsTable.ReloadServerData();
+        }
+    }
+
+    private void OnLoudestSearch(string text)
+    {
+        loudestSearch = text;
+        if (loudestTable != null)
+        {
+            loudestTable.ReloadServerData();
+        }
+    }
+
+    private void OnTimeSearch(string text)
+    {
+        timeSearch = text;
+        if (timeTable != null)
+        {
+            timeTable.ReloadServerData();
+        }
+    }
+}

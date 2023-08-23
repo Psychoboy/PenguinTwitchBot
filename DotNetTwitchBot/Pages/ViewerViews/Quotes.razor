@@ -2,13 +2,13 @@
 @inject DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem QuoteSystem
 <PageTitle>SPTV Twitch Bot - Quotes</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
-        <MudTable Items="@items" Striped="true" Filter="new Func<QuoteType,bool>(FilterFunc1)">
+        <MudTable Items="@items" Filter="new Func<QuoteType,bool>(FilterFunc1)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Quotes</MudText>
                 <MudSpacer />
-                <MudTextField @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                <MudTextField DebounceInterval="1000" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Id</MudTh>

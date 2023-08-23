@@ -6,13 +6,13 @@
 @implements IAsyncDisposable
 
 <PageTitle>SPTV Twitch Bot - Song Requests</PageTitle>
-<MudContainer MaxWidth="MaxWidth.False">
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
 
     <MudGrid>
         @if (currentSong != null)
         {
             <MudItem sm="6" md="4">
-                <MudPaper Elevation="2" Class="pa-4">
+                <MudPaper Elevation="2">
                     <MudText>Current Song: @currentSong.Title</MudText>
                     <MudText>Requested By: @currentSong.RequestedBy</MudText>
                     <MudText>Duration: @currentSong.Duration</MudText>
@@ -24,8 +24,8 @@
         @if (songRequests != null)
         {
             <MudItem xs="8">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
+                <MudPaper Elevation="2" >
+                    <MudText Class="pa-4" Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
                     <MudTable Items="@songRequests">
                         <HeaderContent>
                             <MudTh>Title</MudTh>
@@ -44,8 +44,8 @@
         }
 
         <MudItem xs="8">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6">Top 10 Requested Songs</MudText>
+            <MudPaper Elevation="2">
+                <MudText Class="pa-4" Typo="Typo.h6">Top 10 Requested Songs</MudText>
                 <MudTable Items="@topSongRequests">
                     <HeaderContent>
                         <MudTh>Rank</MudTh>

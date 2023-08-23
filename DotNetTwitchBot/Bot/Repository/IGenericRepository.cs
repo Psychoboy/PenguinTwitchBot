@@ -18,17 +18,22 @@ namespace DotNetTwitchBot.Bot.Repository
         void RemoveRange(IEnumerable<T> entities);
         void Update(T entity);
         void UpdateRange(IEnumerable<T> entities);
-        int ExecuteDelete();
-        Task<int> ExecuteDeleteAsync();
+        int ExecuteDeleteAll();
+        Task<int> ExecuteDeleteAllAsync();
         IEnumerable<T> Get(
            Expression<Func<T, bool>>? filter = null,
            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
            int? limit = null,
+           int? offset = null,
            string includeProperties = "");
 
         Task<List<T>> GetAsync(Expression<Func<T, bool>>? filter = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
             int? limit = null,
+            int? offset = null,
             string includeProperties = "");
+        int Count();
+        Task<int> CountAsync();
+
     }
 }
