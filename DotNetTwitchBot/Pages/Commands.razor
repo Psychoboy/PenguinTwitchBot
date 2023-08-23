@@ -21,7 +21,7 @@
                     <MudChip Text="Pasties & Games"></MudChip>
                 </MudChipSet>
                 <MudSpacer />
-                <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
+                <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
             </ToolBarContent>
             <HeaderContent >
                 <MudTh>Command</MudTh>
