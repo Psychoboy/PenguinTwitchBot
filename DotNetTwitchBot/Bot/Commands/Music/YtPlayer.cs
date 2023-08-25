@@ -389,9 +389,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 }
                 await UpdateRequestedSongsState();
                 await ServiceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
-                await SongRequestMetrics.DecrementSongCount(song);
                 return;
             }
             await ServiceBackbone.SendChatMessage(e.DisplayName, "No songs founds");

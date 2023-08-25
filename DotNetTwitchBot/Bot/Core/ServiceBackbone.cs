@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using Microsoft.IdentityModel.Tokens;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -140,7 +141,7 @@ namespace DotNetTwitchBot.Bot.Core
                 var eventArgs = new CommandEventArgs
                 {
                     Arg = command.ArgumentsAsString,
-                    Args = command.ArgumentsAsList,
+                    Args = command.ArgumentsAsList.Where(x => x.IsNullOrEmpty() == false).ToList(),
                     Command = command.CommandText.ToLower(),
                     IsWhisper = false,
                     Name = command.ChatMessage.Username,

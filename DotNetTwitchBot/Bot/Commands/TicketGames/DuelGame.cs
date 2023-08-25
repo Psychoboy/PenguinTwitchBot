@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -219,7 +215,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var defenderTickets = await _ticketsFeature.GetViewerTickets(defender.Username);
             if (defenderTickets < amount)
             {
-                await ServiceBackbone.SendChatMessage(defender.Username, "They don't have that many tickets.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "They don't have that many tickets.");
                 throw new SkipCooldownException();
             }
 
@@ -232,7 +228,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
             try
             {
-                await _semaphoreSlim.WaitAsync();
+                await _semaphoreSlim.WaitAsync(500);
                 PendingDuels.Add(pendingDuel);
             }
             finally
