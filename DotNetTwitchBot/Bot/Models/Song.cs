@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace DotNetTwitchBot.Bot.Models
 {
     public class Song
@@ -14,5 +9,10 @@ namespace DotNetTwitchBot.Bot.Models
         public string Title { get; set; } = null!;
         public string RequestedBy { get; set; } = "DJ Waffle";
         public TimeSpan Duration { get; set; }
+
+        public Song CreateDeepCopy()
+        {
+            return new Song { Id = Id, Title = Title, RequestedBy = RequestedBy, Duration = Duration, SongId = SongId };
+        }
     }
 }

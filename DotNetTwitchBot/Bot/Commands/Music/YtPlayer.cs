@@ -65,9 +65,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     song = Requests.First();
                     Requests.RemoveAt(0);
-                    LastSong = CurrentSong;
-                    CurrentSong = song;
-                    NextSong = Requests.FirstOrDefault();
+                    LastSong = CurrentSong?.CreateDeepCopy();
+                    CurrentSong = song?.CreateDeepCopy();
+                    NextSong = Requests.FirstOrDefault()?.CreateDeepCopy();
                     SkipVotes.Clear();
                 }
             }
@@ -84,8 +84,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await LoadBackupList();
             }
             var randomSong = BackupPlaylist.Songs.RandomElement();
-            LastSong = CurrentSong;
-            CurrentSong = randomSong;
+            LastSong = CurrentSong?.CreateDeepCopy();
+            CurrentSong = randomSong.CreateDeepCopy();
             NextSong = null;
             SkipVotes.Clear();
             await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
@@ -95,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public Song? GetCurrentSong()
         {
-            return this.CurrentSong;
+            return CurrentSong?.CreateDeepCopy();
         }
 
         private async Task LoadBackupList()
@@ -255,7 +255,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 Requests.Remove(song);
                 Requests.Insert(0, song);
             }
-            NextSong = song;
+            NextSong = song?.CreateDeepCopy();
             await UpdateRequestedSongsState();
         }
 
@@ -438,7 +438,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task SayNextSong(CommandEventArgs e)
         {
-            var nextSong = NextSong;
+            var nextSong = NextSong?.CreateDeepCopy();
             if (nextSong == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
@@ -449,7 +449,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task SaySong(CommandEventArgs e)
         {
-            var currentSong = CurrentSong;
+            var currentSong = CurrentSong?.CreateDeepCopy();
             if (currentSong == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
@@ -460,7 +460,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task SayLastSong(CommandEventArgs e)
         {
-            var lastSong = LastSong;
+            var lastSong = LastSong?.CreateDeepCopy();
             if (lastSong == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
