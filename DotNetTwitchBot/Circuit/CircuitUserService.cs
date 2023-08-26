@@ -44,8 +44,7 @@ namespace DotNetTwitchBot.Circuit
 
         public void Disconnect(string CircuitId)
         {
-            CircuitUser circuitRemoved;
-            Circuits.TryRemove(CircuitId, out circuitRemoved);
+            Circuits.TryRemove(CircuitId, out var circuitRemoved);
             if (circuitRemoved != null)
             {
                 OnUserRemoved(circuitRemoved.UserId);
