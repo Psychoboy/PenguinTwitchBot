@@ -1,5 +1,10 @@
 ﻿@page "/quotes"
+@using DotNetTwitchBot.Circuit;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
 @inject DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem QuoteSystem
+@inject NavigationManager Navigation
+@inject ICircuitUserService UserService
+@inject CircuitHandler BlazorCircuitHandler
 <PageTitle>SPTV Twitch Bot - Quotes</PageTitle>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -38,6 +43,8 @@
     protected override async Task OnInitializedAsync()
     {
         items = await QuoteSystem.GetQuotes();
+        var handler = (CircuitHandlerService)BlazorCircuitHandler;
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
     }
 
     private bool FilterFunc1(QuoteType element) => FilterFunc(element, searchString1);

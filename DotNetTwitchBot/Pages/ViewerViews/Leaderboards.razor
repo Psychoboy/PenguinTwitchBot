@@ -1,7 +1,12 @@
 ﻿@page "/leaderboards"
 @using DotNetTwitchBot.Bot;
+@using DotNetTwitchBot.Circuit;
 @using DotNetTwitchBot.Models;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+@inject ICircuitUserService UserService
+@inject CircuitHandler BlazorCircuitHandler
+@inject NavigationManager Navigation
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
@@ -141,6 +146,12 @@
 
     private MudTable<LeaderPosition>? timeTable;
     private string? timeSearch = null;
+
+    protected override void OnInitialized()
+    {
+        var handler = (CircuitHandlerService)BlazorCircuitHandler;
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
+    }
 
     private async Task<TableData<LeaderPosition>> PastieReload(TableState state)
     {

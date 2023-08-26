@@ -1,0 +1,65 @@
+﻿@page "/connectedviewers"
+@using DotNetTwitchBot.Circuit;
+@using DotNetTwitchBot.Models;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
+@using System.Collections.Concurrent;
+@implements IDisposable
+@attribute [Authorize(Roles = "Streamer")]
+@inject ICircuitUserService UserService
+
+
+ @* <h1>@MyUserId</h1> *@
+
+@* <div>@MyCircuitMessage</div>
+<div>There are @UserService.Circuits.Count Users Connected</div>
+<div>@UserRemovedMessage</div> *@
+
+ <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+     <MudPaper>
+        <MudTable Items="@circuits">
+             <ToolBarContent>
+                 <MudText Typo="Typo.h6">Connected Users</MudText>
+             </ToolBarContent>
+             <HeaderContent>
+                 <MudTh>Username</MudTh>
+                 <MudTh>Current Page</MudTh>
+                <MudTh>Last Seen</MudTh>
+             </HeaderContent>
+             <RowTemplate>
+                 <MudTd DataLabel="Id">@context.Value.UserId</MudTd>
+                 <MudTd DataLabel="LastPage">@context.Value.LastPage</MudTd>
+                <MudTd DataLabel="LastPage">@context.Value.LastSeen</MudTd>
+             </RowTemplate>
+             <PagerContent>
+                 <MudTablePager />
+             </PagerContent>
+         </MudTable>
+     </MudPaper>
+ </MudContainer>
+
+@code {
+    ConcurrentDictionary<string, CircuitUser> circuits = new();
+    protected override void OnInitialized()
+    {
+        UserService.CircuitsChanged += UserService_CircuitsChanged;
+        UserService.UserRemoved += UserService_UserRemoved;
+        circuits = UserService.Circuits;
+    }
+
+    private void UserService_UserRemoved(object sender, UserRemovedEventArgs e)
+    {
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    private void UserService_CircuitsChanged(object? sender, EventArgs e)
+    {
+        circuits = UserService.Circuits;
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    public void Dispose()
+    {
+        UserService.CircuitsChanged -= UserService_CircuitsChanged;
+        UserService.UserRemoved -= UserService_UserRemoved;
+    }
+}

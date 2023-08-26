@@ -1,8 +1,12 @@
 ﻿@page "/songrequests"
+@using DotNetTwitchBot.Circuit;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@inject ICircuitUserService UserService
+@inject CircuitHandler BlazorCircuitHandler
 @implements IAsyncDisposable
 
 <PageTitle>SPTV Twitch Bot - Song Requests</PageTitle>
@@ -80,6 +84,8 @@
         currentSong = YtPlayer.GetCurrentSong();
         songRequests = YtPlayer.GetRequestedSongs();
         topSongRequests = await SongRequestMetrics.GetTopN(10);
+        var handler = (CircuitHandlerService)BlazorCircuitHandler;
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -2,10 +2,15 @@
 @using System.Security.Claims
 @using DotNetTwitchBot.Bot.Commands;
 @using DotNetTwitchBot.Bot.Commands.Custom;
+@using DotNetTwitchBot.Circuit;
+@using Microsoft.AspNetCore.Components.Server.Circuits;
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ICommandHandler CommandHandler
 @inject CustomCommand CustomCommand
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
+@inject NavigationManager Navigation
+@inject ICircuitUserService UserService
+@inject CircuitHandler BlazorCircuitHandler
 
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -142,6 +147,8 @@
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
         originalCommands = commands.ToList();
+        var handler = (CircuitHandlerService)BlazorCircuitHandler;
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
     }
 
     private void ChipsChanged(MudChip[] chips)
