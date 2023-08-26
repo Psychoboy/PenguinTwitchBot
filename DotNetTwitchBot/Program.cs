@@ -7,7 +7,9 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.Repository.Repositories;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Circuit;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor.Services;
 using Quartz;
 using Serilog;
@@ -140,6 +142,10 @@ internal class Program
         });
 
         builder.Services.AddSignalR();
+
+        builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
+        builder.Services.AddScoped<CircuitHandler>((sp) =>
+            new CircuitHandlerService(sp.GetRequiredService<ICircuitUserService>()));
 
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();

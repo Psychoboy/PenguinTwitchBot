@@ -142,6 +142,7 @@
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
         originalCommands = commands.ToList();
+        
     }
 
     private void ChipsChanged(MudChip[] chips)

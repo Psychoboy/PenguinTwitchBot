@@ -1,7 +1,9 @@
 ﻿@page "/leaderboards"
 @using DotNetTwitchBot.Bot;
+@using DotNetTwitchBot.Circuit;
 @using DotNetTwitchBot.Models;
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
@@ -141,6 +143,11 @@
 
     private MudTable<LeaderPosition>? timeTable;
     private string? timeSearch = null;
+
+    protected override void OnInitialized()
+    {
+        
+    }
 
     private async Task<TableData<LeaderPosition>> PastieReload(TableState state)
     {
