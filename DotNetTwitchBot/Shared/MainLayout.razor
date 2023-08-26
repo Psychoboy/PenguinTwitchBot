@@ -63,6 +63,7 @@
         }
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         UserService.Connect(handler.CircuitId, Username);
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
     }
 
