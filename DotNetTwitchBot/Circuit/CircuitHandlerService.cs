@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Circuit
     {
         public string CircuitId { get; private set; } = "";
 
-        ICircuitUserService _userService;
+        readonly ICircuitUserService _userService;
 
         public CircuitHandlerService(ICircuitUserService userService)
         {
