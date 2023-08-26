@@ -1,16 +1,12 @@
 ﻿@page "/viewergiveaway"
 
 @using System.Security.Claims
-@using DotNetTwitchBot.Circuit;
-@using Microsoft.AspNetCore.Components.Server.Circuits;
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
 @inject NavigationManager Navigation
-@inject ICircuitUserService UserService
-@inject CircuitHandler BlazorCircuitHandler
 
 <PageTitle>SPTV Twitch Bot - Viewer Giveaway</PageTitle>
 
@@ -164,9 +160,6 @@
         imageUrl = await GiveawayFeature.GetImageUrl();
         entries = await GiveawayFeature.GetEntriesCount();
         entrants = await GiveawayFeature.GetEntrantsCount();
-        var handler = (CircuitHandlerService)BlazorCircuitHandler;
-        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
-
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

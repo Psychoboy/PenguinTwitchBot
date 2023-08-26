@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject ICircuitUserService UserService
 @inject CircuitHandler BlazorCircuitHandler
+@implements IDisposable
 
 <PageTitle>SPTV Twitch Bot</PageTitle>
 <MudThemeProvider IsDarkMode=true />
@@ -62,6 +63,13 @@
         }
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         UserService.Connect(handler.CircuitId, Username);
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var handler = (CircuitHandlerService)BlazorCircuitHandler;
+        UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
     }
 
     private void Signout()
@@ -72,5 +80,9 @@
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
+    }
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
     }
 }
