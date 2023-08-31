@@ -5,12 +5,12 @@
 namespace DotNetTwitchBot.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMessageCountWithRank : Migration
+    public partial class FilterQuoteBannedUsers : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"CREATE VIEW `ViewerMessageCountWithRanks` AS select id, username, MessageCount, ranking from ( select id, username, MessageCount, rank() over (order by MessageCount desc) as ranking from ViewerMessageCounts ) t ");
+            migrationBuilder.Sql(@"create VIEW `filteredquotes` as SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM (SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM quotes WHERE createdby NOT IN (SELECT username FROM bannedviewers)) t");
         }
 
         /// <inheritdoc />

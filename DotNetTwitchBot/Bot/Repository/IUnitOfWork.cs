@@ -36,6 +36,8 @@
         ISongsRepository Songs { get; }
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
         IExternalCommandsRepository ExternalCommands { get; }
+        IBannedViewersRepository BannedViewers { get; }
+        IFilteredQuotesRepository FilteredQuotes { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

@@ -3,6 +3,7 @@ using System;
 using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230831165653_FilterBannedUsers")]
+    partial class FilterBannedUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -315,33 +318,6 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ExternalCommands");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.FilteredQuoteType", b =>
-                {
-                    b.Property<int?>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Game")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Quote")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("FilteredQuotes", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Follower", b =>

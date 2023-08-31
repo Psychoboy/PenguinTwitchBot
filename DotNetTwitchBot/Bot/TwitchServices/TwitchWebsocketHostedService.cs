@@ -1,13 +1,10 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
 using DotNetTwitchBot.Bot.Core;
+using System.Collections.Concurrent;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets.Core.Models;
-using TwitchLib.EventSub.Core.Models.Subscriptions;
-using TwitchLib.PubSub;
 using TwitchLib.PubSub.Events;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
@@ -48,13 +45,27 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
             _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
+            _eventSubWebsocketClient.ChannelBan += OnChannelBan;
+            _eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
 
             _twitchService = twitchService;
             _eventService = eventService;
             _subscriptionHistory = subscriptionHistory;
         }
 
+        private async void OnChannelUnBan(object? sender, ChannelUnbanArgs e)
+        {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
+            _logger.LogInformation("OnChannelUnBan {0}", e.Notification.Payload.Event.UserLogin);
+            await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+        }
 
+        private async void OnChannelBan(object? sender, ChannelBanArgs e)
+        {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
+            _logger.LogInformation("OnChannelBan {0}", e.Notification.Payload.Event.UserLogin);
+            await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
+        }
 
         private async void OnChannelRaid(object? sender, ChannelRaidArgs e)
         {

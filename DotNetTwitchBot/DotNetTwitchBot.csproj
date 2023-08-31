@@ -52,7 +52,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Bot\Events\" />
     <Folder Include="Authorization\" />
   </ItemGroup>
 

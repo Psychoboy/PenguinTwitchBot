@@ -1,17 +1,11 @@
 using System.Collections.Concurrent;
-using System.Reflection.Emit;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Models;
-using Newtonsoft.Json;
+using System.Timers;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using System.Timers;
-using Timer = System.Timers.Timer;
 using TwitchLib.Api.Core.Exceptions;
+using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
+using TwitchLib.Api.Helix.Models.Subscriptions;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -73,6 +67,28 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
             }
             return subs;
+        }
+
+        public async Task<List<BannedUserEvent>> GetAllBannedViewers()
+        {
+            await ValidateAndRefreshToken();
+            var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
+            var after = "";
+            List<BannedUserEvent> curBannedUsers = new();
+            while (true)
+            {
+                var bannedUsers = await _twitchApi.Helix.Moderation.GetBannedUsersAsync(broadcasterId: userId, first: 100, after: after, accessToken: _configuration["twitchAccessToken"]);
+                if (bannedUsers != null)
+                {
+                    curBannedUsers.AddRange(bannedUsers.Data);
+                    if (string.IsNullOrEmpty(bannedUsers.Pagination.Cursor))
+                    {
+                        break;
+                    }
+                    after = bannedUsers.Pagination.Cursor;
+                }
+            }
+            return curBannedUsers;
         }
 
         public async Task<string?> GetBroadcasterUserId()
@@ -509,6 +525,24 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+               "channel.ban",
+               "1",
+               new Dictionary<string, string>{{"broadcaster_user_id", userId},
+               },
+               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+           );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+               "channel.unban",
+               "1",
+               new Dictionary<string, string>{{"broadcaster_user_id", userId},
+               },
+               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+           );
 
             // Maybe do a from also and switch this handling raid events
 

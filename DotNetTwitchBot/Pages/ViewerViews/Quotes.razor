@@ -5,7 +5,7 @@
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
-        <MudTable Items="@items" Filter="new Func<QuoteType,bool>(FilterFunc1)">
+        <MudTable Items="@items" Filter="new Func<FilteredQuoteType,bool>(FilterFunc1)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Quotes</MudText>
                 <MudSpacer />
@@ -33,7 +33,7 @@
 </MudContainer>
 
 @code {
-    private IEnumerable<QuoteType> items = new List<QuoteType>();
+    private IEnumerable<FilteredQuoteType> items = new List<FilteredQuoteType>();
     private string searchString1 = "";
 
     protected override async Task OnInitializedAsync()
@@ -41,9 +41,9 @@
         items = await QuoteSystem.GetQuotes();
     }
 
-    private bool FilterFunc1(QuoteType element) => FilterFunc(element, searchString1);
+    private bool FilterFunc1(FilteredQuoteType element) => FilterFunc(element, searchString1);
 
-    private bool FilterFunc(QuoteType element, string searchString)
+    private bool FilterFunc(FilteredQuoteType element, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;

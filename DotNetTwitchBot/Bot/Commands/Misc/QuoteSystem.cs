@@ -52,11 +52,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task<IEnumerable<QuoteType>> GetQuotes()
+        public async Task<IEnumerable<FilteredQuoteType>> GetQuotes()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Quotes.GetAllAsync();
+            return await db.FilteredQuotes.GetAllAsync();
         }
 
         private async Task DeleteQuote(CommandEventArgs e)
@@ -118,7 +118,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task SayQuote(string? searchParam)
         {
-            QuoteType? quote = null;
+            FilteredQuoteType? quote = null;
 
             if (quote == null && string.IsNullOrWhiteSpace(searchParam?.Trim()) == false)
             {
@@ -126,7 +126,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    quote = await db.Quotes.Find(x => x.Id == quoteId).FirstOrDefaultAsync();
+                    quote = await db.FilteredQuotes.Find(x => x.Id == quoteId).FirstOrDefaultAsync();
                 }
                 else
                 {
@@ -139,7 +139,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                quote = db.Quotes.Find(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
+                quote = db.FilteredQuotes.Find(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
             }
 
 
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                quote = (await db.Quotes.GetAllAsync()).RandomElement();
+                quote = (await db.FilteredQuotes.GetAllAsync()).RandomElement();
             }
             if (quote != null)
             {

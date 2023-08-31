@@ -106,7 +106,8 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer),
             typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist),
             typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin),
-            typeof(DotNetTwitchBot.Bot.Commands.Metrics.SongRequests)
+            typeof(DotNetTwitchBot.Bot.Commands.Metrics.SongRequests),
+            typeof(DotNetTwitchBot.Bot.Commands.Moderation.BannedUsers)
         };
 
         //Add Alerts
