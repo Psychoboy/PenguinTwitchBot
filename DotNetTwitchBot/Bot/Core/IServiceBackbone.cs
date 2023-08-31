@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Core
         event ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>? SubscriptionGiftEvent;
         event ServiceBackbone.AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         event ServiceBackbone.AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
+        event ServiceBackbone.AsyncEventHandler<BanEventArgs>? BanEvent;
 
         bool IsBroadcasterOrBot(string name);
         bool IsKnownBot(string name);
@@ -49,5 +50,6 @@ namespace DotNetTwitchBot.Bot.Core
         Task SendChatMessage(string name, string message);
         Task SendChatMessageWithTitle(string viewerName, string message);
         Task SendWhisperMessage(string name, string message);
+        Task OnViewerBan(string username, bool unbanned);
     }
 }

@@ -6,6 +6,7 @@
 @inject ICommandHandler CommandHandler
 @inject CustomCommand CustomCommand
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
+@inject Blazor.Analytics.IAnalytics Analytics
 
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -142,10 +143,10 @@
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
         originalCommands = commands.ToList();
-        
+
     }
 
-    private void ChipsChanged(MudChip[] chips)
+    private async void ChipsChanged(MudChip[] chips)
     {
         selected = chips;
         if(chips.Length == 0)
@@ -201,12 +202,14 @@
             ));
         }
         commands = commands.OrderBy(x => x.Command).ToList();
+        await Analytics.TrackEvent("commands_filter", new { pills = string.Join(",",chips.Select(x => x.Text))});
     }
 
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
 
     private bool FilterFunc(CommandModel element, string searchString)
     {
+        Analytics.TrackEvent("commands_filter", new { search = searchString });
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
         if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))

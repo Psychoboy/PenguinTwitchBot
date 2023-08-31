@@ -44,6 +44,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Metrics.SongRequestMetric> SongRequestMetrics { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<ExternalCommands> ExternalCommands { get; set; } = null!;
+        public DbSet<BannedViewer> BannedViewers { get; set; }
+        public DbSet<FilteredQuoteType> FilteredQuotes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,6 +59,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
             modelBuilder.Entity<ViewerMessageCountWithRank>()
             .ToView(nameof(ViewerMessageCountWithRanks))
+            .HasKey(t => t.Id);
+
+            modelBuilder.Entity<FilteredQuoteType>()
+            .ToView(nameof(FilteredQuotes))
             .HasKey(t => t.Id);
 
             modelBuilder.Entity<ViewerTicketWithRanks>()

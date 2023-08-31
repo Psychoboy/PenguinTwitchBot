@@ -3,6 +3,7 @@ using System;
 using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230831180038_FilterQuoteBannedUsers")]
+    partial class FilterQuoteBannedUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -834,9 +837,6 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("banned")
-                        .HasColumnType("tinyint(1)");
-
                     b.HasKey("Id");
 
                     b.ToTable("ViewerMessageCounts");
@@ -877,9 +877,6 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("banned")
-                        .HasColumnType("tinyint(1)");
-
                     b.HasKey("Id");
 
                     b.ToTable("ViewerPoints");
@@ -919,9 +916,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
-
-                    b.Property<bool>("banned")
-                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
@@ -964,9 +958,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<bool>("banned")
-                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 

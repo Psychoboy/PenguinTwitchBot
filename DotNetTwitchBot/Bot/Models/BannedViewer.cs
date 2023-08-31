@@ -1,12 +1,12 @@
-namespace DotNetTwitchBot.Bot.Models
+﻿namespace DotNetTwitchBot.Bot.Models
 {
-    public class ViewerTime
+    public class BannedViewer
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int? Id { get; set; }
+        [Unicode(true)]
         public string Username { get; set; } = "";
-        public long Time { get; set; } = 0;
-        public bool banned { get; set; } = false;
+        public string Reason { get; set; } = "";
     }
 }

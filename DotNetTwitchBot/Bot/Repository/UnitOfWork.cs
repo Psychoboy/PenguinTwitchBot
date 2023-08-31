@@ -43,6 +43,8 @@ namespace DotNetTwitchBot.Bot.Repository
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
             SongRequestMetricsWithRank = new SongRequestMetricsWithRankRepository(_context);
             ExternalCommands = new ExternalCommandsRepository(_context);
+            BannedViewers = new BannedViewersRepository(_context);
+            FilteredQuotes = new FilteredQuotesRepository(_context);
 
         }
 
@@ -80,6 +82,8 @@ namespace DotNetTwitchBot.Bot.Repository
         public ISongsRepository Songs { get; private set; }
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
         public IExternalCommandsRepository ExternalCommands { get; private set; }
+        public IBannedViewersRepository BannedViewers { get; private set; }
+        public IFilteredQuotesRepository FilteredQuotes { get; private set; }
 
         public void Dispose()
         {

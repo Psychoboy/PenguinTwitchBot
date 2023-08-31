@@ -13,5 +13,6 @@ namespace DotNetTwitchBot.Bot.Models
         public int? Id { get; set; }
         public string Username { get; set; } = "";
         public long Points { get; set; } = 0;
+        public bool banned { get; set; } = false;
     }
 }

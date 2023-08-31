@@ -48,6 +48,7 @@ namespace DotNetTwitchBot.Bot.Core
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
         public event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
+        public event AsyncEventHandler<BanEventArgs>? BanEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
         public bool IsOnline { get; set; } = false;
@@ -388,6 +389,14 @@ namespace DotNetTwitchBot.Bot.Core
             if (UserLeftEvent != null)
             {
                 await UserLeftEvent(this, new UserLeftEventArgs { Username = username });
+            }
+        }
+
+        public async Task OnViewerBan(string username, bool unbanned)
+        {
+            if (BanEvent != null)
+            {
+                await BanEvent(this, new BanEventArgs { Name = username, IsUnBan = unbanned });
             }
         }
     }

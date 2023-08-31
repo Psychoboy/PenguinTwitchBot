@@ -7,6 +7,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
 @inject NavigationManager Navigation
+@inject Blazor.Analytics.IAnalytics Analytics
 
 <PageTitle>SPTV Twitch Bot - Viewer Giveaway</PageTitle>
 
@@ -191,6 +192,7 @@
             var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
             AlertText = result;
             AlertSeverity = Severity.Success;
+            await Analytics.TrackEvent("EnteredTickets", new { Username = Username, Amount = model.EnterAmount });
             userTickets = await TicketFeature.GetViewerTickets(Username);
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
         } catch (SkipCooldownException ex)
