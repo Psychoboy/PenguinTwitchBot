@@ -83,8 +83,38 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             if (bannedUser != null)
             {
                 db.BannedViewers.Remove(bannedUser);
-                await db.SaveChangesAsync();
+
             }
+
+            var viewerTime = await db.ViewersTime.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerTime != null)
+            {
+                viewerTime.banned = false;
+                db.ViewersTime.Update(viewerTime);
+            }
+
+            var viewerTickets = await db.ViewerTickets.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerTickets != null)
+            {
+                viewerTickets.banned = false;
+                db.ViewerTickets.Update(viewerTickets);
+            }
+
+            var viewerPasties = await db.ViewerPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerPasties != null)
+            {
+                viewerPasties.banned = false;
+                db.ViewerPoints.Update(viewerPasties);
+            }
+
+            var viewerMessages = await db.ViewerMessageCounts.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerMessages != null)
+            {
+                viewerMessages.banned = false;
+                db.ViewerMessageCounts.Update(viewerMessages);
+            }
+
+            await db.SaveChangesAsync();
         }
 
         private async Task AddBannedUser(string name)
@@ -96,8 +126,38 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             {
                 bannedUser = new BannedViewer { Username = name };
                 db.BannedViewers.Add(bannedUser);
-                await db.SaveChangesAsync();
+
             }
+
+            var viewerTime = await db.ViewersTime.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerTime != null)
+            {
+                viewerTime.banned = true;
+                db.ViewersTime.Update(viewerTime);
+            }
+
+            var viewerTickets = await db.ViewerTickets.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerTickets != null)
+            {
+                viewerTickets.banned = true;
+                db.ViewerTickets.Update(viewerTickets);
+            }
+
+            var viewerPasties = await db.ViewerPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerPasties != null)
+            {
+                viewerPasties.banned = true;
+                db.ViewerPoints.Update(viewerPasties);
+            }
+
+            var viewerMessages = await db.ViewerMessageCounts.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (viewerMessages != null)
+            {
+                viewerMessages.banned = true;
+                db.ViewerMessageCounts.Update(viewerMessages);
+            }
+
+            await db.SaveChangesAsync();
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

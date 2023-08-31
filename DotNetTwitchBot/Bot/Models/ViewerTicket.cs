@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(Username))]
@@ -13,5 +8,6 @@ namespace DotNetTwitchBot.Bot.Models
         public int? Id { get; set; }
         public string Username { get; set; } = "";
         public long Points { get; set; } = 0;
+        public bool banned { get; set; } = false;
     }
 }
