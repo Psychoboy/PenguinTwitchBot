@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Repository;
 using Microsoft.AspNetCore.SignalR;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -20,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly string PrizeSettingName = "GiveawayPrize";
         private readonly string ImageSettingName = "GiveawayPrizeImage";
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
@@ -38,6 +40,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _scopeFactory = scopeFactory;
             _hubContext = hubContext;
             lang = language;
+            _timer.Elapsed += SendCurrentEntriesToAll;
+            _timer.Start();
+        }
+
+        private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            await _hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
         }
 
         public override async Task Register()
@@ -351,6 +360,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     db.GiveawayEntries.Update(giveawayEntries);
                     await db.SaveChangesAsync();
                 }
+
                 {
                     var message = lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
                     if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
