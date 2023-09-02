@@ -1,5 +1,5 @@
 @page "/viewers"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
@@ -26,6 +26,7 @@
                     <MudTh>Display Name</MudTh>
                     <MudTh>Title</MudTh>
                     <MudTh>Last Seen</MudTh>
+                        <MudTh>Sub?</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -33,7 +34,8 @@
                     <MudTd DataLabel="Display Name">@context.DisplayName</MudTd>
                     <MudTd DataLabel="Title">@context.Title</MudTd>
                     <MudTd DataLabel="Last Seen">@context.LastSeen</MudTd>
-                    <MudTd DataLabel="Edit">
+                        <MudTd DataLabel="Sub">@context.isSub</MudTd>
+                    <MudTd DataLabel="Edit/View Details">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit
                         </MudButton>
                     </MudTd>

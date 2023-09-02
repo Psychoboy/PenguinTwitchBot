@@ -4,7 +4,7 @@
 @using Microsoft.AspNetCore.Components.Server.Circuits;
 @using System.Collections.Concurrent;
 @implements IDisposable
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject ICircuitUserService UserService
 
 

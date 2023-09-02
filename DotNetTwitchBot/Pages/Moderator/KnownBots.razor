@@ -1,5 +1,5 @@
 @page "/knownbots"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Moderator")]
 @using DotNetTwitchBot.Bot.Models;
 @inject DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots KnownBotsApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager

@@ -28,6 +28,26 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
+        public async Task<DateTime?> LastSub(string name)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var lastSub = await db.SubscriptionHistories.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                if (lastSub != null)
+                {
+                    return lastSub.LastSub;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking existing sub");
+                return null;
+            }
+        }
+
         public async Task<List<string>> MissingSubs(IEnumerable<string> names)
         {
             try
