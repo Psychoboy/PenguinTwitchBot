@@ -85,7 +85,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async Task OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
             _logger.LogInformation("CHATMSG: {0}: {1}", e.ChatMessage.Username, e.ChatMessage.Message);
-            await EventService.OnChatMessage(e.ChatMessage);
+            if (e.ChatMessage != null)
+            {
+                var chatMessage = new ChatMessageEventArgs
+                {
+                    Message = e.ChatMessage.Message,
+                    Name = e.ChatMessage.Username.ToLower(),
+                    DisplayName = e.ChatMessage.DisplayName,
+                    IsSub = e.ChatMessage.IsSubscriber,
+                    IsMod = e.ChatMessage.IsModerator,
+                    IsVip = e.ChatMessage.IsVip,
+                    IsBroadcaster = e.ChatMessage.IsBroadcaster
+                };
+                await EventService.OnChatMessage(chatMessage);
+            }
         }
 
         private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)

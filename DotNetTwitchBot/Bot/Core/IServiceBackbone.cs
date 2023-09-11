@@ -1,6 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using TwitchLib.Client.Models;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -32,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsKnownBot(string name);
         bool IsKnownBotOrCurrentStreamer(string name);
         Task OnChannelPointRedeem(string userName, string title, string userInput);
-        Task OnChatMessage(ChatMessage message);
+        Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);
         Task OnFollow(ChannelFollow ev);

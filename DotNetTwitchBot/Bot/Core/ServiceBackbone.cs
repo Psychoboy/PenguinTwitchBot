@@ -168,7 +168,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private List<string> AllowedWhisperCommands
+        private static List<string> AllowedWhisperCommands
         {
             get
             {
@@ -305,20 +305,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnChatMessage(TwitchLib.Client.Models.ChatMessage message)
+        public async Task OnChatMessage(ChatMessageEventArgs message)
         {
             if (ChatMessageEvent != null)
             {
-                await ChatMessageEvent(this, new ChatMessageEventArgs
-                {
-                    Message = message.Message,
-                    Name = message.Username.ToLower(),
-                    DisplayName = message.DisplayName,
-                    IsSub = message.IsSubscriber,
-                    IsMod = message.IsModerator,
-                    IsVip = message.IsVip,
-                    IsBroadcaster = message.IsBroadcaster
-                });
+                await ChatMessageEvent(this, message);
             }
         }
 
