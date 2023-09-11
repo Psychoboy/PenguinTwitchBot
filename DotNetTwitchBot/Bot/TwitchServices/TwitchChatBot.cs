@@ -1,5 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Core;
+﻿using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
@@ -50,7 +49,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("BOTWHISPERMSG: {0}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
         }
 
-        public void Initialize()
+        public Task Initialize()
         {
             var credentials = new ConnectionCredentials(_configuration["botName"], _configuration["botTwitchOAuth"]);
             TwitchClient.Initialize(credentials, _configuration["broadcaster"]);
@@ -59,101 +58,118 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             TwitchClient.OnChatCommandReceived += Client_OnChatCommandReceived;
             TwitchClient.OnDisconnected += Client_OnDisconnected;
             TwitchClient.OnError += Client_OnError;
-            TwitchClient.OnLog += Client_OnLog;
             TwitchClient.OnConnected += Client_OnConnected;
-            TwitchClient.OnMessageReceived += Client_OnMessageReceived;
             TwitchClient.OnConnectionError += Client_OnConnectionError;
             TwitchClient.OnMessageReceived += OnMessageReceived;
             TwitchClient.OnUserJoined += OnUserJoined;
             TwitchClient.OnUserLeft += OnUserLeft;
             TwitchClient.OnWhisperCommandReceived += OnWhisperCommandReceived;
             TwitchClient.OnWhisperReceived += OnWhisperReceived;
-            TwitchClient.Connect();
+            return TwitchClient.ConnectAsync();
         }
 
 
 
-        private async void OnUserLeft(object? sender, OnUserLeftArgs e)
+        private async Task OnUserLeft(object? sender, OnUserLeftArgs e)
         {
             _logger.LogTrace("{0} Left.", e.Username);
             await EventService.OnUserLeft(e.Username);
         }
 
-        private async void OnUserJoined(object? sender, OnUserJoinedArgs e)
+        private async Task OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
             _logger.LogTrace("{0} Joined.", e.Username);
             await EventService.OnUserJoined(e.Username);
         }
 
-        private async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+        private async Task OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
             _logger.LogInformation("CHATMSG: {0}: {1}", e.ChatMessage.Username, e.ChatMessage.Message);
-            await EventService.OnChatMessage(e.ChatMessage);
+            if (e.ChatMessage != null)
+            {
+                var chatMessage = new ChatMessageEventArgs
+                {
+                    Message = e.ChatMessage.Message,
+                    Name = e.ChatMessage.Username.ToLower(),
+                    DisplayName = e.ChatMessage.DisplayName,
+                    IsSub = e.ChatMessage.IsSubscriber,
+                    IsMod = e.ChatMessage.IsModerator,
+                    IsVip = e.ChatMessage.IsVip,
+                    IsBroadcaster = e.ChatMessage.IsBroadcaster
+                };
+                await EventService.OnChatMessage(chatMessage);
+            }
         }
 
-        private void Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
+        private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
         {
-            _logger.LogWarning("Bot Connection Error: {0}", e.Error.Message);
+            return Task.Run(() => _logger.LogWarning("Bot Connection Error: {0}", e.Error.Message));
         }
 
-        private void Client_OnMessageReceived(object? sender, TwitchLib.Client.Events.OnMessageReceivedArgs e)
+        private Task OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
         {
-            _logger.LogTrace("OnMessageReceived");
+            return Task.Run(() => _logger.LogTrace("OnWhisperReceived"));
         }
 
-        private void OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
+        private Task Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedEventArgs e)
         {
-            _logger.LogTrace("OnWhisperReceived");
+            return Task.Run(() => _logger.LogInformation("Bot Connected"));
         }
 
-        private void Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedArgs e)
+        private Task Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
         {
-            _logger.LogInformation("Bot Connected");
+            return Task.Run(() => _logger.LogError("Bot Error: {0}", e.Exception));
         }
 
-        private void Client_OnLog(object? sender, TwitchLib.Client.Events.OnLogArgs e)
+        private Task Client_OnDisconnected(object? sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {
-            _logger.LogTrace("OnLog");
+            return Task.Run(() => _logger.LogTrace("Bot Disconnected"));
         }
 
-        private void Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
+        private async Task Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
         {
-            _logger.LogError("Bot Error: {0}", e.Exception);
+            var eventArgs = new CommandEventArgs
+            {
+                Arg = e.Command.ArgumentsAsString,
+                Args = e.Command.ArgumentsAsList.Where(x => string.IsNullOrEmpty(x) == false).ToList(),
+                Command = e.Command.Name.ToLower(),
+                IsWhisper = false,
+                Name = e.ChatMessage.Username,
+                DisplayName = e.ChatMessage.DisplayName,
+                IsSub = e.ChatMessage.IsSubscriber,
+                IsMod = e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator,
+                IsVip = e.ChatMessage.IsVip,
+                IsBroadcaster = e.ChatMessage.IsBroadcaster,
+                TargetUser = e.Command.ArgumentsAsList.Count > 0
+                        ? e.Command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
+                        : ""
+            };
+            await EventService.OnCommand(eventArgs);
         }
-
-        private void Client_OnDisconnected(object? sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
-        {
-            _logger.LogTrace("Bot Disconnected");
-        }
-
-        private async void Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
-        {
-            await EventService.OnCommand(e.Command);
-        }
-        private async void OnWhisperCommandReceived(object? sender, OnWhisperCommandReceivedArgs e)
+        private async Task OnWhisperCommandReceived(object? sender, OnWhisperCommandReceivedArgs e)
         {
             var command = new CommandEventArgs()
             {
                 Arg = e.Command.ArgumentsAsString,
                 Args = e.Command.ArgumentsAsList,
-                Command = e.Command.CommandText.ToLower(),
+                Command = e.Command.Name.ToLower(),
                 IsWhisper = true,
-                Name = e.Command.WhisperMessage.Username,
-                DisplayName = e.Command.WhisperMessage.DisplayName,
-                IsSub = await _twitchService.IsUserSub(e.Command.WhisperMessage.Username),
-                IsMod = await _twitchService.IsUserMod(e.Command.WhisperMessage.Username),
+                Name = e.WhisperMessage.Username,
+                DisplayName = e.WhisperMessage.DisplayName,
+                IsSub = await _twitchService.IsUserSub(e.WhisperMessage.Username),
+                IsMod = await _twitchService.IsUserMod(e.WhisperMessage.Username),
                 TargetUser = e.Command.ArgumentsAsList.Count > 0
                         ? e.Command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
                         : ""
             };
             await EventService.OnWhisperCommand(command);
         }
-        private void Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
+        private Task Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
-            _logger.LogTrace("Bot left the channel ", e.Channel);
+            return Task.Run(() => _logger.LogTrace("Bot left the channel ", e.Channel));
         }
 
-        private async void Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
+        private async Task Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
         {
             _logger.LogInformation(string.Format("Joined {0}", e.Channel));
             try
@@ -169,7 +185,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await Task.Run(() => Initialize());
+            await Initialize();
 
         }
     }

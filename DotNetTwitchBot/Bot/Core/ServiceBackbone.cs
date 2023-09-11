@@ -2,7 +2,6 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using Microsoft.IdentityModel.Tokens;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -135,27 +134,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnCommand(TwitchLib.Client.Models.ChatCommand command)
+        public async Task OnCommand(CommandEventArgs command)
         {
-            if (CommandEvent != null)
+            if (command != null)
             {
-                var eventArgs = new CommandEventArgs
-                {
-                    Arg = command.ArgumentsAsString,
-                    Args = command.ArgumentsAsList.Where(x => x.IsNullOrEmpty() == false).ToList(),
-                    Command = command.CommandText.ToLower(),
-                    IsWhisper = false,
-                    Name = command.ChatMessage.Username,
-                    DisplayName = command.ChatMessage.DisplayName,
-                    IsSub = command.ChatMessage.IsSubscriber,
-                    IsMod = command.ChatMessage.IsBroadcaster || command.ChatMessage.IsModerator,
-                    IsVip = command.ChatMessage.IsVip,
-                    IsBroadcaster = command.ChatMessage.IsBroadcaster,
-                    TargetUser = command.ArgumentsAsList.Count > 0
-                        ? command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
-                        : ""
-                };
-                await RunCommand(eventArgs);
+                await RunCommand(command);
             }
         }
 
@@ -185,7 +168,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private List<string> AllowedWhisperCommands
+        private static List<string> AllowedWhisperCommands
         {
             get
             {
@@ -322,20 +305,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnChatMessage(TwitchLib.Client.Models.ChatMessage message)
+        public async Task OnChatMessage(ChatMessageEventArgs message)
         {
             if (ChatMessageEvent != null)
             {
-                await ChatMessageEvent(this, new ChatMessageEventArgs
-                {
-                    Message = message.Message,
-                    Name = message.Username.ToLower(),
-                    DisplayName = message.DisplayName,
-                    IsSub = message.IsSubscriber,
-                    IsMod = message.IsModerator,
-                    IsVip = message.IsVip,
-                    IsBroadcaster = message.IsBroadcaster
-                });
+                await ChatMessageEvent(this, message);
             }
         }
 
