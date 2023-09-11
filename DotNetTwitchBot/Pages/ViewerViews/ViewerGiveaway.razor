@@ -178,6 +178,12 @@
             prize = Prize;
             InvokeAsync(StateHasChanged);
         });
+        hubConnection.On<int, int>("UpdateTickets", (curEntries, curEntrants) =>
+        {
+            entries = curEntries;
+            entrants = curEntrants;
+            InvokeAsync(StateHasChanged);
+        });
         await hubConnection.StartAsync();
     }
 

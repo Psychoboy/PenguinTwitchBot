@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Repository;
 using Microsoft.AspNetCore.SignalR;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
@@ -20,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly string PrizeSettingName = "GiveawayPrize";
         private readonly string ImageSettingName = "GiveawayPrizeImage";
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
@@ -38,6 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _scopeFactory = scopeFactory;
             _hubContext = hubContext;
             lang = language;
+            _timer.Elapsed += SendCurrentEntriesToAll;
         }
 
         public override async Task Register()
@@ -49,6 +52,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
+            _timer.Start();
             _logger.LogInformation($"Registered commands for {moduleName}");
         }
 
@@ -117,6 +121,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var entries = await GetEntries();
             return entries.Sum(x => x.Tickets);
+        }
+
+        private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            await _hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
         }
 
         private async Task<IEnumerable<GiveawayEntry>> GetEntries()
