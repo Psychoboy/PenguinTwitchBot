@@ -358,7 +358,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await ServiceBackbone.SendChatMessage($"{await _viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
         }
 
-        private async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
+        public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
         {
             ViewerMessageCountWithRank? viewerMessage;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -389,7 +389,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerPoint ?? new ViewerPoint();
         }
 
-        private async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
+        public async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
         {
             ViewerPointWithRank? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -401,7 +401,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerPoints ?? new ViewerPointWithRank() { Ranking = int.MaxValue };
         }
 
-        private async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
+        public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
         {
             ViewerTimeWithRank? viewerTime;
             await using (var scope = _scopeFactory.CreateAsyncScope())

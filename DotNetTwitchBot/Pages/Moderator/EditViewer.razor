@@ -1,0 +1,97 @@
+@page "/editviewer/{id:int}"
+@attribute [Authorize(Roles = "Streamer, Moderator")]
+@using DotNetTwitchBot.Bot;
+@using Meziantou.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
+@inject DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature loyaltyFeature
+@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature ticketFeature
+@inject DotNetTwitchBot.Bot.Core.SubscriptionTracker subTracker
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>SPTV Twitch Bot - Edit Viewer</PageTitle>
+@if (viewer.Viewer == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+
+    <MudCard>
+        <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudCardContent>
+                <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
+                <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
+                    Variant="Variant.Text" />
+                <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
+                <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
+                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isSub" Label="Subscriber?" />
+                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isVip" Label="VIP?" />
+                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isMod" Label="Moderator?" />
+                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
+                <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
+                <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
+                <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
+                <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
+                <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
+                <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
+
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    // private DotNetTwitchBot.Bot.Models.Viewer? viewer { get; set; }
+    private ViewViewer viewer { get; set; } = new();
+    public class ViewViewer
+    {
+        public DotNetTwitchBot.Bot.Models.Viewer? Viewer { get; set; }
+        public DateTime FollowDated { get; set; }
+        public DateTime? LastSub { get; set; }
+        public ViewerMessageCountWithRank? Messages { get; set; }
+        public ViewerPointWithRank? Pasties { get; set; }
+        public ViewerTicketWithRanks? Tickets { get; set; }
+        public ViewerTimeWithRank? Time { get; set; }
+        public string WatchedTime { get; set; } = "";
+
+    }
+
+    protected override async void OnParametersSet()
+    {
+        viewer.Viewer = await viewerFeature.GetViewer(id);
+        if(viewer.Viewer != null)
+        {
+            var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
+            if(follower != null)
+            {
+                viewer.FollowDated = follower.FollowDate;
+            }
+            viewer.Tickets = await ticketFeature.GetViewerTicketsWithRank(viewer.Viewer.Username);
+            viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
+            viewer.Pasties = await loyaltyFeature.GetUserPastiesAndRank(viewer.Viewer.Username);
+            viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
+            if(viewer.Time != null)
+            {
+                viewer.WatchedTime = Tools.ConvertToCompoundDuration((long)viewer.Time.Time);
+            }
+            viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
+        }
+
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (viewer.Viewer == null) return;
+        await viewerFeature.SaveViewer(viewer.Viewer);
+        navigationManager.NavigateTo($"/viewers");
+    }
+}
