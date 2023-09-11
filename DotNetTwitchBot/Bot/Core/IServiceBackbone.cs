@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnChannelPointRedeem(string userName, string title, string userInput);
         Task OnChatMessage(ChatMessage message);
         Task OnCheer(ChannelCheer ev);
-        Task OnCommand(ChatCommand command);
+        Task OnCommand(CommandEventArgs command);
         Task OnFollow(ChannelFollow ev);
         Task OnIncomingRaid(RaidEventArgs args);
         Task OnStreamEnded();
