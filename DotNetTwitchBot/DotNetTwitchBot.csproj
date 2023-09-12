@@ -42,7 +42,7 @@
     <PackageReference Include="TwitchLib.Api.Core.Models" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Api.Helix" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Api.Helix.Models" Version="3.9.0" />
-    <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-d6d26ef27fde6ecbd8999396d84e1ee1322963a1" />
+    <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" />
     <PackageReference Include="TwitchLib.Client.Enums" Version="4.0.0-preview-d6d26ef27fde6ecbd8999396d84e1ee1322963a1" />
     <PackageReference Include="TwitchLib.Client.Models" Version="4.0.0-preview-d6d26ef27fde6ecbd8999396d84e1ee1322963a1" />
     <PackageReference Include="TwitchLib.Communication" Version="2.0.0" />
