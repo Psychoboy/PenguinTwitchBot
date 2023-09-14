@@ -151,6 +151,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return null;
         }
 
@@ -170,6 +175,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing IsUserSub(): {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return false;
         }
 
@@ -187,6 +197,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing IsUserMod(): {0}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
             return false;
         }
@@ -224,6 +239,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing IsStreamOnline(userId): {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return false;
         }
 
@@ -242,6 +262,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing AreStreamsOnline: {0}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
             return new List<string>();
         }
@@ -265,6 +290,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing getting stream started at: {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return DateTime.MinValue;
         }
 
@@ -284,6 +314,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing getting viewer count: {0}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
             return 0;
         }
@@ -314,6 +349,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing Getting current game: {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return "";
         }
 
@@ -332,6 +372,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing Getting stream title: {0}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
             return "";
         }
@@ -353,6 +398,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing Getting Thumbnail: {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
             return "";
         }
 
@@ -368,6 +418,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing Raid: {0}", error);
             }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
+            }
         }
 
         public async Task ShoutoutStreamer(string userId)
@@ -381,6 +436,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing shoutout: {0}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserFollow(): {0}", error);
             }
         }
 
