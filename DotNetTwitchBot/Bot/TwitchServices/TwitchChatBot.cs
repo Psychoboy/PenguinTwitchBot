@@ -107,7 +107,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
         {
-            return Task.Run(() => _logger.LogWarning("Bot Connection Error: {0}", e.Error.Message));
+            _logger.LogWarning("Bot Connection Error, will reconnect in about 5 seconds: {0}", e.Error.Message);
+            Thread.Sleep(5000);
+            if (TwitchClient.IsConnected == false)
+            {
+                _logger.LogInformation("Reconnecting Twitch Client");
+                return TwitchClient.ReconnectAsync();
+            }
+            else
+            {
+                _logger.LogInformation("Twitch Client was already connected so continuing");
+                return Task.CompletedTask;
+            }
         }
 
         private Task OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
