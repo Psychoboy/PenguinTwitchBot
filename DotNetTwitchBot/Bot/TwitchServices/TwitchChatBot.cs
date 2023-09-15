@@ -65,10 +65,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             TwitchClient.OnUserLeft += OnUserLeft;
             TwitchClient.OnWhisperCommandReceived += OnWhisperCommandReceived;
             TwitchClient.OnWhisperReceived += OnWhisperReceived;
+            TwitchClient.OnReconnected += OnReconnected;
             return TwitchClient.ConnectAsync();
         }
 
-
+        private Task OnReconnected(object? sender, OnConnectedEventArgs e)
+        {
+            return Task.Run(() => _logger.LogInformation("Bot reconnected"));
+        }
 
         private async Task OnUserLeft(object? sender, OnUserLeftArgs e)
         {

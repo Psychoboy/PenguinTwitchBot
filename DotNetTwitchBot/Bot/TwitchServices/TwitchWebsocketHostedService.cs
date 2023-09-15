@@ -312,8 +312,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex, "Error subscribing to the events");
                 if (!await _eventSubWebsocketClient.DisconnectAsync())
                 {
-                    await Reconnect();
+                    _logger.LogWarning("Failed to disconnect when requested");
                 }
+                await Reconnect();
             }
             _logger.LogInformation("Subscribed to events");
         }
