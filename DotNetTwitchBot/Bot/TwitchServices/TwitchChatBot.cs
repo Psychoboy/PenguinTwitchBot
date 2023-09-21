@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -15,6 +16,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ITwitchService _twitchService;
         private readonly TwitchBotService _twitchBotService;
         private readonly ILogger<TwitchChatBot> _logger;
+        private readonly Timer HealthStatusTimer = new();
 
         public TwitchChatBot(
             ILogger<TwitchChatBot> logger,
@@ -31,10 +33,25 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _twitchBotService = twitchBotService;
             EventService.SendMessageEvent += CommandService_OnSendMessage;
             EventService.SendWhisperMessageEvent += CommandService_OnWhisperMessage;
+            HealthStatusTimer.Interval = 30000;
+            HealthStatusTimer.Elapsed += HealthStatusTimer_Elapsed;
 
         }
 
-
+        private async void HealthStatusTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            if (!TwitchClient.IsConnected)
+            {
+                //Wait a few seconds before trying to reconnect;
+                Thread.Sleep(5000);
+                if (!TwitchClient.IsConnected)
+                {
+                    await TwitchClient.ConnectAsync();
+                    return;
+                }
+            }
+            await JoinChannelIfNotJoined();
+        }
 
         private Task CommandService_OnSendMessage(object? sender, string e)
         {
@@ -49,7 +66,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger.LogInformation("BOTWHISPERMSG: {0}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
         }
 
-        public Task Initialize()
+        public async Task Initialize()
         {
             var credentials = new ConnectionCredentials(_configuration["botName"], _configuration["botTwitchOAuth"]);
             TwitchClient.Initialize(credentials, _configuration["broadcaster"]);
@@ -66,7 +83,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             TwitchClient.OnWhisperCommandReceived += OnWhisperCommandReceived;
             TwitchClient.OnWhisperReceived += OnWhisperReceived;
             TwitchClient.OnReconnected += OnReconnected;
-            return TwitchClient.ConnectAsync();
+            await TwitchClient.ConnectAsync();
+            HealthStatusTimer.Start();
         }
 
         private Task OnReconnected(object? sender, OnConnectedEventArgs e)
@@ -126,20 +144,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return Task.Run(() => _logger.LogTrace("OnWhisperReceived"));
         }
 
-        private async Task Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedEventArgs e)
+        private Task Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedEventArgs e)
         {
-            if (_configuration["broadcaster"] == null)
-            {
-                _logger.LogCritical("Broadcaster not set!");
-                return;
-            }
-            _logger.LogInformation("Bot Connected");
+            return Task.Run(() => _logger.LogInformation("Bot Connected"));
+        }
+
+        private async Task JoinChannelIfNotJoined()
+        {
             if (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == false)
             {
                 _logger.LogInformation("Joining Channel");
                 await TwitchClient.JoinChannelAsync(_configuration["broadcaster"]);
             }
-
         }
 
         private Task Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
@@ -197,7 +213,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)
         {
-            _logger.LogInformation(string.Format("Joined {0}", e.Channel));
+            //Restart timer
+            HealthStatusTimer.Stop();
+            HealthStatusTimer.Start();
+            _logger.LogInformation("Bot Joined {Channel}", e.Channel);
             try
             {
                 EventService.IsOnline = await _twitchService.IsStreamOnline();
@@ -206,7 +225,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 _logger.LogError(ex.Message);
             }
-            _logger.LogInformation("Stream Is Online: {IsOnline}", EventService.IsOnline);
+            _logger.LogInformation("Stream Online: {IsOnline}", EventService.IsOnline);
         }
     }
 }
