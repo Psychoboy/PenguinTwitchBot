@@ -59,7 +59,7 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
-        builder.Services.AddHostedService<TwitchChatBot>();
+        builder.Services.AddSingleton<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.ISendAlerts, DotNetTwitchBot.Bot.Alerts.SendAlerts>();
@@ -179,6 +179,7 @@ internal class Program
         }
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        await app.Services.GetRequiredService<TwitchChatBot>().Initialize();
 
         app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 

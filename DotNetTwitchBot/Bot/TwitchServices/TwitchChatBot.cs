@@ -6,7 +6,7 @@ using TwitchLib.Client.Models;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchChatBot : BackgroundService
+    public class TwitchChatBot
     {
         private readonly IConfiguration _configuration;
         private TwitchClient TwitchClient { get; set; }
@@ -65,10 +65,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             TwitchClient.OnUserLeft += OnUserLeft;
             TwitchClient.OnWhisperCommandReceived += OnWhisperCommandReceived;
             TwitchClient.OnWhisperReceived += OnWhisperReceived;
+            TwitchClient.OnReconnected += OnReconnected;
             return TwitchClient.ConnectAsync();
         }
 
-
+        private Task OnReconnected(object? sender, OnConnectedEventArgs e)
+        {
+            return Task.Run(() => _logger.LogInformation("Bot reconnected"));
+        }
 
         private async Task OnUserLeft(object? sender, OnUserLeftArgs e)
         {
@@ -103,7 +107,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
         {
-            return Task.Run(() => _logger.LogWarning("Bot Connection Error: {0}", e.Error.Message));
+            _logger.LogWarning("Bot Connection Error, will reconnect in about 5 seconds: {0}", e.Error.Message);
+            Thread.Sleep(5000);
+            if (TwitchClient.IsConnected == false)
+            {
+                _logger.LogInformation("Reconnecting Twitch Client");
+                return TwitchClient.ReconnectAsync();
+            }
+            else
+            {
+                _logger.LogInformation("Twitch Client was already connected so continuing");
+                return Task.CompletedTask;
+            }
         }
 
         private Task OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
@@ -111,9 +126,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return Task.Run(() => _logger.LogTrace("OnWhisperReceived"));
         }
 
-        private Task Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedEventArgs e)
+        private async Task Client_OnConnected(object? sender, TwitchLib.Client.Events.OnConnectedEventArgs e)
         {
-            return Task.Run(() => _logger.LogInformation("Bot Connected"));
+            if (_configuration["broadcaster"] == null)
+            {
+                _logger.LogCritical("Broadcaster not set!");
+                return;
+            }
+            _logger.LogInformation("Bot Connected");
+            if (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == false)
+            {
+                _logger.LogInformation("Joining Channel");
+                await TwitchClient.JoinChannelAsync(_configuration["broadcaster"]);
+            }
+
         }
 
         private Task Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
@@ -181,12 +207,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex.Message);
             }
             _logger.LogInformation("Stream Is Online: {IsOnline}", EventService.IsOnline);
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            await Initialize();
-
         }
     }
 }
