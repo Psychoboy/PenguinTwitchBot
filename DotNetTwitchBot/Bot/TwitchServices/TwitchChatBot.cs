@@ -133,12 +133,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogCritical("Broadcaster not set!");
                 return;
             }
+            _logger.LogInformation("Bot Connected");
             if (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == false)
             {
                 _logger.LogInformation("Joining Channel");
                 await TwitchClient.JoinChannelAsync(_configuration["broadcaster"]);
             }
-            _logger.LogInformation("Bot Connected");
+
         }
 
         private Task Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
