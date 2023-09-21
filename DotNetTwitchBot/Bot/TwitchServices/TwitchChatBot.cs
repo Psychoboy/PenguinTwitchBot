@@ -208,11 +208,5 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             _logger.LogInformation("Stream Is Online: {IsOnline}", EventService.IsOnline);
         }
-
-        //protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        //{
-        //    await Initialize();
-
-        //}
     }
 }
