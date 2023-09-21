@@ -1,16 +1,8 @@
-using System.Reflection.Emit;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Models;
-using Newtonsoft.Json;
+using System.Timers;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using System.Timers;
-using Timer = System.Timers.Timer;
 using TwitchLib.Api.Core.Exceptions;
+using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -94,7 +86,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchBotAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
+                    await _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
                 }
                 else
                 {
@@ -106,9 +98,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         _configuration["botExpiresIn"] = refreshToken.ExpiresIn.ToString();
                         _configuration["twitchBotRefreshToken"] = refreshToken.RefreshToken;
 
-                        _settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
-                        _settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
-                        _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
+                        await _settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
+                        await _settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
+                        await _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
                     }
                     catch (Exception e)
                     {

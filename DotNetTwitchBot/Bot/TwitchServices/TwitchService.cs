@@ -618,7 +618,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
                     TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
+                    await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
                 }
                 else
                 {
@@ -631,9 +631,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
                         _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
                         _twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                        _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-                        _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                        _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
+                        await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                        await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                        await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
                     }
                     catch (Exception e)
                     {

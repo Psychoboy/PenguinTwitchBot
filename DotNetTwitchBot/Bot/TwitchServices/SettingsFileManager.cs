@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
@@ -10,7 +6,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<SettingsFileManager> _logger;
-        private readonly object lockObject = new();
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
         public SettingsFileManager(ILogger<SettingsFileManager> logger, IConfiguration configuration)
         {
@@ -18,27 +14,42 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _logger = logger;
 
         }
-        public void AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
+        public async Task AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {
-            lock (lockObject)
+
+            try
             {
-                try
+                _semaphoreSlim.Wait();
+                var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
+                string json = File.ReadAllText(filePath);
+                dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
+
+                SetValueRecursively(sectionPathKey, jsonObj, value);
+
+                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
+                while (!IsFileLocked(filePath))
                 {
-                    var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
-                    string json = File.ReadAllText(filePath);
-                    dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
-
-                    SetValueRecursively(sectionPathKey, jsonObj, value);
-
-                    string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
-                    File.WriteAllText(filePath, output);
-
+                    _logger.LogWarning("Settings file was locked... Waiting to for it to be unlocked");
+                    Thread.Sleep(5000);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating settings");
-                }
+                await File.WriteAllTextAsync(filePath, output);
+
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating settings");
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        private bool IsFileLocked(string filePath)
+        {
+            try
+            {
+                using var fileStream = File.OpenWrite(filePath);
+                return fileStream.Length > 0;
+            }
+            catch (Exception) { return false; }
         }
 
         private void SetValueRecursively<T>(string sectionPathKey, dynamic jsonObj, T value)
