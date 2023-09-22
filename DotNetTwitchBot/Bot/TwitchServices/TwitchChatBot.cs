@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (!TwitchClient.IsConnected)
             {
-                //Wait a few seconds before trying to reconnect;
+                // Wait a few seconds before trying to reconnect
                 Thread.Sleep(5000);
                 if (!TwitchClient.IsConnected)
                 {
