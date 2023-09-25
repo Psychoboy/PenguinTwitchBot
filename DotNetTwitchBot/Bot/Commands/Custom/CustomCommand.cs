@@ -454,7 +454,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             try
             {
                 var message = originalText;
-                //var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
                 if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
                 var cancel = false;
                 while (true)
@@ -520,7 +520,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public string UnescapeTagsInMessages(string args)
         {
-            //var regex = new Regex(@"\\([\\()])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var matches = UnEscapedRegex().Matches(args);
             foreach (Match match in matches.Cast<Match>())
             {
