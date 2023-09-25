@@ -131,6 +131,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
             if (userId == null) return null;
+            if (broadcasterId == userId)
+            {
+                return new()
+                {
+                    DisplayName = user,
+                    Username = user,
+                    FollowDate = DateTime.Now
+                };
+
+            }
             try
             {
                 var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
