@@ -117,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task OnFollow(object? sender, FollowEventArgs e)
         {
-            _logger.LogInformation("{0} Followed.", e.DisplayName);
+            _logger.LogInformation("{DisplayName} Followed.", e.DisplayName);
             await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
             UpdateLastActive(e.Username);
             await AddFollow(e);
@@ -239,7 +239,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
             if (e.Name == null) return;
-            _logger.LogInformation("{0} Subscribed.", e.Name);
+            _logger.LogInformation("{name} Subscribed.", e.Name);
             await AddSubscription(e.Name);
             UpdateLastActive(e.Name);
         }
@@ -247,7 +247,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnSubscriptionEnd(object? sender, SubscriptionEndEventArgs e)
         {
             if (e.Name == null) return;
-            _logger.LogInformation("{0} Unsubscribed", e.Name);
+            _logger.LogInformation("{name} Unsubscribed", e.Name);
             await RemoveSubscription(e.Name);
         }
 
@@ -257,7 +257,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewer == null) return;
             viewer.isSub = true;
             await UpdateViewer(viewer);
-            _logger.LogInformation("{0} Subscription added.", username);
+            _logger.LogInformation("{name} Subscription added.", username);
         }
 
         private async Task RemoveSubscription(string username)
@@ -266,7 +266,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewer == null) return;
             viewer.isSub = false;
             await UpdateViewer(viewer);
-            _logger.LogInformation("{0} Subscription removed.", username);
+            _logger.LogInformation("{name} Subscription removed.", username);
         }
 
         private Task OnCheer(object? sender, CheerEventArgs e)
@@ -334,7 +334,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         };
                         if (viewer.isSub == false)
                         {
-                            _logger.LogWarning("{0} was not a subscriber and is being updated manually bulk.", viewer.Username);
+                            _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
                         }
                         viewer.isSub = true;
                         db.Viewers.Update(viewer);
@@ -360,7 +360,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
                         {
-                            _logger.LogInformation("Removing Subscriber {0}", curSubscriber.Username);
+                            _logger.LogInformation("Removing Subscriber {name}", curSubscriber.Username);
                             curSubscriber.isSub = false;
                             db.Viewers.Update(curSubscriber);
                         }
@@ -379,7 +379,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var moduleName = "ViewerFeature";
             await RegisterDefaultCommand("lurk", this, moduleName);
             await UpdateSubscribers();
-            _logger.LogInformation($"Registered {moduleName}");
+            _logger.LogInformation("Registered {moduleName}", moduleName);
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

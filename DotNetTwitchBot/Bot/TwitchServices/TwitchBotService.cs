@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error Sending Whisper to {0}: {1}", target.Replace(Environment.NewLine, ""), error.Replace(Environment.NewLine, ""));
+                _logger.LogError("Error Sending Whisper to {name}: {error}", target.Replace(Environment.NewLine, ""), error.Replace(Environment.NewLine, ""));
             }
             catch (Exception ex)
             {
@@ -104,7 +104,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError("Error refreshing bot token: {0}", e.Message);
+                        _logger.LogError("Error refreshing bot token: {message}", e.Message);
                     }
                 }
             }

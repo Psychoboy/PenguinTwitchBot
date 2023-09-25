@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var moduleName = "Defuse";
             await RegisterDefaultCommand("defuse", this, moduleName, userCooldown: 10);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

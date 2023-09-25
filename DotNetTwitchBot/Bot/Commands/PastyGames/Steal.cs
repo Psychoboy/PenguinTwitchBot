@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var moduleName = "Steal";
             await RegisterDefaultCommand("steal", this, moduleName, userCooldown: 300);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

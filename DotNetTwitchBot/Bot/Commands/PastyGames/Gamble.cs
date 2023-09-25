@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Gamble";
             await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer, userCooldown: 180);
             await RegisterDefaultCommand("jackpot", this, moduleName, Rank.Viewer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-        private async Task LaunchFireworks()
+        private static async Task LaunchFireworks()
         {
             try
             {

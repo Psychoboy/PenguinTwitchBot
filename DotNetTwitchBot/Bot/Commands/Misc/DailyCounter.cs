@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var moduleName = "DailyCounter";
             await RegisterDefaultCommand("setdailycountertext", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setdailyvalue", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -131,7 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await WriteCounterFile(text);
         }
 
-        private int NextValue(int currentValue)
+        private static int NextValue(int currentValue)
         {
             currentValue++;
             var nextGoal = (int)Math.Ceiling((double)currentValue / 10) * 10;
@@ -142,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return nextGoal;
         }
 
-        private async Task WriteCounterFile(string data)
+        private static async Task WriteCounterFile(string data)
         {
             if (!Directory.Exists("Data"))
             {

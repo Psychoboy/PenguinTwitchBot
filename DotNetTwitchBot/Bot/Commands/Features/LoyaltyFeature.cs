@@ -70,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 var amountToGift = 50 * e.GiftAmount;
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToGift);
-                _logger.LogInformation("Gave {0} {1} tickets for gifting {2} subs", e.Name, amountToGift, e.GiftAmount);
+                _logger.LogInformation("Gave {name} {amountToGift} tickets for gifting {GiftAmount} subs", e.Name, amountToGift, e.GiftAmount);
                 var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
                 if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
                 {
@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, 50);
-                _logger.LogInformation("Gave {0} 50 tickets for subscribing.", e.Name);
+                _logger.LogInformation("Gave {name} 50 tickets for subscribing.", e.Name);
                 if (e.Count != null && e.Count > 0)
                 {
                     await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
@@ -184,7 +184,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("give", this, moduleName);
             await RegisterDefaultCommand("check", this, moduleName);
             await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -292,7 +292,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewerPoint.Points < 0)
             {
                 viewerPoint.Points = 0;
-                _logger.LogWarning("User: {0} was about to go negative when attempting to remove {1} pasties.", target.Replace(Environment.NewLine, ""), points);
+                _logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", target.Replace(Environment.NewLine, ""), points);
             }
             db.ViewerPoints.Update(viewerPoint);
             await db.SaveChangesAsync();

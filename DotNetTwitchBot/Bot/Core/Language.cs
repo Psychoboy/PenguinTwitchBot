@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Core
             LoadLanguage();
         }
 
-        private readonly ConcurrentDictionary<string, string> languageStrings = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, string> languageStrings = new();
         public void LoadLanguage()
         {
             var files = Directory.GetFiles(@"Language/english", "*.txt", SearchOption.AllDirectories);

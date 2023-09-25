@@ -1,15 +1,9 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
-using Serilog.Events;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -75,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Core
                 var imageUrl = await _twitchService.GetStreamThumbnail();
 
                 imageUrl = imageUrl.Replace("{width}", "1920").Replace("{height}", "1080");
-                _logger.LogInformation("Thumbnail Url: {0}", imageUrl);
+                _logger.LogInformation("Thumbnail Url: {imageUrl}", imageUrl);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
                     .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
@@ -110,11 +104,11 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 if (before == null || after == null || before.Activities == null || after.Activities == null) return;
                 var user = (IGuildUser)arg1;
-                if (before.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any() && after.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0)
+                if (before.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any() && !after.Activities.Where(x => x.Type == ActivityType.Streaming).Any())
                 {
                     await UserStreaming(user, false);
                 }
-                else if (before.Activities.Where(x => x.Type == ActivityType.Streaming).Count() == 0 && after.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                else if (!before.Activities.Where(x => x.Type == ActivityType.Streaming).Any() && after.Activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
                 {
                     await UserStreaming(user, true);
                 }
@@ -195,7 +189,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task DoDadJoke(SocketSlashCommand arg)
+        private static async Task DoDadJoke(SocketSlashCommand arg)
         {
             var httpClient = new HttpClient();
             var request = new HttpRequestMessage

@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             finally { _semaphoreSlim.Release(); }
         }
 
-        private bool IsFileLocked(string filePath)
+        private static bool IsFileLocked(string filePath)
         {
             try
             {

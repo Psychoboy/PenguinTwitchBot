@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await RegisterDefaultCommand("toptickets", this, moduleName);
             //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
             await RegisterDefaultCommand("loudest", this, moduleName);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

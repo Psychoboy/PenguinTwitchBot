@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "BaconRaffle";
             await RegisterDefaultCommand("raffle", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("bacon", this, moduleName, Rank.Viewer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var moduleName = "DeathCounter";
             await RegisterDefaultCommand("death", this, moduleName);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

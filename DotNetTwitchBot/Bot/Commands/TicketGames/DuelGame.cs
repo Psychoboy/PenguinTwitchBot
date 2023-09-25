@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("accept", this, moduleName, Rank.Viewer);
             await RegisterDefaultCommand("deny", this, moduleName, Rank.Viewer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

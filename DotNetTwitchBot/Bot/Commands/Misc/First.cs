@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var moduleName = "First";
             await RegisterDefaultCommand("first", this, moduleName);
             await RegisterDefaultCommand("resetfirst", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 throw new SkipCooldownException();
             }
             CurrentClaims++;
-            _logger.LogInformation($"Current Claims: {CurrentClaims}");
+            _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
             await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }

@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     count++;
                 }
             }
-            _logger.LogInformation("Finished loading Audio Hooks: {0}", count);
+            _logger.LogInformation("Finished loading Audio Hooks: {count}", count);
         }
 
         public async Task AddAudioCommand(AudioCommand audioCommand)
@@ -153,7 +153,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await RegisterDefaultCommand("disableaudiocommand", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("enableaudiocommand", this, moduleName, Rank.Streamer);
             await LoadAudioCommands();
-            _logger.LogInformation($"Registered {moduleName}");
+            _logger.LogInformation("Registered {moduleName}", moduleName);
 
         }
 

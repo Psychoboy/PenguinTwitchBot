@@ -1,10 +1,6 @@
 using System.Collections.Concurrent;
-using System.Text;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.WebSockets;
-using System.Threading.Tasks;
+using System.Text;
 
 namespace DotNetTwitchBot.Bot.Notifications
 {
@@ -30,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
         public async Task Handle(Guid id, WebSocket webSocket)
         {
-            _logger.LogInformation("Adding Websocket: {0}", id.ToString());
+            _logger.LogInformation("Adding Websocket: {id}", id.ToString());
             lock (websocketConnections)
             {
                 websocketConnections.Add(new SocketConnection
@@ -51,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Notifications
                     }
                 }
             }
-            _logger.LogInformation("Websocket closed: {0}", id.ToString());
+            _logger.LogInformation("Websocket closed: {id}", id.ToString());
         }
 
         public async Task CloseAllSockets()
@@ -106,7 +102,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
                     foreach (var closedWebsocketConnection in closedSockets)
                     {
-                        _logger.LogInformation("Closing Socket: {0}", closedWebsocketConnection.Id);
+                        _logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
                     }
 
                     await Task.Delay(5000);

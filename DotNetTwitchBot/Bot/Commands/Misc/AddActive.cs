@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var moduleName = "AddActive";
             await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
             _ticketsToActiveCommandTimer.Start();
         }
 

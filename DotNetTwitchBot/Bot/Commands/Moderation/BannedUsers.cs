@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 var exists = await BanExists(bannedUser.UserLogin);
                 if (exists == false)
                 {
-                    _logger.LogInformation("{0} didn't exist in banned user list adding...", bannedUser.UserLogin);
+                    _logger.LogInformation("{user} didn't exist in banned user list adding...", bannedUser.UserLogin);
                     await AddBannedUser(bannedUser.UserLogin);
                 }
             }
@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             {
                 if (curBannedUsers.Exists(x => x.UserLogin.Equals(bannedUser.Username, StringComparison.OrdinalIgnoreCase)) == false)
                 {
-                    _logger.LogInformation("{0} shouldn't exist in banned user list removing...", bannedUser.Username);
+                    _logger.LogInformation("{user} shouldn't exist in banned user list removing...", bannedUser.Username);
                     await RemoveBannedUser(bannedUser.Username);
                 }
             }

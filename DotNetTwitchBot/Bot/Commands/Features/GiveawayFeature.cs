@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
             _timer.Start();
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -63,7 +63,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 case "enter":
                     {
-                        if (e.Args.Count() == 0)
+                        if (e.Args.Count == 0)
                         {
                             await ServiceBackbone.SendChatMessage(e.Name, lang.Get("giveawayfeature.help.enter"));
                             throw new SkipCooldownException();

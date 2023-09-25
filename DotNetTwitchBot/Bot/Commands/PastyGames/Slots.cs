@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Slots";
             await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer, userCooldown: 600);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-        private int GetEmoteKey()
+        private static int GetEmoteKey()
         {
             var key = Tools.Next(1, 1000);
             return key switch
