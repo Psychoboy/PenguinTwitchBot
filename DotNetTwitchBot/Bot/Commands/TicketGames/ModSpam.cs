@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             var moduleName = "ModSpam";
             await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator, globalCoolDown: 1200);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

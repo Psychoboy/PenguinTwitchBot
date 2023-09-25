@@ -1,8 +1,3 @@
-using System.Collections;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -143,6 +138,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task SendTimeLeft(int elapsedTime)
         {
+            if (_runTime - elapsedTime < 10) return;
             await ServiceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount));
         }
 

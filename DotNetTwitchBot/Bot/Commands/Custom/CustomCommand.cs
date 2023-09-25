@@ -9,8 +9,20 @@ using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class CustomCommand : BaseCommandService
+    public partial class CustomCommand : BaseCommandService
     {
+        [GeneratedRegex(
+            @"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+        private static partial Regex MatchTagNames();
+        [GeneratedRegex(
+            @"\\([\\()])", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+        private static partial Regex UnEscapedRegex();
+
+        [GeneratedRegex(
+            @"^(\S+)(?:\s(.*))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+        private static partial Regex CounterRegex();
+
         readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new();
         readonly Dictionary<string, Models.CustomCommands> Commands = new();
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
@@ -120,7 +132,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     keyword.Regex = new Regex(keyword.Keyword.CommandName);
                 }
             }
-            _logger.LogInformation("Finished loading commands: {0}", count);
+            _logger.LogInformation("Finished loading commands: {count}", count);
         }
 
         public async Task AddCommand(CustomCommands customCommand)
@@ -341,7 +353,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await RegisterDefaultCommand("refreshcommands", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("disablecommand", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("enablecommand", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
             await LoadCommands();
         }
 
@@ -442,12 +454,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             try
             {
                 var message = originalText;
-                var mainRegex = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
                 if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
                 var cancel = false;
                 while (true)
                 {
-                    var matches = mainRegex.Matches(message);
+                    var matches = MatchTagNames().Matches(message);
                     if (matches.Count == 0) break;
                     foreach (Match match in matches.Cast<Match>())
                     {
@@ -488,7 +500,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
         {
-            _ = new Regex(@"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
             {
@@ -509,9 +520,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public string UnescapeTagsInMessages(string args)
         {
-            var regex = new Regex(@"\\([\\()])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            //var result = regex.Replace(args,)
-            var matches = regex.Matches(args);
+            var matches = UnEscapedRegex().Matches(args);
             foreach (Match match in matches.Cast<Match>())
             {
                 args = args.Replace(match.Value, match.Groups[1].Value);
@@ -585,7 +594,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private async Task<CustomCommandResult> WriteFile(CommandEventArgs eventArgs, string args)
         {
             var parseResults = args.Split(",");
-            if (parseResults.Count() < 3) return new CustomCommandResult(args);
+            if (parseResults.Length < 3) return new CustomCommandResult(args);
             var fileName = parseResults[0];
             var append = Boolean.Parse(parseResults[1]);
             var text = parseResults[2];
@@ -664,8 +673,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task<CustomCommandResult> MultiCounter(CommandEventArgs eventArgs, string args)
         {
-            var counterRegex = new Regex(@"^(\S+)(?:\s(.*))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            var match = counterRegex.Match(args);
+            var match = CounterRegex().Match(args);
             var counterName = "";
             var counterAlert = "";
 

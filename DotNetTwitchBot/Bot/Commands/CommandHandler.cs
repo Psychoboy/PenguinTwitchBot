@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Commands
             var originalCommand = await GetDefaultCommandById((int)defaultCommand.Id);
             if (originalCommand == null)
             {
-                _logger.LogWarning($"Could not find the default command name {defaultCommand.Id}");
+                _logger.LogWarning("Could not find the default command name {defaultCommandId}", defaultCommand.Id);
                 return;
             }
             if (originalCommand.CustomCommandName.Equals(defaultCommand.CustomCommandName, StringComparison.CurrentCultureIgnoreCase) == false)
@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands
             var command = GetCommand(defaultCommand.CustomCommandName);
             if (command == null)
             {
-                _logger.LogWarning($"Could not get command: {defaultCommand.CustomCommandName}");
+                _logger.LogWarning("Could not get command: {CustomCommandName}", defaultCommand.CustomCommandName);
                 return;
             }
             command.CommandProperties = defaultCommand;

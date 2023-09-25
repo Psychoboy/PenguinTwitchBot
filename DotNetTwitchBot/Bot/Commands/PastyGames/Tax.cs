@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     db.ViewerPoints.Update(viewerPoints);
                     await db.SaveChangesAsync();
                 }
-                _logger.LogInformation($"Removed {totalRemoved} pasties via taxes");
+                _logger.LogInformation("Removed {totalRemoved} pasties via taxes", totalRemoved);
             }
             catch (Exception ex)
             {

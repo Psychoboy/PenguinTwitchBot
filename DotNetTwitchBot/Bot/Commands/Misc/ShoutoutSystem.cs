@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var autoShoutExists = await db.AutoShoutouts.Find(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
             if (autoShoutExists != null)
             {
-                _logger.LogWarning("{0} autoshoutout already exists.", autoShoutout.Name);
+                _logger.LogWarning("{name} autoshoutout already exists.", autoShoutout.Name);
                 return;
             }
             await db.AutoShoutouts.AddAsync(autoShoutout);
@@ -148,7 +148,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var moduleName = "ShoutoutSystem";
             await RegisterDefaultCommand("shoutout", this, moduleName, Rank.Vip);
             await RegisterDefaultCommand("so", this, moduleName, Rank.Vip);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

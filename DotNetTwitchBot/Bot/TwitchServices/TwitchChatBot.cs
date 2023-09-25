@@ -56,14 +56,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private Task CommandService_OnSendMessage(object? sender, string e)
         {
             TwitchClient.SendMessage(_configuration["broadcaster"], e);
-            _logger.LogInformation("BOTCHATMSG: {0}", e.Replace(Environment.NewLine, ""));
+            _logger.LogInformation("BOTCHATMSG: {message}", e.Replace(Environment.NewLine, ""));
             return Task.CompletedTask;
         }
 
         private async Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
         {
             await _twitchBotService.SendWhisper(e, e2);
-            _logger.LogInformation("BOTWHISPERMSG: {0}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
+            _logger.LogInformation("BOTWHISPERMSG: {message}", e.Replace(Environment.NewLine, "") + ": " + e2.Replace(Environment.NewLine, ""));
         }
 
         public async Task Initialize()
@@ -94,19 +94,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnUserLeft(object? sender, OnUserLeftArgs e)
         {
-            _logger.LogTrace("{0} Left.", e.Username);
+            _logger.LogTrace("{name} Left.", e.Username);
             await EventService.OnUserLeft(e.Username);
         }
 
         private async Task OnUserJoined(object? sender, OnUserJoinedArgs e)
         {
-            _logger.LogTrace("{0} Joined.", e.Username);
+            _logger.LogTrace("{name} Joined.", e.Username);
             await EventService.OnUserJoined(e.Username);
         }
 
         private async Task OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
-            _logger.LogInformation("CHATMSG: {0}: {1}", e.ChatMessage.Username, e.ChatMessage.Message);
+            _logger.LogInformation("CHATMSG: {name}: {message}", e.ChatMessage.Username, e.ChatMessage.Message);
             if (e.ChatMessage != null)
             {
                 var chatMessage = new ChatMessageEventArgs
@@ -125,7 +125,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
         {
-            _logger.LogWarning("Bot Connection Error, will reconnect in about 5 seconds: {0}", e.Error.Message);
+            _logger.LogWarning("Bot Connection Error, will reconnect in about 5 seconds: {error}", e.Error.Message);
             Thread.Sleep(5000);
             if (TwitchClient.IsConnected == false)
             {
@@ -160,7 +160,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task Client_OnError(object? sender, TwitchLib.Communication.Events.OnErrorEventArgs e)
         {
-            return Task.Run(() => _logger.LogError("Bot Error: {0}", e.Exception));
+            return Task.Run(() => _logger.LogError("Bot Error: {error}", e.Exception));
         }
 
         private Task Client_OnDisconnected(object? sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
@@ -223,7 +223,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex.Message);
+                _logger.LogError(ex, "Error Checking if stream is online.");
             }
             _logger.LogInformation("Stream Online: {IsOnline}", EventService.IsOnline);
         }

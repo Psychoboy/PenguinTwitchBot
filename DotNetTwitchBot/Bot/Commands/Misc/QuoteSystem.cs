@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await RegisterDefaultCommand("addquote", this, moduleName, Rank.Moderator);
             await RegisterDefaultCommand("delquote", this, moduleName, Rank.Moderator);
             //await RegisterDefaultCommand("quotedel", this, moduleName, Rank.Moderator); add alias
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -130,7 +130,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to parse args: {0}", searchParam.Replace(Environment.NewLine, ""));
+                    _logger.LogWarning("Failed to parse args: {arg}", searchParam.Replace(Environment.NewLine, ""));
                 }
             }
 

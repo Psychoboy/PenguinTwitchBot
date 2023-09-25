@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Roll";
             await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
             await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

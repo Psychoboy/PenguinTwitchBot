@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot
 {
@@ -12,7 +8,7 @@ namespace DotNetTwitchBot.Bot
         {
             if (blockingCollection == null)
             {
-                throw new ArgumentNullException("blockingCollection");
+                throw new ArgumentNullException(nameof(blockingCollection));
             }
 
             while (blockingCollection.Count > 0)

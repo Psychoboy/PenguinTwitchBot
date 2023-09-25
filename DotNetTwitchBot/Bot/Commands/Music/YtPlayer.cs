@@ -139,7 +139,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async void UpdateState(int state)
         {
             this.State = (PlayerState)state;
-            _logger.LogInformation($"Player State {this.State}");
+            _logger.LogDebug("Player State {this.State}", state);
             if (this.State == PlayerState.Ended)
             {
                 await PlayNextSong();
@@ -203,7 +203,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public async Task SongError(object errorCode)
         {
-            _logger.LogWarning("Error with song {0}", errorCode);
+            _logger.LogWarning("Error with song {errorCode}", errorCode);
             if (CurrentSong != null)
             {
                 await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
@@ -277,7 +277,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await RegisterDefaultCommand("importpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("loadpl", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("stealsong", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -569,7 +569,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     db.Playlists.Update(playList);
                     await db.SaveChangesAsync();
                 }
-                await ServiceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count()} songs");
+                await ServiceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count} songs");
             }
             catch (Exception ex)
             {
@@ -706,7 +706,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await SongRequestMetrics.IncrementSongCount(song);
         }
 
-        private async Task<string> GetSongId(string searchTerm)
+        private static async Task<string> GetSongId(string searchTerm)
         {
             var client = new HttpClient();
             var httpRequest = new HttpRequestMessage()

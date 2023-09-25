@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             var moduleName = "Admin";
             await RegisterDefaultCommand("pausealerts", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resumealerts", this, moduleName, Rank.Streamer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

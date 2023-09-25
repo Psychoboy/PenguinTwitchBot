@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "PancakeRaffle";
             await RegisterDefaultCommand("pancakeraffle", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("pancake", this, moduleName, Rank.Viewer);
-            _logger.LogInformation($"Registered commands for {moduleName}");
+            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

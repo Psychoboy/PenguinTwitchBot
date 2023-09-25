@@ -126,7 +126,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
             catch (Exception e)
             {
-                _logger.LogWarning("Command Failure {0}", e);
+                _logger.LogWarning("Command Failure {ex}", e);
             }
             finally
             {
@@ -192,7 +192,7 @@ namespace DotNetTwitchBot.Bot.Core
                     }
                     catch (Exception e)
                     {
-                        _logger.LogCritical("Whisper Failure {0}", e);
+                        _logger.LogCritical("Whisper Failure {ex}", e);
                     }
                 }
             }
