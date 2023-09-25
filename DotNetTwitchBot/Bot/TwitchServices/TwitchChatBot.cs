@@ -153,7 +153,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == false)
             {
-                _logger.LogInformation("Joining Channel");
+                _logger.LogWarning("Chat Bot was not in the channel, re-joining...");
                 await TwitchClient.JoinChannelAsync(_configuration["broadcaster"]);
             }
         }
