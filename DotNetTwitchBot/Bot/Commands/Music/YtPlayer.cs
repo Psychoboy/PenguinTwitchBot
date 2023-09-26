@@ -67,6 +67,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             if (song == null) return;
             SongRequestsInQueue.WithLabels(song.RequestedBy).Dec();
+            if (SongRequestsInQueue.WithLabels(song.RequestedBy).Value == 0)
+            {
+                SongRequestsInQueue.RemoveLabelled(song.RequestedBy);
+            }
         }
 
         public async Task<string> GetNextSong()
