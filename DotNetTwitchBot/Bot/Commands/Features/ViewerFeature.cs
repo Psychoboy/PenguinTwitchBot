@@ -43,6 +43,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
+            Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(() =>
+            {
+                GetCurrentViewers();
+            });
         }
 
         public async Task<Viewer?> GetViewer(int id)
@@ -66,7 +70,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-
             await UpdateSubscribers();
         }
 
