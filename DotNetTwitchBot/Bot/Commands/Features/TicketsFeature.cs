@@ -125,7 +125,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.ViewerTickets.Update(viewerPoints);
                 await db.SaveChangesAsync();
             }
-            if (amount > 0) NumberOfTicketsGained.WithLabels(viewer).Inc(amount);
+            if (amount > 0)
+            {
+                NumberOfTicketsGained.WithLabels(viewer).Inc(amount);
+            }
+            else if (amount < 0)
+            {
+                NumberOfTicketsGained.WithLabels(viewer).Dec(amount);
+            }
 
             return viewerPoints.Points;
         }
