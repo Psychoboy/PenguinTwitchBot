@@ -20,7 +20,8 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-
+        using var server = new Prometheus.KestrelMetricServer(port: 4999);
+        server.Start();
         var builder = WebApplication.CreateBuilder(args);
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? throw new Exception("Invalid file configuration");

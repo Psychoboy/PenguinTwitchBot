@@ -14,6 +14,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
+        private static readonly Prometheus.Gauge NumberOfTicketsGained = Prometheus.Metrics.CreateGauge("number_of_tickets_gained", "Number of Tickets gained since last stream start", labelNames: new[] { "viewer" });
+        private readonly IServiceBackbone _serviceBackbone;
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
@@ -30,9 +32,22 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _autoPointsTimer.Start();
+            _serviceBackbone = serviceBackbone;
+            _serviceBackbone.StreamStarted += StreamStarted;
 
         }
 
+        private Task StreamStarted(object? sender)
+        {
+            return Task.Run(() =>
+            {
+                var labels = NumberOfTicketsGained.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    NumberOfTicketsGained.RemoveLabelled(label);
+                }
+            });
+        }
 
         public async Task GiveTicketsToActiveAndSubsOnlineWithBonus(long amount, long bonusAmount)
         {
@@ -110,6 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 db.ViewerTickets.Update(viewerPoints);
                 await db.SaveChangesAsync();
             }
+            if (amount > 0) NumberOfTicketsGained.WithLabels(viewer).Inc(amount);
 
             return viewerPoints.Points;
         }

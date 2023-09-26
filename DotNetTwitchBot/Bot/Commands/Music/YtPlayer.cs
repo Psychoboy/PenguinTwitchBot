@@ -21,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private Song? NextSong = null;
         private readonly List<string> SkipVotes = new();
         private readonly TimeLeft timeLeft = new();
+        private static readonly Prometheus.Gauge SongRequestsInQueue = Prometheus.Metrics.CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: new[] { "viewer" });
         enum PlayerState
         {
             UnStarted = -1,
@@ -56,6 +57,18 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             });
         }
 
+        private void IncrementSong(Song? song)
+        {
+            if (song == null) return;
+            SongRequestsInQueue.WithLabels(song.RequestedBy).Inc();
+        }
+
+        private void DecrementSong(Song? song)
+        {
+            if (song == null) return;
+            SongRequestsInQueue.WithLabels(song.RequestedBy).Dec();
+        }
+
         public async Task<string> GetNextSong()
         {
             Song? song = null;
@@ -69,6 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     CurrentSong = song?.CreateDeepCopy();
                     NextSong = Requests.FirstOrDefault()?.CreateDeepCopy();
                     SkipVotes.Clear();
+                    DecrementSong(song);
                 }
             }
             if (song != null)
@@ -383,10 +397,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (song != null)
             {
-                lock (RequestsLock)
-                {
-                    Requests.Remove(song);
-                }
+                await RemoveSongRequest(song);
                 await UpdateRequestedSongsState();
                 await ServiceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
                 return;
@@ -415,6 +426,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 {
                     Requests.Remove(song);
                 }
+                DecrementSong(song);
                 await UpdateRequestedSongsState();
             }
         }
@@ -699,6 +711,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 Requests.Add(song);
             }
+            IncrementSong(song);
             await UpdateRequestedSongsState();
             NextSong ??= song;
             await using var scope = _scopeFactory.CreateAsyncScope();
