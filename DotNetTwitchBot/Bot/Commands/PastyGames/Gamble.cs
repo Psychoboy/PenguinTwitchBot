@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly ITwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
         private readonly ILanguage _language;
+        private readonly MaxBetCalculator _maxBetCalculator;
 
         public Gamble(
             ILogger<Gamble> logger,
@@ -21,7 +22,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchServices,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            MaxBetCalculator maxBetCalculator
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyFeature;
@@ -29,6 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _twitchServices = twitchServices;
             _logger = logger;
             _language = language;
+            _maxBetCalculator = maxBetCalculator;
         }
 
         public int JackPotNumber { get; } = 69;
@@ -69,29 +72,32 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var amountStr = e.Args.First();
-            long amount;
-            if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
-               amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
+            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.Name, e.Args.First(), 5);
+            long amount = 0;
+            switch (maxBet.Result)
             {
-                amount = await _loyaltyFeature.GetMaxPointsFromUser(e.Name);
-            }
-            else if (!Int64.TryParse(amountStr, out amount))
-            {
-                await ServiceBackbone.SendChatMessage(e.DisplayName,
-                "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
-                throw new SkipCooldownException();
-            }
+                case MaxBet.ParseResult.Success:
+                    amount = maxBet.Amount;
+                    break;
 
-            if (amount > LoyaltyFeature.MaxBet || amount < 5)
-            {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
-                throw new SkipCooldownException();
+                case MaxBet.ParseResult.InvalidValue:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                    "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
+                    throw new SkipCooldownException();
+
+                case MaxBet.ParseResult.ToMuch:
+                case MaxBet.ParseResult.ToLow:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
+                    throw new SkipCooldownException();
+
+                case MaxBet.ParseResult.NotEnough:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                        "you don't have that much to gamble with.");
+                    throw new SkipCooldownException();
             }
 
             var jackpot = await GetJackpot();
 
-            await _loyaltyFeature.RemovePointsFromUser(e.Name, amount);
             var value = Tools.Next(1, 100 + 1);
             if (value == JackPotNumber)
             {

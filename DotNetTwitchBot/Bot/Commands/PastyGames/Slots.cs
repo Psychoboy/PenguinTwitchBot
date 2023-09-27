@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private readonly LoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Slots> _logger;
+        private readonly MaxBetCalculator _maxBetCalculator;
         private readonly List<string> Emotes = LoadEmotes();
         private readonly List<Int64> Prizes = LoadPrizes();
         private readonly List<string> WinMessages = LoadWinMessages();
@@ -17,11 +18,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<Slots> logger,
             LoyaltyFeature loyaltyService,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            MaxBetCalculator maxBetCalculator
             ) : base(serviceBackbone, commandHandler)
         {
             _loyaltyFeature = loyaltyService;
             _logger = logger;
+            _maxBetCalculator = maxBetCalculator;
         }
 
         public override async Task Register()
@@ -49,6 +52,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task CalculateResult(CommandEventArgs e)
         {
+            var amount = await CheckBetAmount(e);
+
             var e1 = GetEmoteKey();
             var e2 = GetEmoteKey();
             var e3 = GetEmoteKey();
@@ -56,21 +61,34 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             if (e1 == e2 && e2 == e3)
             {
-                message += string.Format("+{0} pasties. ", Prizes[e1]);
+                var prizeWinnings = Prizes[e1];
+                if (amount > 0)
+                {
+                    prizeWinnings = Convert.ToInt64(amount * 5);
+                }
+
+                message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
                 var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
-                message += string.Format(randomMessage, e.DisplayName);
+                message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
+
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, Prizes[e1]);
+                await _loyaltyFeature.AddPointsToViewer(e.Name, prizeWinnings);
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1)
             {
-                var prize = e1 == e2 ? Convert.ToInt64(Prizes[e1] * 0.3) : Convert.ToInt64(Prizes[e3] * 0.3);
-                message += string.Format("+{0} pasties. ", prize);
+                var prizeWinnings = e1 == e2 ? Convert.ToInt64(Prizes[e1] * 0.3) : Convert.ToInt64(Prizes[e3] * 0.3);
+                if (amount > 0)
+                {
+                    prizeWinnings = e1 == e2 ? Convert.ToInt64(amount * 2.5) : Convert.ToInt64(amount * 1.5);
+                }
+
+                message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
                 var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
-                message += string.Format(randomMessage, e.DisplayName);
+                message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
+
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, prize);
+                await _loyaltyFeature.AddPointsToViewer(e.Name, prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
@@ -79,13 +97,49 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
         }
 
+        private async Task<long> CheckBetAmount(CommandEventArgs e)
+        {
+            if (e.Args.Count == 0)
+            {
+                return 0;
+            }
+
+            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.Name, e.Args.First(), 25);
+            switch (maxBet.Result)
+            {
+                case MaxBet.ParseResult.Success:
+                    return maxBet.Amount;
+                case MaxBet.ParseResult.InvalidValue:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                        "To use !slots, either just run !slots or do !slots max or all or amount");
+                    throw new SkipCooldownException();
+                case MaxBet.ParseResult.ToMuch:
+                case MaxBet.ParseResult.ToLow:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                        string.Format("The max bet is {0} and must be greater then 25", LoyaltyFeature.MaxBet.ToString("N0")));
+                    throw new SkipCooldownException();
+                case MaxBet.ParseResult.NotEnough:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                        "you don't have that much to play slots with.");
+                    throw new SkipCooldownException();
+            }
+            return 0;
+        }
+
         private static List<long> LoadPrizes()
         {
             return new List<long>{
+                50,
                 75,
-                150,
-                300,
-                450,
+                100,
+                250,
+                400,
+                500,
+                600,
+                650,
+                700,
+                800,
+                900,
                 1000
             };
         }
@@ -97,7 +151,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "sptvDrink",
                 "sptvBacon",
                 "sptvWaffle",
-                "sptvPancake"
+                "sptvPancake",
+                "sptvLights",
+                "sptvSalute",
+                "sptvFrenchToast",
+                "sptvHype",
+                "sptvHi",
+                "sptvHello",
+                "sptv30k"
             };
         }
 
@@ -106,10 +167,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var key = Tools.Next(1, 1000);
             return key switch
             {
-                <= 75 => 4,
-                > 75 and <= 200 => 3,
-                > 200 and <= 450 => 2,
-                > 450 and <= 700 => 1,
+                <= 80 => 11,
+                > 160 and <= 240 => 10,
+                > 240 and <= 320 => 9,
+                > 320 and <= 400 => 8,
+                > 400 and <= 480 => 7,
+                > 480 and <= 560 => 6,
+                > 560 and <= 640 => 5,
+                > 640 and <= 720 => 4,
+                > 720 and <= 800 => 3,
+                > 800 and <= 880 => 2,
+                > 880 and <= 960 => 1,
                 _ => 0,
             };
         }
