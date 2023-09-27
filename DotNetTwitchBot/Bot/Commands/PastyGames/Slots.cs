@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -49,18 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-        private static int GetEmoteKey()
-        {
-            var key = Tools.Next(1, 1000);
-            return key switch
-            {
-                <= 75 => 4,
-                > 75 and <= 200 => 3,
-                > 200 and <= 450 => 2,
-                > 450 and <= 700 => 1,
-                _ => 0,
-            };
-        }
+
 
         private async Task CalculateResult(CommandEventArgs e)
         {
@@ -113,6 +98,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "sptvBacon",
                 "sptvWaffle",
                 "sptvPancake"
+            };
+        }
+
+        private static int GetEmoteKey()
+        {
+            var key = Tools.Next(1, 1000);
+            return key switch
+            {
+                <= 75 => 4,
+                > 75 and <= 200 => 3,
+                > 200 and <= 450 => 2,
+                > 450 and <= 700 => 1,
+                _ => 0,
             };
         }
 
