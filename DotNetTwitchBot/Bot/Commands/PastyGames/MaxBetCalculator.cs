@@ -1,25 +1,11 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
+using static DotNetTwitchBot.Bot.Commands.PastyGames.MaxBet;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class MaxBetCalculator
     {
         private readonly LoyaltyFeature _loyaltyFeature;
-
-        public enum ParseResult
-        {
-            Success,
-            InvalidValue,
-            ToMuch,
-            ToLow,
-            NotEnough
-        }
-        public struct MaxBet
-        {
-            public long Amount { get; set; }
-            public ParseResult Result { get; set; }
-
-        }
 
         public MaxBetCalculator(LoyaltyFeature loyaltyFeature)
         {

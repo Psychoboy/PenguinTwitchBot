@@ -76,21 +76,21 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             long amount = 0;
             switch (maxBet.Result)
             {
-                case MaxBetCalculator.ParseResult.Success:
+                case MaxBet.ParseResult.Success:
                     amount = maxBet.Amount;
                     break;
 
-                case MaxBetCalculator.ParseResult.InvalidValue:
+                case MaxBet.ParseResult.InvalidValue:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
                     "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
                     throw new SkipCooldownException();
 
-                case MaxBetCalculator.ParseResult.ToMuch:
-                case MaxBetCalculator.ParseResult.ToLow:
+                case MaxBet.ParseResult.ToMuch:
+                case MaxBet.ParseResult.ToLow:
                     await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("The max bet is {0} and must be greater then 5", LoyaltyFeature.MaxBet.ToString("N0")));
                     throw new SkipCooldownException();
 
-                case MaxBetCalculator.ParseResult.NotEnough:
+                case MaxBet.ParseResult.NotEnough:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
                         "you don't have that much to gamble with.");
                     throw new SkipCooldownException();

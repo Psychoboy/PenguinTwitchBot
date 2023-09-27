@@ -57,15 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var e1 = GetEmoteKey();
             var e2 = GetEmoteKey();
             var e3 = GetEmoteKey();
-            string message = "";
-            try
-            {
-                message = string.Format("{0}: [ {1} {2} {3} ] ", e.DisplayName, Emotes[e1], Emotes[e2], Emotes[e3]);
-            }
-            catch (Exception ex)
-            {
-
-            }
+            var message = string.Format("{0}: [ {1} {2} {3} ] ", e.DisplayName, Emotes[e1], Emotes[e2], Emotes[e3]);
 
             if (e1 == e2 && e2 == e3)
             {
@@ -115,18 +107,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.Name, e.Args.First(), 25);
             switch (maxBet.Result)
             {
-                case MaxBetCalculator.ParseResult.Success:
+                case MaxBet.ParseResult.Success:
                     return maxBet.Amount;
-                case MaxBetCalculator.ParseResult.InvalidValue:
+                case MaxBet.ParseResult.InvalidValue:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
                         "To use !slots, either just run !slots or do !slots max or all or amount");
                     throw new SkipCooldownException();
-                case MaxBetCalculator.ParseResult.ToMuch:
-                case MaxBetCalculator.ParseResult.ToLow:
+                case MaxBet.ParseResult.ToMuch:
+                case MaxBet.ParseResult.ToLow:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
                         string.Format("The max bet is {0} and must be greater then 25", LoyaltyFeature.MaxBet.ToString("N0")));
                     throw new SkipCooldownException();
-                case MaxBetCalculator.ParseResult.NotEnough:
+                case MaxBet.ParseResult.NotEnough:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
                         "you don't have that much to play slots with.");
                     throw new SkipCooldownException();
