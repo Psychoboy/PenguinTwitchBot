@@ -19,6 +19,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
+        private static readonly Prometheus.Gauge ActiveViewers = Prometheus.Metrics.CreateGauge("active_viewers", "Current active viewers in chat");
+        private static readonly Prometheus.Gauge CurrentViewers = Prometheus.Metrics.CreateGauge("current_viewers", "Current viewers in chat");
 
         public ViewerFeature(
             ILogger<ViewerFeature> logger,
@@ -41,6 +43,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
+            Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(() =>
+            {
+                GetCurrentViewers();
+            });
         }
 
         public async Task<Viewer?> GetViewer(int id)
@@ -64,7 +70,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-
             await UpdateSubscribers();
         }
 
@@ -184,6 +189,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public List<string> GetActiveViewers()
         {
             var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
+            ActiveViewers.Set(activeViewers.Count);
             var lurkers = _lurkers.Where(x => x.Value > DateTime.Now.AddHours(-1)).Select(x => x.Key);
             activeViewers.AddRange(lurkers.Where(x => activeViewers.Contains(x) == false));
             return activeViewers;
@@ -192,6 +198,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public List<string> GetCurrentViewers()
         {
             var users = _users.Select(x => x.Key).ToList();
+            CurrentViewers.Set(users.Count);
             var activeViewers = GetActiveViewers();
             users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
             return users.ToList();

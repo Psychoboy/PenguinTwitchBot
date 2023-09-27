@@ -22,6 +22,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly string ImageSettingName = "GiveawayPrizeImage";
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
+        private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
+        private readonly IServiceBackbone _serviceBackBone;
 
         public GiveawayFeature(
             ILogger<GiveawayFeature> logger,
@@ -41,6 +43,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _hubContext = hubContext;
             lang = language;
             _timer.Elapsed += SendCurrentEntriesToAll;
+            _serviceBackBone = serviceBackbone;
+            _serviceBackBone.StreamStarted += StreamStarted;
+        }
+
+        private Task StreamStarted(object? sender)
+        {
+            return Task.Run(() =>
+            {
+                var labels = NumberOfTicketsEntered.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    NumberOfTicketsEntered.RemoveLabelled(label);
+                }
+            });
         }
 
         public override async Task Register()
@@ -360,6 +376,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     db.GiveawayEntries.Update(giveawayEntries);
                     await db.SaveChangesAsync();
                 }
+                NumberOfTicketsEntered.WithLabels(sender).Inc(points);
                 {
                     var message = lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
                     if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);

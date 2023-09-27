@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using Prometheus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -12,6 +13,8 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IKnownBots _knownBots;
         private readonly ICommandHandler _commandHandler;
+        private readonly ICollector<ICounter> ChatMessagesCounter;
+        private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: new[] { "command", "viewer" });
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
@@ -29,6 +32,7 @@ namespace DotNetTwitchBot.Bot.Core
             _scopeFactory = scopeFactory;
             _knownBots = knownBots;
             _commandHandler = commandHandler;
+            ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", new[] { "viewer" }).WithExtendLifetimeOnUse();
         }
 
         public delegate Task AsyncEventHandler(object? sender);
@@ -77,11 +81,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
             try
             {
-
                 if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
                     _logger.LogWarning("Lock expired while waiting...");
                 }
+                NumberOfCommands.WithLabels(eventArgs.Command, eventArgs.Name).Inc();
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null && commandService.CommandProperties.Disabled == false)
                 {
@@ -234,6 +238,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnStreamStarted()
         {
+            var labels = NumberOfCommands.GetAllLabelValues();
+            foreach (var label in labels)
+            {
+                NumberOfCommands.RemoveLabelled(label);
+            }
+
             if (StreamStarted != null)
             {
                 try
@@ -307,6 +317,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnChatMessage(ChatMessageEventArgs message)
         {
+            if (message.Name != null && IsKnownBot(message.Name) == false)
+            {
+                ChatMessagesCounter.WithLabels(message.Name).Inc();
+            }
             if (ChatMessageEvent != null)
             {
                 await ChatMessageEvent(this, message);

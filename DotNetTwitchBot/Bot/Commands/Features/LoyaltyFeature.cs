@@ -14,6 +14,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _intervalTimer;
         private readonly ILogger<LoyaltyFeature> _logger;
+        private static readonly Prometheus.Gauge NumberOfPastiesEarned = Prometheus.Metrics.CreateGauge("number_of_pasties_earned", "Number of Pasties earned since stream start", labelNames: new[] { "viewer" });
+        private static readonly Prometheus.Gauge NumberOfPastiesLost = Prometheus.Metrics.CreateGauge("number_of_pasties_lost", "Number of Pasties lost since stream start", labelNames: new[] { "viewer" });
+        private static readonly Prometheus.Gauge NumberOfPastiesDiff = Prometheus.Metrics.CreateGauge("number_of_pasties_diff", "Number of Pasties diff since stream start", labelNames: new[] { "viewer" });
 
         public LoyaltyFeature(
             ILogger<LoyaltyFeature> logger,
@@ -37,11 +40,38 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ServiceBackbone.SubscriptionEvent += OnSubscription;
             ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
             ServiceBackbone.CheerEvent += OnCheer;
+            ServiceBackbone.StreamStarted += StreamStarted;
 
             _logger = logger;
         }
 
-
+        private Task StreamStarted(object? sender)
+        {
+            return Task.Run(() =>
+            {
+                {
+                    var labels = NumberOfPastiesEarned.GetAllLabelValues();
+                    foreach (var label in labels)
+                    {
+                        NumberOfPastiesEarned.RemoveLabelled(label);
+                    }
+                }
+                {
+                    var labels = NumberOfPastiesLost.GetAllLabelValues();
+                    foreach (var label in labels)
+                    {
+                        NumberOfPastiesLost.RemoveLabelled(label);
+                    }
+                }
+                {
+                    var labels = NumberOfPastiesDiff.GetAllLabelValues();
+                    foreach (var label in labels)
+                    {
+                        NumberOfPastiesDiff.RemoveLabelled(label);
+                    }
+                }
+            });
+        }
 
         private async Task OnCheer(object? sender, CheerEventArgs e)
         {
@@ -296,6 +326,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             db.ViewerPoints.Update(viewerPoint);
             await db.SaveChangesAsync();
+            if (points > 0)
+            {
+                NumberOfPastiesLost.WithLabels(target).Inc(points);
+                NumberOfPastiesDiff.WithLabels(target).Dec(points);
+            }
             return true;
         }
 
@@ -313,6 +348,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewerPoint.Points += points;
                 db.ViewerPoints.Update(viewerPoint);
                 await db.SaveChangesAsync();
+                if (points > 0)
+                {
+                    NumberOfPastiesEarned.WithLabels(target).Inc(points);
+                    NumberOfPastiesDiff.WithLabels(target).Inc(points);
+                }
+
             }
             catch (Exception ex)
             {
