@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
+using Prometheus;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
@@ -12,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<YtPlayer> _logger;
         private readonly YouTubeService _youtubeService;
+        private readonly ICollector<IGauge> SongRequestsInQueue;
         private readonly List<Song> Requests = new();
         private readonly object RequestsLock = new();
         private MusicPlaylist BackupPlaylist = new();
@@ -21,7 +23,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private Song? NextSong = null;
         private readonly List<string> SkipVotes = new();
         private readonly TimeLeft timeLeft = new();
-        private static readonly Prometheus.Gauge SongRequestsInQueue = Prometheus.Metrics.CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: new[] { "viewer" });
         enum PlayerState
         {
             UnStarted = -1,
@@ -55,6 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 ApiKey = configuration["youtubeApi"],
                 ApplicationName = "DotNetBot"
             });
+            SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: new[] { "viewer" }).WithExtendLifetimeOnUse();
         }
 
         private void IncrementSong(Song? song)
@@ -67,10 +69,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             if (song == null) return;
             SongRequestsInQueue.WithLabels(song.RequestedBy).Dec();
-            if (SongRequestsInQueue.WithLabels(song.RequestedBy).Value == 0)
-            {
-                SongRequestsInQueue.RemoveLabelled(song.RequestedBy);
-            }
         }
 
         public async Task<string> GetNextSong()
