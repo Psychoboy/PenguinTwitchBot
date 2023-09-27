@@ -129,10 +129,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 NumberOfTicketsGained.WithLabels(viewer).Inc(amount);
             }
-            else if (amount < 0)
-            {
-                NumberOfTicketsGained.WithLabels(viewer).Dec(amount);
-            }
 
             return viewerPoints.Points;
         }
