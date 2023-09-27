@@ -317,7 +317,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnChatMessage(ChatMessageEventArgs message)
         {
-            if (message.Name != null)
+            if (message.Name != null && IsKnownBot(message.Name) == false)
             {
                 ChatMessagesCounter.WithLabels(message.Name).Inc();
             }
