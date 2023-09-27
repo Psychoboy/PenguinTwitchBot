@@ -110,7 +110,7 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.Metrics.SongRequests),
             typeof(DotNetTwitchBot.Bot.Commands.Moderation.BannedUsers)
         };
-
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.PastyGames.MaxBetCalculator>();
         //Add Alerts
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();
 
