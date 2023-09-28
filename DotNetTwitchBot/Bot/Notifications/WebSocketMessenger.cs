@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Bot.Notifications
         private List<SocketConnection> websocketConnections = new();
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
         public WebSocketMessenger(ILogger<WebSocketMessenger> logger)
         {
@@ -27,14 +28,16 @@ namespace DotNetTwitchBot.Bot.Notifications
         public async Task Handle(Guid id, WebSocket webSocket)
         {
             _logger.LogInformation("Adding Websocket: {id}", id.ToString());
-            lock (websocketConnections)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 websocketConnections.Add(new SocketConnection
                 {
                     Id = id,
                     WebSocket = webSocket
                 });
             }
+            finally { _semaphoreSlim.Release(); }
 
             while (webSocket.State == WebSocketState.Open)
             {
@@ -53,10 +56,12 @@ namespace DotNetTwitchBot.Bot.Notifications
         public async Task CloseAllSockets()
         {
             IEnumerable<SocketConnection> sockets;
-            lock (websocketConnections)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 sockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
             }
+            finally { _semaphoreSlim.Release(); }
             foreach (var socket in sockets)
             {
                 await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
@@ -66,10 +71,12 @@ namespace DotNetTwitchBot.Bot.Notifications
         private async Task SendMessageToSockets(string message)
         {
             IEnumerable<SocketConnection> toSentTo;
-            lock (websocketConnections)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 toSentTo = websocketConnections.ToList();
             }
+            finally { _semaphoreSlim.Release(); }
 
             var tasks = toSentTo.Select(async websocketConnection =>
             {
@@ -92,13 +99,15 @@ namespace DotNetTwitchBot.Bot.Notifications
                     IEnumerable<SocketConnection> openSockets;
                     IEnumerable<SocketConnection> closedSockets;
 
-                    lock (websocketConnections)
+                    try
                     {
+                        _semaphoreSlim.Wait();
                         openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
                         closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
 
                         websocketConnections = openSockets.ToList();
                     }
+                    finally { _semaphoreSlim.Release(); }
 
                     foreach (var closedWebsocketConnection in closedSockets)
                     {
