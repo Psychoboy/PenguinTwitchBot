@@ -12,6 +12,8 @@ using DotNetTwitchBot.Circuit;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor.Services;
+using Prometheus;
+using Prometheus.DotNetRuntime;
 using Quartz;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
@@ -158,6 +160,8 @@ internal class Program
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
+
+
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -190,6 +194,7 @@ internal class Program
             app.UseExceptionHandler("/Home/Error");
             // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
             app.UseHsts();
+
         }
 
         app.UseHttpsRedirection();
@@ -211,6 +216,8 @@ internal class Program
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
         app.MapControllers();
+        app.UseHttpMetrics();
+        var collector = DotNetRuntimeStatsBuilder.Default().StartCollecting();
 
         var logger = app.Logger;
         var lifetime = app.Lifetime;
