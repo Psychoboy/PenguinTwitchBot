@@ -9,6 +9,7 @@ namespace DotNetTwitchBot.Bot.Core
         string? BotName { get; set; }
         string BroadcasterName { get; }
         bool IsOnline { get; set; }
+        bool HealthStatus { get; }
 
         event ServiceBackbone.AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         event ServiceBackbone.AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;

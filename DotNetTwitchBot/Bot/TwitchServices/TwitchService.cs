@@ -33,7 +33,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
 
-
             foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
             {
                 if ((AuthScopes)authScope == AuthScopes.Any) continue;

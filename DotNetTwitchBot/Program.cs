@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.Repository;
 using DotNetTwitchBot.Bot.Repository.Repositories;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
+using DotNetTwitchBot.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor.Services;
@@ -160,7 +161,10 @@ internal class Program
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
-
+        builder.Services.AddHealthChecks()
+            .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
+            .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
+            .ForwardToPrometheus();
 
         var app = builder.Build();
         app.UseAuthentication();
@@ -217,7 +221,14 @@ internal class Program
 
         app.MapControllers();
         app.UseHttpMetrics();
-        var collector = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+        DotNetRuntimeStatsBuilder
+            .Customize()
+            .WithContentionStats(CaptureLevel.Informational)
+            .WithJitStats()
+            .WithThreadPoolStats()
+            .WithGcStats()
+            .WithExceptionStats(CaptureLevel.Errors)
+            .StartCollecting();
 
         var logger = app.Logger;
         var lifetime = app.Lifetime;
