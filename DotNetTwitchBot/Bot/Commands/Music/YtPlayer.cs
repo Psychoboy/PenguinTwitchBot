@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
         private readonly List<Song> Requests = new();
-        private readonly object RequestsLock = new();
+        static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
@@ -74,8 +74,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task<string> GetNextSong()
         {
             Song? song = null;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 if (Requests.Count > 0)
                 {
                     song = Requests.First();
@@ -86,6 +87,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     SkipVotes.Clear();
                     DecrementSong(song);
                 }
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
             }
             if (song != null)
             {
@@ -264,12 +269,17 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task MoveSongToNext(string songId)
         {
             Song? song;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 song = Requests.Where(x => x.SongId.Equals(songId, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
                 if (song == null) return;
                 Requests.Remove(song);
                 Requests.Insert(0, song);
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
             }
             NextSong = song?.CreateDeepCopy();
             await UpdateRequestedSongsState();
@@ -393,10 +403,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             if (e.Command.Equals("wrong") && e.Arg.StartsWith("song") == false) return;
             Song? song;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 song = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).LastOrDefault();
             }
+            finally { _semaphoreSlim.Release(); }
             if (song != null)
             {
                 await RemoveSongRequest(song);
@@ -418,16 +430,20 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task RemoveSongRequest(Song requestedSong)
         {
             Song? song;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 song = Requests.Where(x => x.SongId.Equals(requestedSong.SongId)).FirstOrDefault();
             }
+            finally { _semaphoreSlim.Release(); }
             if (song != null)
             {
-                lock (RequestsLock)
+                try
                 {
+                    await _semaphoreSlim.WaitAsync();
                     Requests.Remove(song);
                 }
+                finally { _semaphoreSlim.Release(); }
                 DecrementSong(song);
                 await UpdateRequestedSongsState();
             }
@@ -616,10 +632,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task MovePriority(CommandEventArgs e)
         {
             List<Song> backwardsRequest;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 backwardsRequest = Requests.ToList();
             }
+            finally { _semaphoreSlim.Release(); }
             backwardsRequest.Reverse();
             Song? foundSong = null;
             foreach (var song in backwardsRequest)
@@ -645,10 +663,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task SongRequest(CommandEventArgs e)
         {
             var songsInQueue = 0;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 songsInQueue = Requests.Where(x => x.RequestedBy.Equals(e.DisplayName)).Count();
             }
+            finally { _semaphoreSlim.Release(); }
             if (songsInQueue >= 30)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
@@ -661,10 +681,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 throw new SkipCooldownException();
             }
             Song? songInQueue = null;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 songInQueue = Requests.Where(x => x.SongId.Equals(searchResult)).FirstOrDefault();
             }
+            finally { _semaphoreSlim.Release(); }
 
             if (songInQueue == null && CurrentSong != null)
             {
@@ -690,11 +712,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             List<Song> currentRequestedSongs;
             int requestCount;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 currentRequestedSongs = Requests.ToList();
                 requestCount = Requests.Count;
             }
+            finally { _semaphoreSlim.Release(); }
 
             var timeToWait = new TimeSpan(currentRequestedSongs.Sum(r => r.Duration.Ticks));
             timeToWait += GetCurrentSongTimeLeft();
@@ -709,10 +733,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         private async Task AddSongToRequests(Song song)
         {
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 Requests.Add(song);
             }
+            finally { _semaphoreSlim.Release(); }
             IncrementSong(song);
             await UpdateRequestedSongsState();
             NextSong ??= song;
@@ -777,19 +803,23 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public List<Song> GetRequestedSongs()
         {
-            lock (RequestsLock)
+            try
             {
+                _semaphoreSlim.Wait();
                 return Requests.ToList();
             }
+            finally { _semaphoreSlim.Release(); }
         }
 
         private async Task UpdateRequestedSongsState()
         {
             List<Song> requests;
-            lock (RequestsLock)
+            try
             {
+                await _semaphoreSlim.WaitAsync();
                 requests = Requests.ToList();
             }
+            finally { _semaphoreSlim.Release(); }
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var id = 1;
