@@ -29,6 +29,7 @@
 
                     <MudText Typo="Typo.h3">@winner.Username</MudText>
                     <MudText Typo="Typo.h4">@winner.Prize</MudText>
+                    <MudText Typo="Typo.h5">@winner.PrizeTier</MudText>
                 }
             </MudPaper>
         </MudItem>
@@ -49,11 +50,13 @@ else
                 <MudTh>Name</MudTh>
                 <MudTh>Prize</MudTh>
                 <MudTh>Date</MudTh>
+                <MudTh>Tier</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Name">@context.Username</MudTd>
                 <MudTd DataLabel="Prize">@context.Prize</MudTd>
                 <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+                <MudTd DataLabel="Tier">@context.PrizeTier</MudTd>
             </RowTemplate>
         </MudTable>
     </MudPaper>
