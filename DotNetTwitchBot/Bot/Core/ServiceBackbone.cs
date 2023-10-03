@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly ICollector<ICounter> ChatMessagesCounter;
         private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: new[] { "command", "viewer" });
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        public bool HealthStatus { get; private set; } = true;
         private string? RawBroadcasterName { get; set; }
         public string? BotName { get; set; }
 
@@ -84,6 +85,11 @@ namespace DotNetTwitchBot.Bot.Core
                 if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
                     _logger.LogWarning("Lock expired while waiting...");
+                    HealthStatus = false;
+                }
+                else
+                {
+                    HealthStatus = true;
                 }
                 NumberOfCommands.WithLabels(eventArgs.Command, eventArgs.Name).Inc();
                 var commandService = _commandHandler.GetCommand(eventArgs.Command);

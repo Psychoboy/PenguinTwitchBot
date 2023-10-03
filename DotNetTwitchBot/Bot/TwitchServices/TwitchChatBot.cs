@@ -38,6 +38,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         }
 
+        public bool IsConnected()
+        {
+            return TwitchClient.IsConnected;
+        }
+
+        public bool IsInChannel()
+        {
+            return (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == true);
+        }
+
         private async void HealthStatusTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
             if (!TwitchClient.IsConnected)

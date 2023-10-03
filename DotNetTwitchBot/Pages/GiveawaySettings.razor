@@ -13,6 +13,7 @@
     <MudCardContent>
         <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" />
         <MudTextField Label="Image Url" Required="false" @bind-Value="@Image" />
+        <MudTextField Label="Prize Tier" Required="false" @bind-Value="@PrizeTier" />
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto"
             OnClick="OnPrizeSubmit">
             Submit
@@ -25,11 +26,13 @@
 @code {
     private string? Prize { get; set; }
     private string? Image { get; set; }
+    private string? PrizeTier { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         Prize = await GiveawayFeature.GetPrize();
         Image = await GiveawayFeature.GetImageUrl();
+        PrizeTier = await GiveawayFeature.GetPrizeTier();
     }
 
     public async void OnPrizeSubmit()
@@ -37,6 +40,7 @@
         if (Prize == null) return;
         await GiveawayFeature.SetPrize(Prize);
         await GiveawayFeature.SetImageUrl(Image);
+        await GiveawayFeature.SetPrizeTier(PrizeTier);
     }
 
     public async void Reset()
