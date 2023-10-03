@@ -45,6 +45,7 @@ namespace DotNetTwitchBot.Bot.Repository
             ExternalCommands = new ExternalCommandsRepository(_context);
             BannedViewers = new BannedViewersRepository(_context);
             FilteredQuotes = new FilteredQuotesRepository(_context);
+            AlertMessages = new AlertMessagesRepository(_context);
 
         }
 
@@ -84,6 +85,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
         public IFilteredQuotesRepository FilteredQuotes { get; private set; }
+        public IAlertMessagesRepository AlertMessages { get; private set; }
 
         public void Dispose()
         {

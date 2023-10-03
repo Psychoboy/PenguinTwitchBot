@@ -38,6 +38,7 @@
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }
         IFilteredQuotesRepository FilteredQuotes { get; }
+        IAlertMessagesRepository AlertMessages { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

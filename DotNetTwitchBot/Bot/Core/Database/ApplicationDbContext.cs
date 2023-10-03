@@ -46,6 +46,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ExternalCommands> ExternalCommands { get; set; } = null!;
         public DbSet<BannedViewer> BannedViewers { get; set; }
         public DbSet<FilteredQuoteType> FilteredQuotes { get; set; }
+        public DbSet<AlertMessage> AlertMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
