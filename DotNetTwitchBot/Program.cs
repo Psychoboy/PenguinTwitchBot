@@ -52,7 +52,7 @@ internal class Program
     .AddCookie();
 
         builder.Services.AddRazorPages();
-        builder.Services.AddServerSideBlazor();
+        builder.Services.AddServerSideBlazor().AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
         builder.Services.AddMudServices();
 
         if (builder.Configuration["AnalyticsId"] != null)
