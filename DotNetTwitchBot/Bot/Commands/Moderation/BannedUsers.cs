@@ -25,7 +25,14 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await UpdateBannedUsers();
+            try
+            {
+                await UpdateBannedUsers();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error updating banned users.", ex);
+            }
         }
 
         private async Task UpdateBannedUsers()

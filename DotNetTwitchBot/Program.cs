@@ -258,6 +258,7 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
+                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
                 eventArgs.Exception.Message.Contains("JavaScript"))
             {
                 return; //Ignore
