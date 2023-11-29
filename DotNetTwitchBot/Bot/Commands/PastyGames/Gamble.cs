@@ -101,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var value = Tools.Next(1, 100 + 1);
             if (value == JackPotNumber)
             {
-                var jackpotWinnings = jackpot * (amount / jackpot);
+                var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);
                 var winnings = amount * 2;
                 jackpot -= jackpotWinnings;
                 if (jackpot < JackpotDefault)
