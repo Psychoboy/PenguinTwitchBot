@@ -101,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var value = Tools.Next(1, 100 + 1);
             if (value == JackPotNumber)
             {
-                var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);
+                var jackpotWinnings = jackpot * (amount / jackpot);
                 var winnings = amount * 2;
                 jackpot -= jackpotWinnings;
                 if (jackpot < JackpotDefault)
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     jackpot = JackpotDefault;
                 }
                 await UpdateJackpot(jackpot, true);
-                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
+                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
                 await LaunchFireworks();
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
             }

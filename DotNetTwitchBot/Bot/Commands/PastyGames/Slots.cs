@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private static List<long> LoadPrizes()
         {
-            return new List<long>{
+            var prizes = new List<long>{
                 50,
                 75,
                 100,
@@ -142,6 +142,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 900,
                 1000
             };
+            prizes.Reverse();
+            return prizes;
         }
 
         private static List<string> LoadEmotes()
@@ -154,11 +156,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "sptvPancake",
                 "sptvLights",
                 "sptvSalute",
-                "sptvFrenchToast",
                 "sptvHype",
-                "sptvHi",
                 "sptvHello",
-                "sptv30k"
+                "sptv30k",
+                "sptvHi"
             };
         }
 
@@ -167,17 +168,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var key = Tools.Next(1, 1000);
             return key switch
             {
-                <= 80 => 11,
-                > 160 and <= 240 => 10,
-                > 240 and <= 320 => 9,
-                > 320 and <= 400 => 8,
-                > 400 and <= 480 => 7,
-                > 480 and <= 560 => 6,
-                > 560 and <= 640 => 5,
-                > 640 and <= 720 => 4,
-                > 720 and <= 800 => 3,
-                > 800 and <= 880 => 2,
-                > 880 and <= 960 => 1,
+                <= 100 => 9,
+                > 201 and <= 300 => 8,
+                > 301 and <= 400 => 7,
+                > 401 and <= 500 => 6,
+                > 501 and <= 600 => 5,
+                > 601 and <= 700 => 4,
+                > 701 and <= 800 => 3,
+                > 801 and <= 900 => 2,
+                > 901 and <= 1000 => 1,
                 _ => 0,
             };
         }
