@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchClientId"]);
 #else
-            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect");
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect", _configuration["twitchClientId"]);
 #endif
 
             return Redirect(url);
@@ -93,7 +93,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchBotClientId"]);
 #else
-            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect");
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", _configuration["twitchBotClientId"]);
 #endif
             return Redirect(url);
         }
