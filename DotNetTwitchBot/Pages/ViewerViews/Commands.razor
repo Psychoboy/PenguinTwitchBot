@@ -142,7 +142,7 @@
         {
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
-        originalCommands = commands.ToList();
+        originalCommands = commands.DistinctBy(x => x.Command).ToList();
 
     }
 
