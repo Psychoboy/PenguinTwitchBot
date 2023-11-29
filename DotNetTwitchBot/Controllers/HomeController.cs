@@ -54,8 +54,13 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult StreamerSignin()
         {
-            var authUrl = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchClientId"]);
-            return Redirect(authUrl);
+#if DEBUG
+            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchClientId"]);
+#else
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect");
+#endif
+
+            return Redirect(url);
         }
         [HttpGet("streamerredirect")]
         public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
@@ -85,8 +90,12 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult BotSignin()
         {
-            var authUrl = GetBotScopeUrl("https://localhost:7293/botredirect", _configuration["twitchBotClientId"]);
-            return Redirect(authUrl);
+#if DEBUG
+            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchBotClientId"]);
+#else
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect");
+#endif
+            return Redirect(url);
         }
         [HttpGet("botredirect")]
         public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
