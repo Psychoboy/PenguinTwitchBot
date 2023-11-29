@@ -30,5 +30,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task TimeoutUser(string name, int length, string reason);
         Task ValidateAndRefreshToken();
         Task<List<BannedUserEvent>> GetAllBannedViewers();
+        bool IsServiceUp();
     }
 }

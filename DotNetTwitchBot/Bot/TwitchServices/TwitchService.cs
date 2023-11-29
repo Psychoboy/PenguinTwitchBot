@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         readonly ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new();
         readonly Timer _timer;
         private readonly SettingsFileManager _settingsFileManager;
+        private bool serviceUp = false;
 
         public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
@@ -39,6 +40,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
             }
 
+        }
+
+        public bool IsServiceUp()
+        {
+            return serviceUp;
         }
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -111,18 +117,28 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUser(string user)
         {
-            if (UserCache.TryGetValue(user, out var twitchUser))
+            try
             {
-                if (twitchUser != null)
-                {
-                    return twitchUser;
-                }
-            }
 
-            var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
-            var userObj = users.Users.FirstOrDefault();
-            UserCache[user] = userObj;
-            return userObj;
+
+                if (UserCache.TryGetValue(user, out var twitchUser))
+                {
+                    if (twitchUser != null)
+                    {
+                        return twitchUser;
+                    }
+                }
+
+                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
+                var userObj = users.Users.FirstOrDefault();
+                UserCache[user] = userObj;
+                return userObj;
+            }
+            catch (Exception)
+            {
+                _logger.LogCritical("Failed getting user");
+                return null;
+            }
         }
 
         public async Task<Follower?> GetUserFollow(string user)
@@ -628,6 +644,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 {
                     TimeSpan.FromSeconds(validToken.ExpiresIn);
                     await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
+                    serviceUp = true;
                 }
                 else
                 {
@@ -643,16 +660,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
                         await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
                         await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
+                        serviceUp = true;
                     }
                     catch (Exception e)
                     {
                         _logger.LogError("Error refreshing token: {error}", e.Message);
+                        serviceUp = false;
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error when validing/refreshing token");
+                serviceUp = false;
             }
             finally
             {

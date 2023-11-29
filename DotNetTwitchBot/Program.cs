@@ -42,7 +42,7 @@ internal class Program
         builder.Services.AddSingleton<ILanguage, Language>();
         builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
         builder.Services.AddSingleton<ITwitchService, TwitchService>();
-        builder.Services.AddSingleton<TwitchBotService>();
+        builder.Services.AddSingleton<ITwitchBotService, TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<DiscordService>();
 
