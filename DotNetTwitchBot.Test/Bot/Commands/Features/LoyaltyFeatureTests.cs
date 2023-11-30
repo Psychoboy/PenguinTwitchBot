@@ -63,7 +63,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var cheerEventArgs = new CheerEventArgs { DisplayName = "TestName", Name = "testname", IsAnonymous = false, Amount = 100 };
-
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
             // Act
             serviceBackbone.CheerEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
@@ -78,6 +79,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 10 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
             serviceBackbone.SubscriptionGiftEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
@@ -93,6 +96,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 5 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
             serviceBackbone.SubscriptionGiftEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
@@ -109,6 +114,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName" };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
             serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
@@ -124,6 +131,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 12 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
             serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);

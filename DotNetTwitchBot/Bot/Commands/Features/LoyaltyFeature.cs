@@ -477,7 +477,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var bitsPerTicket = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.bitsperticket"))).FirstOrDefault();
+            var bitsPerTicket = db.Settings.Find(x => x.Name.Equals("loyalty.bitsperticket")).FirstOrDefault();
             if (bitsPerTicket == null) { return 10; }
             return bitsPerTicket.IntSetting;
         }
@@ -486,7 +486,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var ticketsPersub = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.ticketspersub"))).FirstOrDefault();
+            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
             ticketsPersub ??= new()
             {
                 Name = "loyalty.ticketspersub"
@@ -500,7 +500,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var ticketsPersub = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.ticketspersub"))).FirstOrDefault();
+            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
             if (ticketsPersub == null) { return 50; }
             return ticketsPersub.IntSetting;
         }
