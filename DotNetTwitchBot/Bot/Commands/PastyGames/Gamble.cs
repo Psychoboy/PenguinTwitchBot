@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Gamble : BaseCommandService
     {
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Gamble(
             ILogger<Gamble> logger,
             ILanguage language,
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchServices,
             IServiceBackbone serviceBackbone,

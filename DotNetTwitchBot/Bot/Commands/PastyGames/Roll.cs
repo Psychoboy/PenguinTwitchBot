@@ -1,18 +1,13 @@
-using System.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Roll : BaseCommandService
     {
         private readonly ILogger<Roll> _logger;
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LostMessages = LoadLostMessages();
         private readonly List<int> prizes = new()
@@ -23,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Roll(
             ILogger<Roll> logger,
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler)

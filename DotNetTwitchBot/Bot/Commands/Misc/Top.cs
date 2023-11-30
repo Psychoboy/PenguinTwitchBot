@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task SayLoudestTopN(int topN)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
-            var loyalty = scope.ServiceProvider.GetRequiredService<LoyaltyFeature>();
+            var loyalty = scope.ServiceProvider.GetRequiredService<ILoyaltyFeature>();
             var top = await loyalty.GetTopNLoudest(topN);
             var names = string.Join(", ", top.Select(x => x.Ranking.ToString() + ". " + x.Username + " " + x.MessageCount.ToString("N0")));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} Loudest: {1}", topN, names));

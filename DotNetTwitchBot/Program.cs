@@ -78,7 +78,6 @@ internal class Program
         var commands = new List<Type>
         {
             typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
-            typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle),
@@ -286,6 +285,8 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature));
         services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature, DotNetTwitchBot.Bot.Commands.Features.TicketsFeature>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature));
+        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature, DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature));
 
         return commands;
     }

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
@@ -13,13 +9,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private readonly List<string> Wires = new() { "red", "blue", "yellow" };
         private readonly int Cost = 500;
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Defuse> _logger;
         private readonly ISendAlerts _sendAlerts;
         private readonly IViewerFeature _viewerFeature;
 
         public Defuse(
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             IViewerFeature viewerFeature,
             ISendAlerts sendAlerts,
