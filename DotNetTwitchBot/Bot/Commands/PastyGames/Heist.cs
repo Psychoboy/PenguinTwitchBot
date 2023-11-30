@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -10,7 +6,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Heist : BaseCommandService
     {
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 300;
         private readonly int MinBet = 10;
@@ -38,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         }
 
         public Heist(
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
             ICommandHandler commandHandler

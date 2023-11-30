@@ -7,7 +7,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class LoyaltyFeature : BaseCommandService
+    public class LoyaltyFeature : BaseCommandService, ILoyaltyFeature
     {
         private readonly IViewerFeature _viewerFeature;
         private readonly ITicketsFeature _ticketsFeature;
@@ -83,9 +83,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
-                var ticketsToAward = (int)Math.Floor((double)e.Amount / 10);
-                if (ticketsToAward < 1) return;
-                await _ticketsFeature.GiveTicketsToViewer(e.Name, ticketsToAward);
+                var bitsPerTicket = await GetBitsPerTicket();
+                if (bitsPerTicket > 0)
+                {
+                    var ticketsToAward = (int)Math.Floor((double)e.Amount / bitsPerTicket);
+                    if (ticketsToAward < 1) return;
+                    await _ticketsFeature.GiveTicketsToViewer(e.Name, ticketsToAward);
+                    _logger.LogInformation("Awarded {name} {tickets} tickets for {amount} of bits", e.Name, ticketsToAward, e.Amount);
+                }
             }
             catch (Exception ex)
             {
@@ -98,7 +103,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (string.IsNullOrWhiteSpace(e.Name)) return;
             try
             {
-                var amountToGift = 50 * e.GiftAmount;
+                var amountToGift = await GetTicketsPerSub() * e.GiftAmount;
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToGift);
                 _logger.LogInformation("Gave {name} {amountToGift} tickets for gifting {GiftAmount} subs", e.Name, amountToGift, e.GiftAmount);
                 var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
@@ -120,8 +125,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (e.IsGift) return;
             try
             {
-                await _ticketsFeature.GiveTicketsToViewer(e.Name, 50);
-                _logger.LogInformation("Gave {name} 50 tickets for subscribing.", e.Name);
+                var subTickets = await GetTicketsPerSub();
+                await _ticketsFeature.GiveTicketsToViewer(e.Name, subTickets);
+                _logger.LogInformation("Gave {name} {tickets} tickets for subscribing.", e.Name, subTickets);
                 if (e.Count != null && e.Count > 0)
                 {
                     await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
@@ -451,6 +457,52 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
             }
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
+        }
+
+        public async Task SetBitsPerTicket(int numberOfBitsPerTicket)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var bitsPerTicket = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.bitsperticket"))).FirstOrDefault();
+            bitsPerTicket ??= new()
+            {
+                Name = "loyalty.bitsperticket"
+            };
+            bitsPerTicket.IntSetting = numberOfBitsPerTicket;
+            db.Settings.Update(bitsPerTicket);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<int> GetBitsPerTicket()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var bitsPerTicket = db.Settings.Find(x => x.Name.Equals("loyalty.bitsperticket")).FirstOrDefault();
+            if (bitsPerTicket == null) { return 10; }
+            return bitsPerTicket.IntSetting;
+        }
+
+        public async Task SetTicketsPerSub(int numberOfTicketsPerSub)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
+            ticketsPersub ??= new()
+            {
+                Name = "loyalty.ticketspersub"
+            };
+            ticketsPersub.IntSetting = numberOfTicketsPerSub;
+            db.Settings.Update(ticketsPersub);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<int> GetTicketsPerSub()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
+            if (ticketsPersub == null) { return 50; }
+            return ticketsPersub.IntSetting;
         }
     }
 }

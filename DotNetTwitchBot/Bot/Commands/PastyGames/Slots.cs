@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Slots : BaseCommandService
     {
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Slots> _logger;
         private readonly MaxBetCalculator _maxBetCalculator;
         private readonly List<string> Emotes = LoadEmotes();
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Slots(
             ILogger<Slots> logger,
-            LoyaltyFeature loyaltyService,
+            ILoyaltyFeature loyaltyService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             MaxBetCalculator maxBetCalculator

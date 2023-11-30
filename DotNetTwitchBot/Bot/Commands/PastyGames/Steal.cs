@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -12,13 +8,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IViewerFeature _viewerFeature;
         private readonly ILogger<Steal> _logger;
 
         public Steal(
             ILogger<Steal> logger,
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler

@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
+@inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature LoyaltyFeature;
 @inject NavigationManager Navigation
 @inject Blazor.Analytics.IAnalytics Analytics
 
@@ -69,9 +70,9 @@
                     <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5">How to earn tickets</MudText>
                         <MudDivider />
-                        <MudText>50 tickets for every sub</MudText>
-                        <MudText>50 tickets for every gifted sub</MudText>
-                        <MudText>10 tickets per 100 bits</MudText>
+                        <MudText>@TicketsPerSub tickets for every sub</MudText>
+                        <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
+                        <MudText>@BitsPerTicket tickets per 100 bits</MudText>
                         <MudDivider />
                         <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
                         <MudText>+1 Ticket for everyone</MudText>
@@ -92,9 +93,9 @@
                     <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5">How to earn tickets</MudText>
                         <MudDivider />
-                        <MudText>50 tickets for every sub</MudText>
-                        <MudText>50 tickets for every gifted sub</MudText>
-                        <MudText>10 tickets per 100 bits</MudText>
+                        <MudText>@TicketsPerSub tickets for every sub</MudText>
+                        <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
+                        <MudText>@BitsPerTicket tickets per 100 bits</MudText>
                         <MudDivider />
                         <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
                         <MudText>+1 Ticket for everyone</MudText>
@@ -140,6 +141,8 @@
     private string AlertText = "";
     private MudBlazor.Severity AlertSeverity = Severity.Info;
     private bool isSubmitting;
+    private int TicketsPerSub;
+    private int BitsPerTicket;
 
     private EnterTicketsForm model = new();
 
@@ -165,6 +168,9 @@
         imageUrl = await GiveawayFeature.GetImageUrl();
         entries = await GiveawayFeature.GetEntriesCount();
         entrants = await GiveawayFeature.GetEntrantsCount();
+        TicketsPerSub = await LoyaltyFeature.GetTicketsPerSub();
+        BitsPerTicket = await LoyaltyFeature.GetBitsPerTicket();
+        if (BitsPerTicket > 0) BitsPerTicket = 100 / BitsPerTicket;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
