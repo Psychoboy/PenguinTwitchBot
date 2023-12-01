@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System.Diagnostics;
 using System.Security.Claims;
 
@@ -16,18 +17,20 @@ namespace DotNetTwitchBot.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly IViewerFeature _viewerFeature;
         private readonly SettingsFileManager _settingsFileManager;
-        private string StateString { get; set; } = "";
+        private readonly IMemoryCache _stateCache;
 
         public HomeController(
             IConfiguration configuration,
             ILogger<HomeController> logger,
             SettingsFileManager settingsFileManager,
-            IViewerFeature viewerFeature)
+            IViewerFeature viewerFeature,
+            IMemoryCache stateCache)
         {
             _configuration = configuration;
             _logger = logger;
             _viewerFeature = viewerFeature;
             _settingsFileManager = settingsFileManager;
+            _stateCache = stateCache;
         }
         public IActionResult Index()
         {
@@ -65,13 +68,21 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("streamerredirect")]
         public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
-            if (string.IsNullOrWhiteSpace(StateString) == false && state.Equals(StateString))
+            if (_stateCache.TryGetValue(state, out var val))
+            {
+                _stateCache.Remove(state);
+            }
+            else
             {
                 return Redirect("/");
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = _configuration["twitchClientId"];
+#if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
+#else
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
+#endif
 
             if (resp == null) { return Redirect("/"); }
 
@@ -100,13 +111,22 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("botredirect")]
         public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
-            if (string.IsNullOrWhiteSpace(StateString) == false && state.Equals(StateString))
+            if (_stateCache.TryGetValue(state, out var val))
+            {
+                _stateCache.Remove(state);
+            }
+            else
             {
                 return Redirect("/");
             }
+
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = _configuration["twitchBotClientId"];
+#if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchBotClientSecret"], "https://localhost:7293/botredirect");
+#else
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchBotClientSecret"], "https://bot.superpenguin.tv/botredirect");
+#endif
 
             if (resp == null) { return Redirect("/"); }
 
@@ -125,7 +145,7 @@ namespace DotNetTwitchBot.Controllers
         public IActionResult Signin()
         {
 #if DEBUG
-            var url = getAuthorizationCodeUrl("https://localhost:7293/redirect");
+            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect");
 #else
             var url = getAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect");
 #endif
@@ -135,8 +155,16 @@ namespace DotNetTwitchBot.Controllers
 
 
         [HttpGet("/redirect")]
-        public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code)
+        public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
+            if (_stateCache.TryGetValue(state, out var val))
+            {
+                _stateCache.Remove(state);
+            }
+            else
+            {
+                return Redirect("/");
+            }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = _configuration["twitchClientId"];
 #if DEBUG
@@ -145,7 +173,11 @@ namespace DotNetTwitchBot.Controllers
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
 #endif
             var broadcaster = _configuration["broadcaster"];
-            if (broadcaster == null) { throw new ArgumentNullException("Broadcaster is not set"); }
+            if (broadcaster == null)
+            {
+                _logger.LogError("Broadcaster is not set.");
+                return Redirect("/");
+            }
 
             api.Settings.AccessToken = resp.AccessToken;
             var users = await api.Helix.Users.GetUsersAsync();
@@ -199,7 +231,7 @@ namespace DotNetTwitchBot.Controllers
                     new ClaimsPrincipal(claimsIdentity),
                     authProperties
                 );
-                _logger.LogInformation("{0} logged in to web interface", user.Login);
+                _logger.LogInformation("{login} logged in to web interface", user.Login);
             }
             return Redirect("/");
         }
@@ -213,12 +245,14 @@ namespace DotNetTwitchBot.Controllers
             return Redirect("/");
         }
 
-        private string getAuthorizationCodeUrl(string redirectUri)
+        private string GetAuthorizationCodeUrl(string redirectUri)
         {
-
+            var stateString = Guid.NewGuid().ToString();
+            _stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={_configuration["twitchClientId"]}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
+                   $"state={stateString}&" +
                    "response_type=code&" +
                    $"scope=";
         }
@@ -296,11 +330,12 @@ namespace DotNetTwitchBot.Controllers
                 "channel:read:ads"
             };
             var scopeStr = String.Join("+", scopes);
-            StateString = Guid.NewGuid().ToString();
+            var stateString = Guid.NewGuid().ToString();
+            _stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={clientId}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
-                   $"state={StateString}&" +
+                   $"state={stateString}&" +
                    "response_type=code&" +
                    $"scope={scopeStr}&" + "force_verify=true";
         }
