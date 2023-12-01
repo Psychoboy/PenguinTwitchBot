@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect");
 #else
-            var url = getAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect");
+            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect");
 #endif
             return Redirect(url);
         }
