@@ -131,7 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     case 0:
                         CalculateResult();
-                        await ServiceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! SHARK");
+                        await ServiceBackbone.SendChatMessage("The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! sptvCharlie");
                         JoinTimer.Change(5000, 5000);
                         CurrentStoryPart++;
                         return;
@@ -144,7 +144,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     case 2:
                         if (Caught.Count > 0)
                         {
-                            await ServiceBackbone.SendChatMessage(string.Format("Look out! Charlie SHARK captured {0}", GetCaughtNames()));
+                            await ServiceBackbone.SendChatMessage(string.Format("Look out! Charlie sptvCharlie captured {0}", GetCaughtNames()));
                         }
                         CurrentStoryPart++;
                         return;
@@ -152,7 +152,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     case 3:
                         if (Survivors.Count > 0)
                         {
-                            await ServiceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sharkS and grab some of those precious pasties!", GetWinnerNames()));
+                            await ServiceBackbone.SendChatMessage(string.Format("{0} sptvTFF managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!", GetWinnerNames()));
                         }
                         CurrentStoryPart++;
                         return;
