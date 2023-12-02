@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -129,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        private readonly string WinMessage = "rolled a {3} and  won {0} {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
-        private readonly string LoseMessage = "rolled a {3} and {0} lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
+        private readonly string WinMessage = "{0} rolled a {3} and  won {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
+        private readonly string LoseMessage = "{0} rolled a {3} and lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
     }
 }
