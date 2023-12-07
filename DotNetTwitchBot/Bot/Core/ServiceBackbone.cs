@@ -2,6 +2,8 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
@@ -14,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly IKnownBots _knownBots;
         private readonly ICommandHandler _commandHandler;
         private readonly ICollector<ICounter> ChatMessagesCounter;
+        private readonly IHubContext<MainHub> _hubContext;
         private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: new[] { "command", "viewer" });
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         public bool HealthStatus { get; private set; } = true;
@@ -25,7 +28,8 @@ namespace DotNetTwitchBot.Bot.Core
             IKnownBots knownBots,
             IConfiguration configuration,
             IServiceScopeFactory scopeFactory,
-            ICommandHandler commandHandler)
+            ICommandHandler commandHandler,
+            IHubContext<MainHub> hubContext)
         {
             _logger = logger;
             RawBroadcasterName = configuration["broadcaster"];
@@ -34,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Core
             _knownBots = knownBots;
             _commandHandler = commandHandler;
             ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", new[] { "viewer" }).WithExtendLifetimeOnUse();
+            _hubContext = hubContext;
         }
 
         public delegate Task AsyncEventHandler(object? sender);
@@ -250,6 +255,8 @@ namespace DotNetTwitchBot.Bot.Core
                 NumberOfCommands.RemoveLabelled(label);
             }
 
+            await _hubContext.Clients.All.SendAsync("StreamChanged", true);
+
             if (StreamStarted != null)
             {
                 try
@@ -265,6 +272,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnStreamEnded()
         {
+            await _hubContext.Clients.All.SendAsync("StreamChanged", false);
             if (StreamEnded != null)
             {
                 try
