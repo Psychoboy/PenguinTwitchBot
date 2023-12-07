@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Notifications;
@@ -84,6 +80,12 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             _serviceBackbone.IsOnline = true;
             await _serviceBackbone.OnStreamStarted();
+        }
+
+        public async Task ForceStreamOffline()
+        {
+            _serviceBackbone.IsOnline = false;
+            await _serviceBackbone.OnStreamEnded();
         }
     }
 }

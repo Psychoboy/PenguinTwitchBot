@@ -5,10 +5,11 @@
 <CascadingAuthenticationState>  
     <AuthorizeView Roles="Streamer">
         <Authorized>
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
-<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
 </Authorized>
 </AuthorizeView>
 </CascadingAuthenticationState>
@@ -45,5 +46,10 @@
     private async Task ForceOnline()
     {
         await Admin.ForceStreamOnline();
+    }
+
+    private async Task ForceOffline()
+    {
+        await Admin.ForceStreamOffline();
     }
 }

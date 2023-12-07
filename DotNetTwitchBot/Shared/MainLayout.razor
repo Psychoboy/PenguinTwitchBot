@@ -1,6 +1,7 @@
 ﻿@using DotNetTwitchBot.Circuit;
 @using DotNetTwitchBot.Models;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
+@using Microsoft.AspNetCore.SignalR.Client;
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -19,7 +20,7 @@
             OnClick="@((e) => DrawerToggle())" />
         Super Waffle Bot
         <MudSpacer />
-        @if(serviceBackbone.IsOnline)
+        @if(StreamOnline)
         {
             <MudAlert Severity="Severity.Success" NoIcon="true">Stream is Online</MudAlert>
         }
@@ -51,6 +52,8 @@
     bool _drawerOpen = true;
     private string Username = "";
     private string ProfileImage = "";
+    private bool StreamOnline = false;
+    private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,6 +78,20 @@
         UserService.Connect(handler.CircuitId, Username);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
+        StreamOnline = serviceBackbone.IsOnline;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        hubConnection = new HubConnectionBuilder()
+       .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
+        hubConnection.On<bool>("StreamChanged", (status) =>
+        {
+            StreamOnline = status;
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
