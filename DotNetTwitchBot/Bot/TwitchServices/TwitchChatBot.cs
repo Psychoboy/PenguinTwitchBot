@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private IServiceBackbone EventService { get; set; }
 
         private readonly ITwitchService _twitchService;
-        private readonly TwitchBotService _twitchBotService;
+        private readonly ITwitchBotService _twitchBotService;
         private readonly ILogger<TwitchChatBot> _logger;
         private readonly Timer HealthStatusTimer = new();
 
@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             ILogger<TwitchChatBot> logger,
              IConfiguration configuration,
              IServiceBackbone eventService,
-             TwitchBotService twitchBotService,
+             ITwitchBotService twitchBotService,
              ITwitchService twitchService)
         {
             _configuration = configuration;

@@ -6,13 +6,14 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchBotService
+    public class TwitchBotService : ITwitchBotService
     {
         private readonly TwitchAPI _twitchApi = new();
         private readonly ILogger<TwitchBotService> _logger;
         private readonly IConfiguration _configuration;
         readonly Timer _timer = new(300000);
         private readonly SettingsFileManager _settingsFileManager;
+        private bool serviceUp = false;
 
         public TwitchBotService(ILogger<TwitchBotService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
@@ -34,6 +35,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
             }
 
+        }
+
+        public bool IsServiceUp()
+        {
+            return serviceUp;
         }
 
         public async Task SendWhisper(string target, string message)
@@ -61,6 +67,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<string?> GetBotUserId()
         {
+            await ValidateAndRefreshBotToken();
             var broadcaster = _configuration["botName"];
             if (broadcaster == null) return null;
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { broadcaster }, _configuration["twitchBotAccessToken"]);
@@ -70,6 +77,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<string?> GetUserId(string user)
         {
+            await ValidateAndRefreshBotToken();
             var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchBotAccessToken"]);
             return users.Users.FirstOrDefault()?.Id;
         }
@@ -87,6 +95,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
                     await _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
+                    serviceUp = true;
                 }
                 else
                 {
@@ -101,16 +110,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         await _settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
                         await _settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
                         await _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
+                        serviceUp = true;
                     }
                     catch (Exception e)
                     {
                         _logger.LogError("Error refreshing bot token: {message}", e.Message);
+                        serviceUp = false;
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error when validing/refreshing bot token");
+                serviceUp = false;
             }
         }
     }

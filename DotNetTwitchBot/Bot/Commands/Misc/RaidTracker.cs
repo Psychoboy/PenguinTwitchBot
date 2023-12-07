@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var history = (await db.RaidHistory.GetAllAsync()).AsQueryable().OrderByDescending(x => x.IsOnline).ThenBy(x => x.TotalIncomingRaids).ToList();
+                var history = (await db.RaidHistory.GetAllAsync()).AsQueryable().OrderByDescending(x => x.IsOnline).ThenByDescending(x => x.TotalIncomingRaids).ToList();
                 return history;
             }
             catch (Exception ex)

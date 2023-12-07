@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class First : BaseCommandService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
-        private readonly int MaxClaims = 60;
+        private readonly int MaxClaims = 200;
         private readonly ITicketsFeature _ticketsFeature;
         private readonly ILogger<First> _logger;
 

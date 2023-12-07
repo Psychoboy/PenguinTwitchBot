@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -16,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly int Cost = 100;
         private readonly List<string> Entered = new();
         private readonly Timer _joinTimer;
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IViewerFeature _viewFeature;
         private readonly ILogger<FFA> _logger;
         readonly string CommandName = "ffa";
@@ -31,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private State GameState { get; set; }
 
         public FFA(
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             ILogger<FFA> logger,
             IViewerFeature viewerFeature,

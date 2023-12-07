@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Gamble : BaseCommandService
     {
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchServices;
         private readonly ILogger<Gamble> _logger;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public Gamble(
             ILogger<Gamble> logger,
             ILanguage language,
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchServices,
             IServiceBackbone serviceBackbone,
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     jackpot = JackpotDefault;
                 }
                 await UpdateJackpot(jackpot, true);
-                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, jackpotWinnings.ToString("N0")));
+                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
                 await LaunchFireworks();
                 await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
             }

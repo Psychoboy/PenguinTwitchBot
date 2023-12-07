@@ -42,7 +42,7 @@ internal class Program
         builder.Services.AddSingleton<ILanguage, Language>();
         builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
         builder.Services.AddSingleton<ITwitchService, TwitchService>();
-        builder.Services.AddSingleton<TwitchBotService>();
+        builder.Services.AddSingleton<ITwitchBotService, TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<DiscordService>();
 
@@ -52,7 +52,7 @@ internal class Program
     .AddCookie();
 
         builder.Services.AddRazorPages();
-        builder.Services.AddServerSideBlazor();
+        builder.Services.AddServerSideBlazor().AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
         builder.Services.AddMudServices();
 
         if (builder.Configuration["AnalyticsId"] != null)
@@ -78,7 +78,6 @@ internal class Program
         var commands = new List<Type>
         {
             typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
-            typeof(DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle),
             typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle),
@@ -258,6 +257,7 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
+                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
                 eventArgs.Exception.Message.Contains("JavaScript"))
             {
                 return; //Ignore
@@ -285,6 +285,8 @@ internal class Program
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature));
         services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature, DotNetTwitchBot.Bot.Commands.Features.TicketsFeature>();
         commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature));
+        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature, DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature>();
+        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature));
 
         return commands;
     }

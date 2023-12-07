@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly GiveawayFeature _giveawayFeature;
 
         public CustomCommand(
@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
-            LoyaltyFeature loyaltyFeature,
+            ILoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler)

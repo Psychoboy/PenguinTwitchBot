@@ -142,7 +142,7 @@
         {
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
-        originalCommands = commands.ToList();
+        originalCommands = commands.DistinctBy(x => x.Command).ToList();
 
     }
 
@@ -201,7 +201,7 @@
                 x.Category.Contains("Loyalty")
             ));
         }
-        commands = commands.OrderBy(x => x.Command).ToList();
+        commands = commands.DistinctBy(x => x.Command).OrderBy(x => x.Command).ToList();
         await Analytics.TrackEvent("commands_filter", new { pills = string.Join(",",chips.Select(x => x.Text))});
     }
 

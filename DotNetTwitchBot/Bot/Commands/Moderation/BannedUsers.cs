@@ -25,32 +25,46 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await UpdateBannedUsers();
+            try
+            {
+                await UpdateBannedUsers();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error updating banned users.", ex);
+            }
         }
 
         private async Task UpdateBannedUsers()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var bannedUsers = await db.BannedViewers.GetAllAsync();
-            var curBannedUsers = await _twitchService.GetAllBannedViewers();
-            foreach (var bannedUser in curBannedUsers)
+            try
             {
-                var exists = await BanExists(bannedUser.UserLogin);
-                if (exists == false)
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var bannedUsers = await db.BannedViewers.GetAllAsync();
+                var curBannedUsers = await _twitchService.GetAllBannedViewers();
+                foreach (var bannedUser in curBannedUsers)
                 {
-                    _logger.LogInformation("{user} didn't exist in banned user list adding...", bannedUser.UserLogin);
-                    await AddBannedUser(bannedUser.UserLogin);
+                    var exists = await BanExists(bannedUser.UserLogin);
+                    if (exists == false)
+                    {
+                        _logger.LogInformation("{user} didn't exist in banned user list adding...", bannedUser.UserLogin);
+                        await AddBannedUser(bannedUser.UserLogin);
+                    }
+                }
+
+                foreach (var bannedUser in bannedUsers)
+                {
+                    if (curBannedUsers.Exists(x => x.UserLogin.Equals(bannedUser.Username, StringComparison.OrdinalIgnoreCase)) == false)
+                    {
+                        _logger.LogInformation("{user} shouldn't exist in banned user list removing...", bannedUser.Username);
+                        await RemoveBannedUser(bannedUser.Username);
+                    }
                 }
             }
-
-            foreach (var bannedUser in bannedUsers)
+            catch (Exception)
             {
-                if (curBannedUsers.Exists(x => x.UserLogin.Equals(bannedUser.Username, StringComparison.OrdinalIgnoreCase)) == false)
-                {
-                    _logger.LogInformation("{user} shouldn't exist in banned user list removing...", bannedUser.Username);
-                    await RemoveBannedUser(bannedUser.Username);
-                }
+                _logger.LogCritical("Failed getting banned users.");
             }
         }
 

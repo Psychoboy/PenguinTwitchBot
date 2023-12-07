@@ -5,9 +5,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class MaxBetCalculator
     {
-        private readonly LoyaltyFeature _loyaltyFeature;
+        private readonly ILoyaltyFeature _loyaltyFeature;
 
-        public MaxBetCalculator(LoyaltyFeature loyaltyFeature)
+        public MaxBetCalculator(ILoyaltyFeature loyaltyFeature)
         {
             _loyaltyFeature = loyaltyFeature;
         }
