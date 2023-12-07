@@ -105,6 +105,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await LoadBackupList();
             }
             var randomSong = BackupPlaylist.Songs.RandomElement();
+            randomSong.RequestedBy = "DJ Waffle";
             LastSong = CurrentSong?.CreateDeepCopy();
             CurrentSong = randomSong.CreateDeepCopy();
             NextSong = null;

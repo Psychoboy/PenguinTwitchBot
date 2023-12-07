@@ -5,6 +5,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject ICircuitUserService UserService
+@inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject CircuitHandler BlazorCircuitHandler
 @implements IDisposable
 
@@ -17,6 +18,15 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@((e) => DrawerToggle())" />
         Super Waffle Bot
+        <MudSpacer />
+        @if(serviceBackbone.IsOnline)
+        {
+            <MudAlert Severity="Severity.Success" NoIcon="true">Stream is Online</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Error" NoIcon="true">Stream is Offline</MudAlert>
+        }
         <MudSpacer />
         <AuthorizeView>
             <Authorized Context="Auth">
