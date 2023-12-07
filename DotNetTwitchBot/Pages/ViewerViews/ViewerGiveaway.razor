@@ -15,16 +15,14 @@
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
         <MudItem sm="4">
-            @*<MudPaper Class="d-flex align-content-start flex-wrap flex-grow-1 gap-4 pa-8 ma-2">*@
-            <MudPaper Class="pa-8 ma-2" Outlined="true">
-                <MudText Typo="Typo.h5">Prize</MudText>
+           <MudPaper Class="pa-2 ma-2" Outlined="true">
+                 <center>
+                <MudText Typo="Typo.h5">Giveaway</MudText>
+                <MudDivider/>
                 <MudText Typo="Typo.h6">@prize</MudText>
                 <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" />
-                </MudPaper>
-
-               
-
-            @*</MudPaper>*@
+                </center>
+            </MudPaper>
         </MudItem>
         <MudItem sm="4">
             <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
@@ -38,10 +36,8 @@
                 <MudDivider />
                 <MudText Align="Align.Center" Typo="Typo.h6">@entries</MudText>
             </MudPaper>
-        </MudItem>
-        <AuthorizeView>
+            <AuthorizeView>
             <Authorized Context="Auth">
-                <MudItem sm="4">
                     <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5">Your Tickets</MudText>
                         <MudDivider />
@@ -56,58 +52,46 @@
                         <MudText Typo="Typo.h5">Enter Tickets</MudText>
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
-                            <MudNumericField  @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
+                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                                        Class="ml-auto" Disabled=@isSubmitting>
                                 Enter
                             </MudButton>
-                            @if(!string.IsNullOrWhiteSpace(AlertText))
+                            @if (!string.IsNullOrWhiteSpace(AlertText))
                             {
                                 <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
                             }
                         </EditForm>
                     </MudPaper>
-                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5">How to earn tickets</MudText>
-                        <MudDivider />
-                        <MudText>@TicketsPerSub tickets for every sub</MudText>
-                        <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
-                        <MudText>@BitsPerTicket tickets per 100 bits</MudText>
-                        <MudDivider />
-                        <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
-                        <MudText>+1 Ticket for everyone</MudText>
-                        <MudText>+2 Tickets for Subscribers</MudText>
-                        <MudText>+5 Tickets for Active Viewers</MudText>
-                        <MudText>+5 Tickets for Active Subscribers</MudText>
-                        <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
-                        <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
-                    </MudPaper>
-                </MudItem>
-            </Authorized>
+                </Authorized>
             <NotAuthorized>
-                <MudItem sm="4">
                     <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5"><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
 
                     </MudPaper>
-                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5">How to earn tickets</MudText>
-                        <MudDivider />
-                        <MudText>@TicketsPerSub tickets for every sub</MudText>
-                        <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
-                        <MudText>@BitsPerTicket tickets per 100 bits</MudText>
-                        <MudDivider />
-                        <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
-                        <MudText>+1 Ticket for everyone</MudText>
-                        <MudText>+2 Tickets for Subscribers</MudText>
-                        <MudText>+5 Tickets for Active Viewers</MudText>
-                        <MudText>+5 Tickets for Active Subscribers</MudText>
-                        <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
-                        <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
-                    </MudPaper>
-                </MudItem>
-            </NotAuthorized>
-        </AuthorizeView>
+                </NotAuthorized>
+            </AuthorizeView>
+
+        </MudItem>
+
+        <MudItem sm="4">
+                   
+            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5">How to earn tickets</MudText>
+                <MudDivider />
+                <MudText>@TicketsPerSub tickets for every sub</MudText>
+                <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
+                <MudText>@BitsPerTicket tickets per 100 bits</MudText>
+                <MudDivider />
+                <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
+                <MudText>+1 Ticket for everyone</MudText>
+                <MudText>+2 Tickets for Subscribers</MudText>
+                <MudText>+5 Tickets for Active Viewers</MudText>
+                <MudText>+5 Tickets for Active Subscribers</MudText>
+                <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
+                <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
+            </MudPaper>
+        </MudItem>
         <MudItem>
             <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5">Rules</MudText>
