@@ -57,6 +57,7 @@
                     </MudPaper>
                     <MudPaper Class=" pa-4 flex-wrap-reverse" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Enter Tickets</MudText>
+                        <MudDivider />
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
                             <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
@@ -74,7 +75,7 @@
                 </Authorized>
                 <NotAuthorized>
                     <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                        <MudText><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
+                        <MudText><MudLink Href="/signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
                         @* <MudText><MudLink  Href="#howtoearn">How to earn tickets</MudLink></MudText> *@
                     </MudPaper>
                 </NotAuthorized>
