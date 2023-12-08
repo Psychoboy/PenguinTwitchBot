@@ -12,44 +12,51 @@
 
 <PageTitle>SPTV Twitch Bot - Viewer Giveaway</PageTitle>
 
+<style> 
+    .mud-contrast-text {
+        color: var(--mud-palette-white);
+    }
+</style>
+
+
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
-        <MudItem sm="4">
-           <MudPaper Class="pa-2 ma-2" Outlined="true">
+        <MudItem sm="6">
+            <MudPaper Class="pa-4" Elevation="0">
                  <center>
-                <MudText Typo="Typo.h5">Giveaway</MudText>
-                <MudDivider/>
-                <MudText Typo="Typo.h6">@prize</MudText>
-                <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" />
+                    <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
+                    <MudDivider class="mb-2" />
+                    <MudText Typo="Typo.h5">@prize</MudText>
+                    <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
                 </center>
             </MudPaper>
         </MudItem>
-        <MudItem sm="4">
-            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5">Total Entrants</MudText>
+        <MudItem sm="6">
+            <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Total Entrants</MudText>
                 <MudDivider />
-                <MudText Align="Align.Center" Typo="Typo.h6">@entrants</MudText>
+                <MudText Typo="Typo.h4">@entrants</MudText>
             </MudPaper>
 
-            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5">Total Entries</MudText>
+            <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Total Entries</MudText>
                 <MudDivider />
-                <MudText Align="Align.Center" Typo="Typo.h6">@entries</MudText>
+                <MudText Typo="Typo.h4">@entries</MudText>
             </MudPaper>
             <AuthorizeView>
-            <Authorized Context="Auth">
-                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5">Your Tickets</MudText>
+                <Authorized Context="Auth">
+                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Your Tickets</MudText>
                         <MudDivider />
-                        <MudText Align="Align.Center" Typo="Typo.h4">@userTickets</MudText>
+                        <MudText Typo="Typo.h4">@userTickets</MudText>
                     </MudPaper>
-                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5">Your Entries</MudText>
+                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Your Entries</MudText>
                         <MudDivider />
-                        <MudText Align="Align.Center" Typo="Typo.h4">@userEntries</MudText>
+                        <MudText Typo="Typo.h4">@userEntries</MudText>
                     </MudPaper>
-                    <MudPaper Class=" pa-4 ma-1 flex-wrap-reverse" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5">Enter Tickets</MudText>
+                    <MudPaper Class=" pa-4 flex-wrap-reverse" Outlined="false" Elevation="0">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Enter Tickets</MudText>
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
                             <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
@@ -62,27 +69,26 @@
                                 <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
                             }
                         </EditForm>
+                        @* <MudText><MudLink Href="#howtoearn">How to earn tickets</MudLink></MudText> *@
                     </MudPaper>
                 </Authorized>
-            <NotAuthorized>
-                    <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5"><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
-
+                <NotAuthorized>
+                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                        <MudText><MudLink Href="/signin" Match="NavLinkMatch.Prefix" Typo="Typo.h5">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
+                        @* <MudText><MudLink  Href="#howtoearn">How to earn tickets</MudLink></MudText> *@
                     </MudPaper>
                 </NotAuthorized>
             </AuthorizeView>
 
         </MudItem>
-
-        <MudItem sm="4">
-                   
-            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5">How to earn tickets</MudText>
-                <MudDivider />
+        <MudItem>
+            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0" id="howtoearn">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">How to earn tickets</MudText>
+                <MudDivider class="mb-2" />
                 <MudText>@TicketsPerSub tickets for every sub</MudText>
                 <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
                 <MudText>@BitsPerTicket tickets per 100 bits</MudText>
-                <MudDivider />
+                <MudDivider class="my-2" />
                 <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
                 <MudText>+1 Ticket for everyone</MudText>
                 <MudText>+2 Tickets for Subscribers</MudText>
@@ -91,18 +97,16 @@
                 <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
                 <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
             </MudPaper>
-        </MudItem>
-        <MudItem>
-            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5">Rules</MudText>
+            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Rules</MudText>
                 <MudText>Winners for giveaway do NOT have to be present.</MudText>
                 <MudText>All prizes have a minimum of 1 month or next giveaway cooldown whatever is longer.Cooldown means ineligible to win standard giveaways during that time. Still eligible for any "special" giveaways. All values are based on current value.</MudText>
                 <MudText>Tier 1 - Less then $75 value - 1 Month or next giveaway cooldown whichever is longer</MudText>
                 <MudText>Tier 2 - $75 to $115 - 2 Months or next 2 giveaways cooldown whichever is longer</MudText>
                 <MudText>Tier 3 - Greater than $115 - 3 Months or next 3 giveaways cooldown whichever is longer</MudText>
             </MudPaper>
-            <MudPaper Class="pa-4 ma-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5">Terms</MudText>
+            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Terms</MudText>
                 <MudText>Winner(s) will be whispered via Twitch and only Twitch. Winner(s) must respond within 48 hours. Once the prize is sent the winner has 1 week to collect otherwise will be cancelled.</MudText>
                 <MudText>Right to change giveaway at any time. Giveaways illegal where it is not legal. Must be 18+ to participate.</MudText>
                 <MudText>Giveaways can change at any time without reason.</MudText>
