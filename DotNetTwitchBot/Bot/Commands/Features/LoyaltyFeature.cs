@@ -128,14 +128,20 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var subTickets = await GetTicketsPerSub();
                 await _ticketsFeature.GiveTicketsToViewer(e.Name, subTickets);
                 _logger.LogInformation("Gave {name} {tickets} tickets for subscribing.", e.Name, subTickets);
+                var message = $"{e.DisplayName} just subscribed";
                 if (e.Count != null && e.Count > 0)
                 {
-                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed for {e.Count} months in a row sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    message += $" for a total of {e.Count} months";
                 }
-                else
+
+                if (e.Streak != null && e.Streak > 0)
                 {
-                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just subscribed sptvHype, If you want SuperPenguinTV to peg the beard just say Peg in chat! Enjoy the extra tickets!");
+                    if (e.Count != null && e.Count > 0) message += " and";
+                    message += $" for {e.Streak} months in a row";
                 }
+
+                message += "! sptvHype";
+                await ServiceBackbone.SendChatMessage(message);
 
             }
             catch (Exception ex)
