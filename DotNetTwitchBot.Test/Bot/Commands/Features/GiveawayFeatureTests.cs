@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IServiceScopeFactory scopeFactory;
         private readonly ITicketsFeature ticketsFeature;
         private readonly IViewerFeature viewerFeature;
-        private readonly IHubContext<GiveawayHub> hubContext;
+        private readonly IHubContext<MainHub> hubContext;
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Setting testPrize;
@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             commandHandler = Substitute.For<ICommandHandler>();
             ticketsFeature = Substitute.For<ITicketsFeature>();
             viewerFeature = Substitute.For<IViewerFeature>();
-            hubContext = Substitute.For<IHubContext<GiveawayHub>>();
+            hubContext = Substitute.For<IHubContext<MainHub>>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
