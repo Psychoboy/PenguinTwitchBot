@@ -149,6 +149,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
                 Count = e.Notification.Payload.Event.CumulativeMonths,
+                Streak = e.Notification.Payload.Event.StreakMonths,
                 IsRenewal = true,
                 Message = e.Notification.Payload.Event.Message?.Text
             });
@@ -179,6 +180,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsGift = e.Subscription.IsGift != null && (bool)e.Subscription.IsGift,
                 IsRenewal = e.Subscription.Months > 0,
                 Count = e.Subscription.Months,
+                Streak = e.Subscription.StreakMonths,
                 Message = e.Subscription.SubMessage?.Message
             });
         }

@@ -166,7 +166,7 @@
     {
         if (firstRender == false) return;
         hubConnection = new HubConnectionBuilder()
-        .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
+        .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
         hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
         {
             winners = Winners;

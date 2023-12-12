@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ITicketsFeature _ticketsFeature;
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IHubContext<GiveawayHub> _hubContext;
+        private readonly IHubContext<MainHub> _hubContext;
         private readonly ILanguage lang;
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceBackbone serviceBackbone,
             ITicketsFeature ticketsFeature,
             IViewerFeature viewerFeature,
-            IHubContext<GiveawayHub> hubContext,
+            IHubContext<MainHub> hubContext,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler,
             ILanguage language
@@ -247,10 +247,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             Tickets.Clear();
             var entries = await GetEntries();
+            var tickets = new List<string>();
             foreach (var entry in entries)
             {
-                Tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
+                tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
             }
+            Tickets.AddRange(tickets.OrderBy(_ => Guid.NewGuid()).ToList());
         }
 
         public async Task Reset()
@@ -273,13 +275,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var winningTicket = Tickets.RandomElement(_logger);
                 var viewer = await _viewerFeature.GetViewer(winningTicket);
                 var isFollower = await _viewerFeature.IsFollower(winningTicket);
-
-                await ServiceBackbone.SendChatMessage(lang.Get("giveawayfeature.draw.winner")
-                    .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket)
-                    .Replace("(prize)", await GetPrize())
-                    .Replace("(isFollowingCheck)", isFollower ? "is" : "is not")
-                    );
-                await AddWinner(viewer);
+                var prize = await GetPrize();
+                var message = lang.Get("giveawayfeature.draw.winner")
+                    .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.CurrentCultureIgnoreCase)
+                    .Replace("(prize)", prize, StringComparison.CurrentCultureIgnoreCase)
+                    .Replace("(isFollowingCheck)", isFollower ? "is" : "is not", StringComparison.CurrentCultureIgnoreCase)
+                    ;
+                await ServiceBackbone.SendChatMessage(message);
+                await AddWinner(viewer, isFollower);
             }
             catch (Exception ex)
             {
@@ -303,7 +306,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task AddWinner(Viewer? viewer)
+        private async Task AddWinner(Viewer? viewer, bool isFollower)
         {
             if (viewer == null) return;
 
@@ -316,7 +319,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     Username = viewer.DisplayName,
                     Prize = prize,
-                    PrizeTier = prizeTier
+                    PrizeTier = prizeTier,
+                    IsFollowing = isFollower
                 };
                 Winners.Add(winner);
                 await db.GiveawayWinners.AddAsync(winner);

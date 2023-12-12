@@ -9,5 +9,6 @@ namespace DotNetTwitchBot.Bot.Models.Giveaway
         public DateTime WinningDate { get; set; } = DateTime.Now;
         public string Prize { get; set; } = "";
         public string PrizeTier { get; set; } = "";
+        public bool IsFollowing { get; set; }
     }
 }

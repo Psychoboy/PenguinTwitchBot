@@ -122,7 +122,55 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             await ticketFeature.Received(1).GiveTicketsToViewer("testname", 50);
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed sptvHype")));
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed! sptvHype")));
+
+        }
+
+        [Fact]
+        public async Task OnSubscription_ShouldSayTotalCount()
+        {
+            // Arrange
+            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 5 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 5 months! sptvHype")));
+
+        }
+
+        [Fact]
+        public async Task OnSubscription_ShouldSayCumalativeCount()
+        {
+            // Arrange
+            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Streak = 5 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for 5 months in a row! sptvHype")));
+
+        }
+
+        [Fact]
+        public async Task OnSubscription_ShouldSayTotalAndCumalativeCount()
+        {
+            // Arrange
+            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 8, Streak = 5 };
+            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            // Act
+            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 8 months and for 5 months in a row! sptvHype")));
 
         }
 

@@ -265,7 +265,6 @@ internal class Program
             logger.LogDebug(eventArgs.Exception, "Global Exception Caught");
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
-        app.MapHub<DotNetTwitchBot.Bot.Hubs.GiveawayHub>("/giveawayhub");
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");
 
         app.MapBlazorHub();

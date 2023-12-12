@@ -6,30 +6,40 @@
 @inject NavigationManager Navigation
 
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
+
+<style>
+    .mud-contrast-text {
+        color: var(--mud-palette-white);
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>
         <MudItem sm="6">
-            <MudPaper Class="pa-8 ma-2" Outlined="true">
-                <MudText Typo="Typo.h2">Prize</MudText>
-                <MudText Typo="Typo.h3">@prize</MudText>
+            <MudPaper Class="pa-4" Elevation="0">
+                <center>
+                    <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
+                    <MudDivider class="mb-2" />
+                    <MudText Typo="Typo.h5">@prize</MudText>
+                    <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
+                </center>
             </MudPaper>
         </MudItem>
         <MudItem sm="6">
-            <MudPaper Class="pa-8 ma-2" Outlined="true">
-                <MudText Typo="Typo.h2">Winners</MudText>
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Winners</MudText>
+                <MudDivider class="mb-2" />
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Close</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Draw">Draw</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Reset">Reset</MudButton>
                 @foreach (var winner in winners)
                 {
-                    @if (firstDraw == false)
-                    {
-                        <MudDivider />
-                    }
-                    { firstDraw = false; }
+                    <MudDivider class="mb-2" />
 
-                    <MudText Typo="Typo.h3">@winner.Username</MudText>
-                    <MudText Typo="Typo.h4">@winner.Prize</MudText>
-                    <MudText Typo="Typo.h5">@winner.PrizeTier</MudText>
+                    <MudText Typo="Typo.h5">Winner: @winner.Username</MudText>
+                    <MudText Typo="Typo.h6">Prize: @winner.Prize</MudText>
+                    <MudText Typo="Typo.h6">Tier: @winner.PrizeTier</MudText>
+                    <MudText Typo="Typo.h6">Is Following: @winner.IsFollowing</MudText>
                 }
             </MudPaper>
         </MudItem>
@@ -65,19 +75,24 @@ else
     private List<GiveawayWinner> winners = new List<GiveawayWinner>();
     private List<GiveawayWinner>? pastWinners;
     private string prize = "";
+    private string? imageUrl;
     private HubConnection? hubConnection;
     private bool firstDraw = true;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject]
+    private Bot.Commands.Features.ITicketsFeature TicketsFeature { get; set; } = default!;
     protected override async Task OnInitializedAsync()
     {
         pastWinners = await GiveawayFeature.PastWinners();
         prize = await GiveawayFeature.GetPrize();
-        
+        imageUrl = await GiveawayFeature.GetImageUrl();
+
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
         hubConnection = new HubConnectionBuilder()
-        .WithUrl(Navigation.ToAbsoluteUri("/giveawayhub")).Build();
+        .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
         hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
         {
             winners = Winners;
@@ -101,5 +116,19 @@ else
     private async Task Close()
     {
         await GiveawayFeature.Close();
+    }
+
+    private async Task Reset()
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Are you should you want to reset the giveaway?",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await GiveawayFeature.Reset();
+            await TicketsFeature.ResetAllPoints();
+        }
+        StateHasChanged();
     }
 }
