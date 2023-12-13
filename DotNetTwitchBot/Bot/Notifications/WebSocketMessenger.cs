@@ -37,8 +37,8 @@ namespace DotNetTwitchBot.Bot.Notifications
                     WebSocket = webSocket
                 });
             }
-
             finally { _semaphoreSlim.Release(); }
+
             var pushTask = Task.Run(() => PushMessages(webSocket));
             try
             {
