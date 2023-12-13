@@ -174,7 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (ServiceBackbone.IsOnline)
             {
                 _logger.LogInformation("Starting to give  out tickets");
-                await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 5);
+                await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 4);
                 await GiveTicketsToAllOnlineViewersWithBonus(1, 2);
             }
         }

@@ -70,19 +70,22 @@
                                 <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
                             }
                         </EditForm>
-                        @* <MudText><MudLink Href="#howtoearn">How to earn tickets</MudLink></MudText> *@
+                        <MudText><MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today to earn even more tickets</MudLink></MudText>
+                        <MudText><MudLink Href="/viewergiveaway#howtoearn">How to earn tickets</MudLink></MudText>
                     </MudPaper>
                 </Authorized>
                 <NotAuthorized>
                     <MudPaper Class="pa-4" Outlined="false" Elevation="0">
                         <MudText><MudLink Href="/signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
-                        @* <MudText><MudLink  Href="#howtoearn">How to earn tickets</MudLink></MudText> *@
+                        <MudText><MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today to earn even more tickets</MudLink></MudText>
+                        <MudText><MudLink Href="/viewergiveaway#howtoearn">How to earn tickets</MudLink></MudText>
                     </MudPaper>
                 </NotAuthorized>
             </AuthorizeView>
 
         </MudItem>
         <MudItem>
+            <Bookmark BookmarkName="howtoearn">
             <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0" id="howtoearn">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">How to earn tickets</MudText>
                 <MudDivider class="mb-2" />
@@ -90,14 +93,14 @@
                 <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
                 <MudText>@BitsPerTicket tickets per 100 bits</MudText>
                 <MudDivider class="my-2" />
-                <MudText>Every 5 minutes tickets are given out accordingly:</MudText>
+                <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
                 <MudText>+1 Ticket for everyone</MudText>
-                <MudText>+2 Tickets for Subscribers</MudText>
                 <MudText>+5 Tickets for Active Viewers</MudText>
-                <MudText>+5 Tickets for Active Subscribers</MudText>
-                <MudText>so every 5 minutes an active subscriber gets 13 tickets.</MudText>
+                <MudText>+6 Tickets for Subscribers</MudText>
+                <MudText>so every 5 minutes a subscriber gets 12 tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
                 <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
             </MudPaper>
+            </Bookmark>
             <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">Rules</MudText>
                 <MudText>Winners for giveaway do NOT have to be present.</MudText>
