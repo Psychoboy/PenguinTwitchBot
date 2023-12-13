@@ -18,17 +18,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             }
             catch (Exception)
             {
-                //_logger.LogCritical(error, "Unhandled exception");
-                //var response = context.Response;
-                //response.ContentType = "application/json";
-                //response.StatusCode = error switch
-                //{
-                //    AppException => (int)HttpStatusCode.BadRequest,// custom application error
-                //    KeyNotFoundException => (int)HttpStatusCode.NotFound,// not found error
-                //    _ => (int)HttpStatusCode.InternalServerError,// unhandled error
-                //};
-                //var result = JsonSerializer.Serialize(new { message = error?.Message });
-                //await response.WriteAsync(result);
+                _logger.LogDebug("Exception happened in ErrorHandlerMiddleware. This is expected");
             }
         }
     }

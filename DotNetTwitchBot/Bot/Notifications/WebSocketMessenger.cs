@@ -44,7 +44,10 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 await ReceiveMessage(webSocket);
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+                _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
+            }
             await pushTask;
             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
             _logger.LogInformation("Websocket closed: {id}", id.ToString());
