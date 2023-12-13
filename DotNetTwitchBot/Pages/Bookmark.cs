@@ -43,11 +43,17 @@ namespace DotNetTwitchBot.Pages
 
         protected async override Task OnAfterRenderAsync(bool firstRender)
         {
-            if (firstRender == false) return;
-            if (_setFocus)
-                await this.Element!.Value.FocusAsync(false);
+            try
+            {
+                if (_setFocus)
+                    await this.Element!.Value.FocusAsync(false);
 
-            _setFocus = false;
+                _setFocus = false;
+            }
+            catch (Exception)
+            {
+                //do nothing
+            }
         }
 
         private bool IsMe()
