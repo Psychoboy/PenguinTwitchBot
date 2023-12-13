@@ -77,7 +77,6 @@ else
     private string prize = "";
     private string? imageUrl;
     private HubConnection? hubConnection;
-    private bool firstDraw = true;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject]
     private Bot.Commands.Features.ITicketsFeature TicketsFeature { get; set; } = default!;

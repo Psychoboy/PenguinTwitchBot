@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text.Json;
-using System.Threading.Tasks;
-
 namespace DotNetTwitchBot.CustomMiddleware
 {
     public class ErrorHandlerMiddleware
@@ -23,19 +16,9 @@ namespace DotNetTwitchBot.CustomMiddleware
             {
                 await _next(context);
             }
-            catch (Exception error)
+            catch (Exception)
             {
-                _logger.LogCritical(error, "Unhandled exception");
-                var response = context.Response;
-                response.ContentType = "application/json";
-                response.StatusCode = error switch
-                {
-                    AppException => (int)HttpStatusCode.BadRequest,// custom application error
-                    KeyNotFoundException => (int)HttpStatusCode.NotFound,// not found error
-                    _ => (int)HttpStatusCode.InternalServerError,// unhandled error
-                };
-                var result = JsonSerializer.Serialize(new { message = error?.Message });
-                await response.WriteAsync(result);
+                _logger.LogDebug("Exception happened in ErrorHandlerMiddleware. This is expected");
             }
         }
     }

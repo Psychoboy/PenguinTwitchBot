@@ -39,18 +39,77 @@ namespace DotNetTwitchBot.Bot.Notifications
             }
             finally { _semaphoreSlim.Release(); }
 
+            var pushTask = Task.Run(() => PushMessages(webSocket));
+            try
+            {
+                await ReceiveMessage(webSocket);
+            }
+            catch (Exception)
+            {
+                _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
+            }
+            await pushTask;
+            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+            _logger.LogInformation("Websocket closed: {id}", id.ToString());
+        }
+
+        private async Task PushMessages(WebSocket webSocket)
+        {
+
             while (webSocket.State == WebSocketState.Open)
             {
-
                 if (_queue.TryTake(out var result, 5000))
                 {
                     if (Paused == false)
                     {
                         await SendMessageToSockets(result);
+
                     }
                 }
+                await SendMessageToSockets("ping");
+
             }
-            _logger.LogInformation("Websocket closed: {id}", id.ToString());
+        }
+
+        private async Task ReceiveMessage(WebSocket webSocket)
+        {
+            while (webSocket.State == WebSocketState.Open)
+            {
+                var data = await ReadStringAsync(webSocket, CancellationToken.None);
+                if (data == null) continue;
+                if (data.Equals("pong"))
+                {
+                    _logger.LogDebug("Received Pong");
+                }
+            }
+        }
+
+        private async Task<string?> ReadStringAsync(WebSocket ws, CancellationToken ct = default)
+        {
+            var buffer = new ArraySegment<byte>(new byte[1024 * 8]);
+
+            using MemoryStream ms = new();
+            WebSocketReceiveResult receiveResult;
+
+            do
+            {
+                ct.ThrowIfCancellationRequested();
+
+                receiveResult = await ws.ReceiveAsync(buffer, ct);
+                if (buffer.Array == null) return null;
+                ms.Write(buffer.Array, buffer.Offset, receiveResult.Count);
+
+            } while (!receiveResult.EndOfMessage);
+
+
+            ms.Seek(0, SeekOrigin.Begin); // Changing stream position to cover whole message
+
+
+            if (receiveResult.MessageType != WebSocketMessageType.Text)
+                return null;
+
+            using StreamReader reader = new(ms, System.Text.Encoding.UTF8);
+            return await reader.ReadToEndAsync(ct); // decoding message
         }
 
         public async Task CloseAllSockets()
