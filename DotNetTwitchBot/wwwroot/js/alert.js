@@ -459,8 +459,12 @@ socket.onerror = updateState;
 socket.onmessage = function (event) {
     try {
         handleBrowserInteraction();
-        let rawMessage = event.data,
-            message = JSON.parse(rawMessage);
+        let rawMessage = event.data;
+        if (rawMessage == "ping") {
+            socket.send("pong");
+            return;
+        }
+        let message = JSON.parse(rawMessage);
         queue.push(message);
     } catch (ex) {
         console.log('Failed to parse socket message [' + event.data + ']: ' + event.stack)
