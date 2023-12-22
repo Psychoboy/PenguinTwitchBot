@@ -48,6 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                     var exists = await BanExists(bannedUser.UserLogin);
                     if (exists == false)
                     {
+                        if (bannedUser.ExpiresAt.HasValue == false) continue;
                         _logger.LogInformation("{user} didn't exist in banned user list adding...", bannedUser.UserLogin);
                         await AddBannedUser(bannedUser.UserLogin);
                     }

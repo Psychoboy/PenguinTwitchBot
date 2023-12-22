@@ -63,7 +63,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelBan(object? sender, ChannelBanArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelBan {0}", e.Notification.Payload.Event.UserLogin);
+            if (e.Notification.Payload.Event.IsPermanent == false)
+            {
+                _logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
+                return;
+            }
+            _logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
             await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
         }
 
