@@ -7,7 +7,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class DiscordService
+    public class DiscordService : IDiscordService
     {
         private readonly DiscordSocketClient _client;
         private readonly ILogger<DiscordService> _logger;
@@ -43,10 +43,22 @@ namespace DotNetTwitchBot.Bot.Core
             _client.SlashCommandExecuted += SlashCommandHandler;
             _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
+            _client.Disconnected += Disconnected;
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
             Initialize(settings.DiscordToken).Wait();
+        }
+
+        public ConnectionState ServiceStatus()
+        {
+            return _client.ConnectionState;
+        }
+
+        private Task Disconnected(Exception exception)
+        {
+            _logger.LogInformation("Discord Bot Connected.");
+            return Task.CompletedTask;
         }
 
         private async Task StreamStarted(object? sender)

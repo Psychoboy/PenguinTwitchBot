@@ -44,7 +44,7 @@ internal class Program
         builder.Services.AddSingleton<ITwitchService, TwitchService>();
         builder.Services.AddSingleton<ITwitchBotService, TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
-        builder.Services.AddSingleton<DiscordService>();
+        builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
         builder.Services.AddSingleton<Leaderboards>();
 
@@ -163,6 +163,7 @@ internal class Program
         builder.Services.AddHealthChecks()
             .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
             .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
+            .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
             .ForwardToPrometheus();
 
         var app = builder.Build();
@@ -176,7 +177,7 @@ internal class Program
             dbContext.Database.Migrate();
         }
         //Loads all the command stuff into memory
-        app.Services.GetRequiredService<DotNetTwitchBot.Bot.Core.DiscordService>();
+        app.Services.GetRequiredService<IDiscordService>();
 
         await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
 
