@@ -140,6 +140,30 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return entries.Sum(x => x.Tickets);
         }
 
+        public async Task<IEnumerable<GiveawayExclusion>> GetAllExclusions()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.GiveawayExclusions.GetAllAsync();
+        }
+
+        public async Task AddExclusion(GiveawayExclusion exclusion)
+        {
+            if (exclusion == null) return;
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await db.GiveawayExclusions.AddAsync(exclusion);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task DeleteExclusion(GiveawayExclusion exclusion)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.GiveawayExclusions.Remove(exclusion);
+            await db.SaveChangesAsync();
+        }
+
         private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
         {
             await _hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
@@ -150,6 +174,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.GiveawayEntries.GetAllAsync();
+        }
+
+        private async Task<IEnumerable<GiveawayExclusion>> GetExclusions()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.GiveawayExclusions.Find(x => x.ExpireDateTime == null || x.ExpireDateTime > DateTime.Now).ToListAsync();
         }
 
         public async Task<string> GetImageUrl()
@@ -248,8 +279,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             Tickets.Clear();
             var entries = await GetEntries();
             var tickets = new List<string>();
+            var exclusions = await GetExclusions();
             foreach (var entry in entries)
             {
+                if (exclusions.Where(x => x.Username.Equals(entry.Username, StringComparison.OrdinalIgnoreCase)).Any()) continue;
                 tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
             }
             Tickets.AddRange(tickets.OrderBy(_ => Guid.NewGuid()).ToList());

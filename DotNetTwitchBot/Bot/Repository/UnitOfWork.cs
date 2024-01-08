@@ -21,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Repository
             Settings = new SettingsRepository(_context);
             GiveawayEntries = new GiveawayEntriesRepository(_context);
             GiveawayWinners = new GiveawayWinnersRepository(_context);
+            GiveawayExclusions = new GiveawayExclusionRepository(_context);
             TimerGroups = new TimerGroupsRepository(_context);
             DeathCounters = new DeathCountersRepository(_context);
             ViewerMessageCounts = new ViewerMessageCountsRepository(_context);
@@ -61,6 +62,7 @@ namespace DotNetTwitchBot.Bot.Repository
         public ISettingsRepository Settings { get; private set; }
         public IGiveawayEntriesRepository GiveawayEntries { get; private set; }
         public IGiveawayWinnersRepository GiveawayWinners { get; private set; }
+        public IGiveawayExclusionRepository GiveawayExclusions { get; private set; }
         public ITimerGroupsRepository TimerGroups { get; private set; }
         public IDeathCountersRepository DeathCounters { get; private set; }
         public IViewerMessageCountsRepository ViewerMessageCounts { get; private set; }

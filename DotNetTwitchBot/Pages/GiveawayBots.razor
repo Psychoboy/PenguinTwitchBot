@@ -1,0 +1,99 @@
+﻿@page "/giveawaybots"
+@attribute [Authorize(Roles = "Streamer")]
+@using DotNetTwitchBot.Bot.Models.Giveaway
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+
+<PageTitle>SPTV Twitch Bot - Giveaway Bots</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (giveawayExclusions != null)
+        {
+            <MudItem xs="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@giveawayExclusions">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Expiration</MudTh>
+                            <MudTh>Reason</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Username</MudTd>
+                            <MudTd DataLabel="Expiration">
+                                @if(context.ExpireDateTime == null)
+                                {
+                                    <MudText>Never</MudText>
+                                } else
+                                {
+                                    <MudText>@context.ExpireDateTime</MudText>
+                                }
+
+                            </MudTd>
+                            <MudTd DataLabel="Reason">@context.Reason</MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if(giveawayExclusion != null)
+        {
+            <MudItem xs="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@giveawayExclusion" OnValidSubmit="OnSubmit">
+                        <MudCardContent>
+                            <MudTextField Label="Username" Required="true" RequiredError="Username is required" 
+                                @bind-Value="giveawayExclusion.Username" />
+                            <MudDatePicker Label="Expire" Editable="true" @bind-Date="giveawayExclusion.ExpireDateTime" Placeholder="Expire When" />
+                            <MudTextField Label="Reason" Required="false" @bind-Value="giveawayExclusion.Reason" />
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                       Class="ml-auto">
+                                Submit
+                            </MudButton>
+                        </MudCardContent>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<GiveawayExclusion>? giveawayExclusions;
+    private GiveawayExclusion? giveawayExclusion {get;set;} = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
+    }
+
+    private async void OnSubmit()
+    {
+        if (giveawayExclusion == null) return;
+        await GiveawayFeature.AddExclusion(giveawayExclusion);
+        giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
+        giveawayExclusion = new();
+        StateHasChanged();
+    }
+
+    private async Task Delete(GiveawayExclusion item)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await GiveawayFeature.DeleteExclusion(item);
+            giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
+            StateHasChanged();
+        }
+    }
+}
