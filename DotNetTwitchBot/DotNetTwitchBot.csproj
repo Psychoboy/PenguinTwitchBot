@@ -50,7 +50,7 @@
     <PackageReference Include="TwitchLib.Communication" Version="2.0.0" />
     <PackageReference Include="TwitchLib.EventSub.Core" Version="2.4.3" />
     
-    <PackageReference Include="MudBlazor" Version="6.9.0" />
+    <PackageReference Include="MudBlazor" Version="6.12.0" />
   </ItemGroup>
 
   <ItemGroup>
