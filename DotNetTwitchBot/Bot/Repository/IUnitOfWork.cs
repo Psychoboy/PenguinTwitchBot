@@ -15,6 +15,7 @@
         ISettingsRepository Settings { get; }
         IGiveawayEntriesRepository GiveawayEntries { get; }
         IGiveawayWinnersRepository GiveawayWinners { get; }
+        IGiveawayExclusionRepository GiveawayExclusions { get; }
         ITimerGroupsRepository TimerGroups { get; }
         IDeathCountersRepository DeathCounters { get; }
         IViewerMessageCountsRepository ViewerMessageCounts { get; }

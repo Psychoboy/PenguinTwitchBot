@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Follower> Followers { get; set; } = null!;
         public DbSet<GiveawayEntry> GiveawayEntries { get; set; } = null!;
         public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;
+        public DbSet<GiveawayExclusion> GiveawayExclusions { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<ViewerTicket> ViewerTickets { get; set; } = null!;
         public DbSet<ViewerTicketWithRanks> ViewerTicketWithRanks { get; set; } = null!;
