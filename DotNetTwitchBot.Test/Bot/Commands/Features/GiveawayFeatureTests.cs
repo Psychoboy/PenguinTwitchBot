@@ -34,6 +34,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly GiveawayEntry testGiveawayEntriesB;
         private readonly DbSet<GiveawayEntry> testGiveawayEntriesQueryable;
         private readonly DbSet<GiveawayEntry> emptyTestGiveawayEntriesQueryable;
+        private readonly DbSet<GiveawayExclusion> testGiveawayExclusionQueryable;
         private readonly GiveawayWinner testPastWinners;
         private readonly DbSet<GiveawayWinner> pastWinnersQueryable;
         private readonly GiveawayFeature giveawayFeature;
@@ -63,6 +64,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testGiveawayEntriesB = new GiveawayEntry { Username = "UserB", Tickets = 100 };
             testGiveawayEntriesQueryable = new List<GiveawayEntry> { testGiveawayEntriesA, testGiveawayEntriesB }.AsQueryable().BuildMockDbSet();
             emptyTestGiveawayEntriesQueryable = new List<GiveawayEntry> { }.AsQueryable().BuildMockDbSet();
+
+            testGiveawayExclusionQueryable = new List<GiveawayExclusion> { }.AsQueryable().BuildMockDbSet();
 
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
@@ -137,6 +140,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
 
             // Act
             await giveawayFeature.Close();
@@ -155,6 +159,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
             await giveawayFeature.Close();
 
             // Act
@@ -172,6 +177,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
             viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
@@ -400,6 +406,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
             viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
@@ -425,6 +432,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
             viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
@@ -446,6 +454,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
             await giveawayFeature.Close();
 
             var commandEvent = new CommandEventArgs { Command = "resetdraw" };
