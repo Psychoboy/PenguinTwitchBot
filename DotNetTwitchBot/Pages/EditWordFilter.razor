@@ -1,6 +1,6 @@
 @page "/blacklist/{id:int}"
 @attribute [Authorize(Roles = "Streamer")]
-@using Meziantou.AspNetCore.Components
+
 @using System.ComponentModel.DataAnnotations
 @using DotNetTwitchBot.Bot.Models;
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Blacklist Blacklist

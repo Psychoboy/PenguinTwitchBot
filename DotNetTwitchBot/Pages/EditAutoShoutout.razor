@@ -1,6 +1,6 @@
 @page "/autoshoutouts/{id:int}"
 @attribute [Authorize(Roles = "Streamer")]
-@using Meziantou.AspNetCore.Components
+
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
