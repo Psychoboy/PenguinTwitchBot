@@ -1,7 +1,7 @@
 @page "/editviewer/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @using DotNetTwitchBot.Bot;
-@using Meziantou.AspNetCore.Components
+
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature loyaltyFeature
