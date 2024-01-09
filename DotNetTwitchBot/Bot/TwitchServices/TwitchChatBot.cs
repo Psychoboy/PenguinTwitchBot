@@ -218,7 +218,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         }
         private Task Client_OnLeftChannel(object? sender, TwitchLib.Client.Events.OnLeftChannelArgs e)
         {
-            return Task.Run(() => _logger.LogTrace("Bot left the channel ", e.Channel));
+            return Task.Run(() => _logger.LogTrace("Bot left the channel {channe}", e.Channel));
         }
 
         private async Task Client_OnJoinedChannel(object? sender, TwitchLib.Client.Events.OnJoinedChannelArgs e)

@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error updating banned users.", ex);
+                _logger.LogError(ex, "Error updating banned users.");
             }
         }
 
