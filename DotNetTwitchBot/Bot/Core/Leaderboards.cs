@@ -23,7 +23,15 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
-            var totalRecords = await unitOfWork.ViewerPointWithRanks.CountAsync();
+            var totalRecords = 0;
+            if (string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                totalRecords = await unitOfWork.ViewerPoints.CountAsync();
+            }
+            else
+            {
+                totalRecords = await unitOfWork.ViewerPoints.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
+            }
 
             return new PagedDataResponse<LeaderPosition>
             {
@@ -43,7 +51,16 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
-            var totalRecords = await unitOfWork.ViewerTicketsWithRank.CountAsync();
+
+            var totalRecords = 0;
+            if (string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                totalRecords = await unitOfWork.ViewerTickets.CountAsync();
+            }
+            else
+            {
+                totalRecords = await unitOfWork.ViewerTickets.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
+            }
 
             return new PagedDataResponse<LeaderPosition>
             {
@@ -63,7 +80,16 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
-            var totalRecords = await unitOfWork.ViewerMessageCountsWithRank.CountAsync();
+
+            var totalRecords = 0;
+            if (string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                totalRecords = await unitOfWork.ViewerMessageCounts.CountAsync();
+            }
+            else
+            {
+                totalRecords = await unitOfWork.ViewerMessageCounts.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
+            }
 
             return new PagedDataResponse<LeaderPosition>
             {
@@ -83,7 +109,15 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
-            var totalRecords = await unitOfWork.ViewersTimeWithRank.CountAsync();
+            var totalRecords = 0;
+            if (string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                totalRecords = await unitOfWork.ViewersTime.CountAsync();
+            }
+            else
+            {
+                totalRecords = await unitOfWork.ViewersTime.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
+            }
 
             return new PagedDataResponse<LeaderPosition>
             {
