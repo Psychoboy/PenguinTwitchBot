@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private Task Disconnected(Exception exception)
         {
-            _logger.LogInformation("Discord Bot Connected.");
+            _logger.LogInformation("Discord Bot Disconnected.");
             return Task.CompletedTask;
         }
 
@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Core
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var imageUrl = await _twitchService.GetStreamThumbnail();
 
-                imageUrl = imageUrl.Replace("{width}", "1920").Replace("{height}", "1080");
+                imageUrl = imageUrl.Replace("{width}", "400").Replace("{height}", "225");
                 _logger.LogInformation("Thumbnail Url: {imageUrl}", imageUrl);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
