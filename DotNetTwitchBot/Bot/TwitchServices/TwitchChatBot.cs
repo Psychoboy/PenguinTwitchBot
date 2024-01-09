@@ -63,11 +63,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await JoinChannelIfNotJoined();
         }
 
-        private Task CommandService_OnSendMessage(object? sender, string e)
+        private async Task CommandService_OnSendMessage(object? sender, string e)
         {
-            TwitchClient.SendMessage(_configuration["broadcaster"], e);
+            await TwitchClient.SendMessageAsync(_configuration["broadcaster"] ?? "", e);
             _logger.LogInformation("BOTCHATMSG: {message}", e.Replace(Environment.NewLine, ""));
-            return Task.CompletedTask;
         }
 
         private async Task CommandService_OnWhisperMessage(object? sender, string e, string e2)
@@ -78,7 +77,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task Initialize()
         {
-            var credentials = new ConnectionCredentials(_configuration["botName"], _configuration["botTwitchOAuth"]);
+            var credentials = new ConnectionCredentials(_configuration["botName"] ?? "", _configuration["botTwitchOAuth"] ?? "");
             TwitchClient.Initialize(credentials, _configuration["broadcaster"]);
             TwitchClient.OnJoinedChannel += Client_OnJoinedChannel;
             TwitchClient.OnLeftChannel += Client_OnLeftChannel;
@@ -164,7 +163,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (TwitchClient.JoinedChannels.Where(x => x.Channel.Equals(_configuration["broadcaster"], StringComparison.OrdinalIgnoreCase)).Any() == false)
             {
                 _logger.LogWarning("Chat Bot was not in the channel, re-joining...");
-                await TwitchClient.JoinChannelAsync(_configuration["broadcaster"]);
+                await TwitchClient.JoinChannelAsync(_configuration["broadcaster"] ?? "");
             }
         }
 
