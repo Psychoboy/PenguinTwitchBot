@@ -57,8 +57,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
-            CommandTags.Add("sender", Sender);
             CommandTags.Add("playsound", PlaySound);
+            CommandTags.Add("sender", Sender);
+
+
             CommandTags.Add("useronly", UserOnly);
             CommandTags.Add("writefile", WriteFile);
             CommandTags.Add("currenttime", CurrentTime);
@@ -77,7 +79,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("target", Target);
             CommandTags.Add("targetorself", TargetOrSelf);
             CommandTags.Add("watchtime", WatchTime);
+            CommandTags.Add("command", ExecuteCommand);
         }
+
+
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
         {
@@ -814,6 +819,43 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             var time = await _loyaltyFeature.GetViewerWatchTime(args);
             return new CustomCommandResult(time);
+        }
+
+        private async Task<CustomCommandResult> ExecuteCommand(CommandEventArgs eventArgs, string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                _logger.LogWarning("Missing args for custom command of 'command' type.");
+                return new CustomCommandResult();
+            }
+            var commandArgs = args.Split(' ');
+            var commandName = commandArgs[0];
+            var newCommandArgs = new List<string>();
+            var targetUser = "";
+            if (commandArgs.Length > 1)
+            {
+                newCommandArgs.AddRange(commandArgs.Skip(1));
+                targetUser = commandArgs[1];
+            }
+            var command = new CommandEventArgs
+            {
+                Command = commandName,
+                Arg = string.Join(" ", newCommandArgs),
+                Args = newCommandArgs,
+                TargetUser = targetUser,
+                IsWhisper = eventArgs.IsWhisper,
+                IsDiscord = eventArgs.IsDiscord,
+                DiscordMention = eventArgs.DiscordMention,
+                FromAlias = eventArgs.FromAlias,
+                IsSub = eventArgs.IsSub,
+                IsMod = eventArgs.IsMod,
+                IsVip = eventArgs.IsVip,
+                IsBroadcaster = eventArgs.IsBroadcaster,
+                DisplayName = eventArgs.DisplayName,
+                Name = eventArgs.Name
+            };
+            await ServiceBackbone.RunCommand(command);
+            return new CustomCommandResult();
         }
     }
 }

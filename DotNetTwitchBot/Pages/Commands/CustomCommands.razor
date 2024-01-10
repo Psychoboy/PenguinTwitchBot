@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>SPTV Twitch Bot - Custom Commands</PageTitle>
 
@@ -48,6 +49,7 @@
                         @bind-Value="customCommand.CommandName" />
                         <MudTextField Label="Response" Lines="8" Required="true" RequiredError="Response is required"
                         @bind-Value="customCommand.Response" />
+                        <MudButton @onclick="OpenHelp" Variant="Variant.Filled" Color="Color.Primary">Open Help</MudButton>
                         <MudTextField Label="Category"
                         @bind-Value="customCommand.Category" />
 
@@ -96,6 +98,17 @@
     public async void OnSubmit()
     {
         if (customCommand == null) return;
+        if(await CommandHelper.CommandExists(customCommand.CommandName))
+        {
+            bool? result = await DialogService.ShowMessageBox(
+               "Warning",
+               "This command already exists, continue?",
+               yesText: "Yes!", cancelText: "Cancel");
+            if(result == null)
+            {
+                return;
+            }
+        }
         await CustomCommand.AddCommand(customCommand);
         customCommand = new();
         ReloadCommands();
@@ -105,11 +118,6 @@
     {
         commands = CustomCommand.GetCustomCommands();
         StateHasChanged();
-    }
-
-    private void AddCommand()
-    {
-        navigationManager.NavigateTo($"/customcommands/create");
     }
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.CustomCommands item)
@@ -128,5 +136,11 @@
     private void Edit(DotNetTwitchBot.Bot.Models.CustomCommands item)
     {
         navigationManager.NavigateTo($"/customcommands/{item.Id}");
+    }
+
+    private void OpenHelp()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        DialogService.Show<CustomCommandHelp>("Custom Command Help", options);
     }
 }

@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>SPTV Twitch Bot - Aliases</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
@@ -67,6 +68,17 @@
     public async void OnSubmit()
     {
         if (theAlias == null) return;
+        if (await CommandHelper.CommandExists(theAlias.AliasName))
+        {
+            bool? result = await DialogService.ShowMessageBox(
+               "Warning",
+               "This command already exists, continue?",
+               yesText: "Yes!", cancelText: "Cancel");
+            if (result == null)
+            {
+                return;
+            }
+        }
         await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
         aliases = await AliasCommand.GetAliasesAsync();
         theAlias = new();

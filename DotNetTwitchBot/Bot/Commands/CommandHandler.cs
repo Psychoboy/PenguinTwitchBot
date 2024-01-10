@@ -276,5 +276,10 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             _globalCooldowns[command] = cooldown;
         }
+
+        public bool CommandExists(string command)
+        {
+            return Commands.ContainsKey(command);
+        }
     }
 }

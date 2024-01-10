@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 <PageTitle>SPTV Twitch Bot - Edit Default Command</PageTitle>
 <style type="text/css">
     .white-text {
@@ -65,6 +66,7 @@ else
     [Parameter]
     public int id { get; set; }
     private DotNetTwitchBot.Bot.Models.DefaultCommand? defaultCommand;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()
     {
@@ -75,6 +77,24 @@ else
     public async void OnSubmit()
     {
         if (defaultCommand == null) return;
+        var originalCommand = await CommandHandler.GetDefaultCommandById(id);
+        if (originalCommand != null)
+        {
+            if (!originalCommand.CustomCommandName.Equals(defaultCommand.CommandName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await CommandHelper.CommandExists(defaultCommand.CommandName))
+                {
+                    bool? result = await DialogService.ShowMessageBox(
+                   "Warning",
+                   "This command already exists, continue?",
+                   yesText: "Yes!", cancelText: "Cancel");
+                    if (result == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
         await CommandHandler.UpdateDefaultCommand(defaultCommand);
         navigationManager.NavigateTo($"/defaultcommands");
     }

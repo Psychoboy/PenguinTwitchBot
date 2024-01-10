@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
@@ -71,6 +67,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public override Task<bool> OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.FromResult(true);
+        }
+
+        public async Task<bool> CommandExists(string alias)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Aliases.Find(x => x.AliasName == alias).AnyAsync();
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)

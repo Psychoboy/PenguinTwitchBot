@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
 
@@ -87,6 +88,7 @@
     private Dictionary<string, DotNetTwitchBot.Bot.Models.AudioCommand>? audioCommands;
     private List<string>? audioFiles;
     private DotNetTwitchBot.Bot.Models.AudioCommand? audioCommand { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
         audioCommands = AudioCommand.GetAudioCommands();
@@ -103,6 +105,17 @@
     public async void OnSubmit()
     {
         if (audioCommand == null) return;
+        if (await CommandHelper.CommandExists(audioCommand.CommandName))
+        {
+            bool? result = await DialogService.ShowMessageBox(
+               "Warning",
+               "This command already exists, continue?",
+               yesText: "Yes!", cancelText: "Cancel");
+            if (result == null)
+            {
+                return;
+            }
+        }
         await AudioCommand.SaveAudioCommand(audioCommand);
         audioCommand = new();
         ReloadCommands();
