@@ -62,6 +62,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await LoadAudioCommands();
         }
 
+        public async Task DeleteAudioCommand(AudioCommand audioCommand)
+        {
+            await using (var scope = scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                db.AudioCommands.Remove(audioCommand);
+                await db.SaveChangesAsync();
+            }
+            await LoadAudioCommands();
+        }
+
         public async Task<bool> CommandExists(string command)
         {
             await using var scope = scopeFactory.CreateAsyncScope();

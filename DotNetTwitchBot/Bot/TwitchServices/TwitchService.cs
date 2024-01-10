@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _configuration = configuration;
             _twitchApi.Settings.ClientId = _configuration["twitchClientId"];
             _twitchApi.Settings.AccessToken = _configuration["twitchAccessToken"];
-            _twitchApi.Settings.Scopes = new List<AuthScopes>();
+            _twitchApi.Settings.Scopes = [];
             _timer = new Timer();
             _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
-            List<Subscription> subs = new();
+            List<Subscription> subs = [];
             var after = "";
             while (true)
             {
@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
             var after = "";
-            List<BannedUserEvent> curBannedUsers = new();
+            List<BannedUserEvent> curBannedUsers = [];
             while (true)
             {
                 var bannedUsers = await _twitchApi.Helix.Moderation.GetBannedUsersAsync(broadcasterId: userId, first: 100, after: after, accessToken: _configuration["twitchAccessToken"]);
@@ -129,7 +129,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     }
                 }
 
-                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, new List<string> { user }, _configuration["twitchAccessToken"]);
+                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, [user], _configuration["twitchAccessToken"]);
                 var userObj = users.Users.FirstOrDefault();
                 UserCache[user] = userObj;
                 return userObj;
@@ -159,7 +159,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-                if (!response.Follows.Any())
+                if (response.Follows.Length == 0)
                 {
                     return null;
                 }
@@ -193,7 +193,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var response = await _twitchApi.Helix.Subscriptions.CheckUserSubscriptionAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
                 if (response == null) return false;
-                return response.Data.Any();
+                return response.Data.Length != 0;
             }
             catch (HttpResponseException ex)
             {
@@ -215,8 +215,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (userId == null) return false;
             try
             {
-                var response = await _twitchApi.Helix.Moderation.GetModeratorsAsync(broadcasterId, new List<string> { userId });
-                return response.Data.Any();
+                var response = await _twitchApi.Helix.Moderation.GetModeratorsAsync(broadcasterId, [userId]);
+                return response.Data.Length != 0;
             }
             catch (HttpResponseException ex)
             {
@@ -279,7 +279,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var streams = await GetStreams(userIds);
                 if (streams.Streams == null)
                 {
-                    return new List<string>();
+                    return [];
                 }
                 return streams.Streams.Select(x => x.UserId).ToList();
             }
@@ -293,7 +293,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var error = ex.Message;
                 _logger.LogError("Error doing AreStreamsOnline: {error}", error);
             }
-            return new List<string>();
+            return [];
         }
 
         public async Task<DateTime> StreamStartedAt()

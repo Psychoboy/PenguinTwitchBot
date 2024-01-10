@@ -62,7 +62,6 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
-            var commandService = Substitute.For<IBaseCommandService>();
             var knownBots = Substitute.For<IKnownBots>();
             // commandService.ExecuteAsync().Returns(Task.CompletedTask);
 
