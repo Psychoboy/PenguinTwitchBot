@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
-        private readonly ConcurrentBag<string> MessageIds = new();
+        private readonly ConcurrentBag<string> MessageIds = [];
         private readonly ITwitchService _twitchService;
         private readonly IServiceBackbone _eventService;
         private readonly SubscriptionTracker _subscriptionHistory;
@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelUnBan(object? sender, ChannelUnbanArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelUnBan {0}", e.Notification.Payload.Event.UserLogin);
+            _logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
         }
 
@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
 
-            _logger.LogInformation("OnChannelRaid from {0}", e.Notification.Payload.Event.FromBroadcasterUserName);
+            _logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
             await _eventService.OnIncomingRaid(new Events.RaidEventArgs
             {
                 Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
@@ -89,7 +89,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (MessageIds.Contains(metadata.MessageId))
             {
-                _logger.LogWarning("Already processed message: {0} - {1} - {2}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
+                _logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
             }
             else
@@ -116,14 +116,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("onChannelSubscription: {0} -- IsGift?: {1} Type: {2} Tier- {3}"
+            _logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
             , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
 
             if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
             {
-                _logger.LogInformation("{0} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
+                _logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
                 return;
             }
 
@@ -145,7 +145,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionRenewal: {0}", e.Notification.Payload.Event.UserLogin);
+            _logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
@@ -163,7 +163,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionGift: {0}", e.Notification.Payload.Event.UserLogin);
+            _logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
@@ -175,7 +175,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnPubSubSubscription(object? sender, OnChannelSubscriptionArgs e)
         {
-            _logger.LogInformation("Pub Sub Subscription {0} {1} Months: {2} IsGift: {3}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
+            _logger.LogInformation("Pub Sub Subscription {Displayname} {Username} Months: {CumlativeMonths} IsGift: {IsGift}", e.Subscription.DisplayName, e.Subscription.Username, e.Subscription.CumulativeMonths, e.Subscription.IsGift);
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Subscription.Username);
             if (CheckIfExistsAndAddSubCache(e.Subscription.Username)) return;
             await _eventService.OnSubscription(new Events.SubscriptionEventArgs
@@ -195,7 +195,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
 
-            _logger.LogInformation("OnChannelSubscriptionEnd: {0} Type: {1}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
+            _logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
             await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
         }
 
@@ -212,7 +212,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
                 if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
                 {
-                    _logger.LogWarning($"{name} Subscriber already in sub cache");
+                    _logger.LogWarning("{name} Subscriber already in sub cache", name);
                     return true;
                 }
                 SubCache[name] = DateTime.Now;
@@ -227,7 +227,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelCheer: {0}", e.Notification.Payload.Event.UserLogin);
+            _logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnCheer(e.Notification.Payload.Event);
         }
 
@@ -238,19 +238,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 e.Notification.Payload.Event.UserName,
                 e.Notification.Payload.Event.Reward.Title,
                 e.Notification.Payload.Event.UserInput);
-            _logger.LogInformation("Channel pointed redeemed: {0}", e.Notification.Payload.Event.Reward.Title);
+            _logger.LogInformation("Channel pointed redeemed: {Title}", e.Notification.Payload.Event.Reward.Title);
         }
 
         private async void OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelFollow: {0}", e.Notification.Payload.Event.UserLogin);
+            _logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
             await _eventService.OnFollow(e.Notification.Payload.Event);
         }
 
         private void OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            _logger.LogError(e.Message);
+            _logger.LogError("{message}", e.Message);
         }
 
         private void OnWebsocketReconnected(object? sender, EventArgs e)
@@ -269,12 +269,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 _logger.LogWarning("Twitch Websocket Disconnected");
                 var delayCounter = 1;
+                var attempts = 0;
                 while (!await _eventSubWebsocketClient.ReconnectAsync())
                 {
                     delayCounter *= 2;
+                    attempts++;
+                    if (attempts > 5) break;
                     if (delayCounter > 60) delayCounter = 60;
-                    _logger.LogError("Twitch Websocket reconnection failed! Attempting again in {0} seconds.", delayCounter);
+                    _logger.LogError("Twitch Websocket reconnection failed! Attempting again in {delayCounter} seconds.", delayCounter);
                     await Task.Delay(delayCounter * 1000);
+                }
+                if (attempts > 5)
+                {
+                    await Reconnect();
                 }
             }
             catch (Exception ex)
@@ -297,7 +304,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         delayCounter = 300;
                     }
                     await Task.Delay(delayCounter * 1000);
-                    _logger.LogError("Twitch Websocket connected failed! Attempting again in {0} seconds.", delayCounter);
+                    _logger.LogError("Twitch Websocket connected failed! Attempting again in {delayCounter} seconds.", delayCounter);
                 }
             }
             catch (Exception ex)

@@ -35,7 +35,7 @@ else
     private List<DotNetTwitchBot.Bot.Models.DefaultCommand>? defaultCommands;
     protected override async Task OnInitializedAsync()
     {
-        defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
+        defaultCommands = (await CommandHandler.GetDefaultCommandsFromDb()).OrderBy(x => x.CustomCommandName).ToList();
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.DefaultCommand item)

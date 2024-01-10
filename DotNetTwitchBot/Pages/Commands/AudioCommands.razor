@@ -19,6 +19,7 @@
                             <MudTh>Audio File</MudTh>
                             <MudTh>Disabled</MudTh>
                             <MudTh></MudTh>
+                            <MudTh></MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="Command">!@context.Key</MudTd>
@@ -29,6 +30,12 @@
                                 @onclick="() => Edit(context.Value)">Edit
                                 </MudButton>
                             </MudTd>
+                                <MudTd DataLabel="Delete">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error"
+                                               @onclick="() => Delete(context.Value)">
+                                        Edit
+                                    </MudButton>
+                                </MudTd>
                         </RowTemplate>
                     </MudTable>
                 </MudPaper>
@@ -62,10 +69,10 @@
                         </MudNumericField>
                         <MudNumericField @bind-Value="@audioCommand.Cost" Label="Cost" Variant="Variant.Text">
                         </MudNumericField>
-                        <MudCheckBox @bind-Checked="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
-                        <MudCheckBox @bind-Checked="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?">
+                        <MudCheckBox Value="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox Value="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?">
                         </MudCheckBox>
-                        <MudCheckBox @bind-Checked="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudCheckBox Value="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
                         <MudSelect @bind-Value="@audioCommand.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {
@@ -91,14 +98,14 @@
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
-        audioCommands = AudioCommand.GetAudioCommands();
+        audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
         audioFiles = AudioCommand.GetAudioFiles();
         return Task.CompletedTask;
     }
 
     private void ReloadCommands()
     {
-        audioCommands = AudioCommand.GetAudioCommands();
+        audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
         StateHasChanged();
     }
 
@@ -121,13 +128,21 @@
         ReloadCommands();
     }
 
-    private void AddCommand()
-    {
-        navigationManager.NavigateTo($"/audiocommands/create");
-    }
-
     private void Edit(DotNetTwitchBot.Bot.Models.AudioCommand item)
     {
         navigationManager.NavigateTo($"/audiocommands/{item.Id}");
+    }
+
+    private async void Delete(DotNetTwitchBot.Bot.Models.AudioCommand item)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+       "Warning",
+       "Deleting can not be undone!",
+       yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await AudioCommand.DeleteAudioCommand(item);
+            ReloadCommands();
+        }            
     }
 }

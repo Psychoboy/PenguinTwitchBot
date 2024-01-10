@@ -63,10 +63,10 @@
                         </MudNumericField>
                         <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text">
                         </MudNumericField>
-                        <MudCheckBox @bind-Checked="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
-                        <MudCheckBox @bind-Checked="@customCommand.SayRankRequirement" Label="Say Rank Requirement?">
+                        <MudCheckBox Value="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox Value="@customCommand.SayRankRequirement" Label="Say Rank Requirement?">
                         </MudCheckBox>
-                        <MudCheckBox @bind-Checked="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudCheckBox Value="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
                         <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {
@@ -91,7 +91,7 @@
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
-        commands = CustomCommand.GetCustomCommands();
+        commands = CustomCommand.GetCustomCommands().OrderBy(x => x.Key).ToDictionary();
         return Task.CompletedTask;
     }
 
@@ -116,7 +116,7 @@
 
     private void ReloadCommands()
     {
-        commands = CustomCommand.GetCustomCommands();
+        commands = CustomCommand.GetCustomCommands().OrderBy(x => x.Key).ToDictionary();
         StateHasChanged();
     }
 
