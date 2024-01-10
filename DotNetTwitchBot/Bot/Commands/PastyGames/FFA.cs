@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 180;
         private readonly int Cost = 100;
-        private readonly List<string> Entered = new();
+        private readonly List<string> Entered = [];
         private readonly Timer _joinTimer;
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IViewerFeature _viewFeature;

@@ -43,7 +43,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 _logger.LogError(ex, "Error Getting Raid History");
             }
-            return new List<RaidHistoryEntry>();
+            return [];
         }
 
         private async void UpdateOnlineStatus(object? sender, System.Timers.ElapsedEventArgs e)
@@ -53,7 +53,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task UpdateOnlineStatus()
         {
-            if (ServiceBackbone.IsOnline == false) return;
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();

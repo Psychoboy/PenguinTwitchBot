@@ -201,7 +201,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             CurrentViewers.Set(users.Count);
             var activeViewers = GetActiveViewers();
             users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
-            return users.ToList();
+            return [.. users];
         }
 
         public async Task<Viewer?> GetViewer(string username)

@@ -3,23 +3,15 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class KnownBots : IKnownBots
+    public class KnownBots(
+         IConfiguration configuration,
+        IServiceScopeFactory scopeFactory
+            ) : IKnownBots
     {
-        private readonly ConcurrentBag<KnownBot> _knownBots = new();
-        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ConcurrentBag<KnownBot> _knownBots = [];
 
-        public string? BroadcasterName { get; }
-        public string? BotName { get; }
-
-        public KnownBots(
-             IConfiguration configuration,
-            IServiceScopeFactory scopeFactory
-            )
-        {
-            _scopeFactory = scopeFactory;
-            BroadcasterName = configuration["broadcaster"];
-            BotName = configuration["botName"];
-        }
+        public string? BroadcasterName { get; } = configuration["broadcaster"];
+        public string? BotName { get; } = configuration["botName"];
 
         public bool IsStreamerOrBot(string username)
         {
@@ -51,7 +43,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task AddKnownBot(KnownBot knownBot)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.KnownBots.Add(knownBot);
@@ -62,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task RemoveKnownBot(KnownBot knownBot)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.KnownBots.Remove(knownBot);
@@ -73,12 +65,12 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public List<KnownBot> GetKnownBots()
         {
-            return _knownBots.ToList();
+            return [.. _knownBots];
         }
 
         public async Task LoadKnownBots()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var knownBots = await db.KnownBots.GetAllAsync();
             _knownBots.Clear();

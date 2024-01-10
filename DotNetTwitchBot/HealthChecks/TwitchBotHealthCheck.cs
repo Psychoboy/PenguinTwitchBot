@@ -3,18 +3,12 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DotNetTwitchBot.HealthChecks
 {
-    public class TwitchBotHealthCheck : IHealthCheck
+    public class TwitchBotHealthCheck(TwitchChatBot twitchChatBot) : IHealthCheck
     {
-        private readonly TwitchChatBot _twitchChatBot;
-
-        public TwitchBotHealthCheck(TwitchChatBot twitchChatBot)
-        {
-            _twitchChatBot = twitchChatBot;
-        }
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var isConnected = _twitchChatBot.IsConnected();
-            var isJoined = _twitchChatBot.IsInChannel();
+            var isConnected = twitchChatBot.IsConnected();
+            var isJoined = twitchChatBot.IsInChannel();
             if (isConnected && isJoined)
             {
                 return Task.FromResult(HealthCheckResult.Healthy());

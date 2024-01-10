@@ -6,8 +6,8 @@ namespace DotNetTwitchBot.Bot.Notifications
 {
     public class WebSocketMessenger : IWebSocketMessenger
     {
-        private readonly BlockingCollection<string> _queue = new();
-        private List<SocketConnection> websocketConnections = new();
+        private readonly BlockingCollection<string> _queue = [];
+        private List<SocketConnection> websocketConnections = [];
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
@@ -84,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Notifications
             }
         }
 
-        private async Task<string?> ReadStringAsync(WebSocket ws, CancellationToken ct = default)
+        private static async Task<string?> ReadStringAsync(WebSocket ws, CancellationToken ct = default)
         {
             var buffer = new ArraySegment<byte>(new byte[1024 * 8]);
 

@@ -5,35 +5,23 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Defuse : BaseCommandService
+    public class Defuse(
+        ILoyaltyFeature loyaltyFeature,
+        IServiceBackbone serviceBackbone,
+        IViewerFeature viewerFeature,
+        ISendAlerts sendAlerts,
+        ILogger<Defuse> logger,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler)
     {
-        private readonly List<string> Wires = new() { "red", "blue", "yellow" };
+        private readonly List<string> Wires = ["red", "blue", "yellow"];
         private readonly int Cost = 500;
-        private readonly ILoyaltyFeature _loyaltyFeature;
-        private readonly ILogger<Defuse> _logger;
-        private readonly ISendAlerts _sendAlerts;
-        private readonly IViewerFeature _viewerFeature;
-
-        public Defuse(
-            ILoyaltyFeature loyaltyFeature,
-            IServiceBackbone serviceBackbone,
-            IViewerFeature viewerFeature,
-            ISendAlerts sendAlerts,
-            ILogger<Defuse> logger,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
-        {
-            _loyaltyFeature = loyaltyFeature;
-            _logger = logger;
-            _sendAlerts = sendAlerts;
-            _viewerFeature = viewerFeature;
-        }
 
         public override async Task Register()
         {
             var moduleName = "Defuse";
             await RegisterDefaultCommand("defuse", this, moduleName, userCooldown: 10);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -51,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
+            if (!(await loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
                 throw new SkipCooldownException();
@@ -60,24 +48,24 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var chosenWire = Wires.RandomElement();
             if (chosenWire == null)
             {
-                _logger.LogError("Couldn't choose a wire for defuse");
+                logger.LogError("Couldn't choose a wire for defuse");
                 throw new SkipCooldownException();
             }
-            var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", await _viewerFeature.GetNameWithTitle(e.Name), e.Arg);
+            var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", await viewerFeature.GetNameWithTitle(e.Name), e.Arg);
             if (chosenWire.Equals(e.Arg, StringComparison.CurrentCultureIgnoreCase))
             {
                 var multiplier = 3;
                 var min = Cost * multiplier - Cost / multiplier;
                 var max = Cost * multiplier + Cost / multiplier;
                 var value = Tools.Next(min, max + 1);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, value);
+                await loyaltyFeature.AddPointsToViewer(e.Name, value);
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
-                _sendAlerts.QueueAlert("defuse.gif,8");
+                sendAlerts.QueueAlert("defuse.gif,8");
             }
             else
             {
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
-                _sendAlerts.QueueAlert("detonated.gif,10");
+                sendAlerts.QueueAlert("detonated.gif,10");
             }
         }
 

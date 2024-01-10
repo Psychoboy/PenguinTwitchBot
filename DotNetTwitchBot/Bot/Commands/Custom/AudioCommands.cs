@@ -7,36 +7,22 @@ using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class AudioCommands : BaseCommandService
+    public class AudioCommands(
+        ISendAlerts sendAlerts,
+        IViewerFeature viewerFeature,
+        IServiceScopeFactory scopeFactory,
+        ILogger<AudioCommands> logger,
+        IServiceBackbone eventService,
+        ILanguage language,
+        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler)
     {
-        readonly Dictionary<string, AudioCommand> Commands = new();
-        private ISendAlerts SendAlerts { get; }
-        private IViewerFeature ViewerFeature { get; }
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<AudioCommands> _logger;
-        private readonly ILanguage _language;
-
-        public AudioCommands(
-            ISendAlerts sendAlerts,
-            IViewerFeature viewerFeature,
-            IServiceScopeFactory scopeFactory,
-            ILogger<AudioCommands> logger,
-            IServiceBackbone eventService,
-            ILanguage language,
-            ICommandHandler commandHandler) : base(eventService, commandHandler)
-        {
-            SendAlerts = sendAlerts;
-            ViewerFeature = viewerFeature;
-            _scopeFactory = scopeFactory;
-            _logger = logger;
-            _language = language;
-        }
+        readonly Dictionary<string, AudioCommand> Commands = [];
 
         private async Task LoadAudioCommands()
         {
-            _logger.LogInformation("Loading Audio Hooks");
+            logger.LogInformation("Loading Audio Hooks");
             var count = 0;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 Commands.Clear(); //Make sure we don't double up
@@ -47,17 +33,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     count++;
                 }
             }
-            _logger.LogInformation("Finished loading Audio Hooks: {count}", count);
+            logger.LogInformation("Finished loading Audio Hooks: {count}", count);
         }
 
         public async Task AddAudioCommand(AudioCommand audioCommand)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 if ((await db.AudioCommands.Find(x => x.CommandName.Equals(audioCommand.CommandName)).FirstOrDefaultAsync()) != null)
                 {
-                    _logger.LogWarning("Audio command already exists");
+                    logger.LogWarning("Audio command already exists");
                     return;
                 }
                 await db.AudioCommands.AddAsync(audioCommand);
@@ -69,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task SaveAudioCommand(AudioCommand audioCommand)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.AudioCommands.Update(audioCommand);
@@ -80,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<bool> CommandExists(string command)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.AudioCommands.Find(x => x.CommandName == command).AnyAsync();
         }
@@ -92,7 +78,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<AudioCommand?> GetAudioCommand(int id)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.AudioCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
@@ -120,30 +106,30 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 case Rank.Viewer:
                     break; //everyone gets this
                 case Rank.Follower:
-                    if (await ViewerFeature.IsFollower(e.Name) == false)
+                    if (await viewerFeature.IsFollower(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notFollower"));
+                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notFollower"));
                         return;
                     }
                     break;
                 case Rank.Subscriber:
-                    if (await ViewerFeature.IsSubscriber(e.Name) == false)
+                    if (await viewerFeature.IsSubscriber(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notSubscriber"));
+                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notSubscriber"));
                         return;
                     }
                     break;
                 case Rank.Moderator:
-                    if (await ViewerFeature.IsModerator(e.Name) == false)
+                    if (await viewerFeature.IsModerator(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notModerator"));
+                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notModerator"));
                         return;
                     }
                     break;
                 case Rank.Streamer:
                     if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
                     {
-                        await SendChatMessage(e.DisplayName, _language.Get("audiocommands.rankcheck.fail.notStreamer"));
+                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notStreamer"));
                         return;
                     }
                     break;
@@ -160,7 +146,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await RegisterDefaultCommand("disableaudiocommand", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("enableaudiocommand", this, moduleName, Rank.Streamer);
             await LoadAudioCommands();
-            _logger.LogInformation("Registered {moduleName}", moduleName);
+            logger.LogInformation("Registered {moduleName}", moduleName);
 
         }
 
@@ -199,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 AudioHook = audioCommand.AudioFile
             };
-            SendAlerts.QueueAlert(alertSound);
+            sendAlerts.QueueAlert(alertSound);
             if (Commands[e.Command].GlobalCooldown > 0)
             {
                 CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
@@ -212,22 +198,22 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task ToggleAudioCommandDisable(CommandEventArgs e, bool disabled)
         {
-            if (!Commands.ContainsKey(e.Arg)) return;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            if (!Commands.TryGetValue(e.Arg, out AudioCommand? value)) return;
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var command = await db.AudioCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
-                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.fail.enable").Replace("(command)", e.Arg));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.enable").Replace("(command)", e.Arg));
                     return;
                 }
                 command.Disabled = disabled;
-                Commands[e.Arg].Disabled = disabled;
+                value.Disabled = disabled;
                 db.AudioCommands.Update(command);
                 await db.SaveChangesAsync();
             }
-            await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.success.enable").Replace("(command)", e.Arg));
+            await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.enable").Replace("(command)", e.Arg));
         }
 
         private async Task RefreshAudio()
@@ -243,17 +229,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);
-                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.success.add"));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.add"));
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage(_language.Get("audiocommands.fail.add"));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.add"));
                 }
 
             }
             catch (Exception err)
             {
-                _logger.LogError(err, "Failed to add audio command");
+                logger.LogError(err, "Failed to add audio command");
             }
         }
     }

@@ -4,19 +4,12 @@ using DotNetTwitchBot.Bot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Metrics
 {
-    public class SongRequests : BaseCommandService
+    public class SongRequests(
+        IServiceScopeFactory scopeFactory,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler)
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-
-        public SongRequests(
-            IServiceScopeFactory scopeFactory,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
-        {
-            _scopeFactory = scopeFactory;
-        }
-
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.CompletedTask;
@@ -43,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
             }
 
             songRequestMetric.RequestedCount++;
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             if (create)
             {
@@ -64,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
             songRequestMetric.RequestedCount--;
 
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.SongRequestMetrics.Update(songRequestMetric);
             await db.SaveChangesAsync();
@@ -78,14 +71,14 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
         public async Task<List<Models.Metrics.SongRequestMetricsWithRank>> GetTopN(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.SongRequestMetricsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
         private async Task<Models.Metrics.SongRequestMetric?> GetRequestedSongMetric(Song song)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.SongRequestMetrics.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
         }

@@ -4,14 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace DotNetTwitchBot.Controllers
 {
     [Route("/ws")]
-    public class WebSocketController : ControllerBase
+    public class WebSocketController(IWebSocketMessenger webSocketMessenger) : ControllerBase
     {
-        private IWebSocketMessenger WebSocketMessenger { get; }
+        private IWebSocketMessenger WebSocketMessenger { get; } = webSocketMessenger;
 
-        public WebSocketController(IWebSocketMessenger webSocketMessenger)
-        {
-            WebSocketMessenger = webSocketMessenger;
-        }
         public async Task Get()
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)

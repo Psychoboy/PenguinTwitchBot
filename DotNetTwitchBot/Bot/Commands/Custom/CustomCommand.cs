@@ -23,10 +23,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             @"^(\S+)(?:\s(.*))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
         private static partial Regex CounterRegex();
 
-        readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = new();
-        readonly Dictionary<string, Models.CustomCommands> Commands = new();
+        readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = [];
+        readonly Dictionary<string, Models.CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
-        List<Models.KeywordWithRegex> Keywords = new();
+        List<Models.KeywordWithRegex> Keywords = [];
         private readonly ISendAlerts _sendAlerts;
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -248,7 +248,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     var commandEventArgs = new CommandEventArgs
                     {
                         Arg = e.Message,
-                        Args = e.Message.Split(" ").ToList(),
+                        Args = [.. e.Message.Split(" ")],
                         IsWhisper = false,
                         Name = e.Name,
                         DisplayName = e.DisplayName,
@@ -400,7 +400,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "disablecommand":
                     {
-                        if (!Commands.ContainsKey(e.Arg)) return;
+                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
                             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -411,7 +411,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                                 return;
                             }
                             command.Disabled = true;
-                            Commands[e.Arg].Disabled = true;
+                            value.Disabled = true;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
@@ -421,7 +421,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "enablecommand":
                     {
-                        if (!Commands.ContainsKey(e.Arg)) return;
+                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
                             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -432,7 +432,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                                 return;
                             }
                             command.Disabled = false;
-                            Commands[e.Arg].Disabled = false;
+                            value.Disabled = false;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
