@@ -1,5 +1,4 @@
 using DotNetTwitchBot.Bot.Alerts;
-using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
@@ -9,7 +8,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class AudioCommands(
         ISendAlerts sendAlerts,
-        IViewerFeature viewerFeature,
         IServiceScopeFactory scopeFactory,
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,
@@ -101,38 +99,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var isCooldownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCooldownExpired == false) return;
 
-            switch (Commands[e.Command].MinimumRank)
+            if ((await CommandHandler.CheckPermission(Commands[e.Command], e)) == false)
             {
-                case Rank.Viewer:
-                    break; //everyone gets this
-                case Rank.Follower:
-                    if (await viewerFeature.IsFollower(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notFollower"));
-                        return;
-                    }
-                    break;
-                case Rank.Subscriber:
-                    if (await viewerFeature.IsSubscriber(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notSubscriber"));
-                        return;
-                    }
-                    break;
-                case Rank.Moderator:
-                    if (await viewerFeature.IsModerator(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notModerator"));
-                        return;
-                    }
-                    break;
-                case Rank.Streamer:
-                    if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, language.Get("audiocommands.rankcheck.fail.notStreamer"));
-                        return;
-                    }
-                    break;
+                return;
             }
 
             RunCommand(Commands[e.Command], e);

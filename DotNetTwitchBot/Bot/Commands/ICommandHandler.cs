@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Bot.Commands
+﻿using DotNetTwitchBot.Bot.Events.Chat;
+
+namespace DotNetTwitchBot.Bot.Commands
 {
     public interface ICommandHandler
     {
@@ -24,5 +26,6 @@
         Task<ExternalCommands?> GetExternalCommand(int id);
         Task AddOrUpdateExternalCommand(ExternalCommands externalCommand);
         Task DeleteExternalCommand(ExternalCommands externalCommand);
+        Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs);
     }
 }

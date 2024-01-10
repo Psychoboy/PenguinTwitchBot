@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     public class Alias(
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler)
+        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler), IAlias
     {
         public async Task<List<AliasModel>> GetAliasesAsync()
         {

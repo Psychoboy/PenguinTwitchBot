@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Repository;
@@ -19,9 +20,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
             // commandService.ExecuteAsync().Returns(Task.CompletedTask);
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand" }, commandService);
 
             // Act
@@ -39,9 +41,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
             // commandService.ExecuteAsync().Returns(Task.CompletedTask);
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand", CommandName = "testcommand" }, commandService);
 
             // Act
@@ -60,9 +63,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
             // commandService.ExecuteAsync().Returns(Task.CompletedTask);
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
 
 
             // Act
@@ -79,8 +83,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
 
             // Act
             var result = commandHandler.GetCommand("nonExistentCommand");
@@ -97,8 +102,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
 
             // Act
             commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
@@ -117,8 +123,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
 
             // Act
             commandHandler.AddCommand(new BaseCommandProperties { CommandName = "testCommand" }, commandService);
@@ -136,8 +143,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
 
             //Act
@@ -155,8 +163,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var commandService = Substitute.For<IBaseCommandService>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
 
             //Act
@@ -173,10 +182,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -211,10 +221,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -249,10 +260,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -282,11 +294,12 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
         {
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
+            var knownBots = Substitute.For<IKnownBots>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -317,10 +330,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -351,10 +365,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -392,6 +407,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -402,7 +418,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             scopeFactory.CreateScope().Returns(scope);
 
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
 
             var commands = new List<ExternalCommands>
             {
@@ -426,6 +442,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -436,7 +453,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             scopeFactory.CreateScope().Returns(scope);
 
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
 
             dbContext.ExternalCommands.GetByIdAsync(1).Returns(testCommand);
@@ -454,6 +471,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -464,7 +482,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             scopeFactory.CreateScope().Returns(scope);
 
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
 
             // Act
@@ -481,6 +499,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -491,7 +510,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             scopeFactory.CreateScope().Returns(scope);
 
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
 
             // Act
@@ -509,8 +528,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var user = "testUser";
             var command = "testCommand";
 
@@ -527,8 +547,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var user = "testUser";
             var command = "testCommand";
             var globalCooldown = DateTime.Now.AddSeconds(10);
@@ -547,10 +568,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             var dbContext = Substitute.For<IUnitOfWork>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var commandService = Substitute.For<IBaseCommandService>();
 
 
@@ -591,8 +613,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var user = "testUser";
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
 
@@ -617,8 +640,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var user = "testUser";
             var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
 
@@ -645,8 +669,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var logger = Substitute.For<ILogger<CommandHandler>>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var knownBots = Substitute.For<IKnownBots>();
 
-            var commandHandler = new CommandHandler(logger, scopeFactory);
+            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
             var user = "testUser";
             var defaultCommand = new BaseCommandProperties { Id = 1, CommandName = "testCommand" };
 

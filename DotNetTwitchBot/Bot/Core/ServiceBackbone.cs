@@ -9,37 +9,20 @@ using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class ServiceBackbone : IServiceBackbone
+    public class ServiceBackbone(
+        ILogger<ServiceBackbone> logger,
+        IKnownBots knownBots,
+        IConfiguration configuration,
+        IServiceScopeFactory scopeFactory,
+        ICommandHandler commandHandler,
+        IHubContext<MainHub> hubContext) : IServiceBackbone
     {
-        private readonly ILogger<ServiceBackbone> _logger;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IKnownBots _knownBots;
-        private readonly ICommandHandler _commandHandler;
-        private readonly ICollector<ICounter> ChatMessagesCounter;
-        private readonly IHubContext<MainHub> _hubContext;
-        private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: new[] { "command", "viewer" });
+        private readonly ICollector<ICounter> ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", ["viewer"]).WithExtendLifetimeOnUse();
+        private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: ["command", "viewer"]);
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         public bool HealthStatus { get; private set; } = true;
-        private string? RawBroadcasterName { get; set; }
-        public string? BotName { get; set; }
-
-        public ServiceBackbone(
-            ILogger<ServiceBackbone> logger,
-            IKnownBots knownBots,
-            IConfiguration configuration,
-            IServiceScopeFactory scopeFactory,
-            ICommandHandler commandHandler,
-            IHubContext<MainHub> hubContext)
-        {
-            _logger = logger;
-            RawBroadcasterName = configuration["broadcaster"];
-            BotName = configuration["botName"];
-            _scopeFactory = scopeFactory;
-            _knownBots = knownBots;
-            _commandHandler = commandHandler;
-            ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", new[] { "viewer" }).WithExtendLifetimeOnUse();
-            _hubContext = hubContext;
-        }
+        private string? RawBroadcasterName { get; set; } = configuration["broadcaster"];
+        public string? BotName { get; set; } = configuration["botName"];
 
         public delegate Task AsyncEventHandler(object? sender);
         public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
@@ -64,23 +47,23 @@ namespace DotNetTwitchBot.Bot.Core
         public string BroadcasterName { get { return RawBroadcasterName ?? ""; } }
         public bool IsBroadcasterOrBot(string name)
         {
-            return _knownBots.IsStreamerOrBot(name);
+            return knownBots.IsStreamerOrBot(name);
         }
 
         public bool IsKnownBot(string name)
         {
-            return _knownBots.IsKnownBot(name);
+            return knownBots.IsKnownBot(name);
         }
 
         public bool IsKnownBotOrCurrentStreamer(string name)
         {
-            return _knownBots.IsKnownBotOrCurrentStreamer(name);
+            return knownBots.IsKnownBotOrCurrentStreamer(name);
         }
 
         public async Task RunCommand(CommandEventArgs eventArgs)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.Alias>();
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var alias = scope.ServiceProvider.GetRequiredService<Commands.Custom.IAlias>();
             if (await alias.RunCommand(eventArgs))
             {
                 return;
@@ -89,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
-                    _logger.LogWarning("Lock expired while waiting...");
+                    logger.LogWarning("Lock expired while waiting...");
                     HealthStatus = false;
                 }
                 else
@@ -97,18 +80,18 @@ namespace DotNetTwitchBot.Bot.Core
                     HealthStatus = true;
                 }
                 NumberOfCommands.WithLabels(eventArgs.Command, eventArgs.Name).Inc();
-                var commandService = _commandHandler.GetCommand(eventArgs.Command);
+                var commandService = commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null && commandService.CommandProperties.Disabled == false)
                 {
-                    if (await CheckPermission(commandService.CommandProperties, eventArgs))
+                    if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
                     {
                         if (commandService.CommandProperties.SayCooldown)
                         {
-                            if (await _commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
+                            if (await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
                         }
                         else
                         {
-                            if (_commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
+                            if (commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
                         }
                         //This will throw a SkipCooldownException if the command fails to by pass setting cooldown
                         await commandService.CommandService.OnCommand(this, eventArgs);
@@ -120,12 +103,12 @@ namespace DotNetTwitchBot.Bot.Core
 
                     if (commandService.CommandProperties.GlobalCooldown > 0)
                     {
-                        _commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
+                        commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
                     }
 
                     if (commandService.CommandProperties.UserCooldown > 0)
                     {
-                        _commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
+                        commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
                     }
                 }
 
@@ -141,7 +124,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
             catch (Exception e)
             {
-                _logger.LogWarning("Command Failure {ex}", e);
+                logger.LogWarning("Command Failure {ex}", e);
             }
             finally
             {
@@ -157,40 +140,14 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
-        {
-            switch (commandProperties.MinimumRank)
-            {
-                case Rank.Viewer:
-                case Rank.Regular:
-                    return true;
-                case Rank.Follower:
-                    using (var scope = _scopeFactory.CreateAsyncScope())
-                    {
-                        var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-                        return await viewerService.IsFollower(eventArgs.Name);
-                    }
-                case Rank.Subscriber:
-                    return eventArgs.IsSubOrHigher();
-                case Rank.Vip:
-                    return eventArgs.IsVipOrHigher();
-                case Rank.Moderator:
-                    return eventArgs.IsModOrHigher();
-                case Rank.Streamer:
-                    return IsBroadcasterOrBot(eventArgs.Name);
-                default:
-                    return false;
-            }
-        }
-
         private static List<string> AllowedWhisperCommands
         {
             get
             {
-                return new List<string>
-                {
+                return
+                [
                     "entries"
-                };
+                ];
             }
         }
 
@@ -207,7 +164,7 @@ namespace DotNetTwitchBot.Bot.Core
                     }
                     catch (Exception e)
                     {
-                        _logger.LogCritical("Whisper Failure {ex}", e);
+                        logger.LogCritical("Whisper Failure {ex}", e);
                     }
                 }
             }
@@ -232,7 +189,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (SendMessageEvent != null)
             {
-                using var scope = _scopeFactory.CreateAsyncScope();
+                using var scope = scopeFactory.CreateAsyncScope();
                 var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
                 var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
                 await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
@@ -255,7 +212,7 @@ namespace DotNetTwitchBot.Bot.Core
                 NumberOfCommands.RemoveLabelled(label);
             }
 
-            await _hubContext.Clients.All.SendAsync("StreamChanged", true);
+            await hubContext.Clients.All.SendAsync("StreamChanged", true);
 
             if (StreamStarted != null)
             {
@@ -265,14 +222,14 @@ namespace DotNetTwitchBot.Bot.Core
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error firing StreamStarted");
+                    logger.LogError(ex, "Error firing StreamStarted");
                 }
             }
         }
 
         public async Task OnStreamEnded()
         {
-            await _hubContext.Clients.All.SendAsync("StreamChanged", false);
+            await hubContext.Clients.All.SendAsync("StreamChanged", false);
             if (StreamEnded != null)
             {
                 try
@@ -281,7 +238,7 @@ namespace DotNetTwitchBot.Bot.Core
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error firing StreamEnded");
+                    logger.LogError(ex, "Error firing StreamEnded");
                 }
             }
         }
@@ -324,7 +281,7 @@ namespace DotNetTwitchBot.Bot.Core
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error In OnIncomingRaid");
+                    logger.LogError(ex, "Error In OnIncomingRaid");
                 }
             }
         }

@@ -1,3 +1,5 @@
+using DotNetTwitchBot.Bot.Commands.Moderation;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Repository;
 using System.Collections.Concurrent;
 
@@ -5,7 +7,8 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public class CommandHandler(
         ILogger<CommandHandler> logger,
-        IServiceScopeFactory scopeFactory) : ICommandHandler
+        IServiceScopeFactory scopeFactory,
+        IKnownBots knownBots) : ICommandHandler
     {
         readonly ConcurrentDictionary<string, Command> Commands = new();
         readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = [];
@@ -266,6 +269,32 @@ namespace DotNetTwitchBot.Bot.Commands
         public bool CommandExists(string command)
         {
             return Commands.ContainsKey(command);
+        }
+
+        public async Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
+        {
+            switch (commandProperties.MinimumRank)
+            {
+                case Rank.Viewer:
+                case Rank.Regular:
+                    return true;
+                case Rank.Follower:
+                    using (var scope = scopeFactory.CreateAsyncScope())
+                    {
+                        var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
+                        return await viewerService.IsFollower(eventArgs.Name);
+                    }
+                case Rank.Subscriber:
+                    return eventArgs.IsSubOrHigher();
+                case Rank.Vip:
+                    return eventArgs.IsVipOrHigher();
+                case Rank.Moderator:
+                    return eventArgs.IsModOrHigher();
+                case Rank.Streamer:
+                    return eventArgs.IsBroadcaster || knownBots.IsStreamerOrBot(eventArgs.Name);
+                default:
+                    return false;
+            }
         }
     }
 }
