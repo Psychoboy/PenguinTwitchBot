@@ -1,10 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot
 {
@@ -41,12 +37,12 @@ namespace DotNetTwitchBot.Bot
 
         public static string ConvertToCompoundDuration(long seconds)
         {
-            if (seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+            ArgumentOutOfRangeException.ThrowIfNegative(seconds);
             if (seconds == 0) return "0 sec";
 
             TimeSpan span = TimeSpan.FromSeconds(seconds);
-            int[] parts = { span.Days / 7, span.Days % 7, span.Hours, span.Minutes, span.Seconds };
-            string[] units = { "w", "d", "h", "m" };
+            int[] parts = [span.Days / 7, span.Days % 7, span.Hours, span.Minutes, span.Seconds];
+            string[] units = ["w", "d", "h", "m"];
 
             return string.Join(", ",
                 from index in Enumerable.Range(0, units.Length)

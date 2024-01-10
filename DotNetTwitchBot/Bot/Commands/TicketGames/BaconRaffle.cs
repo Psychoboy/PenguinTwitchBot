@@ -1,27 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class BaconRaffle : BaseRaffle
+    public class BaconRaffle(
+        IServiceBackbone eventService,
+        ITicketsFeature ticketsFeature,
+        ICommandHandler commandHandler,
+        ILogger<BaconRaffle> logger
+            ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon")
     {
-        private readonly ILogger<BaconRaffle> _logger;
-
-        public BaconRaffle(
-            IServiceBackbone eventService,
-            ITicketsFeature ticketsFeature,
-            ICommandHandler commandHandler,
-            ILogger<BaconRaffle> logger
-            ) : base(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon")
-        {
-            _logger = logger;
-        }
-
         protected override void UpdateNumberOfWinners()
         {
             var entries = NumberEntered;
@@ -49,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "BaconRaffle";
             await RegisterDefaultCommand("raffle", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("bacon", this, moduleName, Rank.Viewer);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

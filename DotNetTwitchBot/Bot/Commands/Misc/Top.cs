@@ -5,22 +5,13 @@ using DotNetTwitchBot.Bot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Top : BaseCommandService
+    public class Top(
+        ILogger<Top> logger,
+        IServiceScopeFactory scopeFactory,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler)
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<Top> _logger;
-
-        public Top(
-            ILogger<Top> logger,
-            IServiceScopeFactory scopeFactory,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
-        {
-            _scopeFactory = scopeFactory;
-            _logger = logger;
-        }
-
         public override async Task Register()
         {
             var moduleName = "Top";
@@ -31,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await RegisterDefaultCommand("toptickets", this, moduleName);
             //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
             await RegisterDefaultCommand("loudest", this, moduleName);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -60,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task SayLoudestTopN(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var loyalty = scope.ServiceProvider.GetRequiredService<ILoyaltyFeature>();
             var top = await loyalty.GetTopNLoudest(topN);
             var names = string.Join(", ", top.Select(x => x.Ranking.ToString() + ". " + x.Username + " " + x.MessageCount.ToString("N0")));
@@ -69,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task SayPointsTopN(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var broadcasterName = ServiceBackbone.BroadcasterName;
             var botName = ServiceBackbone.BotName ?? "";
@@ -81,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task SayTimeTopN(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var broadcasterName = ServiceBackbone.BroadcasterName;
             var botName = ServiceBackbone.BotName ?? "";
@@ -93,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task SayTicketsTopN(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var broadcasterName = ServiceBackbone.BroadcasterName;
             var botName = ServiceBackbone.BotName ?? "";

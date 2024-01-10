@@ -3,13 +3,8 @@ using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) :
-            base(options)
-        {
-
-        }
         public DbSet<Follower> Followers { get; set; } = null!;
         public DbSet<GiveawayEntry> GiveawayEntries { get; set; } = null!;
         public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;

@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ShoutoutSystem> _logger;
         private readonly DateTime LastShoutOut = DateTime.Now;
-        private readonly Dictionary<string, DateTime> UserLastShoutout = new();
+        private readonly Dictionary<string, DateTime> UserLastShoutout = [];
 
         public ShoutoutSystem(
             ILogger<ShoutoutSystem> logger,
@@ -108,9 +108,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             if (LastShoutOut.AddMinutes(2) < DateTime.Now)
             {
-                if (UserLastShoutout.ContainsKey(userId))
+                if (UserLastShoutout.TryGetValue(userId, out DateTime value))
                 {
-                    if (UserLastShoutout[userId].AddMinutes(60) > DateTime.Now) return;
+                    if (value.AddMinutes(60) > DateTime.Now) return;
                 }
                 UserLastShoutout[userId] = DateTime.Now;
                 if (ServiceBackbone.IsOnline == false) return;
@@ -159,7 +159,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 case "shoutout":
                 case "so":
-                    if (e.Args.Any() == false)
+                    if (e.Args.Count != 0 == false)
                     {
                         throw new SkipCooldownException();
                     }

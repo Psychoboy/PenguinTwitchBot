@@ -154,7 +154,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 var options = arg.Data.Options;
                 var loc = "";
-                if (options.Any())
+                if (options.Count != 0)
                 {
                     loc = options.First().Value.ToString();
                 }

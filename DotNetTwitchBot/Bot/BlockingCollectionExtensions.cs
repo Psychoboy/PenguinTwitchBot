@@ -6,10 +6,7 @@ namespace DotNetTwitchBot.Bot
     {
         public static void Clear<T>(this BlockingCollection<T> blockingCollection)
         {
-            if (blockingCollection == null)
-            {
-                throw new ArgumentNullException(nameof(blockingCollection));
-            }
+            ArgumentNullException.ThrowIfNull(blockingCollection);
 
             while (blockingCollection.Count > 0)
             {

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using Microsoft.AspNetCore.Mvc;
@@ -10,27 +6,16 @@ namespace DotNetTwitchBot.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class BotCommandsController
-    {
-        readonly IServiceBackbone _serviceBackbone;
-        private readonly ILogger<BotCommandsController> _logger;
-        private readonly IConfiguration _configuration;
-
-        public BotCommandsController(
-            ILogger<BotCommandsController> logger,
-            IConfiguration configuration,
-            IServiceBackbone serviceBackbone
+    public class BotCommandsController(
+        ILogger<BotCommandsController> logger,
+        IConfiguration configuration,
+        IServiceBackbone serviceBackbone
             )
-        {
-            _serviceBackbone = serviceBackbone;
-            _logger = logger;
-            _configuration = configuration;
-        }
-
+    {
         [HttpPut("/commands")]
         public async Task<ActionResult> RunCommand([FromHeader] string webauth, [FromHeader] string user, [FromHeader] string message)
         {
-            if (!webauth.Equals(_configuration["webauth"]))
+            if (!webauth.Equals(configuration["webauth"]))
             {
                 return new StatusCodeResult(403);
             }
@@ -38,7 +23,7 @@ namespace DotNetTwitchBot.Controllers
             {
                 var messageArg = "";
                 var command = message;
-                var indexOfSpace = message.IndexOf(" ");
+                var indexOfSpace = message.IndexOf(' ');
                 if (indexOfSpace >= 0)
                 {
                     messageArg = message[indexOfSpace..].Trim();
@@ -47,7 +32,7 @@ namespace DotNetTwitchBot.Controllers
                 var args = new CommandEventArgs
                 {
                     Arg = messageArg,
-                    Args = messageArg.Split(" ").ToList(),
+                    Args = [.. messageArg.Split(" ")],
                     Command = command[1..],
                     IsWhisper = true,
                     Name = user.ToLower(),
@@ -57,11 +42,11 @@ namespace DotNetTwitchBot.Controllers
                     IsBroadcaster = true,
                     TargetUser = ""
                 };
-                await _serviceBackbone.RunCommand(args);
+                await serviceBackbone.RunCommand(args);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in Controller");
+                logger.LogError(ex, "Error in Controller");
             }
             return new OkResult();
         }

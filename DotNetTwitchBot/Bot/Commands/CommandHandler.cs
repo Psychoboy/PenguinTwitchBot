@@ -3,21 +3,13 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public class CommandHandler : ICommandHandler
+    public class CommandHandler(
+        ILogger<CommandHandler> logger,
+        IServiceScopeFactory scopeFactory) : ICommandHandler
     {
         readonly ConcurrentDictionary<string, Command> Commands = new();
-        readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = new();
-        readonly Dictionary<string, DateTime> _globalCooldowns = new();
-        private readonly ILogger<CommandHandler> _logger;
-        private readonly IServiceScopeFactory _scopeFactory;
-
-        public CommandHandler(
-            ILogger<CommandHandler> logger,
-            IServiceScopeFactory scopeFactory)
-        {
-            _logger = logger;
-            _scopeFactory = scopeFactory;
-        }
+        readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = [];
+        readonly Dictionary<string, DateTime> _globalCooldowns = [];
 
         public Command? GetCommand(string commandName)
         {
@@ -70,13 +62,13 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (defaultCommand.Id == null)
             {
-                _logger.LogWarning("Command was missing id! This should not happen");
+                logger.LogWarning("Command was missing id! This should not happen");
                 return;
             }
             var originalCommand = await GetDefaultCommandById((int)defaultCommand.Id);
             if (originalCommand == null)
             {
-                _logger.LogWarning("Could not find the default command name {defaultCommandId}", defaultCommand.Id);
+                logger.LogWarning("Could not find the default command name {defaultCommandId}", defaultCommand.Id);
                 return;
             }
             if (originalCommand.CustomCommandName.Equals(defaultCommand.CustomCommandName, StringComparison.CurrentCultureIgnoreCase) == false)
@@ -84,14 +76,14 @@ namespace DotNetTwitchBot.Bot.Commands
                 UpdateCommandName(originalCommand.CustomCommandName, defaultCommand.CustomCommandName);
             }
 
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.DefaultCommands.Update(defaultCommand);
             await db.SaveChangesAsync();
             var command = GetCommand(defaultCommand.CustomCommandName);
             if (command == null)
             {
-                _logger.LogWarning("Could not get command: {CustomCommandName}", defaultCommand.CustomCommandName);
+                logger.LogWarning("Could not get command: {CustomCommandName}", defaultCommand.CustomCommandName);
                 return;
             }
             command.CommandProperties = defaultCommand;
@@ -99,28 +91,28 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.DefaultCommands.Find(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
         }
 
         public async Task<DefaultCommand?> GetDefaultCommandById(int id)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.DefaultCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<List<DefaultCommand>> GetDefaultCommandsFromDb()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return (await db.DefaultCommands.GetAllAsync()).ToList();
         }
 
         public async Task<DefaultCommand> AddDefaultCommand(DefaultCommand defaultCommand)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var newDefaultCommand = await db.DefaultCommands.AddAsync(defaultCommand);
             await db.SaveChangesAsync();
@@ -130,21 +122,21 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<IEnumerable<ExternalCommands>> GetExternalCommands()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.ExternalCommands.GetAllAsync();
         }
 
         public async Task<ExternalCommands?> GetExternalCommand(int id)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.ExternalCommands.GetByIdAsync(id);
         }
 
         public async Task AddOrUpdateExternalCommand(ExternalCommands externalCommand)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.ExternalCommands.Update(externalCommand);
             await db.SaveChangesAsync();
@@ -152,7 +144,7 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task DeleteExternalCommand(ExternalCommands externalCommand)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.ExternalCommands.Remove(externalCommand);
             await db.SaveChangesAsync();
@@ -161,16 +153,15 @@ namespace DotNetTwitchBot.Bot.Commands
         public bool IsCoolDownExpired(string user, string command)
         {
             if (
-                _globalCooldowns.ContainsKey(command) &&
-                _globalCooldowns[command] > DateTime.Now)
+                _globalCooldowns.TryGetValue(command, out DateTime value) && value > DateTime.Now)
             {
                 return false;
             }
             if (_coolDowns.ContainsKey(user.ToLower()))
             {
-                if (_coolDowns[user.ToLower()].ContainsKey(command))
+                if (_coolDowns[user.ToLower()].TryGetValue(command, out DateTime commandCooldown))
                 {
-                    if (_coolDowns[user.ToLower()][command] > DateTime.Now)
+                    if (commandCooldown > DateTime.Now)
                     {
                         return false;
                     }
@@ -183,7 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (!IsCoolDownExpired(user, command))
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
+                await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command)));
 
@@ -196,7 +187,7 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (!IsCoolDownExpired(user, command.CommandName))
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
+                await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 if (command is DefaultCommand commandProperties)
                 {
@@ -217,20 +208,15 @@ namespace DotNetTwitchBot.Bot.Commands
 
             var globalCooldown = DateTime.MinValue;
             var userCooldown = DateTime.MinValue;
-            if (
-               _globalCooldowns.ContainsKey(command) &&
-               _globalCooldowns[command] > DateTime.Now)
+            if (_globalCooldowns.TryGetValue(command, out DateTime value) && value > DateTime.Now)
             {
-                globalCooldown = _globalCooldowns[command];
+                globalCooldown = value;
             }
             if (_coolDowns.ContainsKey(user.ToLower()))
             {
-                if (_coolDowns[user.ToLower()].ContainsKey(command))
+                if (_coolDowns[user.ToLower()].TryGetValue(command, out var newCooldown))
                 {
-                    if (_coolDowns[user.ToLower()][command] > DateTime.Now)
-                    {
-                        userCooldown = _coolDowns[user.ToLower()][command];
-                    }
+                    userCooldown = newCooldown;
                 }
             }
 
@@ -261,7 +247,7 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             if (!_coolDowns.ContainsKey(user.ToLower()))
             {
-                _coolDowns[user.ToLower()] = new Dictionary<string, DateTime>();
+                _coolDowns[user.ToLower()] = [];
             }
 
             _coolDowns[user.ToLower()][command] = cooldown;

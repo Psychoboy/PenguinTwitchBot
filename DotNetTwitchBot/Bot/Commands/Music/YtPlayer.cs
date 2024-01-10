@@ -14,14 +14,14 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly ILogger<YtPlayer> _logger;
         private readonly YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
-        private readonly List<Song> Requests = new();
+        private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
         private Song? NextSong = null;
-        private readonly List<string> SkipVotes = new();
+        private readonly List<string> SkipVotes = [];
         private readonly TimeLeft timeLeft = new();
         enum PlayerState
         {
@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 ApiKey = configuration["youtubeApi"],
                 ApplicationName = "DotNetBot"
             });
-            SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: new[] { "viewer" }).WithExtendLifetimeOnUse();
+            SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
         }
 
         private void IncrementSong(Song? song)
@@ -636,7 +636,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                backwardsRequest = Requests.ToList();
+                backwardsRequest = [.. Requests];
             }
             finally { _semaphoreSlim.Release(); }
             backwardsRequest.Reverse();
@@ -716,7 +716,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                currentRequestedSongs = Requests.ToList();
+                currentRequestedSongs = [.. Requests];
                 requestCount = Requests.Count;
             }
             finally { _semaphoreSlim.Release(); }
@@ -807,7 +807,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             try
             {
                 _semaphoreSlim.Wait();
-                return Requests.ToList();
+                return [.. Requests];
             }
             finally { _semaphoreSlim.Release(); }
         }
@@ -818,7 +818,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                requests = Requests.ToList();
+                requests = [.. Requests];
             }
             finally { _semaphoreSlim.Release(); }
             await using var scope = _scopeFactory.CreateAsyncScope();

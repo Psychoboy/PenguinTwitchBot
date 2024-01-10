@@ -3,14 +3,9 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
-    public class YtHub : Hub
+    public class YtHub(YtPlayer ytPlayer) : Hub
     {
-        private readonly YtPlayer _ytPlayer;
-
-        public YtHub(YtPlayer ytPlayer)
-        {
-            _ytPlayer = ytPlayer ?? throw new ArgumentNullException("ytplayer");
-        }
+        private readonly YtPlayer _ytPlayer = ytPlayer ?? throw new ArgumentNullException("ytplayer");
 
         [Authorize(Roles = "Streamer")]
         public async Task PlayNextVideo()
