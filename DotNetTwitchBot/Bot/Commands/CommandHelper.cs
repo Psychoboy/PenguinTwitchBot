@@ -2,7 +2,11 @@
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public class CommandHelper(Alias alias, AudioCommands audioCommands, ICommandHandler commandHandler) : ICommandHelper
+    public class CommandHelper(
+        IAlias alias,
+        AudioCommands audioCommands,
+        CustomCommand customCommand,
+        ICommandHandler commandHandler) : ICommandHelper
     {
         public async Task<bool> CommandExists(string command)
         {
@@ -21,7 +25,14 @@ namespace DotNetTwitchBot.Bot.Commands
                 return true;
             }
 
+            if (customCommand.CustomCommandExists(command))
+            {
+                return true;
+            }
+
             return false;
         }
+
+
     }
 }

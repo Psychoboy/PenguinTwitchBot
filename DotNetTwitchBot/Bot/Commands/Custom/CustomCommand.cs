@@ -80,6 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("targetorself", TargetOrSelf);
             CommandTags.Add("watchtime", WatchTime);
             CommandTags.Add("command", ExecuteCommand);
+            CommandTags.Add("elevatedcommand", ExecuteElevatedCommand);
         }
 
 
@@ -281,38 +282,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 return;
             }
 
-            switch (Commands[e.Command].MinimumRank)
+            if ((await CommandHandler.CheckPermission(Commands[e.Command], e)) == false)
             {
-                case Rank.Viewer:
-                    break; //everyone gets this
-                case Rank.Follower:
-                    if (await _viewerFeature.IsFollower(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, "you must be a follower to use that command");
-                        return;
-                    }
-                    break;
-                case Rank.Subscriber:
-                    if (await _viewerFeature.IsSubscriber(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, "you must be a subscriber to use that command");
-                        return;
-                    }
-                    break;
-                case Rank.Moderator:
-                    if (await _viewerFeature.IsModerator(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, "only moderators can do that...");
-                        return;
-                    }
-                    break;
-                case Rank.Streamer:
-                    if (ServiceBackbone.IsBroadcasterOrBot(e.Name) == false)
-                    {
-                        await SendChatMessage(e.DisplayName, "yeah ummm... no... go away");
-                        return;
-                    }
-                    break;
+                return;
             }
             await ExecuteCommand(e);
         }
@@ -854,6 +826,53 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 DisplayName = eventArgs.DisplayName,
                 Name = eventArgs.Name
             };
+            await ServiceBackbone.RunCommand(command);
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> ExecuteElevatedCommand(CommandEventArgs eventArgs, string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                _logger.LogWarning("Missing args for custom command of 'elevatedcommand' type.");
+                return new CustomCommandResult();
+            }
+
+            var commandArgs = args.Split(' ');
+            if (commandArgs.Length < 2)
+            {
+                _logger.LogWarning("Missing required args for custom command of 'elevatedcommand' type.");
+                return new CustomCommandResult();
+            }
+            var commandName = commandArgs[0];
+            var commandPermission = commandArgs[1];
+            var newCommandArgs = new List<string>();
+
+            var targetUser = "";
+            if (commandArgs.Length > 2)
+            {
+                newCommandArgs.AddRange(commandArgs.Skip(2));
+                targetUser = commandArgs[2];
+            }
+
+            var command = new CommandEventArgs
+            {
+                Command = commandName,
+                Arg = string.Join(" ", newCommandArgs),
+                Args = newCommandArgs,
+                TargetUser = targetUser,
+                IsWhisper = eventArgs.IsWhisper,
+                IsDiscord = eventArgs.IsDiscord,
+                DiscordMention = eventArgs.DiscordMention,
+                FromAlias = eventArgs.FromAlias,
+                IsSub = commandPermission.Equals("sub") || eventArgs.IsSub,
+                IsMod = commandPermission.Equals("mod") || eventArgs.IsMod,
+                IsVip = commandPermission.Equals("vip") || eventArgs.IsVip,
+                IsBroadcaster = commandPermission.Equals("broadcaster") || eventArgs.IsBroadcaster,
+                DisplayName = eventArgs.DisplayName,
+                Name = eventArgs.Name
+            };
+
             await ServiceBackbone.RunCommand(command);
             return new CustomCommandResult();
         }

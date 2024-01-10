@@ -2,7 +2,9 @@
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Repository;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +16,7 @@ namespace DotNetTwitchBot.Tests
 {
     public class AudioCommandsTests
     {
-        private readonly ILanguage _langage;
+        private readonly Language _langage;
 
         public AudioCommandsTests()
         {
@@ -31,6 +33,7 @@ namespace DotNetTwitchBot.Tests
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
+            var knownBots = Substitute.For<IKnownBots>();
 
             scopeFactory.CreateScope().Returns(scope);
 
@@ -40,7 +43,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -73,7 +76,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { audioCommand }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -104,7 +107,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -138,7 +141,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { audiCommand }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -172,7 +175,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -191,7 +194,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "you must be a follower to use that command");
+            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
         }
 
         [Fact]
@@ -216,7 +219,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -233,7 +236,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "you must be a subscriber to use that command");
+            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
         }
 
         [Fact]
@@ -258,7 +261,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -275,7 +278,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "only moderators can do that...");
+            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
         }
 
         [Fact]
@@ -300,7 +303,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -317,7 +320,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), "yeah ummm... no... go away");
+            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
         }
 
         [Fact]
@@ -342,7 +345,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, viewerFeature, scopeFactory,
+            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -353,6 +356,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.AddAudioCommand(audioCommand);
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+            commandHandler.CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>()).Returns(true);
 
             // Act
             await audioCommands.RunCommand(new() { Command = "testCommand" });

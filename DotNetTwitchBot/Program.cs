@@ -97,7 +97,6 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.Misc.Timers),
             typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand),
             typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands),
-            typeof(DotNetTwitchBot.Bot.Commands.Custom.Alias),
             typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse),
             typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Roll),
             typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA),
@@ -113,6 +112,7 @@ internal class Program
             typeof(DotNetTwitchBot.Bot.Commands.Moderation.BannedUsers)
         };
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.PastyGames.MaxBetCalculator>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Custom.IAlias, DotNetTwitchBot.Bot.Commands.Custom.Alias>();
         //Add Alerts
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();
 
@@ -122,7 +122,7 @@ internal class Program
         }
 
         commands.AddRange(RegisterCommandServices(builder.Services));
-        builder.Services.AddScoped<DotNetTwitchBot.Bot.Commands.ICommandHelper, DotNetTwitchBot.Bot.Commands.CommandHelper>();
+        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHelper, DotNetTwitchBot.Bot.Commands.CommandHelper>();
 
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();

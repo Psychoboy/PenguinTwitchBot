@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         }
         State CurrentState { get; set; } = State.NotRunning;
 
-        readonly List<string> _entered = new();
+        readonly List<string> _entered = [];
         bool _joinedSinceLastAnnounce = false;
 
         //Variables to be set by descendants
