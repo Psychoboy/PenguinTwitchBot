@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>SPTV Twitch Bot - Edit Audio Command</PageTitle>
 @if (audioCommand != null && audioFiles != null)
@@ -54,6 +55,7 @@
 
     private DotNetTwitchBot.Bot.Models.AudioCommand? audioCommand { get; set; }
     private List<string>? audioFiles;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()
     {
@@ -65,6 +67,24 @@
     public async void OnSubmit()
     {
         if (audioCommand == null) return;
+        var originalAudioCommand = await AudioCommands.GetAudioCommand(id);
+        if(originalAudioCommand != null)
+        {
+            if(!originalAudioCommand.CommandName.Equals(audioCommand.CommandName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await CommandHelper.CommandExists(audioCommand.CommandName))
+                {
+                    bool? result = await DialogService.ShowMessageBox(
+                   "Warning",
+                   "This command already exists, continue?",
+                   yesText: "Yes!", cancelText: "Cancel");
+                    if (result == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
         await AudioCommands.SaveAudioCommand(audioCommand);
         navigationManager.NavigateTo($"/audiocommands");
     }

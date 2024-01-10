@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Custom.Alias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 <PageTitle>SPTV Twitch Bot - Edit Alias</PageTitle>
 @if (theAlias == null)
 {
@@ -30,6 +31,7 @@ else
     public int id { get; set; }
 
     private DotNetTwitchBot.Bot.Models.AliasModel? theAlias { get; set; }
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()
     {
@@ -40,6 +42,24 @@ else
     public async void OnSubmit()
     {
         if (theAlias == null) return;
+        var originalAlias = await AliasCommand.GetAliasAsync(id);
+        if (originalAlias != null)
+        {
+            if (!originalAlias.AliasName.Equals(theAlias.AliasName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await CommandHelper.CommandExists(theAlias.AliasName))
+                {
+                    bool? result = await DialogService.ShowMessageBox(
+                       "Warning",
+                       "This command already exists, continue?",
+                       yesText: "Yes!", cancelText: "Cancel");
+                    if (result == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
         await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
         navigationManager.NavigateTo($"/aliases");
     }

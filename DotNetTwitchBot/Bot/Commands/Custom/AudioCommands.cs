@@ -78,6 +78,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await LoadAudioCommands();
         }
 
+        public async Task<bool> CommandExists(string command)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.AudioCommands.Find(x => x.CommandName == command).AnyAsync();
+        }
+
         public Dictionary<string, AudioCommand> GetAudioCommands()
         {
             return Commands;

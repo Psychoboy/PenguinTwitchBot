@@ -122,6 +122,7 @@ internal class Program
         }
 
         commands.AddRange(RegisterCommandServices(builder.Services));
+        builder.Services.AddScoped<DotNetTwitchBot.Bot.Commands.ICommandHelper, DotNetTwitchBot.Bot.Commands.CommandHelper>();
 
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();

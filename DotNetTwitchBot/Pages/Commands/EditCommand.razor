@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>SPTV Twitch Bot - Edit Command</PageTitle>
 @if (customCommand == null)
@@ -54,6 +55,7 @@ else
     public int id { get; set; }
 
     private DotNetTwitchBot.Bot.Models.CustomCommands? customCommand { get; set; }
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()
     {
@@ -64,6 +66,24 @@ else
     public async void OnSubmit()
     {
         if (customCommand == null) return;
+        var originalCommand = await CustomCommand.GetCustomCommand(id);
+        if (originalCommand != null)
+        {
+            if (!originalCommand.CommandName.Equals(customCommand.CommandName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await CommandHelper.CommandExists(customCommand.CommandName))
+                {
+                    bool? result = await DialogService.ShowMessageBox(
+                   "Warning",
+                   "This command already exists, continue?",
+                   yesText: "Yes!", cancelText: "Cancel");
+                    if (result == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
         await CustomCommand.SaveCommand(customCommand);
         navigationManager.NavigateTo($"/customcommands");
     }

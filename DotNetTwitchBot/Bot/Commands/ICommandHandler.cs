@@ -8,6 +8,7 @@
         Task<DefaultCommand> AddDefaultCommand(DefaultCommand defaultCommand);
         void AddGlobalCooldown(string command, DateTime cooldown);
         void AddGlobalCooldown(string command, int cooldown);
+        bool CommandExists(string command);
         Command? GetCommand(string commandName);
         string GetCommandDefaultName(string commandName);
         Task<DefaultCommand?> GetDefaultCommandById(int id);
