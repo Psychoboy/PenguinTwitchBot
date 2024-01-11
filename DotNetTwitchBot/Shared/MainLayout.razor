@@ -28,6 +28,17 @@
         {
             <MudAlert Severity="Severity.Error" NoIcon="true">Stream is Offline</MudAlert>
         }
+        <div id="components-reconnect-modal" class="components-reconnect-hide">
+            
+            <div class="show">
+                <MudSpacer />
+                <MudAlert Severity="Severity.Warning" NoIcon="true">Attempting to reconnect or manually refresh.</MudAlert>
+            </div>
+            <div class="rejected failed">
+                <MudSpacer />
+                <MudAlert Severity="Severity.Warning" NoIcon="true">Reconnect failed. Please refresh.</MudAlert>
+            </div>
+        </div>
         <MudSpacer />
         <AuthorizeView>
             <Authorized Context="Auth">
