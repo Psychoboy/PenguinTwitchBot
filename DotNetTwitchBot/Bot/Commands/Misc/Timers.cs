@@ -27,9 +27,24 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger = logger;
             _intervalTimer = new Timer(60000);
             _intervalTimer.Elapsed += ElapseTimer;
-            _intervalTimer.Start();
+
             serviceBackbone.ChatMessageEvent += OnChatMessage;
             serviceBackbone.CommandEvent += CommandMessage;
+            serviceBackbone.StreamStarted += StreamStarted;
+            serviceBackbone.StreamEnded += StreamEnded;
+        }
+
+        private Task StreamEnded(object? sender)
+        {
+            _intervalTimer.Stop();
+            return Task.CompletedTask;
+        }
+
+        private async Task StreamStarted(object? sender)
+        {
+            var groups = await GetTimerGroupsAsync();
+            groups.ForEach(async x => await UpdateNextRun(x));
+            _intervalTimer.Start();
         }
 
         private Task CommandMessage(object? sender, CommandEventArgs e)
