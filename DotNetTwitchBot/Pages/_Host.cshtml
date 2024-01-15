@@ -21,7 +21,9 @@
 
 <body>
     <component type="typeof(App)" render-mode="ServerPrerendered" />
-
+    <script>
+        window.connection = null;
+    </script>
     <script src="_framework/blazor.server.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="~/js/signalr/dist/browser/signalr.js"></script>

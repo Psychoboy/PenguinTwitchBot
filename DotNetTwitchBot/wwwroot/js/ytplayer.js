@@ -1,59 +1,41 @@
 "use strict";
 
-var connection = new signalR.HubConnectionBuilder().withUrl("/ythub").withAutomaticReconnect().build();
-connection.start().then(function () {
+var connection = null;
+var tag = document.createElement('script');
 
-    var tag = document.createElement('script');
-
-    tag.src = "https://www.youtube.com/iframe_api";
-    var firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-}).catch(function (err) {
-    return console.error(err.toString());
-});
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 function playNextVideo() {
-    connection.invoke("PlayNextVideo").catch(function (err) {
+    console.log("playNextVideo");
+    window.connection.invoke("PlayNextVideo").catch(function (err) {
         return console.error(err.toString());
     });
 }
 
 function updateState(state) {
-    connection.invoke("UpdateState", state).catch(function (err) {
+    console.log("updateState");
+    window.connection.invoke("UpdateState", state).catch(function (err) {
         return console.error(err.toString());
     });
 }
 
 function loadNextSong() {
-    connection.invoke("LoadNextSong").catch(function (err) {
+    console.log("loadNextSong");
+    window.connection.invoke("LoadNextSong").catch(function (err) {
         return console.error(err.toString());
     });
 }
 
 function songError(event) {
-    connection.invoke("SongError", event.data).catch(function (err) {
-        return console.error(err.toString());
-    });
+    //connection.invoke("SongError", event.data).catch(function (err) {
+    //    return console.error(err.toString());
+    //});
+    console.log("Error");
+    console.log(event);
 }
 
-connection.on("PlayVideo", function (ytId) {
-    player.loadVideoById(ytId, 0);
-});
 
-connection.on("Play", function () {
-    player.playVideo();
-});
-
-connection.on("Pause", function () {
-    player.pauseVideo();
-});
-
-connection.on("LoadVideo", function (ytId) {
-    player.cueVideoByUrl(ytId);
-});
-
-connection.onreconnecting(error => {
-    console.log("Reconnecting");
-});
 
 
 var player;
@@ -72,17 +54,54 @@ function onYouTubeIframeAPIReady() {
 
         }
     });
+    console.log("onYouTubeIframeAPIReady");
 }
 
 function onPlayerReady(event) {
-    // player.playVideo();
-    loadNextSong();
+    console.log("onPlayerReady");
+     //player.playVideo();
+    window.connection = new signalR.HubConnectionBuilder().withUrl("/ythub").withAutomaticReconnect().build();
+    window.connection.start().then(function () {
+
+        //var tag = document.createElement('script');
+
+        //tag.src = "https://www.youtube.com/iframe_api";
+        //var firstScriptTag = document.getElementsByTagName('script')[0];
+        //firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        loadNextSong();
+    }).catch(function (err) {
+        return console.error(err.toString());
+    });
+
+    window.connection.on("PlayVideo", function (ytId) {
+        player.loadVideoById(ytId, 0);
+    });
+
+    window.connection.on("Play", function () {
+        player.playVideo();
+    });
+
+    window.connection.on("Pause", function () {
+        player.pauseVideo();
+    });
+
+    window.connection.on("LoadVideo", function (ytId) {
+        player.cueVideoByUrl(ytId);
+    });
+
+    window.connection.onreconnecting(error => {
+        console.log("Reconnecting");
+    });
+
+    
 }
 
 var done = false;
 function onPlayerStateChange(event) {
+    console.log("onPlayerStateChange");
     updateState(event.data);
 }
 function stopVideo() {
+    console.log("stopVideo");
     player.stopVideo();
 }
