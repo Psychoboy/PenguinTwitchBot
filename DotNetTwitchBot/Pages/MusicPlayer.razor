@@ -128,6 +128,14 @@
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
     private string? addSongUrl;
+    [Inject]
+    private IJSRuntime JsRuntime { get; set; }
+
+    private Timer? _timer;
+    private bool playerReady;
+    private bool apiReady;
+    private bool playerCreated;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,6 +148,26 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
+        
+        await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
+        _timer = new Timer(async (e) =>
+        {
+            playerReady = await JsRuntime.InvokeAsync<bool>("checkPlayer");
+            apiReady = await JsRuntime.InvokeAsync<bool>("checkAPIReady");
+
+            if (apiReady && !playerCreated)
+            {
+                await JsRuntime.InvokeVoidAsync("createPlayer");
+                playerCreated = true;
+            }
+
+            if (playerReady)
+            {
+                await JsRuntime.InvokeAsync<string>("playVideo", await YtPlayer.GetNextSong());
+                _timer?.Dispose();
+            }
+        }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
+        
         hubConnection = new HubConnectionBuilder()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
