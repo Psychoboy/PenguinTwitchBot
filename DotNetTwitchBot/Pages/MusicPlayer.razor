@@ -148,22 +148,36 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        
+
         await JsRuntime.InvokeVoidAsync("initializeYouTubePlayer");
         _timer = new Timer(async (e) =>
         {
-            playerReady = await JsRuntime.InvokeAsync<bool>("checkPlayer");
-            apiReady = await JsRuntime.InvokeAsync<bool>("checkAPIReady");
-
-            if (apiReady && !playerCreated)
+            try
             {
-                await JsRuntime.InvokeVoidAsync("createPlayer");
-                playerCreated = true;
+                playerReady = await JsRuntime.InvokeAsync<bool>("checkPlayer");
+                apiReady = await JsRuntime.InvokeAsync<bool>("checkAPIReady");
+
+                if (apiReady && !playerCreated)
+                {
+                    await JsRuntime.InvokeVoidAsync("createPlayer");
+                    playerCreated = true;
+                }
+
+                if (playerReady)
+                {
+                    if(currentSong != null)
+                    {
+                        await JsRuntime.InvokeAsync<string>("playVideo", currentSong.SongId);
+                    } else
+                    {
+                        await JsRuntime.InvokeAsync<string>("playVideo", await YtPlayer.GetNextSong());
+                    }
+
+                    _timer?.Dispose();
+                }
             }
-
-            if (playerReady)
+            catch (Exception)
             {
-                await JsRuntime.InvokeAsync<string>("playVideo", await YtPlayer.GetNextSong());
                 _timer?.Dispose();
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
