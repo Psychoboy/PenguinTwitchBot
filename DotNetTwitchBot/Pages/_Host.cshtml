@@ -20,12 +20,137 @@
 </head>
 
 <body>
-    <component type="typeof(App)" render-mode="ServerPrerendered" />
+    <script>
+        window.ytAPIReady = false;
+        window.playerReady = false;
+        window.player = null;
+        window.connection = null;
 
+        window.initializeYouTubePlayer = function () {
+            window.player = null;
+
+            var tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        window.createPlayer = function () {
+            window.player = new YT.Player("player", {
+                videoId: '',
+                height: '390',
+                width: '640',
+                playerVars: {
+                    autoplay: 1,
+                    iv_load_policy: 3
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': songError
+                }
+            });
+        }
+
+        window.playVideo = function (videoId) {
+            if (window.player) {
+                window.connection = new signalR.HubConnectionBuilder().withUrl("/ythub").withAutomaticReconnect().build();
+                window.connection.start().then(function () {
+                    loadNextSong();
+                }).catch(function (err) {
+                    return console.error(err.toString());
+                });
+
+                window.connection.on("PlayVideo", function (ytId) {
+                    window.player.loadVideoById(ytId, 0);
+                });
+
+                window.connection.on("Play", function () {
+                    window.player.playVideo();
+                });
+
+                window.connection.on("Pause", function () {
+                    window.player.pauseVideo();
+                });
+
+                window.connection.on("LoadVideo", function (ytId) {
+                    window.player.cueVideoByUrl(ytId);
+                });
+
+                window.connection.onreconnecting(error => {
+                    console.log("Reconnecting");
+                });
+            }
+        }
+
+        window.songError = function (event) {
+            console.log(event);
+            if (window.connection) {
+                window.connection.invoke("SongError", event.data).catch(function (err) {
+                    return console.error(err.toString());
+                });
+            }
+        }
+
+
+
+        window.onYouTubeIframeAPIReady = function () {
+            window.ytAPIReady = true;
+        }
+
+        window.onPlayerReady = function (event) {
+            window.playerReady = true;
+        }
+
+        window.checkAPIReady = function () {
+            if (window.ytAPIReady) {
+                return true;
+            }
+
+            return false;
+        }
+
+        window.checkPlayer = function () {
+            if (player && playerReady) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        window.playNextVideo = function () {
+            if (window.connection) {
+                window.connection.invoke("PlayNextVideo").catch(function (err) {
+                    return console.error(err.toString());
+                });
+            }
+        }
+
+        window.updateState = function (state) {
+            if (window.connection) {
+                window.connection.invoke("UpdateState", state).catch(function (err) {
+                    return console.error(err.toString());
+                });
+            }
+        }
+
+        window.loadNextSong = function () {
+            if (window.connection) {
+                window.connection.invoke("LoadNextSong").catch(function (err) {
+                    return console.error(err.toString());
+                });
+            }
+        }
+
+        window.onPlayerStateChange = function(event) {
+            updateState(event.data);
+        }
+
+    </script>
+    <component type="typeof(App)" render-mode="ServerPrerendered" />
     <script src="_framework/blazor.server.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="~/js/signalr/dist/browser/signalr.js"></script>
-    <script src="~/js/ytplayer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js" integrity="sha512-7rhBJh1om/W5Ztx7WiYOR9h2wlSaTmPyQMoHFtbT/FVNIA12y6S6I8HY9mrBS1uJ3dSU/R3qaSAXsGYuRjMDxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"
         integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9"
         crossorigin="anonymous"></script>
