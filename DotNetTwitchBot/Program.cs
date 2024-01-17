@@ -250,22 +250,21 @@ internal class Program
             logger.LogInformation("Application trying to stop.");
             await websocketMessenger.CloseAllSockets();
         });
-        AppDomain.CurrentDomain.FirstChanceException += (_, eventArgs) =>
+        AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
-            if (eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
-                eventArgs.Exception.GetType() == typeof(System.IO.IOException) ||
-                eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
+            if (
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
-                eventArgs.Exception.Message.Contains("JavaScript"))
+                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException)
+                )
             {
                 return; //Ignore
             }
-            logger.LogDebug(eventArgs.Exception, "Global Exception Caught");
+            //special for Discord.NET ignore websocket exceptions
+
+            logger.LogDebug(eventArgs.Exception, "Global Exception Caught from {sender} in {source}, InnerEx Begin\n{InnerException}\nInnerEx End", sender, eventArgs.Exception.Source, eventArgs.Exception.InnerException);
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");
