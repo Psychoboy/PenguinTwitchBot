@@ -253,6 +253,7 @@ internal class Program
         AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
         {
             if (
+                eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
@@ -261,6 +262,11 @@ internal class Program
                 )
             {
                 return; //Ignore
+            }
+            if (eventArgs.Exception.InnerException?.GetType() == typeof(System.Net.Sockets.SocketException))
+            {
+                var ex = eventArgs.Exception.InnerException as System.Net.Sockets.SocketException;
+                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionAborted) return;
             }
             //special for Discord.NET ignore websocket exceptions
 
