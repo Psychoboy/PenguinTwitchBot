@@ -166,6 +166,7 @@ internal class Program
             .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
             .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
             .ForwardToPrometheus();
+        builder.Services.AddHttpContextAccessor();
 
         var app = builder.Build();
         app.UseAuthentication();

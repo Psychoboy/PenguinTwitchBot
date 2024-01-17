@@ -12,6 +12,8 @@ namespace DotNetTwitchBot.Shared
         public NavigationManager NavigationManager { get; set; } = default!;
         [Inject]
         AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+        [Inject]
+        IHttpContextAccessor httpContextAccessor { get; set; } = default!;
 
         protected override async Task OnInitializedAsync()
         {
@@ -28,6 +30,12 @@ namespace DotNetTwitchBot.Shared
                 }
             }
             Logger?.LogWarning("{user} tried to access {pageurl} which does not exist.", username, NavigationManager.Uri);
+            if (httpContextAccessor is not null)
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                httpContextAccessor.HttpContext.Response.StatusCode = 404;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            }
             await base.OnInitializedAsync();
         }
     }
