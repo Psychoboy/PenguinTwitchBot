@@ -266,6 +266,7 @@ internal class Program
             if (eventArgs.Exception.InnerException?.GetType() == typeof(System.Net.Sockets.SocketException))
             {
                 var ex = eventArgs.Exception.InnerException as System.Net.Sockets.SocketException;
+                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.OperationAborted) return;
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionAborted) return;
             }
             //special for Discord.NET ignore websocket exceptions
