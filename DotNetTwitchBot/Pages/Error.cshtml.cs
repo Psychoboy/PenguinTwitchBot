@@ -22,6 +22,8 @@ namespace DotNetTwitchBot.Pages
         public void OnGet()
         {
             RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+
+            _logger.LogWarning("User got an error. RequestId: {RequestId}, Links: {Endpoint}", RequestId, Activity.Current?.Links);
         }
     }
 }
