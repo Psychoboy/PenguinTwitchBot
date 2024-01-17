@@ -129,7 +129,7 @@
     private HubConnection? hubConnection;
     private string? addSongUrl;
     [Inject]
-    private IJSRuntime JsRuntime { get; set; }
+    private IJSRuntime JsRuntime { get; set; } = default!;
 
     private Timer? _timer;
     private bool playerReady;
