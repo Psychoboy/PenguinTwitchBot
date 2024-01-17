@@ -15,10 +15,9 @@ namespace DotNetTwitchBot.Shared
         [Inject]
         IHttpContextAccessor httpContextAccessor { get; set; } = default!;
 
-        protected override async Task OnInitializedAsync()
+        protected override void OnInitialized()
         {
-            var authState = await AuthenticationStateProvider
-           .GetAuthenticationStateAsync();
+            var authState = AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
             var user = authState.User;
             var username = "UnknownUser";
             if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
@@ -33,10 +32,13 @@ namespace DotNetTwitchBot.Shared
             if (httpContextAccessor is not null)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                httpContextAccessor.HttpContext.Response.StatusCode = 404;
+                if (httpContextAccessor.HttpContext.Response.HasStarted == false)
+                {
+                    httpContextAccessor.HttpContext.Response.StatusCode = 404;
+                }
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
-            await base.OnInitializedAsync();
+            base.OnInitialized();
         }
     }
 }
