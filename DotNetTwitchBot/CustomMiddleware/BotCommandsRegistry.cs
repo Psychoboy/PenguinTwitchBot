@@ -1,7 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Repository;
-using DotNetTwitchBot.Bot.Repository.Repositories;
-
-namespace DotNetTwitchBot.CustomMiddleware
+﻿namespace DotNetTwitchBot.CustomMiddleware
 {
     public static class BotCommandsRegistry
     {
@@ -48,8 +45,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
             services.AddSingleton<Bot.Core.SubscriptionTracker>();
 
-            services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
+            services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
 
             //Add Features Here:
 
@@ -65,7 +62,8 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
-
+            services.AddSingleton<Bot.Core.IChatHistory, Bot.Core.ChatHistory>();
+            services.AddSingleton<Bot.Core.Leaderboards>();
             return services;
         }
 
@@ -73,6 +71,7 @@ namespace DotNetTwitchBot.CustomMiddleware
         {
             var task = RegisterCommands(app.ApplicationServices);
             task.Wait();
+            app.ApplicationServices.GetService<Bot.Core.IChatHistory>(); //refactor having to do this in the future
             return app;
         }
 

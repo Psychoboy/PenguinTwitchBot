@@ -21,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;
         public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
+        public DbSet<ViewerChatHistory> ViewerChatHistories { get; set; } = null!;
         public DbSet<DeathCounter> DeathCounters { get; set; } = null!;
         public DbSet<KeywordType> Keywords { get; set; } = null!;
         public DbSet<Setting> Settings { get; set; } = null!;

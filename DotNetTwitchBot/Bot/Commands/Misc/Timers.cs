@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Timers;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;

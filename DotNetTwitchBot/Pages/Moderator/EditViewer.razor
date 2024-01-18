@@ -8,6 +8,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature ticketFeature
 @inject DotNetTwitchBot.Bot.Core.SubscriptionTracker subTracker
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Core.IChatHistory chatHistory
 
 <PageTitle>SPTV Twitch Bot - Edit Viewer</PageTitle>
 @if (viewer.Viewer == null)
@@ -16,41 +17,74 @@
 }
 else
 {
+    <MudContainer MaxWidth="MaxWidth.False">
+        <MudGrid>
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4">
+                <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
+                    <DataAnnotationsValidator />
+                    <MudCardContent>
+                        <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
+                        <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
+                            Variant="Variant.Text" />
+                        <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
+                        <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
+                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isSub" Label="Subscriber?" />
+                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isVip" Label="VIP?" />
+                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isMod" Label="Moderator?" />
+                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
+                        <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
+                        <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
+                        <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
+                        <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
+                        <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
+                        <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
 
-    <MudCard>
-        <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
-            <DataAnnotationsValidator />
-            <MudCardContent>
-                <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
-                <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
-                    Variant="Variant.Text" />
-                <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
-                <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
-                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isSub" Label="Subscriber?" />
-                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isVip" Label="VIP?" />
-                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isMod" Label="Moderator?" />
-                <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
-                <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
-                <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
-                <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
-                <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
-                <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
-                <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
-
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                    Submit
-                </MudButton>
-            </MudCardContent>
-        </EditForm>
-    </MudCard>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </MudCardContent>
+                </EditForm>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12">
+                    <MudTable ServerData="@(new Func<TableState, Task<TableData<ViewerChatHistory>>>(MessagesReload))"
+                              Dense="true" Hover="true" @ref="messagesTable">
+                        <ToolBarContent>
+                            <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Date</MudTh>
+                            <MudTh>Message</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Rank">@context.CreatedAt</MudTd>
+                            <MudTd DataLabel="Name">@context.Message</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText>No matching records found</MudText>
+                        </NoRecordsContent>
+                        <LoadingContent>
+                            <MudText>Loading...</MudText>
+                        </LoadingContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
 }
 
 @code {
     [Parameter]
     public int id { get; set; }
 
+    private MudTable<ViewerChatHistory>? messagesTable;
+
     // private DotNetTwitchBot.Bot.Models.Viewer? viewer { get; set; }
     private ViewViewer viewer { get; set; } = new();
+    private string username { get; set; } = "";
     public class ViewViewer
     {
         public DotNetTwitchBot.Bot.Models.Viewer? Viewer { get; set; }
@@ -69,6 +103,7 @@ else
         viewer.Viewer = await viewerFeature.GetViewer(id);
         if(viewer.Viewer != null)
         {
+            username = viewer.Viewer.Username;
             var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
             if(follower != null)
             {
@@ -93,5 +128,15 @@ else
         if (viewer.Viewer == null) return;
         await viewerFeature.SaveViewer(viewer.Viewer);
         navigationManager.NavigateTo($"/viewers");
+    }
+
+    private async Task<TableData<ViewerChatHistory>> MessagesReload(TableState state)
+    {
+        var pageFilter = new Models.PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        pageFilter.Filter = username;
+        var response = await chatHistory.GetViewerChatMessages(pageFilter);
+        return new TableData<ViewerChatHistory>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 }

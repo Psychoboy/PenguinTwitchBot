@@ -46,8 +46,6 @@ internal class Program
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
-        builder.Services.AddSingleton<Leaderboards>();
-
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie();
 

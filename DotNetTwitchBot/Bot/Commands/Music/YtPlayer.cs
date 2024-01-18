@@ -1,6 +1,6 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;

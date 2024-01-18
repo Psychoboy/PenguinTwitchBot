@@ -1,0 +1,73 @@
+﻿using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Models;
+using DotNetTwitchBot.Repository;
+
+namespace DotNetTwitchBot.Bot.Core
+{
+    public class ChatHistory : IChatHistory
+    {
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IServiceBackbone _serviceBackbone;
+        private readonly ILogger<ChatHistory> _logger;
+
+        public ChatHistory(IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ILogger<ChatHistory> logger)
+        {
+            _scopeFactory = scopeFactory;
+            _serviceBackbone = serviceBackbone;
+            _serviceBackbone.ChatMessageEvent += OnChatMessage;
+            _serviceBackbone.CommandEvent += OnCommandMessage;
+            _logger = logger;
+        }
+
+        public async Task<PagedDataResponse<ViewerChatHistory>> GetViewerChatMessages(PaginationFilter filter)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var validFilter = new PaginationFilter(filter.Page, filter.Count);
+            var pagedData = await unitOfWork.ViewerChatHistories.GetAsync(
+                filter: x => x.Username.Equals(filter.Filter),
+                orderBy: a => a.OrderByDescending(b => b.CreatedAt),
+                offset: (validFilter.Page) * filter.Count,
+                limit: filter.Count
+            );
+            var totalRecords = await unitOfWork.ViewerChatHistories.Find(x => x.Username.Equals(filter.Filter)).CountAsync();
+
+            return new PagedDataResponse<ViewerChatHistory>
+            {
+                Data = pagedData,
+                TotalItems = totalRecords
+            };
+        }
+
+        private Task OnCommandMessage(object? sender, CommandEventArgs e)
+        {
+            return AddMessage(e.Name, e.DisplayName, e.Command + " " + e.Arg);
+        }
+
+        private async Task AddMessage(string name, string displayName, string message)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var chatHistory = new ViewerChatHistory
+            {
+                Username = name,
+                DisplayName = displayName,
+                Message = message
+            };
+            try
+            {
+                await db.ViewerChatHistories.AddAsync(chatHistory);
+                await db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failure to save chat history. {username}: {message}", name, message);
+            }
+        }
+
+        private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        {
+            return AddMessage(e.Name, e.DisplayName, e.Message);
+        }
+    }
+}

@@ -1,4 +1,4 @@
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
