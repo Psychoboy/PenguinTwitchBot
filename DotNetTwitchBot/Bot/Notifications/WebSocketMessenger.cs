@@ -114,6 +114,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
         public async Task CloseAllSockets()
         {
+            _logger.LogDebug("Closing all sockets");
             IEnumerable<SocketConnection> sockets;
             try
             {
@@ -125,6 +126,7 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
             }
+            _logger.LogDebug("Closed all sockets");
         }
 
         private async Task SendMessageToSockets(string message)
