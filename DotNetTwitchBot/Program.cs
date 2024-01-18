@@ -16,6 +16,7 @@ using MudBlazor.Services;
 using Prometheus;
 using Prometheus.DotNetRuntime;
 using Quartz;
+using Quartz.AspNetCore;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
 
@@ -136,10 +137,9 @@ internal class Program
                 .WithIdentity("BackupDb-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
             );
-            q.InterruptJobsOnShutdown = true;
         });
-        builder.Services.AddQuartzHostedService(
-            q => q.WaitForJobsToComplete = true
+        builder.Services.AddQuartzServer(
+            q => q.WaitForJobsToComplete = false
         );
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -258,16 +258,23 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException)
+                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
+                eventArgs.Exception.GetType() == typeof(System.Threading.Channels.ChannelClosedException) ||
+                eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
+                eventArgs.Exception.Message.Contains("JavaScript")
                 )
             {
                 return; //Ignore
             }
+
             if (eventArgs.Exception.InnerException?.GetType() == typeof(System.Net.Sockets.SocketException))
             {
                 var ex = eventArgs.Exception.InnerException as System.Net.Sockets.SocketException;
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.OperationAborted) return;
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionAborted) return;
+                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset) return;
             }
             //special for Discord.NET ignore websocket exceptions
 
