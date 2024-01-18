@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using MySqlConnector;
 
 namespace DotNetTwitchBot.Bot.Core.Database
@@ -19,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public async Task Backup()
         {
+            _logger.LogInformation("Starting backup");
             var connectionString = _configuration.GetConnectionString("DefaultConnection");
             using (MySqlConnection conn = new(connectionString))
             {
@@ -44,6 +41,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
                     fi.Delete();
                 }
             }
+            _logger.LogInformation("Completed backup");
         }
     }
 }

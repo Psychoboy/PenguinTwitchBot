@@ -5,10 +5,9 @@ global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
 using Blazor.Analytics;
 using DotNetTwitchBot.Bot.Core;
-using DotNetTwitchBot.Bot.Repository;
-using DotNetTwitchBot.Bot.Repository.Repositories;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
+using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -16,6 +15,7 @@ using MudBlazor.Services;
 using Prometheus;
 using Prometheus.DotNetRuntime;
 using Quartz;
+using Quartz.AspNetCore;
 using Serilog;
 using TwitchLib.EventSub.Websockets.Extensions;
 
@@ -66,63 +66,12 @@ internal class Program
         builder.Services.AddSingleton<TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.ISendAlerts, DotNetTwitchBot.Bot.Alerts.SendAlerts>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger, DotNetTwitchBot.Bot.Notifications.WebSocketMessenger>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots, DotNetTwitchBot.Bot.Commands.Moderation.KnownBots>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Core.SubscriptionTracker>();
-
-        RegisterDbServices(builder.Services);
 
 
-        //Add Features Here:
-        var commands = new List<Type>
-        {
-            typeof(DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.WaffleRaffle),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.PancakeRaffle),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.BaconRaffle),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.Roulette),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.DuelGame),
-            typeof(DotNetTwitchBot.Bot.Commands.TicketGames.ModSpam),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.AddActive),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.First),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.DailyCounter),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.DeathCounters),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.LastSeen),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.Top),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.RaidTracker),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.Weather),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem),
-            typeof(DotNetTwitchBot.Bot.Commands.Misc.Timers),
-            typeof(DotNetTwitchBot.Bot.Commands.Custom.CustomCommand),
-            typeof(DotNetTwitchBot.Bot.Commands.Custom.AudioCommands),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Defuse),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Roll),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.FFA),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Gamble),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Steal),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Heist),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Slots),
-            typeof(DotNetTwitchBot.Bot.Commands.PastyGames.Tax),
-            typeof(DotNetTwitchBot.Bot.Commands.Music.YtPlayer),
-            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Blacklist),
-            typeof(DotNetTwitchBot.Bot.Commands.Moderation.Admin),
-            typeof(DotNetTwitchBot.Bot.Commands.Metrics.SongRequests),
-            typeof(DotNetTwitchBot.Bot.Commands.Moderation.BannedUsers)
-        };
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.PastyGames.MaxBetCalculator>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.Custom.IAlias, DotNetTwitchBot.Bot.Commands.Custom.Alias>();
-        //Add Alerts
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Alerts.AlertImage>();
+        builder.Services.AddBotCommands();
 
-        foreach (var cmd in commands)
-        {
-            builder.Services.AddSingleton(cmd);
-        }
 
-        commands.AddRange(RegisterCommandServices(builder.Services));
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHelper, DotNetTwitchBot.Bot.Commands.CommandHelper>();
+
 
         //Backup Jobs:
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
@@ -136,9 +85,8 @@ internal class Program
                 .WithIdentity("BackupDb-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
             );
-            q.InterruptJobsOnShutdown = true;
         });
-        builder.Services.AddQuartzHostedService(
+        builder.Services.AddQuartzServer(
             q => q.WaitForJobsToComplete = true
         );
 
@@ -181,13 +129,8 @@ internal class Program
         //Loads all the command stuff into memory
         app.Services.GetRequiredService<IDiscordService>();
 
-        await app.Services.GetRequiredService<DotNetTwitchBot.Bot.Commands.Moderation.IKnownBots>().LoadKnownBots();
-
-        foreach (var cmd in commands)
-        {
-            var commandService = (DotNetTwitchBot.Bot.Commands.IBaseCommandService)app.Services.GetRequiredService(cmd);
-            await commandService.Register();
-        }
+        //Register all the bot commands
+        app.RegisterBotCommands();
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
         await app.Services.GetRequiredService<TwitchChatBot>().Initialize();
@@ -258,16 +201,23 @@ internal class Program
                 eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
                 eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
                 eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException)
+                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException) ||
+                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
+                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
+                eventArgs.Exception.GetType() == typeof(System.Threading.Channels.ChannelClosedException) ||
+                eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
+                eventArgs.Exception.Message.Contains("JavaScript")
                 )
             {
                 return; //Ignore
             }
+
             if (eventArgs.Exception.InnerException?.GetType() == typeof(System.Net.Sockets.SocketException))
             {
                 var ex = eventArgs.Exception.InnerException as System.Net.Sockets.SocketException;
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.OperationAborted) return;
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionAborted) return;
+                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset) return;
             }
             //special for Discord.NET ignore websocket exceptions
 
@@ -279,24 +229,5 @@ internal class Program
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
         app.Run(); //Start in future to read input
-    }
-
-    private static void RegisterDbServices(IServiceCollection services)
-    {
-        services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
-    }
-
-    private static List<Type> RegisterCommandServices(IServiceCollection services)
-    {
-        var commands = new List<Type>();
-        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.IViewerFeature, DotNetTwitchBot.Bot.Commands.Features.ViewerFeature>();
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature));
-        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature, DotNetTwitchBot.Bot.Commands.Features.TicketsFeature>();
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature));
-        services.AddSingleton<DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature, DotNetTwitchBot.Bot.Commands.Features.LoyaltyFeature>();
-        commands.Add(typeof(DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature));
-
-        return commands;
     }
 }
