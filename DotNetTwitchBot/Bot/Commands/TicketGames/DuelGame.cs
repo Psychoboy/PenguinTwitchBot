@@ -5,7 +5,7 @@ using DotNetTwitchBot.Bot.Models.Duel;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class DuelGame : BaseCommandService
+    public class DuelGame : BaseCommandService, IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
             ILogger<DuelGame> logger
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "DuelGame")
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
@@ -286,6 +286,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

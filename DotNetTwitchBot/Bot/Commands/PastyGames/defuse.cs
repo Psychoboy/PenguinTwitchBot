@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ISendAlerts sendAlerts,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler)
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Defuse"), IHostedService
     {
         private readonly List<string> Wires = ["red", "blue", "yellow"];
         private readonly int Cost = 500;
@@ -69,6 +69,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
 
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
+        }
     }
 }

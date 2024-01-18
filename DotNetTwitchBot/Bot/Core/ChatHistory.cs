@@ -4,20 +4,11 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class ChatHistory : IChatHistory
+    public class ChatHistory(IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ILogger<ChatHistory> logger) : IChatHistory, IHostedService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IServiceBackbone _serviceBackbone;
-        private readonly ILogger<ChatHistory> _logger;
-
-        public ChatHistory(IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ILogger<ChatHistory> logger)
-        {
-            _scopeFactory = scopeFactory;
-            _serviceBackbone = serviceBackbone;
-            _serviceBackbone.ChatMessageEvent += OnChatMessage;
-            _serviceBackbone.CommandEvent += OnCommandMessage;
-            _logger = logger;
-        }
+        private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
+        private readonly IServiceBackbone _serviceBackbone = serviceBackbone;
+        private readonly ILogger<ChatHistory> _logger = logger;
 
         public async Task<PagedDataResponse<ViewerChatHistory>> GetViewerChatMessages(PaginationFilter filter)
         {
@@ -68,6 +59,20 @@ namespace DotNetTwitchBot.Bot.Core
         private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
         {
             return AddMessage(e.Name, e.DisplayName, e.Message);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            _serviceBackbone.ChatMessageEvent += OnChatMessage;
+            _serviceBackbone.CommandEvent += OnCommandMessage;
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _serviceBackbone.ChatMessageEvent -= OnChatMessage;
+            _serviceBackbone.CommandEvent -= OnCommandMessage;
+            return Task.CompletedTask;
         }
     }
 }

@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
     public class Alias(
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler), IAlias
+        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias"), IAlias, IHostedService
     {
         public async Task<List<AliasModel>> GetAliasesAsync()
         {
@@ -84,6 +84,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         }
 
         public override Task Register()
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
         }

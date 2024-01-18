@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Roll : BaseCommandService
+    public class Roll : BaseCommandService, IHostedService
     {
         private readonly ILogger<Roll> _logger;
         private readonly ILoyaltyFeature _loyaltyFeature;
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILoyaltyFeature loyaltyFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Roll")
         {
             _logger = logger;
             _loyaltyFeature = loyaltyFeature;
@@ -193,6 +193,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "Whoever said, \"It's not whether you win or lose that counts,\" probably lost.",
                 "What went wrong? What didn\'t? - it was just one of those days. Not your day really"
             };
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

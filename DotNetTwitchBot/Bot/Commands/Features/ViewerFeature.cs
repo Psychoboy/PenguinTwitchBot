@@ -1,15 +1,15 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class ViewerFeature : BaseCommandService, IViewerFeature
+    public class ViewerFeature : BaseCommandService, IHostedService, IViewerFeature
     {
         private readonly ConcurrentDictionary<string, DateTime> _usersLastActive = new();
         private readonly ConcurrentDictionary<string, byte> _users = new();
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "ViewerFeature")
         {
             _logger = logger;
             serviceBackbone.ChatMessageEvent += OnChatMessage;
@@ -399,6 +399,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
 
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
+        }
     }
 }

@@ -1,11 +1,11 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class QuoteSystem : BaseCommandService
+    public class QuoteSystem : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<QuoteSystem> _logger;
@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceBackbone serviceBackbone,
             ILogger<QuoteSystem> logger,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "QuoteSystem")
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -153,6 +153,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await ServiceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}");
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

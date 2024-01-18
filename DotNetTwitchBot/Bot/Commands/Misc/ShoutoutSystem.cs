@@ -1,11 +1,11 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class ShoutoutSystem : BaseCommandService
+    public class ShoutoutSystem : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchService;
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "ShoutoutSystem")
         {
             serviceBackbone.ChatMessageEvent += OnChatMessage;
             _scopeFactory = scopeFactory;
@@ -166,6 +166,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     await Shoutout(e.TargetUser);
                     break;
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,10 +1,8 @@
-﻿using System.Threading.Tasks;
-using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using NSubstitute;
-using Xunit;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
 {
@@ -107,7 +105,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
     internal class TestCommandService : BaseCommandService
     {
         public TestCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler)
-            : base(serviceBackbone, commandHandler)
+            : base(serviceBackbone, commandHandler, "Roulette")
         {
         }
 

@@ -127,8 +127,6 @@ internal class Program
         //Loads all the command stuff into memory
         app.Services.GetRequiredService<IDiscordService>();
 
-        //Register all the bot commands
-        app.RegisterBotCommands();
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
         await app.Services.GetRequiredService<TwitchChatBot>().Initialize();

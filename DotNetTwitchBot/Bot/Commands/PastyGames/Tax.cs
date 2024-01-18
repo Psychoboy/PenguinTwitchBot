@@ -6,7 +6,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Tax : BaseCommandService
+    public class Tax : BaseCommandService, IHostedService
     {
         readonly Timer _taxTimer;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Tax")
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
             _taxTimer.Elapsed += Elapsed;
@@ -90,6 +90,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public override Task Register()
         {
+            return Task.CompletedTask;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

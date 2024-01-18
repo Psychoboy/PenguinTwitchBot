@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class First : BaseCommandService
+    public class First : BaseCommandService, IHostedService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
         private readonly int MaxClaims = 200;
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<First> logger,
             ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
-        ) : base(eventService, commandHandler)
+        ) : base(eventService, commandHandler, "First")
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
@@ -84,6 +84,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
             await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

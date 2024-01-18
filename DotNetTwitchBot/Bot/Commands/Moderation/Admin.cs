@@ -5,7 +5,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class Admin : BaseCommandService
+    public class Admin : BaseCommandService, IHostedService
     {
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly ILogger<Admin> _logger;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             IServiceScopeFactory scopeFactory
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Admin")
         {
             _webSocketMessenger = webSocketMessenger;
             _logger = logger;
@@ -86,6 +86,17 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             _serviceBackbone.IsOnline = false;
             await _serviceBackbone.OnStreamEnded();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

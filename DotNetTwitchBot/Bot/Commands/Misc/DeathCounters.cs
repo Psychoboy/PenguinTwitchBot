@@ -1,12 +1,12 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DeathCounters : BaseCommandService
+    public class DeathCounters : BaseCommandService, IHostedService
     {
         private readonly ITwitchService _twitchService;
         private readonly ILogger<DeathCounters> _logger;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "DeathCounters")
         {
             _twitchService = twitchService;
             _logger = logger;
@@ -127,6 +127,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.DeathCounters.Update(counter);
             await db.SaveChangesAsync();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

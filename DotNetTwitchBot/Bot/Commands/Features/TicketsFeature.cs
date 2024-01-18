@@ -6,7 +6,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class TicketsFeature : BaseCommandService, ITicketsFeature
+    public class TicketsFeature : BaseCommandService, ITicketsFeature, IHostedService
     {
         private readonly ILogger<TicketsFeature> _logger;
 
@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceScopeFactory scopeFactory,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler)
-            : base(serviceBackbone, commandHandler)
+            : base(serviceBackbone, commandHandler, "TicketsFeature")
         {
             _logger = logger;
 
@@ -237,6 +237,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.ViewerTickets.ExecuteDeleteAllAsync();
             await db.SaveChangesAsync();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }
