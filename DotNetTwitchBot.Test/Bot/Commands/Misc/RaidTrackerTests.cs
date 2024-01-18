@@ -2,7 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

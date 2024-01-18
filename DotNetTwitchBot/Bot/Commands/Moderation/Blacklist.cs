@@ -1,6 +1,6 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;

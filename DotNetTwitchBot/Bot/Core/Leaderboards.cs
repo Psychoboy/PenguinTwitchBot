@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Repository;
+﻿using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Core

@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

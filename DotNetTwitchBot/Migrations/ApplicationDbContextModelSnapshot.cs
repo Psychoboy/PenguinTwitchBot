@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.10")
+                .HasAnnotation("ProductVersion", "8.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.AliasModel", b =>
@@ -847,6 +847,33 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("Username");
 
                     b.ToTable("Viewers");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerChatHistory", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("ViewerChatHistories");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCount", b =>

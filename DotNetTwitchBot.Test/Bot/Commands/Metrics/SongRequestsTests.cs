@@ -2,7 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Metrics;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models.Metrics;
-using DotNetTwitchBot.Bot.Repository;
+using DotNetTwitchBot.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using MockQueryable.NSubstitute;
 using NSubstitute;
