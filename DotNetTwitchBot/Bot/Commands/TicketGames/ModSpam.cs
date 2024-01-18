@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -9,7 +5,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class ModSpam : BaseCommandService
+    public class ModSpam : BaseCommandService, IHostedService
     {
         private readonly AddActive _addActive;
         readonly Timer _intervalTimer;
@@ -22,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             ILogger<ModSpam> logger
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "ModSpam")
         {
             _addActive = addActive;
             _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
@@ -75,6 +71,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _runTime = new TimeSpan(0, 0, Tools.RandomRange(15, 20));
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

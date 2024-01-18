@@ -8,7 +8,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class GiveawayFeature : BaseCommandService
+    public class GiveawayFeature : BaseCommandService, IHostedService
     {
         private readonly ILogger<GiveawayFeature> _logger;
         private readonly ITicketsFeature _ticketsFeature;
@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler,
             ILanguage language
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "GiveawayFeature")
         {
             _logger = logger;
             _ticketsFeature = ticketsFeature;
@@ -473,6 +473,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await ServiceBackbone.SendWhisperMessage(sender, lang.Get("giveawayfeature.enter.entries").Replace("(amount)", entries.ToString()));
         }
 
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
 
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
+        }
     }
 }

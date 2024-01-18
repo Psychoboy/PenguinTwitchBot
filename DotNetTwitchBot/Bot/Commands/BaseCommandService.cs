@@ -6,12 +6,14 @@ namespace DotNetTwitchBot.Bot.Commands
     public abstract class BaseCommandService : IBaseCommandService //: IHostedService
     {
         protected ICommandHandler CommandHandler { get; }
+        public string ModuleName { get; private set; }
 
-        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler)
+        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
             CommandHandler = commandHandler;
+            ModuleName = moduleName;
         }
 
         protected IServiceBackbone ServiceBackbone { get; }

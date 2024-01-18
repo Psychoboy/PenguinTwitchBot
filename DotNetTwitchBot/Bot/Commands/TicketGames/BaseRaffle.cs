@@ -4,11 +4,11 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public abstract class BaseRaffle : BaseCommandService
+    public abstract class BaseRaffle : BaseCommandService, IHostedService
     {
         DateTime _startTime = DateTime.Now;
         readonly Timer _intervalTimer;
-
+        protected readonly ILogger _logger;
         readonly int _runTime = 75;
         enum State
         {
@@ -38,14 +38,16 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             ICommandHandler commandHandler,
             string emote,
             string command,
-            string name
-        ) : base(eventService, commandHandler)
+            string name,
+            ILogger logger
+        ) : base(eventService, commandHandler, name)
         {
             _emote = emote;
             _command = command;
             _name = name;
             _ticketsFeature = ticketsFeature;
             _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
+            _logger = logger;
         }
 
         public async Task StartRaffle(string Sender, int amountToWin)
@@ -165,6 +167,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
             _entered.Add(username);
             _joinedSinceLastAnnounce = true;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
 
         //Strings

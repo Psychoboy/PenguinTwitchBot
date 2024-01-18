@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler)
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Top"), IHostedService
     {
         public override async Task Register()
         {
@@ -92,6 +92,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var rank = 1;
             var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in Tickets: {1}", topN, names));
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Stopped {moduledname}", "Top");
+            return Task.CompletedTask;
         }
     }
 }

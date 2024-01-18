@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler)
+            ) : BaseCommandService(serviceBackbone, commandHandler, "SongRequestsMeetrics"), IHostedService
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -81,6 +81,16 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.SongRequestMetrics.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
 }

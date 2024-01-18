@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class Roulette : BaseCommandService
+    public class Roulette : BaseCommandService, IHostedService
     {
         private readonly int MustBeatValue = 52;
         private readonly ITicketsFeature _ticketsFeature;
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler,
             ILogger<Roulette> logger
-        ) : base(serviceBackbone, commandHandler)
+        ) : base(serviceBackbone, commandHandler, "Roulette")
         {
             _ticketsFeature = ticketsFeature;
             ServiceBackbone.StreamStarted += OnStreamStarted;
@@ -123,6 +123,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     }
                     break;
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
 
         private readonly string WinMessage = "{0} rolled a {3} and  won {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";

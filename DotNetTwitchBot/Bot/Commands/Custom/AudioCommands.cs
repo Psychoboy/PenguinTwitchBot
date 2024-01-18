@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,
         ILanguage language,
-        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler)
+        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks"), IHostedService
     {
         readonly Dictionary<string, AudioCommand> Commands = [];
 
@@ -221,6 +221,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 logger.LogError(err, "Failed to add audio command");
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

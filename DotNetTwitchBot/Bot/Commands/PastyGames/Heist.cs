@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Heist : BaseCommandService
+    public class Heist : BaseCommandService, IHostedService
     {
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly int Cooldown = 300;
@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Heist")
         {
             _loyaltyFeature = loyaltyFeature;
             JoinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
@@ -248,6 +248,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     Caught.Add(participant);
                 }
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

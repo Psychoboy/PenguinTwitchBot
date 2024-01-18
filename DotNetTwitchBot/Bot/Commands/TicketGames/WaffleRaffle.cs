@@ -1,27 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class WaffleRaffle : BaseRaffle
+    public class WaffleRaffle(
+        IServiceBackbone eventService,
+        ITicketsFeature ticketsFeature,
+        ICommandHandler commandHandler,
+        ILogger<WaffleRaffle> logger
+        ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvWaffle", "!waffle", "waffle", logger)
     {
-        private readonly ILogger<WaffleRaffle> _logger;
-
-        public WaffleRaffle(
-            IServiceBackbone eventService,
-            ITicketsFeature ticketsFeature,
-            ICommandHandler commandHandler,
-            ILogger<WaffleRaffle> logger
-        ) : base(eventService, ticketsFeature, commandHandler, "sptvWaffle", "!waffle", "waffle")
-        {
-            _logger = logger;
-        }
-
         public override async Task Register()
         {
             var moduleName = "WaffleRaffle";

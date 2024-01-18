@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Slots : BaseCommandService
+    public class Slots : BaseCommandService, IHostedService
     {
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly ILogger<Slots> _logger;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             MaxBetCalculator maxBetCalculator
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Slots")
         {
             _loyaltyFeature = loyaltyService;
             _logger = logger;
@@ -274,6 +274,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 "My dad could win, and he\'s dead!",
                 "You with the keyboard! I won DESPITE you. You suck. And smell -- REALLY smell."
             };
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

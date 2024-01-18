@@ -5,7 +5,7 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DailyCounter : BaseCommandService
+    public class DailyCounter : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<DailyCounter> _logger;
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "DailyCounter")
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -149,6 +149,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 Directory.CreateDirectory("Data");
             }
             await File.WriteAllTextAsync($"Data/DailyCounter.txt", data);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

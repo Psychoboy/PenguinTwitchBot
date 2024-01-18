@@ -6,7 +6,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class AddActive : BaseCommandService
+    public class AddActive : BaseCommandService, IHostedService
     {
         private readonly ITicketsFeature _ticketsFeature;
         protected readonly Timer _ticketsToActiveCommandTimer;
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceBackbone serviceBackbone,
             ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
-        ) : base(serviceBackbone, commandHandler)
+        ) : base(serviceBackbone, commandHandler, "AddActive")
         {
             _ticketsFeature = ticketsFeature;
             _logger = logger;
@@ -77,6 +77,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await ServiceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
                 _ticketsToGiveOut = 0;
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

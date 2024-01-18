@@ -1,13 +1,13 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class Blacklist : BaseCommandService
+    public class Blacklist : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchService;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Blacklist")
         {
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;
@@ -111,6 +111,16 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public override async Task Register()
         {
             await LoadBlacklist();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
 }

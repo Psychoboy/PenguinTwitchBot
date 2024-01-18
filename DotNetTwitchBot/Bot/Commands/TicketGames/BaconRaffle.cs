@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         ITicketsFeature ticketsFeature,
         ICommandHandler commandHandler,
         ILogger<BaconRaffle> logger
-            ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon")
+            ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon", logger)
     {
         protected override void UpdateNumberOfWinners()
         {

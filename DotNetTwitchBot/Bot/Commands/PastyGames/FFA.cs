@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class FFA : BaseCommandService
+    public class FFA : BaseCommandService, IHostedService
     {
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 180;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<FFA> logger,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "FFA")
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _loyaltyFeature = loyaltyFeature;
@@ -119,6 +119,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             Entered.Add(e.Name);
         }
 
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
 
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
+        }
     }
 }

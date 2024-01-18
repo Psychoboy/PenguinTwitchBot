@@ -1,27 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class PancakeRaffle : BaseRaffle
+    public class PancakeRaffle(
+        IServiceBackbone eventService,
+        ITicketsFeature ticketsFeature,
+        ICommandHandler commandHandler,
+        ILogger<PancakeRaffle> logger
+        ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvPancake", "!pancake", "pancake", logger)
     {
-        private readonly ILogger<PancakeRaffle> _logger;
-
-        public PancakeRaffle(
-            IServiceBackbone eventService,
-            ITicketsFeature ticketsFeature,
-            ICommandHandler commandHandler,
-            ILogger<PancakeRaffle> logger
-        ) : base(eventService, ticketsFeature, commandHandler, "sptvPancake", "!pancake", "pancake")
-        {
-            _logger = logger;
-        }
-
         public override async Task Register()
         {
             var moduleName = "PancakeRaffle";

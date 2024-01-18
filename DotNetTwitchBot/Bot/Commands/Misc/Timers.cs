@@ -8,7 +8,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Timers : BaseCommandService
+    public class Timers : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<Timers> _logger;
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Timers")
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -228,6 +228,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public override Task Register()
         {
+            return Task.CompletedTask;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

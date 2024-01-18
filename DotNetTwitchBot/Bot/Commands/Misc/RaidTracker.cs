@@ -1,13 +1,13 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class RaidTracker : BaseCommandService
+    public class RaidTracker : BaseCommandService, IHostedService
     {
         private readonly ILogger<RaidTracker> _logger;
         private readonly ITwitchService _twitchService;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "RaidTraicker")
         {
             _scopeFactory = scopeFactory;
             ServiceBackbone.IncomingRaidEvent += OnIncomingRaid;
@@ -184,6 +184,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 _logger.LogError(ex, "Error starting raid.");
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

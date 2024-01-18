@@ -7,7 +7,7 @@ using Prometheus;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
-    public class YtPlayer : BaseCommandService
+    public class YtPlayer : BaseCommandService, IHostedService
     {
         private readonly IHubContext<YtHub> _hubContext;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-        ) : base(serviceBackbone, commandHandler)
+        ) : base(serviceBackbone, commandHandler, "YtPlayer")
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
@@ -865,6 +865,17 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task SendSongRequests(List<Song> requests)
         {
             await _hubContext.Clients.All.SendAsync("CurrentSongRequests", requests);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

@@ -7,7 +7,7 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class LoyaltyFeature : BaseCommandService, ILoyaltyFeature
+    public class LoyaltyFeature : BaseCommandService, ILoyaltyFeature, IHostedService
     {
         private readonly IViewerFeature _viewerFeature;
         private readonly ITicketsFeature _ticketsFeature;
@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceBackbone serviceBackbone,
             ITicketsFeature ticketsFeature,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "LoyaltyFeature")
         {
             _viewerFeature = viewerFeature;
             _ticketsFeature = ticketsFeature;
@@ -509,6 +509,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
             if (ticketsPersub == null) { return 50; }
             return ticketsPersub.IntSetting;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,12 +1,12 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Gamble : BaseCommandService
+    public class Gamble : BaseCommandService, IHostedService
     {
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             MaxBetCalculator maxBetCalculator
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Gamble")
         {
             _loyaltyFeature = loyaltyFeature;
             _scopeFactory = scopeFactory;
@@ -180,6 +180,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return jackpot;
         }
 
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
 
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
+        }
     }
 }

@@ -1,19 +1,19 @@
 ﻿using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class BannedUsers : BaseCommandService
+    public class BannedUsers : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
         private readonly ITwitchService _twitchService;
         private readonly ILogger<BannedUsers> _logger;
 
-        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchService twitchService) : base(serviceBackbone, commandHandler)
+        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchService twitchService) : base(serviceBackbone, commandHandler, "BannedUsers")
         {
             _twitchService = twitchService;
             _logger = logger;
@@ -183,6 +183,17 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public override async Task Register()
         {
             await UpdateBannedUsers();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

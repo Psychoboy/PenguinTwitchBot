@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class LastSeen : BaseCommandService
+    public class LastSeen : BaseCommandService, IHostedService
     {
         private readonly IViewerFeature _viewerFeature;
         private readonly ILogger<LastSeen> _logger;
@@ -18,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "LastSeen")
         {
             _viewerFeature = viewerFeature;
             _logger = logger;
@@ -49,6 +45,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await SendChatMessage(e.DisplayName, string.Format("Have never seen {0}", e.Arg));
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Steal : BaseCommandService
+    public class Steal : BaseCommandService, IHostedService
     {
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler)
+            ) : base(serviceBackbone, commandHandler, "Steal")
         {
             _loyaltyFeature = loyaltyFeature;
             _viewerFeature = viewerFeature;
@@ -91,6 +91,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             await _loyaltyFeature.RemovePointsFromUser(from, amount);
             await _loyaltyFeature.AddPointsToViewer(to, amount);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }

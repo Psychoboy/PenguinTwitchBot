@@ -2,14 +2,14 @@ using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public partial class CustomCommand : BaseCommandService
+    public partial class CustomCommand : BaseCommandService, IHostedService
     {
         [GeneratedRegex(
             @"(?:[^\\]|^)(\(([^\\\s\|=()]*)([\s=\|](?:\\\(|\\\)|[^()])*)?\))",
@@ -44,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ILoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler)
+            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
         {
             _sendAlerts = sendAlerts;
             _viewerFeature = viewerFeature;
@@ -875,6 +875,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
             await ServiceBackbone.RunCommand(command);
             return new CustomCommandResult();
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Register();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            return Task.CompletedTask;
         }
     }
 }
