@@ -156,7 +156,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        protected async Task EnterRaffle(CommandEventArgs e)
+        protected void EnterRaffle(CommandEventArgs e)
         {
             if (CurrentState != State.Running)
             {
@@ -189,6 +189,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private readonly string raffleTimeLeft = "{0} seconds left to type {1} for a chance of extra tickets {2}";
         private readonly string raffleNotEnough = "Nobody joined the {0} so no body wins.";
         private readonly string raffleWinners = "{0} are the winners of the {1}! They each get {2} tickets. {3} {3} {3}";
-        private readonly string alreadyJoined = "You already joined the {0}";
+        //private readonly string alreadyJoined = "You already joined the {0}";
     }
 }

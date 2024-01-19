@@ -213,6 +213,7 @@ internal class Program
 
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
-        app.Run(); //Start in future to read input
+        await app.RunAsync(); //Start in future to read input
+
     }
 }

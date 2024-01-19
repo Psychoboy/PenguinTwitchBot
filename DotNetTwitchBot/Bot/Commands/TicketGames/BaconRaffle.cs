@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
                 case "bacon":
                     {
-                        await EnterRaffle(e);
+                        EnterRaffle(e);
                     }
                     break;
             }

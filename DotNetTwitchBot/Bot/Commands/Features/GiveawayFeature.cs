@@ -43,8 +43,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _scopeFactory = scopeFactory;
             _hubContext = hubContext;
             lang = language;
-            _timer.Elapsed += SendCurrentEntriesToAll;
             _serviceBackBone = serviceBackbone;
+            _timer.Elapsed += SendCurrentEntriesToAll;
             _serviceBackBone.StreamStarted += StreamStarted;
         }
 
