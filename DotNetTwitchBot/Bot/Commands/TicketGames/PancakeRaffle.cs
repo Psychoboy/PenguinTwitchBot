@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
                 case "pancake":
                     {
-                        await EnterRaffle(e);
+                        EnterRaffle(e);
                     }
                     break;
             }
