@@ -3,7 +3,6 @@ global using DotNetTwitchBot.Bot.Models;
 global using Microsoft.EntityFrameworkCore;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
-using Blazor.Analytics;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
@@ -52,11 +51,6 @@ internal class Program
         builder.Services.AddRazorPages();
         builder.Services.AddServerSideBlazor().AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
         builder.Services.AddMudServices();
-
-        if (builder.Configuration["AnalyticsId"] != null)
-        {
-            builder.Services.AddGoogleAnalytics(builder.Configuration["AnalyticsId"]);
-        }
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
@@ -177,11 +171,6 @@ internal class Program
         {
             logger.LogInformation("Application Starting");
         });
-
-        if (builder.Configuration["AnalyticsId"] != null)
-        {
-            logger.LogInformation("AnalyticsId found so analytics started.");
-        }
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         lifetime.ApplicationStopping.Register(async () =>
