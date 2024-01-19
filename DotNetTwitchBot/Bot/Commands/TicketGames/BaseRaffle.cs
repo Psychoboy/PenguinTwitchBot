@@ -31,6 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         protected int NumberOfWinners { get; set; } = 3;
         protected int NumberEntered { get { return _entered.Count; } }
+        private bool RemainingTimeSent { get; set; } = false;
 
         protected BaseRaffle(
             IServiceBackbone eventService,
@@ -75,10 +76,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 UpdateNumberOfWinners();
                 await PickWinners();
+                RemainingTimeSent = false;
                 return; //Raffle Ended
             }
-            await SendJoinedMessage();
-            if ((int)elapsedTime.TotalSeconds >= 10)
+            //await SendJoinedMessage();
+            if (RemainingTimeSent = false && (int)elapsedTime.TotalSeconds <= _runTime / 2)
                 await SendTimeLeft((int)elapsedTime.TotalSeconds);
         }
 
@@ -141,6 +143,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private async Task SendTimeLeft(int elapsedTime)
         {
             if (_runTime - elapsedTime < 10) return;
+            RemainingTimeSent = true;
             await ServiceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount));
         }
 
@@ -162,7 +165,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var username = e.Name;
             if (_entered.Exists(x => x.ToLower().Equals(username.ToLower())))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format(alreadyJoined, e.Command));
                 return;
             }
             _entered.Add(username);
