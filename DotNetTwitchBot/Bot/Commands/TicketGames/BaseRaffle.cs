@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 return; //Raffle Ended
             }
             //await SendJoinedMessage();
-            if (RemainingTimeSent = false && (int)elapsedTime.TotalSeconds <= _runTime / 2)
+            if (RemainingTimeSent == false && (int)elapsedTime.TotalSeconds <= _runTime / 2)
                 await SendTimeLeft((int)elapsedTime.TotalSeconds);
         }
 
