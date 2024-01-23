@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Models
         public bool Disabled { get; set; } = false;
         public bool SayCooldown { get; set; } = true;
         public bool SayRankRequirement { get; set; } = false;
+        public bool ExcludeFromUi { get; set; } = false;
         public string Category { get; set; } = "";
         public string Description { get; set; } = "";
 

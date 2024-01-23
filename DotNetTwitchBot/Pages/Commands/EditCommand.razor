@@ -32,9 +32,10 @@ else
                 <MudNumericField @bind-Value="@customCommand.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
-                <MudCheckBox @bind-Checked="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
-                <MudCheckBox @bind-Checked="@customCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
-                <MudCheckBox @bind-Checked="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@customCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@customCommand.ExcludeFromUi" Label="Exclude from web interface?" />
+                <MudCheckBox @bind-Value="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
                 <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">
                     @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                     {
