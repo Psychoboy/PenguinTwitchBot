@@ -4,8 +4,8 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.UserJoinedEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<UserJoinedEventArgs>>(this, new UserJoinedEventArgs { Username = "test" });
+            serviceBackbone.UserJoinedEvent += Raise.Event<AsyncEventHandler<UserJoinedEventArgs>>(this, new UserJoinedEventArgs { Username = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(testViewer);
@@ -114,7 +114,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.UserLeftEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<UserLeftEventArgs>>(this, new UserLeftEventArgs { Username = "test" });
+            serviceBackbone.UserLeftEvent += Raise.Event<AsyncEventHandler<UserLeftEventArgs>>(this, new UserLeftEventArgs { Username = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(testViewer);
@@ -132,7 +132,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
 
             //Act
-            serviceBackbone.FollowEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<FollowEventArgs>>(this, new FollowEventArgs { Username = "test" });
+            serviceBackbone.FollowEvent += Raise.Event<AsyncEventHandler<FollowEventArgs>>(this, new FollowEventArgs { Username = "test" });
 
             //Assert
             await dbContext.Followers.Received(1).AddAsync(Arg.Any<Follower>());
@@ -251,7 +251,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, new SubscriptionEventArgs { Name = "test" });
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, new SubscriptionEventArgs { Name = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());
@@ -266,7 +266,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
             testViewer.isSub = false;
             //Act
-            serviceBackbone.SubscriptionEndEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEndEventArgs>>(this, new SubscriptionEndEventArgs { Name = "test" });
+            serviceBackbone.SubscriptionEndEvent += Raise.Event<AsyncEventHandler<SubscriptionEndEventArgs>>(this, new SubscriptionEndEventArgs { Name = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());
@@ -280,7 +280,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             //Arrange
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
             //Act
-            serviceBackbone.CheerEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<CheerEventArgs>>(this, new CheerEventArgs { Name = "test", IsAnonymous = false });
+            serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, new CheerEventArgs { Name = "test", IsAnonymous = false });
 
             //Assert
             Assert.Contains(testViewer.Username, viewerFeature.GetCurrentViewers());
@@ -293,7 +293,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<ChatMessageEventArgs>>(this, new ChatMessageEventArgs { Name = "test", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
+            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, new ChatMessageEventArgs { Name = "test", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());

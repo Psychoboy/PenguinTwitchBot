@@ -629,6 +629,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
 
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+               "channel.ad_break.begin",
+               "1",
+               new Dictionary<string, string>{{"broadcaster_user_id", userId},
+               },
+               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+           );
+
             // Maybe do a from also and switch this handling raid events
 
 

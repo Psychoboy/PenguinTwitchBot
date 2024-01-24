@@ -8,6 +8,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
+using DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor.Services;
@@ -16,7 +17,6 @@ using Prometheus.DotNetRuntime;
 using Quartz;
 using Quartz.AspNetCore;
 using Serilog;
-using TwitchLib.EventSub.Websockets.Extensions;
 
 internal class Program
 {
@@ -41,7 +41,6 @@ internal class Program
         builder.Services.AddSingleton<ILanguage, Language>();
         builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
         builder.Services.AddSingleton<ITwitchService, TwitchService>();
-        builder.Services.AddSingleton<ITwitchBotService, TwitchBotService>();
         builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
@@ -55,8 +54,8 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
-        builder.Services.AddSingleton<TwitchChatBot>();
-        builder.Services.AddTwitchLibEventSubWebsockets();
+        builder.Services.AddHostedService<TwitchChatBot>();
+        builder.Services.AddTwitchEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
 
 
@@ -123,7 +122,7 @@ internal class Program
 
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
-        await app.Services.GetRequiredService<TwitchChatBot>().Initialize();
+        //await app.Services.GetRequiredService<TwitchChatBot>().Initialize();
 
         app.UseMiddleware<DotNetTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 
