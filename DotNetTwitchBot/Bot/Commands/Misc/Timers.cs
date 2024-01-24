@@ -34,13 +34,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             serviceBackbone.StreamEnded += StreamEnded;
         }
 
-        private Task StreamEnded(object? sender)
+        private Task StreamEnded(object? sender, EventArgs _)
         {
             _intervalTimer.Stop();
             return Task.CompletedTask;
         }
 
-        private async Task StreamStarted(object? sender)
+        private async Task StreamStarted(object? sender, EventArgs _)
         {
             var groups = await GetTimerGroupsAsync();
             groups.ForEach(async x => await UpdateNextRun(x));

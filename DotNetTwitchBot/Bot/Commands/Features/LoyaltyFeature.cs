@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger = logger;
         }
 
-        private Task StreamStarted(object? sender)
+        private Task StreamStarted(object? sender, EventArgs _)
         {
             return Task.Run(() =>
             {

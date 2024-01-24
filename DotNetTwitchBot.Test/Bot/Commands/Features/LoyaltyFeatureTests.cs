@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var cheerEventArgs = new CheerEventArgs { IsAnonymous = true, Amount = 100 };
 
             // Act
-            serviceBackbone.CheerEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
+            serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage("Someone just cheered 100 bits! sptvHype");
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
             // Act
-            serviceBackbone.CheerEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
+            serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage("TestName just cheered 100 bits! sptvHype");
@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionGiftEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await ticketFeature.Received(1).GiveTicketsToViewer("testname", 250);
@@ -100,7 +100,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionGiftEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await ticketFeature.Received(1).GiveTicketsToViewer("testname", 250);
@@ -118,7 +118,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await ticketFeature.Received(1).GiveTicketsToViewer("testname", 50);
@@ -135,7 +135,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 5 months! sptvHype")));
@@ -151,7 +151,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for 5 months in a row! sptvHype")));
@@ -167,7 +167,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 8 months and for 5 months in a row! sptvHype")));
@@ -183,7 +183,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
+            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
 
             // Assert
             await ticketFeature.Received(1).GiveTicketsToViewer("testname", 50);
@@ -204,7 +204,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone.IsKnownBotOrCurrentStreamer(Arg.Any<string>()).Returns(false);
 
             // Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
+            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
 
             // Assert
             dbContext.ViewerMessageCounts.Received(1).Update(testViewer);
@@ -223,7 +223,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone.IsKnownBotOrCurrentStreamer(Arg.Any<string>()).Returns(false);
 
             // Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<ServiceBackbone.AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
+            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
 
             // Assert
             dbContext.ViewerMessageCounts.Received(1).Update(Arg.Any<ViewerMessageCount>());

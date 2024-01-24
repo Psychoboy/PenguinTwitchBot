@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# CS0067: The event 'EventSubWebsocketClient.StreamOnline' is never used
+dotnet_diagnostic.CS0067.severity = suggestion

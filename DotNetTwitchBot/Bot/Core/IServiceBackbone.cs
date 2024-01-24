@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+using DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -11,22 +11,21 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsOnline { get; set; }
         bool HealthStatus { get; }
 
-        event ServiceBackbone.AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
-        event ServiceBackbone.AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
-        event ServiceBackbone.AsyncEventHandler<CheerEventArgs>? CheerEvent;
-        event ServiceBackbone.AsyncEventHandler<CommandEventArgs>? CommandEvent;
-        event ServiceBackbone.AsyncEventHandler<FollowEventArgs>? FollowEvent;
-        event ServiceBackbone.AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
-        event ServiceBackbone.AsyncEventHandler<string>? SendMessageEvent;
-        event ServiceBackbone.AsyncEventHandler<string, string>? SendWhisperMessageEvent;
-        event ServiceBackbone.AsyncEventHandler? StreamEnded;
-        event ServiceBackbone.AsyncEventHandler? StreamStarted;
-        event ServiceBackbone.AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;
-        event ServiceBackbone.AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
-        event ServiceBackbone.AsyncEventHandler<SubscriptionGiftEventArgs>? SubscriptionGiftEvent;
-        event ServiceBackbone.AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
-        event ServiceBackbone.AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
-        event ServiceBackbone.AsyncEventHandler<BanEventArgs>? BanEvent;
+        event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
+        event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
+        event AsyncEventHandler<CheerEventArgs>? CheerEvent;
+        event AsyncEventHandler<CommandEventArgs>? CommandEvent;
+        event AsyncEventHandler<FollowEventArgs>? FollowEvent;
+        event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
+        event AsyncEventHandler<string>? SendMessageEvent;
+        event AsyncEventHandler? StreamEnded;
+        event AsyncEventHandler? StreamStarted;
+        event AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;
+        event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
+        event AsyncEventHandler<SubscriptionGiftEventArgs>? SubscriptionGiftEvent;
+        event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
+        event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
+        event AsyncEventHandler<BanEventArgs>? BanEvent;
 
         bool IsBroadcasterOrBot(string name);
         bool IsKnownBot(string name);
@@ -49,7 +48,6 @@ namespace DotNetTwitchBot.Bot.Core
         Task SendChatMessage(string message);
         Task SendChatMessage(string name, string message);
         Task SendChatMessageWithTitle(string viewerName, string message);
-        Task SendWhisperMessage(string name, string message);
         Task OnViewerBan(string username, bool unbanned);
     }
 }

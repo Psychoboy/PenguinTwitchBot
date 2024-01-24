@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger = logger;
         }
 
-        private Task OnStreamStarted(object? sender)
+        private Task OnStreamStarted(object? sender, EventArgs _)
         {
             TotalGambled.Clear();
             return Task.CompletedTask;
