@@ -52,7 +52,7 @@
     <PackageReference Include="TwitchLib.Client.Enums" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
     <PackageReference Include="TwitchLib.Client.Models" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
     <PackageReference Include="TwitchLib.Communication" Version="2.0.1" />
-    <PackageReference Include="TwitchLib.EventSub.Core" Version="2.5.1" />
+    <PackageReference Include="DotNetTwitchBot.Twitch.EventSub.Core" Version="2.5.1" />
 	  <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.4.0" />
     
     <PackageReference Include="MudBlazor" Version="6.12.0" />
@@ -60,6 +60,7 @@
 
   <ItemGroup>
     <Folder Include="Authorization\" />
+    <Folder Include="Twitch\EventSub\Core\" />
   </ItemGroup>
 
   <ItemGroup>

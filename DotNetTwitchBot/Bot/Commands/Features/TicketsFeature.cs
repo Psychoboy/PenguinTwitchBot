@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         }
 
-        private Task StreamStarted(object? sender)
+        private Task StreamStarted(object? sender, EventArgs _)
         {
             return Task.Run(() =>
             {

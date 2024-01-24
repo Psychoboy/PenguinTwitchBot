@@ -5,7 +5,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -24,12 +23,8 @@ namespace DotNetTwitchBot.Bot.Core
         private string? RawBroadcasterName { get; set; } = configuration["broadcaster"];
         public string? BotName { get; set; } = configuration["botName"];
 
-        public delegate Task AsyncEventHandler(object? sender);
-        public delegate Task AsyncEventHandler<TEventArgs>(object? sender, TEventArgs e);
-        public delegate Task AsyncEventHandler<TEventArgs, TEventArgs2>(object? sender, TEventArgs e, TEventArgs2 e2);
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
-        public event AsyncEventHandler<String, String>? SendWhisperMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
@@ -196,14 +191,6 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task SendWhisperMessage(string name, string message)
-        {
-            if (SendWhisperMessageEvent != null)
-            {
-                await SendWhisperMessageEvent(this, name, message);
-            }
-        }
-
         public async Task OnStreamStarted()
         {
             var labels = NumberOfCommands.GetAllLabelValues();
@@ -218,7 +205,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 try
                 {
-                    await StreamStarted(this);
+                    await StreamStarted(this, EventArgs.Empty);
                 }
                 catch (Exception ex)
                 {
@@ -234,7 +221,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 try
                 {
-                    await StreamEnded(this);
+                    await StreamEnded(this, EventArgs.Empty);
                 }
                 catch (Exception ex)
                 {

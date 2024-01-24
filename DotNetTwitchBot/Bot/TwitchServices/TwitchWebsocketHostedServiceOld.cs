@@ -9,23 +9,23 @@ using TwitchLib.PubSub.Events;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchWebsocketHostedService : IHostedService
+    public class TwitchWebsocketHostedServiceOld : IHostedService
     {
-        private readonly ILogger<TwitchWebsocketHostedService> _logger;
+        private readonly ILogger<TwitchWebsocketHostedServiceOld> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly ConcurrentBag<string> MessageIds = [];
-        private readonly ITwitchService _twitchService;
+        private readonly ITwitchServiceOld _twitchService;
         private readonly IServiceBackbone _eventService;
         private readonly SubscriptionTracker _subscriptionHistory;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
 
-        public TwitchWebsocketHostedService(
-            ILogger<TwitchWebsocketHostedService> logger,
+        public TwitchWebsocketHostedServiceOld(
+            ILogger<TwitchWebsocketHostedServiceOld> logger,
             IServiceBackbone eventService,
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
-            ITwitchService twitchService)
+            ITwitchServiceOld twitchService)
         {
             _logger = logger;
             _eventSubWebsocketClient = eventSubWebsocketClient;

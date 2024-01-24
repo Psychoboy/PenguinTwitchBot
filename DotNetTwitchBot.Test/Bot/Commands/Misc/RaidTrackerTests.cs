@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable();
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchService>(), Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchServiceOld>(), Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
             //Act
             var result = await raidTracker.GetHistory();
 
@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable();
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             twitchService.GetUser("").ReturnsNull();
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
@@ -88,7 +88,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable();
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             twitchService.GetUser("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(false);
 
@@ -118,7 +118,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable().BuildMockDbSet();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             twitchService.GetUser("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -170,7 +170,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -215,7 +215,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable().BuildMockDbSet();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var twitchService = Substitute.For<ITwitchService>();
+            var twitchService = Substitute.For<ITwitchServiceOld>();
             twitchService.GetUser("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 

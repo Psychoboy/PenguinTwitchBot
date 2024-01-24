@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var websocketService = scope.ServiceProvider.GetServices<IHostedService>().OfType<TwitchWebsocketHostedService>().Single();
+                var websocketService = scope.ServiceProvider.GetServices<IHostedService>().OfType<TwitchWebsocketHostedServiceOld>().Single();
                 await websocketService.ForceReconnect();
             }
             catch (Exception ex)

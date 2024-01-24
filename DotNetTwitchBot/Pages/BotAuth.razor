@@ -2,14 +2,12 @@
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchService twitchService;
-@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchBotService twitchBotService;
+@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchServiceOld twitchService;
 
 <PageTitle>SPTV Twitch Bot - Bot Signin</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/botsignin">Auth Bot</MudButton>
         @if(twitchService.IsServiceUp())
         {
             <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>
@@ -17,14 +15,6 @@
         else
         {
             <MudAlert Severity="Severity.Error">Streamer Account is NOT Connected</MudAlert>
-        }
-        @if (twitchBotService.IsServiceUp())
-        {
-            <MudAlert Severity="Severity.Success">Bot Account is Connected</MudAlert>
-        }
-        else
-        {
-            <MudAlert Severity="Severity.Error">Bot Account is NOT Connected</MudAlert>
         }
     </MudPaper>
 </MudContainer>

@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly ILogger<DiscordService> _logger;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly CustomCommand _customCommands;
-        private readonly ITwitchService _twitchService;
+        private readonly ITwitchServiceOld _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly DiscordSettings _settings;
 
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Core
             CustomCommand customCommands,
             ILogger<DiscordService> logger,
             IServiceBackbone serviceBackbone,
-            ITwitchService twitchService,
+            ITwitchServiceOld twitchService,
             IServiceScopeFactory scopeFactory,
             IConfiguration configuration)
         {
@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Core
             return Task.CompletedTask;
         }
 
-        private async Task StreamStarted(object? sender)
+        private async Task StreamStarted(object? sender, EventArgs _)
         {
             _logger.LogInformation("[DISCORD] Stream Is online - Announcing soon");
             await AnnounceLive();

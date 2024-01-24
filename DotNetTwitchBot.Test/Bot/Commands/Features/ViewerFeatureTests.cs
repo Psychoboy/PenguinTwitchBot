@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly ICommandHandler commandHandler;
         private readonly IServiceScope scope;
         private readonly IServiceBackbone serviceBackbone;
-        private readonly ITwitchService twitchService;
+        private readonly ITwitchServiceOld twitchService;
         private readonly IServiceScopeFactory scopeFactory;
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceProvider = Substitute.For<IServiceProvider>();
             scope = Substitute.For<IServiceScope>();
             serviceBackbone = Substitute.For<IServiceBackbone>();
-            twitchService = Substitute.For<ITwitchService>();
+            twitchService = Substitute.For<ITwitchServiceOld>();
             logger = Substitute.For<ILogger<ViewerFeature>>();
             commandHandler = Substitute.For<ICommandHandler>();
 

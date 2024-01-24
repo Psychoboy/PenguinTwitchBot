@@ -9,10 +9,10 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchService : ITwitchService
+    public class TwitchServiceOld : ITwitchServiceOld
     {
         private readonly TwitchAPI _twitchApi = new();
-        private readonly ILogger<TwitchService> _logger;
+        private readonly ILogger<TwitchServiceOld> _logger;
         private readonly IConfiguration _configuration;
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
         readonly ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new();
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly SettingsFileManager _settingsFileManager;
         private bool serviceUp = false;
 
-        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
+        public TwitchServiceOld(ILogger<TwitchServiceOld> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
 
             _logger = logger;

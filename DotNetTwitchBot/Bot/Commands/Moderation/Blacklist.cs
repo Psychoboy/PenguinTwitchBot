@@ -10,12 +10,12 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
     public class Blacklist : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ITwitchService _twitchService;
+        private readonly ITwitchServiceOld _twitchService;
         private readonly ConcurrentBag<WordFilter> _blackList = new();
 
         public Blacklist(
             IServiceScopeFactory scopeFactory,
-            ITwitchService twitchService,
+            ITwitchServiceOld twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "Blacklist")

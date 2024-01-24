@@ -27,13 +27,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             _logger = logger;
         }
 
-        private Task OnStreamStarted(object? sender)
+        private Task OnStreamStarted(object? sender, EventArgs _)
         {
             _taxTimer.Stop();
             return Task.CompletedTask;
         }
 
-        private Task OnStreamEnded(object? sender)
+        private Task OnStreamEnded(object? sender, EventArgs _)
         {
             _taxTimer.Start();
             return Task.CompletedTask;

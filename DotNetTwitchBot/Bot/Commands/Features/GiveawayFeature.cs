@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _serviceBackBone.StreamStarted += StreamStarted;
         }
 
-        private Task StreamStarted(object? sender)
+        private Task StreamStarted(object? sender, EventArgs _)
         {
             return Task.Run(() =>
             {
@@ -64,7 +64,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var moduleName = "GiveawayFeature";
             await RegisterDefaultCommand("enter", this, moduleName);
-            await RegisterDefaultCommand("entries", this, moduleName);
             await RegisterDefaultCommand("draw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
@@ -86,11 +85,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                             throw new SkipCooldownException();
                         }
                         await Enter(e.Name, e.Args.First());
-                        break;
-                    }
-                case "entries":
-                    {
-                        await Entries(e.Name);
                         break;
                     }
                 case "draw":
@@ -465,12 +459,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 Username = sender
             };
             return giveawayEntries.Tickets;
-        }
-
-        private async Task Entries(string sender)
-        {
-            var entries = await GetEntriesCount(sender);
-            await ServiceBackbone.SendWhisperMessage(sender, lang.Get("giveawayfeature.enter.entries").Replace("(amount)", entries.ToString()));
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

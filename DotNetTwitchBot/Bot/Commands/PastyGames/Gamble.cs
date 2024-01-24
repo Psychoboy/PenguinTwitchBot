@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ITwitchService _twitchServices;
+        private readonly ITwitchServiceOld _twitchServices;
         private readonly ILogger<Gamble> _logger;
         private readonly ILanguage _language;
         private readonly MaxBetCalculator _maxBetCalculator;
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILanguage language,
             ILoyaltyFeature loyaltyFeature,
             IServiceScopeFactory scopeFactory,
-            ITwitchService twitchServices,
+            ITwitchServiceOld twitchServices,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
             MaxBetCalculator maxBetCalculator
