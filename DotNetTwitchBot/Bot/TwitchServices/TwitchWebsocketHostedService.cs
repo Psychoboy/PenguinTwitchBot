@@ -47,15 +47,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.ChannelBan += OnChannelBan;
             _eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
 
+            _eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
+
 
             _twitchService = twitchService;
             _eventService = eventService;
             _subscriptionHistory = subscriptionHistory;
         }
 
-        private Task _eventSubWebsocketClient_ChannelUpdate(object sender, ChannelUpdateArgs args)
+        private Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
         {
-            throw new NotImplementedException();
+            _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", args.Notification.Payload.Event.DurationSeconds, args.Notification.Payload.Event.StartedAt, args.Notification.Payload.Event.IsAutomatic);
+            return Task.CompletedTask;
         }
 
         private async Task OnChannelUnBan(object? sender, ChannelUnbanArgs e)

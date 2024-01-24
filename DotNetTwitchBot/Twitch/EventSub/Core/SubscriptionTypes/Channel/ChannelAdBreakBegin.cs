@@ -10,7 +10,7 @@ public sealed class ChannelAdBreakBegin
     /// <summary>
     /// Length in seconds of the mid-roll ad break requested
     /// </summary>
-    public int LengthSeconds { get; set; }
+    public int DurationSeconds { get; set; }
     /// <summary>
     /// The UTC timestamp of when the ad break began, in RFC3339 format. Note that there is potential delay between this event, when the streamer requested the ad break, and when the viewers will see ads.
     /// </summary>
