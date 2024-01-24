@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         ILogger<TwitchChatBot> logger,
          IConfiguration configuration,
          IServiceBackbone serviceBackbone,
-         ITwitchService twitchService) : IHostedService
+         ITwitchService twitchService) : IHostedService, ITwitchChatBot
     {
         private TwitchClient TwitchClient { get; set; } = default!;
 
