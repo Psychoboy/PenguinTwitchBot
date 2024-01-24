@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DotNetTwitchBot.HealthChecks
 {
-    public class TwitchBotHealthCheck(TwitchChatBot twitchChatBot) : IHealthCheck
+    public class TwitchBotHealthCheck(ITwitchChatBot twitchChatBot) : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {

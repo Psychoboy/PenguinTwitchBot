@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
+using DotNetTwitchBot.Bot.Core;
 
 namespace DotNetTwitchBot.CustomMiddleware
 {
@@ -12,8 +13,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Alerts.ISendAlerts, Bot.Alerts.SendAlerts>();
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
 
-            services.AddSingleton<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
-            services.AddHostedService<Bot.Commands.Moderation.KnownBots>();
+            services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
 
             services.AddSingleton<Bot.Core.SubscriptionTracker>();
 
@@ -66,8 +66,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
 
-            services.AddSingleton<Bot.Core.IChatHistory, Bot.Core.ChatHistory>();
-            services.AddHostedService<Bot.Core.ChatHistory>();
+            services.AddHostedApiService<IChatHistory, ChatHistory>();
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             return services;
