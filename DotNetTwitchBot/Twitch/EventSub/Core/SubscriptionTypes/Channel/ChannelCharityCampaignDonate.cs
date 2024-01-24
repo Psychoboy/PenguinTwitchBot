@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
+﻿using DotNetTwitchBot.Twitch.EventSub.Core.Models.Charity;
+
+namespace DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
 
 /// <summary>
 /// Charity Campaign Donate subscription type model

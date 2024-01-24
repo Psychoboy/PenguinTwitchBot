@@ -40,7 +40,6 @@
     <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.2.0" />
-    <PackageReference Include="TwitchLib" Version="3.5.3" />
     <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Api.Core" Version="3.9.0" />
     <PackageReference Include="TwitchLib.Api.Core.Enums" Version="3.9.0" />
@@ -52,8 +51,6 @@
     <PackageReference Include="TwitchLib.Client.Enums" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
     <PackageReference Include="TwitchLib.Client.Models" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
     <PackageReference Include="TwitchLib.Communication" Version="2.0.1" />
-    <PackageReference Include="DotNetTwitchBot.Twitch.EventSub.Core" Version="2.5.1" />
-	  <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.4.0" />
     
     <PackageReference Include="MudBlazor" Version="6.12.0" />
   </ItemGroup>
@@ -61,6 +58,10 @@
   <ItemGroup>
     <Folder Include="Authorization\" />
     <Folder Include="Twitch\EventSub\Core\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
   <ItemGroup>

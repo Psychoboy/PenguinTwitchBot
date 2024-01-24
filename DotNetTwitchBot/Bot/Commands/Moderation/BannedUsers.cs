@@ -10,10 +10,10 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
-        private readonly ITwitchServiceOld _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly ILogger<BannedUsers> _logger;
 
-        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchServiceOld twitchService) : base(serviceBackbone, commandHandler, "BannedUsers")
+        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchService twitchService) : base(serviceBackbone, commandHandler, "BannedUsers")
         {
             _twitchService = twitchService;
             _logger = logger;

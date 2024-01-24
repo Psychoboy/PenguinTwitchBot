@@ -10,14 +10,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
     public class RaidTracker : BaseCommandService, IHostedService
     {
         private readonly ILogger<RaidTracker> _logger;
-        private readonly ITwitchServiceOld _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _timer = new(60000);
 
         public RaidTracker(
             ILogger<RaidTracker> logger,
             IServiceScopeFactory scopeFactory,
-            ITwitchServiceOld twitchService,
+            ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "RaidTraicker")

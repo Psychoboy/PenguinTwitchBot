@@ -8,13 +8,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 {
     public class DeathCounters : BaseCommandService, IHostedService
     {
-        private readonly ITwitchServiceOld _twitchService;
+        private readonly ITwitchService _twitchService;
         private readonly ILogger<DeathCounters> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IViewerFeature _viewerFeature;
 
         public DeathCounters(
-            ITwitchServiceOld twitchService,
+            ITwitchService twitchService,
             ILogger<DeathCounters> logger,
             IServiceBackbone serviceBackbone,
             IViewerFeature viewerFeature,

@@ -1,4 +1,4 @@
-﻿namespace TwitchLib.EventSub.Core.Models.Extensions;
+﻿namespace DotNetTwitchBot.Twitch.EventSub.Core.Models.Extensions;
 
 /// <summary>
 /// Additional information about a product acquired via a Twitch Extension Bits transaction.

@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Extension;
+﻿using DotNetTwitchBot.Twitch.EventSub.Core.Models.Extensions;
+
+namespace DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Extension;
 
 /// <summary>
 /// Extension Bits Transaction Create subscription type model

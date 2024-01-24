@@ -4,7 +4,7 @@ using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public interface ITwitchServiceOld
+    public interface ITwitchService
     {
         Task Announcement(string message);
         Task<List<string>> AreStreamsOnline(List<string> userIds);

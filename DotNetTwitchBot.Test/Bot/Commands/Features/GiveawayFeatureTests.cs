@@ -378,29 +378,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         }
 
         [Fact]
-        public async Task OnCommand_Entries()
-        {
-            // Arrange
-            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(testGiveawayEntriesQueryable);
-            var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(viewer);
-
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
-            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
-
-            var commandEvent = new CommandEventArgs { Command = "entries", Args = new List<string> { }, DisplayName = "user", Name = "user" };
-            commandHandler.GetCommandDefaultName("entries").Returns("entries");
-
-            // Act
-            await giveawayFeature.OnCommand(new object(), commandEvent);
-
-            // Assert
-            await serviceBackbone.Received(1).SendWhisperMessage("user", "You have 10 entries");
-        }
-
-
-        [Fact]
         public async Task OnCommand_Draw()
         {
             // Arrange

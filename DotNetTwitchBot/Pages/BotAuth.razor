@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchServiceOld twitchService;
+@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchService twitchService;
 
 <PageTitle>SPTV Twitch Bot - Bot Signin</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
