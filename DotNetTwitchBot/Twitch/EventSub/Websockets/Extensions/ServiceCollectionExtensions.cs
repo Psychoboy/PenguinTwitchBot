@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions
         }
 
         /// <summary>
-        /// Add TwitchLib EventSub Websockets and its needed parts to the DI container
+        /// Add Twitch EventSub Websockets and its needed parts to the DI container
         /// </summary>
         /// <param name="services">ServiceCollection of the DI Container</param>
         /// <returns>the IServiceCollection to enable further fluent additions to it</returns>
