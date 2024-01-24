@@ -54,6 +54,7 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
+        builder.Services.AddSingleton<TwitchChatBot>();
         builder.Services.AddHostedService<TwitchChatBot>();
         builder.Services.AddTwitchEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
