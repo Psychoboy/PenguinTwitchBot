@@ -1,0 +1,169 @@
+﻿@page "/voices"
+@attribute [Authorize(Roles = "Streamer")]
+@inject DotNetTwitchBot.Bot.Commands.TTS.ITTSService TTSService
+
+<PageTitle>SPTV Twitch Bot - Voices</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="8">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@UserRegisteredVoices">
+                    <HeaderContent>
+                        <MudTh>Username</MudTh>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Sex</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Username</MudTd>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Sex</MudTd>
+                        <MudTd>@context.Type</MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                           @onclick="() => DeleteUserVoice(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="4">
+            <MudCard>
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@customVoice" OnValidSubmit="OnSubmit">
+                        <MudTextField Label="Name" Required="true" @bind-Value="customVoice.Name" />
+                        @if(SelectedVoice == null)
+                        {
+                            <MudText>No voice selected</MudText>
+                        } else
+                        {
+                            <MudText>@SelectedVoice.Name</MudText>
+                        }
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@RegisteredVoices">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Sex</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                            <MudTd>@context.Sex</MudTd>
+                            <MudTd>@context.Type</MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                           @onclick="() => Delete(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        <MudItem xs="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => ReloadVoices()">Load Voices</MudButton>
+                <MudTable Items="@AvailableVoices">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Sex</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Sex</MudTd>
+                        <MudTh>@context.Type</MudTh>
+                        <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddVoice(context)">Add</MudButton></MudTh>
+                            <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => SelectVoice(context)">Select</MudButton></MudTh>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+    @code {
+    private List<DotNetTwitchBot.Bot.Models.RegisteredVoice> AvailableVoices { get; set; } = new();
+    private List<DotNetTwitchBot.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
+    private List<DotNetTwitchBot.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
+    private DotNetTwitchBot.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
+    private CustomVoice customVoice { get; set; } = new();
+
+    public class CustomVoice
+    {
+        public string Name { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        RegisteredVoices = await TTSService.GetRegisteredVoices();
+        UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task ReloadVoices()
+    {
+        AvailableVoices = await TTSService.GetAllVoices();
+        StateHasChanged();
+    }
+
+    private async Task AddVoice(RegisteredVoice voice)
+    {
+        await TTSService.RegisterVoice(voice);
+        RegisteredVoices = await TTSService.GetRegisteredVoices();
+        StateHasChanged();
+    }
+
+    private void SelectVoice(RegisteredVoice voice)
+    {
+        SelectedVoice = voice;
+    }
+
+    private async Task OnSubmit()
+    {
+        if (SelectedVoice == null) return;
+        var userVoice = new UserRegisteredVoice
+            {
+                Username = customVoice.Name,
+                LanguageCode = SelectedVoice.LanguageCode,
+                Name = SelectedVoice.Name,
+                Sex = SelectedVoice.Sex,
+                Type = SelectedVoice.Type
+            };
+        await TTSService.RegisterUserVoice(userVoice);
+        UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        SelectedVoice = null;
+        customVoice = new();
+        StateHasChanged();
+    }
+
+    public async Task Delete(RegisteredVoice voice)
+    {
+        await TTSService.DeleteRegisteredVoice(voice);
+        RegisteredVoices = await TTSService.GetRegisteredVoices();
+        StateHasChanged();
+    }
+
+    public async Task DeleteUserVoice(UserRegisteredVoice voice)
+    {
+        await TTSService.DeleteRegisteredUserVoice(voice);
+        UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        StateHasChanged();
+    }
+}

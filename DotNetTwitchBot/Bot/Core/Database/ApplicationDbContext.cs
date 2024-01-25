@@ -41,8 +41,11 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Metrics.SongRequestMetric> SongRequestMetrics { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<ExternalCommands> ExternalCommands { get; set; } = null!;
-        public DbSet<BannedViewer> BannedViewers { get; set; }
-        public DbSet<FilteredQuoteType> FilteredQuotes { get; set; }
+        public DbSet<BannedViewer> BannedViewers { get; set; } = null!;
+        public DbSet<FilteredQuoteType> FilteredQuotes { get; set; } = null!;
+        public DbSet<RegisteredVoice> RegisteredVoices { get; set; } = null!;
+        public DbSet<UserRegisteredVoice> UserRegisteredVoices { get; set; } = null!;
+        public DbSet<ChannelPointRedeem> ChannelPointRedeems { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

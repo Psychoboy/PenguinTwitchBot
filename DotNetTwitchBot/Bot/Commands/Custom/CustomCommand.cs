@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -34,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly ITwitchService _twitchService;
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly GiveawayFeature _giveawayFeature;
+        private readonly ITTSService _ttsService;
 
         public CustomCommand(
             ISendAlerts sendAlerts,
@@ -44,6 +46,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ILoyaltyFeature loyaltyFeature,
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
+            ITTSService ttsService,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
         {
             _sendAlerts = sendAlerts;
@@ -53,6 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _twitchService = twitchService;
             _loyaltyFeature = loyaltyFeature;
             _giveawayFeature = giveawayFeature;
+            _ttsService = ttsService;
             ServiceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
@@ -81,9 +85,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("watchtime", WatchTime);
             CommandTags.Add("command", ExecuteCommand);
             CommandTags.Add("elevatedcommand", ExecuteElevatedCommand);
+            CommandTags.Add("ttsandprint", TTSAndPrint);
+            CommandTags.Add("tts", TTS);
         }
-
-
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
         {
@@ -618,6 +622,20 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             request.Headers.Add("Accept", "text/plain");
             _ = await httpClient.SendAsync(request);
             return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> TTS(CommandEventArgs args, string arg2)
+        {
+            var voice = await _ttsService.GetRandomVoice(args.Name);
+            _ttsService.SayMessage(voice, arg2);
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> TTSAndPrint(CommandEventArgs args, string arg2)
+        {
+            var voice = await _ttsService.GetRandomVoice(args.Name);
+            _ttsService.SayMessage(voice, arg2);
+            return new CustomCommandResult(arg2);
         }
 
         private async Task<CustomCommandResult> OnlineOnly(CommandEventArgs eventArgs, string args)
