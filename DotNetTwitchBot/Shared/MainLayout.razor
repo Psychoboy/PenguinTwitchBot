@@ -1,4 +1,5 @@
 ﻿@using DotNetTwitchBot.Circuit;
+@using DotNetTwitchBot.CustomMiddleware
 @using DotNetTwitchBot.Models;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
 @using Microsoft.AspNetCore.SignalR.Client;
@@ -65,6 +66,8 @@
     private string ProfileImage = "";
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
+    [Inject]
+    BlazorAppContext? BlazorAppContext { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -86,7 +89,7 @@
             }
         }
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
-        UserService.Connect(handler.CircuitId, Username);
+        UserService.Connect(handler.CircuitId, Username, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
         StreamOnline = serviceBackbone.IsOnline;

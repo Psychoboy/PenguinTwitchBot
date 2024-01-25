@@ -24,11 +24,13 @@
                  <MudTh>Username</MudTh>
                  <MudTh>Current Page</MudTh>
                 <MudTh>Last Seen</MudTh>
+                <MudTh>Ip Address</MudTh>
              </HeaderContent>
              <RowTemplate>
                  <MudTd DataLabel="Id">@context.Value.UserId</MudTd>
                  <MudTd DataLabel="LastPage">@context.Value.LastPage</MudTd>
                 <MudTd DataLabel="LastPage">@context.Value.LastSeen</MudTd>
+                    <MudTd DataLabel="IpAddress">@context.Value.UserIp</MudTd>
              </RowTemplate>
              <PagerContent>
                  <MudTablePager />

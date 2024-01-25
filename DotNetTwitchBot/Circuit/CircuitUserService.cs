@@ -27,8 +27,14 @@ namespace DotNetTwitchBot.Circuit
 
         public void Connect(string CircuitId, string UserId)
         {
+            Connect(CircuitId, UserId, "Unknown");
+        }
+
+        public void Connect(string CircuitId, string UserId, string? userIp)
+        {
             if (string.IsNullOrEmpty(CircuitId)) return;
             if (string.IsNullOrEmpty(UserId)) UserId = "Anonymous";
+            if (string.IsNullOrEmpty(userIp)) userIp = "Unknown";
             if (Circuits.ContainsKey(CircuitId))
                 Circuits[CircuitId].UserId = UserId;
             else
@@ -36,9 +42,10 @@ namespace DotNetTwitchBot.Circuit
                 var circuitUser = new CircuitUser();
                 circuitUser.UserId = UserId;
                 circuitUser.CircuitId = CircuitId;
+                circuitUser.UserIp = userIp;
                 Circuits[CircuitId] = circuitUser;
             }
-            _logger.LogInformation("{0} connected to web interface.", UserId);
+            _logger.LogInformation("{userId} connected to web interface. Ip: {ip}", UserId, userIp);
             OnCircuitsChanged();
         }
 
@@ -65,5 +72,7 @@ namespace DotNetTwitchBot.Circuit
             }
 
         }
+
+
     }
 }
