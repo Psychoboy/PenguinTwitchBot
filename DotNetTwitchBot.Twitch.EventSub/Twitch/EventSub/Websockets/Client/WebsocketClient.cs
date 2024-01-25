@@ -1,4 +1,6 @@
-﻿using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
+﻿using DotNetTwitchBot.Core;
+using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
+using Microsoft.Extensions.Logging;
 using System.Buffers;
 using System.Net.WebSockets;
 using System.Text;

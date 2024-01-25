@@ -1,6 +1,8 @@
 ﻿using DotNetTwitchBot.Twitch.EventSub.Websockets.Client;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Handler;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions
 {

@@ -1,3 +1,5 @@
+using DotNetTwitchBot.Core;
+
 namespace DotNetTwitchBot.Twitch.EventSub.Core.Extensions;
 
 public static class AsyncEventHandlerExtensions
