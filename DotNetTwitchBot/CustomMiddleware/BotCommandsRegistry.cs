@@ -1,7 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom;
+﻿using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
+using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 
 namespace DotNetTwitchBot.CustomMiddleware
@@ -28,43 +30,49 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Alerts.AlertImage>();
 
 
-            AddService<GiveawayFeature>(services);
-            AddService<WaffleRaffle>(services);
-            AddService<PancakeRaffle>(services);
-            AddService<BaconRaffle>(services);
-            AddService<Roulette>(services);
-            AddService<DuelGame>(services);
-            AddService<ModSpam>(services);
-            AddService<Bot.Commands.Misc.AddActive>(services);
-            AddService<Bot.Commands.Misc.First>(services);
-            AddService<Bot.Commands.Misc.DailyCounter>(services);
-            AddService<Bot.Commands.Misc.DeathCounters>(services);
-            AddService<Bot.Commands.Misc.LastSeen>(services);
-            AddService<Top>(services);
-            AddService<Bot.Commands.Misc.QuoteSystem>(services);
-            AddService<Bot.Commands.Misc.RaidTracker>(services);
-            AddService<Bot.Commands.Misc.Weather>(services);
-            AddService<Bot.Commands.Misc.ShoutoutSystem>(services);
-            AddService<Bot.Commands.Misc.Timers>(services);
-            AddService<Bot.Commands.Custom.CustomCommand>(services);
-            AddService<AudioCommands>(services);
-            AddService<Bot.Commands.PastyGames.Defuse>(services);
-            AddService<Bot.Commands.PastyGames.Roll>(services);
-            AddService<Bot.Commands.PastyGames.FFA>(services);
-            AddService<Bot.Commands.PastyGames.Gamble>(services);
-            AddService<Bot.Commands.PastyGames.Steal>(services);
-            AddService<Bot.Commands.PastyGames.Heist>(services);
-            AddService<Bot.Commands.PastyGames.Slots>(services);
-            AddService<Bot.Commands.PastyGames.Tax>(services);
-            AddService<Bot.Commands.Music.YtPlayer>(services);
-            AddService<Bot.Commands.Moderation.Blacklist>(services);
-            AddService<Bot.Commands.Moderation.Admin>(services);
-            AddService<Bot.Commands.Metrics.SongRequests>(services);
-            AddService<Bot.Commands.Moderation.BannedUsers>(services);
+            services.AddHostedApiService<GiveawayFeature>();
+            services.AddHostedApiService<WaffleRaffle>();
+            services.AddHostedApiService<PancakeRaffle>();
+            services.AddHostedApiService<BaconRaffle>();
+            services.AddHostedApiService<Roulette>();
+            services.AddHostedApiService<DuelGame>();
+            services.AddHostedApiService<ModSpam>();
+            services.AddHostedApiService<Bot.Commands.Misc.AddActive>();
+            services.AddHostedApiService<Bot.Commands.Misc.First>();
+            services.AddHostedApiService<Bot.Commands.Misc.DailyCounter>();
+            services.AddHostedApiService<Bot.Commands.Misc.DeathCounters>();
+            services.AddHostedApiService<Bot.Commands.Misc.LastSeen>();
+            services.AddHostedApiService<Top>();
+            services.AddHostedApiService<Bot.Commands.Misc.QuoteSystem>();
+            services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
+            services.AddHostedApiService<Bot.Commands.Misc.Weather>();
+            services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
+            services.AddHostedApiService<Bot.Commands.Misc.Timers>();
+            services.AddHostedApiService<Bot.Commands.Custom.CustomCommand>();
+            services.AddHostedApiService<AudioCommands>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.FFA>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Gamble>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Steal>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Heist>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Slots>();
+            services.AddHostedApiService<Bot.Commands.PastyGames.Tax>();
+            services.AddHostedApiService<Bot.Commands.Music.YtPlayer>();
+            services.AddHostedApiService<Bot.Commands.Moderation.Blacklist>();
+            services.AddHostedApiService<Bot.Commands.Moderation.Admin>();
+            services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
+            services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
+            services.AddHostedApiService<Bot.Commands.ChannelPoints.IChannelPointRedeem, Bot.Commands.ChannelPoints.ChannelPointRedeem>();
+
+            services.AddHostedApiService<ITTSService, TTSService>();
 
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
+            services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
+            services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+            services.AddHostedService<BackgroundTaskService>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
 
@@ -72,15 +80,10 @@ namespace DotNetTwitchBot.CustomMiddleware
             return services;
         }
 
-        private static void AddService(Type service, IServiceCollection services)
+        public static void AddHostedApiService<TService>(this IServiceCollection services) where TService : class, IHostedService
         {
-            services.AddSingleton(service);
-        }
-
-        private static void AddService<T>(IServiceCollection services) where T : IHostedService
-        {
-            AddService(typeof(T), services);
-            services.AddHostedService<BackgroundServiceStarter<T>>();
+            services.AddSingleton<TService>();
+            services.AddSingleton<IHostedService>(p => (TService)p.GetRequiredService<TService>());
         }
 
         public static void AddHostedApiService<TInterface, TService>(this IServiceCollection services)

@@ -40,6 +40,9 @@
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }
         IFilteredQuotesRepository FilteredQuotes { get; }
+        IRegisteredVoiceRepository RegisteredVoices { get; }
+        IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
+        IChannelPointRedeemsRepository ChannelPointRedeems { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

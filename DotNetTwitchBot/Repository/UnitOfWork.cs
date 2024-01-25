@@ -47,6 +47,9 @@ namespace DotNetTwitchBot.Repository
             BannedViewers = new BannedViewersRepository(_context);
             FilteredQuotes = new FilteredQuotesRepository(_context);
             ViewerChatHistories = new ViewerChatHistoriesRepository(_context);
+            RegisteredVoices = new RegisteredVoiceRepository(_context);
+            UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
+            ChannelPointRedeems = new ChannelPointRedeemsRepository(_context);
 
         }
 
@@ -88,6 +91,9 @@ namespace DotNetTwitchBot.Repository
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
         public IFilteredQuotesRepository FilteredQuotes { get; private set; }
+        public IRegisteredVoiceRepository RegisteredVoices { get; private set; }
+        public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
+        public IChannelPointRedeemsRepository ChannelPointRedeems { get; private set; }
 
         public void Dispose()
         {
