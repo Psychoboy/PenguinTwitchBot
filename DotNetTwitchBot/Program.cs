@@ -11,12 +11,15 @@ using DotNetTwitchBot.HealthChecks;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor.Services;
 using Prometheus;
 using Prometheus.DotNetRuntime;
 using Quartz;
 using Quartz.AspNetCore;
 using Serilog;
+using System.Net;
 
 internal class Program
 {
@@ -48,6 +51,12 @@ internal class Program
     .AddCookie();
 
         builder.Services.AddRazorPages();
+
+        builder.Services.AddHttpLogging(options =>
+        {
+            options.LoggingFields = HttpLoggingFields.RequestPropertiesAndHeaders;
+        });
+
         builder.Services.AddServerSideBlazor().AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
         builder.Services.AddMudServices();
 
@@ -108,9 +117,18 @@ internal class Program
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
 
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownProxies.Add(IPAddress.Parse("192.168.1.128"));
+            options.RequireHeaderSymmetry = false;
+            options.ForwardLimit = null;
+        });
+
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseForwardedHeaders();
 
         if (!app.Environment.IsDevelopment())
         {
