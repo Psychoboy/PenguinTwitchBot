@@ -34,7 +34,7 @@
                 <MudPaper Elevation="2" Class="pa-4">
                     <EditForm Model="@ChannelPointRedeem" OnValidSubmit="OnSubmit">
                         <MudTextField Label="Name" Required="true" @bind-Value="ChannelPointRedeem.Name" />
-                            <MudTextField Label="Command" Required="true" @bind-Value="ChannelPointRedeem.Command" />
+                            <MudTextField Label="Command" Required="true" @bind-Value="ChannelPointRedeem.Command" HelperText="(input) (username)"/>
                             <MudSelect @bind-Value="@ChannelPointRedeem.ElevatedPermission" Label="Execute As">
                                 @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {
@@ -73,6 +73,7 @@
     {
         await CPR.AddRedeem(ChannelPointRedeem);
         ChannelPointRedeems = await CPR.GetRedeems();
+        ChannelPointRedeem = new();
         StateHasChanged();
     }
 }

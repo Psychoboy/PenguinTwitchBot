@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
 
         private async Task ExecuteRedeem(Models.ChannelPointRedeem redeem, ChannelPointRedeemEventArgs e)
         {
-            var commandString = redeem.Command.Replace("(args)", e.UserInput);
+            var commandString = redeem.Command.Replace("(input)", e.UserInput).Replace("(username)", e.Sender);
             var commandArgs = commandString.Split(' ');
             var commandName = commandArgs[0];
             var newCommandArgs = new List<string>();

@@ -63,7 +63,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("alert", Alert);
             CommandTags.Add("playsound", PlaySound);
             CommandTags.Add("sender", Sender);
-
+            CommandTags.Add("args", Args);
 
             CommandTags.Add("useronly", UserOnly);
             CommandTags.Add("writefile", WriteFile);
@@ -629,6 +629,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var voice = await _ttsService.GetRandomVoice(args.Name);
             _ttsService.SayMessage(voice, arg2);
             return new CustomCommandResult();
+        }
+
+        private Task<CustomCommandResult> Args(CommandEventArgs args, string arg2)
+        {
+            return Task.FromResult(new CustomCommandResult(args.Arg));
         }
 
         private async Task<CustomCommandResult> TTSAndPrint(CommandEventArgs args, string arg2)
