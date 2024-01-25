@@ -16,3 +16,5 @@ Here are just some of things I need to re-work to make it so others can use:
 * Make Discord commands configurable
 * Documentation
 * And more items I probably couldn't think of at the time of this writing
+
+The Twitch Connectivity is thanks to https://github.com/TwitchLib/TwitchLib
