@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
 {
     public class TTSPlayerService(ILogger<TTSPlayerService> logger) : ITTSPlayerService
     {
+        private string LastFileName = string.Empty;
         public async Task PlayRequest(TTSRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Message)) return;
@@ -19,6 +20,18 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 case RegisteredVoice.VoiceType.Google:
                     await PlayGoogle(request);
                     break;
+            }
+            if (File.Exists(LastFileName))
+            {
+                try
+                {
+                    File.Delete(LastFileName);
+
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete file {filename}", LastFileName);
+                }
             }
         }
 
@@ -37,7 +50,8 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                     new VoiceSelectionParams { LanguageCode = request.RegisteredVoice.LanguageCode, Name = request.RegisteredVoice.Name },
                     new AudioConfig { AudioEncoding = AudioEncoding.Mp3 }
                     );
-                var fileName = Guid.NewGuid().ToString();
+                var fileName = Guid.NewGuid().ToString() + ".mp3";
+                LastFileName = fileName;
                 using (var output = File.Create(fileName))
                 {
                     result.AudioContent.WriteTo(output);
@@ -46,14 +60,15 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 using var mp3File = File.OpenRead(fileName);
                 using var waveOut = new WaveOutEvent();
                 using var mp3Reader = new Mp3FileReader(mp3File);
-                waveOut.Init(mp3Reader);
-                waveOut.Play();
-                while (waveOut.PlaybackState == PlaybackState.Playing)
                 {
-                    Thread.Sleep(500);
+                    waveOut.Init(mp3Reader);
+                    waveOut.Play();
+                    while (waveOut.PlaybackState == PlaybackState.Playing)
+                    {
+                        Thread.Sleep(500);
+                    }
                 }
 
-                File.Delete(fileName);
             }
             catch (Exception ex)
             {
