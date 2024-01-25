@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Twitch.EventSub.Core.Extensions;
+﻿using DotNetTwitchBot.Core;
+using DotNetTwitchBot.Twitch.EventSub.Core.Extensions;
 using DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Client;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
@@ -8,6 +9,8 @@ using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.User;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Handler;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Models;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.NamingPolicies;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using System.Text.Json;
