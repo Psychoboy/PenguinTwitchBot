@@ -105,6 +105,7 @@ internal class Program
             .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
             .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
             .ForwardToPrometheus();
+        builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
 
         var app = builder.Build();

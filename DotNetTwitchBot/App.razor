@@ -1,4 +1,5 @@
 ﻿@using DotNetTwitchBot.Shared
+@using DotNetTwitchBot.CustomMiddleware
 
 <CascadingAuthenticationState>  
 <Router AppAssembly="@typeof(App).Assembly">
@@ -14,3 +15,20 @@
     </NotFound>
 </Router>
 </CascadingAuthenticationState>
+
+@code {
+    [Parameter]
+    public string? RemoteIpAddress { get; set; }
+
+    [Inject]
+    BlazorAppContext? BlazorAppContext { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        if (this.BlazorAppContext != null)
+        {
+            this.BlazorAppContext.CurrentUserIP = this.RemoteIpAddress;
+        }
+        return Task.CompletedTask;
+    }
+}

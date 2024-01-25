@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Circuit
         event UserRemovedEventHandler UserRemoved;
 
         void Connect(string CircuitId, string UserId);
+        void Connect(string CircuitId, string UserId, string? userIp);
         void Disconnect(string CircuitId);
 
         void UpdateUserLastSeen(string CircuitId, string uri);

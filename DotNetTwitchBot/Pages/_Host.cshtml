@@ -1,8 +1,13 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.Components.Web
+@using DotNetTwitchBot.CustomMiddleware
 @namespace DotNetTwitchBot.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-
+@inject IHttpContextAccessor httpContextAccessor;
+@{
+    var remoteIpAddress =
+           httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
+}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -147,7 +152,7 @@
         }
 
     </script>
-    <component type="typeof(App)" render-mode="ServerPrerendered" />
+    <component type="typeof(App)" param-RemoteIpAddress=remoteIpAddress render-mode="ServerPrerendered" />
     <script src="_framework/blazor.server.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js" integrity="sha512-7rhBJh1om/W5Ztx7WiYOR9h2wlSaTmPyQMoHFtbT/FVNIA12y6S6I8HY9mrBS1uJ3dSU/R3qaSAXsGYuRjMDxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
