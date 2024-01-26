@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -64,6 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("playsound", PlaySound);
             CommandTags.Add("sender", Sender);
             CommandTags.Add("args", Args);
+            CommandTags.Add("randomint", RandomInt);
 
             CommandTags.Add("useronly", UserOnly);
             CommandTags.Add("writefile", WriteFile);
@@ -657,6 +659,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 return ServiceBackbone.IsOnline ? new CustomCommandResult(true) : new CustomCommandResult();
             });
+        }
+
+        private async Task<CustomCommandResult> RandomInt(CommandEventArgs eventArgs, string args)
+        {
+            if (string.IsNullOrEmpty(args)) return new CustomCommandResult();
+            var vals = args.Split(',');
+            if (vals.Length < 2) return new CustomCommandResult();
+            var val1 = int.Parse(vals[0]);
+            var val2 = int.Parse(vals[1]);
+            return await Task.Run(() => new CustomCommandResult(RandomNumberGenerator.GetInt32(val1, val2).ToString()));
         }
 
         private async Task<CustomCommandResult> FollowAge(CommandEventArgs eventArgs, string args)
