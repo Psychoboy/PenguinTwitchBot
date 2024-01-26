@@ -12,6 +12,7 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsOnline { get; set; }
         bool HealthStatus { get; }
 
+        event AsyncEventHandler<AdBreakStartEventArgs>? AdBreakStartEvent;
         event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         event AsyncEventHandler<CheerEventArgs>? CheerEvent;
@@ -31,6 +32,7 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsBroadcasterOrBot(string name);
         bool IsKnownBot(string name);
         bool IsKnownBotOrCurrentStreamer(string name);
+        Task OnAdBreakStartEvent(AdBreakStartEventArgs e);
         Task OnChannelPointRedeem(string userName, string title, string userInput);
         Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);

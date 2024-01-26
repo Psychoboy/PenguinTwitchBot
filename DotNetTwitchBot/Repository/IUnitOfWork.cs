@@ -43,6 +43,7 @@
         IRegisteredVoiceRepository RegisteredVoices { get; }
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
         IChannelPointRedeemsRepository ChannelPointRedeems { get; }
+        ITwitchEventsRepository TwitchEvents { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
