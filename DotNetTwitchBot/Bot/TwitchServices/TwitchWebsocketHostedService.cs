@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Twitch.EventSub.Websockets;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.Channel;
@@ -55,10 +56,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _subscriptionHistory = subscriptionHistory;
         }
 
-        private Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
+        private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
         {
             _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", args.Notification.Payload.Event.DurationSeconds, args.Notification.Payload.Event.StartedAt, args.Notification.Payload.Event.IsAutomatic);
-            return Task.CompletedTask;
+            var ev = new AdBreakStartEventArgs
+            {
+                Automatic = args.Notification.Payload.Event.IsAutomatic,
+                Length = args.Notification.Payload.Event.DurationSeconds,
+                StartedAt = args.Notification.Payload.Event.StartedAt
+            };
+            await _eventService.OnAdBreakStartEvent(ev);
         }
 
         private async Task OnChannelUnBan(object? sender, ChannelUnbanArgs e)

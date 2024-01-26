@@ -64,6 +64,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
             services.AddHostedApiService<Bot.Commands.ChannelPoints.IChannelPointRedeem, Bot.Commands.ChannelPoints.ChannelPointRedeem>();
+            services.AddHostedApiService<Bot.Commands.TwitchEvents.ITwitchEventsService, Bot.Commands.TwitchEvents.TwitchEventsService>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
 

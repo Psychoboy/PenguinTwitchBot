@@ -25,6 +25,7 @@ namespace DotNetTwitchBot.Bot.Core
         private string? RawBroadcasterName { get; set; } = configuration["broadcaster"];
         public string? BotName { get; set; } = configuration["botName"];
 
+        public event AsyncEventHandler<AdBreakStartEventArgs>? AdBreakStartEvent;
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         public event AsyncEventHandler<String>? SendMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
@@ -308,6 +309,13 @@ namespace DotNetTwitchBot.Bot.Core
             if (SubscriptionEndEvent != null)
             {
                 await SubscriptionEndEvent(this, new SubscriptionEndEventArgs { Name = userName });
+            }
+        }
+        public async Task OnAdBreakStartEvent(AdBreakStartEventArgs e)
+        {
+            if (AdBreakStartEvent != null)
+            {
+                await AdBreakStartEvent(this, e);
             }
         }
 

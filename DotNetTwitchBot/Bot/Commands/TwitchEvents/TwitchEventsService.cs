@@ -1,0 +1,115 @@
+﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Repository;
+
+namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
+{
+    public class TwitchEventsService(
+        ILogger<TwitchEventsService> logger,
+        IServiceScopeFactory scopeFactory,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventsService"), IHostedService, ITwitchEventsService
+    {
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override Task Register()
+        {
+            logger.LogInformation("{module} has started.", ModuleName);
+            return Task.CompletedTask;
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            ServiceBackbone.AdBreakStartEvent += AdBreak;
+
+            return Register();
+        }
+
+        private async Task AdBreak(object sender, Events.AdBreakStartEventArgs e)
+        {
+            var adEvents = await GetTwitchEvents(TwitchEventType.AdBreak);
+
+            foreach (var adEvent in adEvents)
+            {
+                if (string.IsNullOrWhiteSpace(adEvent.Command) == false)
+                {
+                    var commandString = adEvent.Command.Replace("(length)", e.Length.ToString(), StringComparison.CurrentCultureIgnoreCase)
+                        .Replace("(automatic)", e.Automatic.ToString(), StringComparison.CurrentCultureIgnoreCase)
+                        .Replace("(startdate)", e.StartedAt.ToString(), StringComparison.CurrentCultureIgnoreCase);
+                    var commandArgs = commandString.Split(' ');
+                    var commandName = commandArgs[0];
+                    var newCommandArgs = new List<string>();
+                    var targetUser = "";
+                    if (commandArgs.Length > 1)
+                    {
+                        newCommandArgs.AddRange(commandArgs.Skip(1));
+                        targetUser = commandArgs[1];
+                    }
+
+                    var command = new CommandEventArgs
+                    {
+                        Command = commandName,
+                        Arg = string.Join(" ", newCommandArgs),
+                        Args = newCommandArgs,
+                        TargetUser = targetUser,
+                        IsWhisper = false,
+                        IsDiscord = false,
+                        DiscordMention = "",
+                        FromAlias = false,
+                        IsSub = adEvent.ElevatedPermission == Rank.Subscriber,
+                        IsMod = adEvent.ElevatedPermission == Rank.Moderator,
+                        IsVip = adEvent.ElevatedPermission == Rank.Vip,
+                        IsBroadcaster = adEvent.ElevatedPermission == Rank.Streamer,
+                        DisplayName = "",
+                        Name = ""
+                    };
+                    await ServiceBackbone.RunCommand(command);
+                }
+                if (string.IsNullOrWhiteSpace(adEvent.Message) == false)
+                {
+                    await ServiceBackbone.SendChatMessage(adEvent.Message);
+                }
+            }
+        }
+
+        public async Task<IEnumerable<TwitchEvent>> GetTwitchEvents()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.TwitchEvents.GetAllAsync();
+        }
+
+        public async Task AddTwitchEvent(TwitchEvent twitchEvent)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await db.TwitchEvents.AddAsync(twitchEvent);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task DeleteTwitchEvent(TwitchEvent twitchEvent)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.TwitchEvents.Remove(twitchEvent);
+            await db.SaveChangesAsync();
+        }
+
+        private async Task<IEnumerable<TwitchEvent>> GetTwitchEvents(TwitchEventType eventType)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.TwitchEvents.Find(x => x.EventType == eventType).ToListAsync();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            ServiceBackbone.AdBreakStartEvent -= AdBreak;
+            logger.LogInformation("{module} has stopped.", ModuleName);
+            return Task.CompletedTask;
+        }
+    }
+}

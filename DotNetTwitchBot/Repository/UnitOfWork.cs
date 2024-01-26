@@ -50,6 +50,7 @@ namespace DotNetTwitchBot.Repository
             RegisteredVoices = new RegisteredVoiceRepository(_context);
             UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
             ChannelPointRedeems = new ChannelPointRedeemsRepository(_context);
+            TwitchEvents = new TwitchEventsRepository(_context);
 
         }
 
@@ -94,6 +95,7 @@ namespace DotNetTwitchBot.Repository
         public IRegisteredVoiceRepository RegisteredVoices { get; private set; }
         public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
         public IChannelPointRedeemsRepository ChannelPointRedeems { get; private set; }
+        public ITwitchEventsRepository TwitchEvents { get; private set; }
 
         public void Dispose()
         {
