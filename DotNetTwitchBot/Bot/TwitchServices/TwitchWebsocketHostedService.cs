@@ -56,14 +56,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _subscriptionHistory = subscriptionHistory;
         }
 
-        private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
+        private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
         {
-            _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", args.Notification.Payload.Event.DurationSeconds, args.Notification.Payload.Event.StartedAt, args.Notification.Payload.Event.IsAutomatic);
+            if (DidProcessMessage(e.Notification.Metadata)) return;
+            _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", e.Notification.Payload.Event.DurationSeconds, e.Notification.Payload.Event.StartedAt, e.Notification.Payload.Event.IsAutomatic);
             var ev = new AdBreakStartEventArgs
             {
-                Automatic = args.Notification.Payload.Event.IsAutomatic,
-                Length = args.Notification.Payload.Event.DurationSeconds,
-                StartedAt = args.Notification.Payload.Event.StartedAt
+                Automatic = e.Notification.Payload.Event.IsAutomatic,
+                Length = e.Notification.Payload.Event.DurationSeconds,
+                StartedAt = e.Notification.Payload.Event.StartedAt
             };
             await _eventService.OnAdBreakStartEvent(ev);
         }
@@ -116,6 +117,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is offline");
             _eventService.IsOnline = false;
             await _eventService.OnStreamEnded();
@@ -123,6 +125,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is online");
             _eventService.IsOnline = true;
             await _eventService.OnStreamStarted();
