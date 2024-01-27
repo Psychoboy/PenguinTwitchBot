@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Twitch.EventSub.Websockets.Client;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Handler;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -38,7 +39,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions
         public static IServiceCollection AddTwitchEventSubWebsockets(this IServiceCollection services)
         {
             services.TryAddTransient<WebsocketClient>();
-            services.TryAddSingleton(x => new EventSubWebsocketClient(x.GetRequiredService<ILogger<EventSubWebsocketClient>>(), x.GetRequiredService<IEnumerable<INotificationHandler>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>()));
+            services.TryAddSingleton(x => new EventSubWebsocketClient(x.GetRequiredService<ILogger<EventSubWebsocketClient>>(), x.GetRequiredService<IEnumerable<INotificationHandler>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>(), x.GetRequiredService<IMemoryCache>()));
             services.AddNotificationHandlers(typeof(INotificationHandler));
             return services;
         }

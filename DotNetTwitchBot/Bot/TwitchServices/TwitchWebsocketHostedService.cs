@@ -58,6 +58,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", args.Notification.Payload.Event.DurationSeconds, args.Notification.Payload.Event.StartedAt, args.Notification.Payload.Event.IsAutomatic);
             var ev = new AdBreakStartEventArgs
             {
@@ -116,6 +117,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is offline");
             _eventService.IsOnline = false;
             await _eventService.OnStreamEnded();
@@ -123,6 +125,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
+            if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is online");
             _eventService.IsOnline = true;
             await _eventService.OnStreamStarted();

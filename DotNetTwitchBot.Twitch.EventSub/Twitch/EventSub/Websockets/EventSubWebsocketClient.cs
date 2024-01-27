@@ -9,6 +9,7 @@ using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.User;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Handler;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Models;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.NamingPolicies;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -256,6 +257,8 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// Id associated with the Websocket Session. Needed for creating subscriptions for the socket.
         /// </summary>
         public string SessionId { get; private set; }
+        private IMemoryCache MessageIdCache { get; set; }
+        private readonly MemoryCacheEntryOptions _memoryCachOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
 
         private CancellationTokenSource _cts;
 
@@ -290,7 +293,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// <param name="websocketClient">Underlying Websocket client to connect to connect to EventSub Websocket service</param>
         /// <exception cref="ArgumentNullException">Throws ArgumentNullException if a dependency is null</exception>
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public EventSubWebsocketClient(ILogger<EventSubWebsocketClient> logger, IEnumerable<INotificationHandler> handlers, IServiceProvider serviceProvider, WebsocketClient websocketClient)
+        public EventSubWebsocketClient(ILogger<EventSubWebsocketClient> logger, IEnumerable<INotificationHandler> handlers, IServiceProvider serviceProvider, WebsocketClient websocketClient, IMemoryCache cache)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -304,6 +307,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
 
             _reconnectComplete = false;
             _reconnectRequested = false;
+            MessageIdCache = cache;
         }
 
         /// <summary>
@@ -312,7 +316,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// <param name="loggerFactory">LoggerFactory used to construct Loggers for the EventSubWebsocketClient and underlying classes</param>
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-        public EventSubWebsocketClient(ILoggerFactory loggerFactory = null)
+        public EventSubWebsocketClient(IMemoryCache cache, ILoggerFactory loggerFactory = null)
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
@@ -339,6 +343,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
 
             _reconnectComplete = false;
             _reconnectRequested = false;
+            MessageIdCache = cache;
         }
 
         public Task<bool> ConnectAsync()
@@ -512,7 +517,10 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
             _lastReceived = DateTimeOffset.Now;
 
             var json = JsonDocument.Parse(e.Message);
+            var messageId = json.RootElement.GetProperty("metadata").Deserialize<EventSubMetadata>(_jsonSerializerOptions);
+            if (IsMessageDuplicate(messageId)) return;
             var messageType = json.RootElement.GetProperty("metadata").GetProperty("message_type").GetString();
+
             switch (messageType)
             {
                 case "session_welcome":
@@ -544,6 +552,24 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
                     _logger?.LogDebug(e.Message);
                     break;
             }
+        }
+
+        private bool IsMessageDuplicate(EventSubMetadata? metadata)
+        {
+            if (metadata == null || string.IsNullOrWhiteSpace(metadata.MessageId))
+            {
+                _logger?.LogError("Got incorrect Metadata for EventSub");
+                return false;
+            }
+
+            if (MessageIdCache.TryGetValue(metadata.MessageId, out var _))
+            {
+                _logger?.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
+                return true;
+            }
+
+            MessageIdCache.Set(metadata.MessageId, metadata.MessageId, _memoryCachOptions);
+            return false;
         }
 
         /// <summary>
