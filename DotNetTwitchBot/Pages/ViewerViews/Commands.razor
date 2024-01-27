@@ -4,6 +4,7 @@
 @using DotNetTwitchBot.Bot.Commands.Custom;
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ICommandHandler CommandHandler
+@inject IAlias Aliases
 @inject CustomCommand CustomCommand
 @inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommands
 
@@ -49,7 +50,7 @@
 </MudContainer>
 
 
-@code {
+    @code {
     private List<CommandModel> originalCommands = new();
     private List<CommandModel> commands = new();
     private string searchString1 = "";
@@ -132,6 +133,23 @@
                     Description = command.Description,
                     Category = command.Category
                 });
+        }
+
+        var aliases = await Aliases.GetAliasesAsync();
+        foreach(var command in aliases)
+        {
+            var tempCommand = tempCommands.Where(x => x.Command.Equals("!" + command.CommandName)).FirstOrDefault();
+            if (tempCommand == null) continue;
+            tempCommands.Add(new CommandModel
+            {
+                Command = "!" + command.AliasName,
+                UserCooldown = tempCommand.UserCooldown,
+                GlobalCooldown = tempCommand.GlobalCooldown,
+                Rank = tempCommand.Rank,
+                Cost = tempCommand.Cost,
+                Description = tempCommand.Description,
+                Category = tempCommand.Category
+            });
         }
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
