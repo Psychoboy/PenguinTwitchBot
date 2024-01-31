@@ -4,11 +4,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public class ChatMessageIdTracker(IMemoryCache MessageIdCache)
     {
-        private readonly MemoryCacheEntryOptions _memoryCachOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-
         public void AddMessageId(string messageId)
         {
-            MessageIdCache.Set(messageId, messageId);
+            MessageIdCache.Set(messageId, messageId, TimeSpan.FromMinutes(10));
         }
 
         public bool IsSelfMessage(string messageId)
