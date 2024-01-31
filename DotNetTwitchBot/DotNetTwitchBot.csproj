@@ -57,9 +57,9 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.2.0" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
-    <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
-    <PackageReference Include="TwitchLib.Client.Enums" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
-    <PackageReference Include="TwitchLib.Client.Models" Version="4.0.0-preview-d4d9679aaa93409ab2b31471d17673bb5e06504c" />
+    <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" />
+    <PackageReference Include="TwitchLib.Client.Enums" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" />
+    <PackageReference Include="TwitchLib.Client.Models" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" />
     <PackageReference Include="TwitchLib.Communication" Version="2.0.1" />
     
     <PackageReference Include="MudBlazor" Version="6.14.0" />
