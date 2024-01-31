@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.CustomMiddleware
 {
@@ -73,6 +74,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
             services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+            services.AddSingleton<ChatMessageIdTracker>();
             services.AddHostedService<BackgroundTaskService>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
