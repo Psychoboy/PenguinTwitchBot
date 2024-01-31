@@ -65,23 +65,24 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await serviceBackbone.OnUserJoined(e.Username);
         }
 
-        private async Task OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+        private Task OnMessageReceived(object? sender, OnMessageReceivedArgs e)
         {
-            logger.LogInformation("CHATMSG: {name}: {message}", e.ChatMessage.Username, e.ChatMessage.Message);
-            if (e.ChatMessage != null)
-            {
-                var chatMessage = new ChatMessageEventArgs
-                {
-                    Message = e.ChatMessage.Message,
-                    Name = e.ChatMessage.Username.ToLower(),
-                    DisplayName = e.ChatMessage.DisplayName,
-                    IsSub = e.ChatMessage.IsSubscriber,
-                    IsMod = e.ChatMessage.IsModerator,
-                    IsVip = e.ChatMessage.IsVip,
-                    IsBroadcaster = e.ChatMessage.IsBroadcaster
-                };
-                await serviceBackbone.OnChatMessage(chatMessage);
-            }
+            //logger.LogInformation("CHATMSG: {name}: {message}", e.ChatMessage.Username, e.ChatMessage.Message);
+            //if (e.ChatMessage != null)
+            //{
+            //    var chatMessage = new ChatMessageEventArgs
+            //    {
+            //        Message = e.ChatMessage.Message,
+            //        Name = e.ChatMessage.Username.ToLower(),
+            //        DisplayName = e.ChatMessage.DisplayName,
+            //        IsSub = e.ChatMessage.IsSubscriber,
+            //        IsMod = e.ChatMessage.IsModerator,
+            //        IsVip = e.ChatMessage.IsVip,
+            //        IsBroadcaster = e.ChatMessage.IsBroadcaster
+            //    };
+            //    await serviceBackbone.OnChatMessage(chatMessage);
+            //}
+            return Task.CompletedTask;
         }
 
         private Task Client_OnConnectionError(object? sender, TwitchLib.Client.Events.OnConnectionErrorArgs e)
@@ -129,25 +130,26 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return Task.Run(() => logger.LogTrace("Bot Disconnected"));
         }
 
-        private async Task Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
+        private Task Client_OnChatCommandReceived(object? sender, TwitchLib.Client.Events.OnChatCommandReceivedArgs e)
         {
-            var eventArgs = new CommandEventArgs
-            {
-                Arg = e.Command.ArgumentsAsString,
-                Args = e.Command.ArgumentsAsList.Where(x => string.IsNullOrEmpty(x) == false).ToList(),
-                Command = e.Command.Name.ToLower(),
-                IsWhisper = false,
-                Name = e.ChatMessage.Username,
-                DisplayName = e.ChatMessage.DisplayName,
-                IsSub = e.ChatMessage.IsSubscriber,
-                IsMod = e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator,
-                IsVip = e.ChatMessage.IsVip,
-                IsBroadcaster = e.ChatMessage.IsBroadcaster,
-                TargetUser = e.Command.ArgumentsAsList.Count > 0
-                        ? e.Command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
-                        : ""
-            };
-            await serviceBackbone.OnCommand(eventArgs);
+            //var eventArgs = new CommandEventArgs
+            //{
+            //    Arg = e.Command.ArgumentsAsString,
+            //    Args = e.Command.ArgumentsAsList.Where(x => string.IsNullOrEmpty(x) == false).ToList(),
+            //    Command = e.Command.Name.ToLower(),
+            //    IsWhisper = false,
+            //    Name = e.ChatMessage.Username,
+            //    DisplayName = e.ChatMessage.DisplayName,
+            //    IsSub = e.ChatMessage.IsSubscriber,
+            //    IsMod = e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator,
+            //    IsVip = e.ChatMessage.IsVip,
+            //    IsBroadcaster = e.ChatMessage.IsBroadcaster,
+            //    TargetUser = e.Command.ArgumentsAsList.Count > 0
+            //            ? e.Command.ArgumentsAsList[0].Replace("@", "").Trim().ToLower()
+            //            : ""
+            //};
+            //await serviceBackbone.OnCommand(eventArgs);
+            return Task.CompletedTask;
         }
         private async Task OnWhisperCommandReceived(object? sender, OnWhisperCommandReceivedArgs e)
         {

@@ -526,6 +526,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (userId == null) return;
 
             await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.message", "1",
+                new Dictionary<string, string>{
+                    {"broadcaster_user_id", userId},
+                    {"user_id", userId}
+                },
+                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                sessionId, accessToken: _configuration["twitchAccessToken"]
+            );
+
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.follow", "2",
                 new Dictionary<string, string>{
                     {"broadcaster_user_id", userId},

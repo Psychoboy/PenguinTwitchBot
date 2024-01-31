@@ -1,5 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Twitch.EventSub.Twitch.EventSub.Core.SubscriptionTypes.Channel;
 using DotNetTwitchBot.Twitch.EventSub.Websockets;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.Channel;
@@ -49,11 +51,59 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
 
             _eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
+            _eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
 
 
             _twitchService = twitchService;
             _eventService = eventService;
             _subscriptionHistory = subscriptionHistory;
+        }
+
+        private Task ChannelChatMessage(object sender, Twitch.EventSub.Twitch.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
+        {
+            _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+            var e = args.Notification.Payload.Event;
+            return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
+        }
+
+        private Task ProcessChatMessage(ChannelChatMessage e)
+        {
+            var chatMessage = new ChatMessageEventArgs
+            {
+                Message = e.Message.Text,
+                Name = e.ChatterUserLogin.ToLower(),
+                DisplayName = e.ChatterUserName,
+                IsSub = e.IsSubscriber,
+                IsMod = e.IsModerator,
+                IsVip = e.IsVip,
+                IsBroadcaster = e.IsBroadcaster
+            };
+            return _eventService.OnChatMessage(chatMessage);
+        }
+
+        private Task ProcessCommandMessage(ChannelChatMessage e)
+        {
+            if (e.Message.Text.StartsWith('!') == false) return Task.CompletedTask;
+
+            var argsFull = e.Message.Text.Split(' ', 2);
+            var command = argsFull[0];
+            var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
+            var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
+            var eventArgs = new CommandEventArgs
+            {
+                Command = command[1..],
+                Arg = ArgumentsAsString,
+                Args = ArgumentsAsList,
+                IsWhisper = false,
+                Name = e.ChatterUserLogin,
+                DisplayName = e.ChatterUserName,
+                IsSub = e.IsSubscriber,
+                IsMod = e.IsModerator,
+                IsVip = e.IsVip,
+                IsBroadcaster = e.IsBroadcaster,
+                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
+            };
+            return _eventService.OnCommand(eventArgs);
         }
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)

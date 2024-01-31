@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Core;
 using DotNetTwitchBot.Twitch.EventSub.Core.Extensions;
 using DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
+using DotNetTwitchBot.Twitch.EventSub.Twitch.EventSub.Websockets.Core.EventArgs.Channel;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Client;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
 using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.Channel;
@@ -69,6 +70,11 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// Event that triggers on "channel.charity_campaign.stop" notifications
         /// </summary>
         public event AsyncEventHandler<ChannelCharityCampaignStopArgs> ChannelCharityCampaignStop;
+
+        /// <summary>
+        /// Event that triggers on channel.chat.message notifications
+        /// </summary>
+        public event AsyncEventHandler<ChannelChatMessageArgs> ChannelChatMessage;
 
         /// <summary>
         /// Event that triggers on "channel.cheer" notifications
