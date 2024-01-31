@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Websockets;
@@ -15,7 +16,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly ILogger<TwitchWebsocketHostedService> _logger;
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
-        private readonly ConcurrentBag<string> MessageIds = [];
+        private readonly IMemoryCache _eventIdCache;
         private readonly ITwitchService _twitchService;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly SubscriptionTracker _subscriptionHistory;
@@ -29,6 +30,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
             ChatMessageIdTracker messageIdTracker,
+            IMemoryCache memoryCache,
             ITwitchService twitchService)
         {
             _logger = logger;
@@ -60,6 +62,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _serviceBackbone = eventService;
             _subscriptionHistory = subscriptionHistory;
             _messageIdTracker = messageIdTracker;
+            _eventIdCache = memoryCache;
+
+
         }
 
         private Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
@@ -158,16 +163,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool DidProcessMessage(EventSubMetadata metadata)
         {
-            if (MessageIds.Contains(metadata.MessageId))
+            if (_eventIdCache.TryGetValue(metadata.MessageId, out var messageId))
             {
                 _logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
             }
-            else
-            {
-                MessageIds.Add(metadata.MessageId);
-                return false;
-            }
+
+            _eventIdCache.Set(metadata.MessageId, metadata.MessageId, TimeSpan.FromMinutes(10));
+            return false;
+
         }
 
         private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
