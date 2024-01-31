@@ -65,7 +65,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
             if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
-            if (DidProcessMessage(e.Notification.Metadata)) return Task.CompletedTask;
+            if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
             _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
             var e = args.Notification.Payload.Event;
             return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
