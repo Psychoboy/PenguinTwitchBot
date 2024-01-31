@@ -19,6 +19,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         readonly Timer _timer;
         private readonly SettingsFileManager _settingsFileManager;
         private bool serviceUp = false;
+        private string? broadcasterId = string.Empty;
+        private string? botId = string.Empty;
 
         public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
         {
@@ -100,14 +102,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var broadcaster = _configuration["broadcaster"];
             if (broadcaster == null) return null;
-            return await GetUserId(broadcaster);
+            if (string.IsNullOrEmpty(broadcasterId))
+            {
+                broadcasterId = await GetUserId(broadcaster);
+            }
+            return broadcasterId;
         }
 
         public async Task<string?> GetBotUserId()
         {
             var bot = _configuration["botName"];
             if (bot == null) return null;
-            return await GetUserId(bot);
+            if (string.IsNullOrEmpty(botId))
+            {
+                botId = await GetUserId(bot);
+            }
+            return botId;
         }
 
         public async Task<string?> GetUserId(string user)
@@ -245,6 +255,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             return await IsStreamOnline(userId);
+        }
+
+        public async Task SendMessage(string message)
+        {
+
+            await _twitchApi.Helix.Chat.SendChatMessage(await GetBroadcasterUserId(), await GetBotUserId(), message, _configuration["twitchBotAccessToken"]);
         }
 
         public async Task<bool> IsStreamOnline(string userId)
