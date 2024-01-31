@@ -31,5 +31,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task ValidateAndRefreshToken();
         Task<List<BannedUserEvent>> GetAllBannedViewers();
         bool IsServiceUp();
+        Task SendMessage(string message);
     }
 }

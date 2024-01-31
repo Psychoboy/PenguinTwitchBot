@@ -8,6 +8,7 @@
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/botsignin">Bot Auth Streamer</MudButton>
         @if(twitchService.IsServiceUp())
         {
             <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>

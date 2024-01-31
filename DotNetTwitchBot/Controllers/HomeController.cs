@@ -102,7 +102,7 @@ namespace DotNetTwitchBot.Controllers
         public IActionResult BotSignin()
         {
 #if DEBUG
-            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchBotClientId"]);
+            var url = GetBotScopeUrl("https://localhost:7293/botredirect", _configuration["twitchBotClientId"]);
 #else
             var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", _configuration["twitchBotClientId"]);
 #endif
@@ -179,6 +179,13 @@ namespace DotNetTwitchBot.Controllers
                 return Redirect("/");
             }
 
+            var botName = _configuration["botName"];
+            if (botName == null)
+            {
+                _logger.LogError("Botname is not set.");
+                return Redirect("/");
+            }
+
             api.Settings.AccessToken = resp.AccessToken;
             var users = await api.Helix.Users.GetUsersAsync();
             if (users.Users.Length > 0)
@@ -187,7 +194,7 @@ namespace DotNetTwitchBot.Controllers
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),
-                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) ? "Streamer": "Viewer"),
+                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) || botName.Equals(user.Login) ? "Streamer": "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName)
                 };
@@ -327,7 +334,8 @@ namespace DotNetTwitchBot.Controllers
                 "user:bot",
                 "user:read:chat",
                 "channel:manage:ads",
-                "channel:read:ads"
+                "channel:read:ads",
+                "user:write:chat"
             };
             var scopeStr = String.Join("+", scopes);
             var stateString = Guid.NewGuid().ToString();
