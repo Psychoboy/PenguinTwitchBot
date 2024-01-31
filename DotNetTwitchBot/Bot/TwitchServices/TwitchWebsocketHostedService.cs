@@ -1,6 +1,8 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events.Chat;
 using System.Collections.Concurrent;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
@@ -51,7 +53,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
 
             _eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
-            //_eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
+            _eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
 
 
             _twitchService = twitchService;
@@ -60,54 +62,54 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _messageIdTracker = messageIdTracker;
         }
 
-        //private Task ChannelChatMessage(object sender, Twitch.EventSub.Twitch.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
-        //{
-        //    if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
+        private Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
+        {
+            if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
+            if (DidProcessMessage(e.Notification.Metadata)) return Task.CompletedTask;
+            _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+            var e = args.Notification.Payload.Event;
+            return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
+        }
 
-        //    _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
-        //    var e = args.Notification.Payload.Event;
-        //    return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
-        //}
+        private Task ProcessChatMessage(ChannelChatMessage e)
+        {
+            var chatMessage = new ChatMessageEventArgs
+            {
+                Message = e.Message.Text,
+                Name = e.ChatterUserLogin.ToLower(),
+                DisplayName = e.ChatterUserName,
+                IsSub = e.IsSubscriber,
+                IsMod = e.IsModerator,
+                IsVip = e.IsVip,
+                IsBroadcaster = e.IsBroadcaster
+            };
+            return _serviceBackbone.OnChatMessage(chatMessage);
+        }
 
-        //private Task ProcessChatMessage(ChannelChatMessage e)
-        //{
-        //    var chatMessage = new ChatMessageEventArgs
-        //    {
-        //        Message = e.Message.Text,
-        //        Name = e.ChatterUserLogin.ToLower(),
-        //        DisplayName = e.ChatterUserName,
-        //        IsSub = e.IsSubscriber,
-        //        IsMod = e.IsModerator,
-        //        IsVip = e.IsVip,
-        //        IsBroadcaster = e.IsBroadcaster
-        //    };
-        //    return _serviceBackbone.OnChatMessage(chatMessage);
-        //}
+        private Task ProcessCommandMessage(ChannelChatMessage e)
+        {
+            if (e.Message.Text.StartsWith('!') == false) return Task.CompletedTask;
 
-        //private Task ProcessCommandMessage(ChannelChatMessage e)
-        //{
-        //    if (e.Message.Text.StartsWith('!') == false) return Task.CompletedTask;
-
-        //    var argsFull = e.Message.Text.Split(' ', 2);
-        //    var command = argsFull[0];
-        //    var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
-        //    var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
-        //    var eventArgs = new CommandEventArgs
-        //    {
-        //        Command = command[1..],
-        //        Arg = ArgumentsAsString,
-        //        Args = ArgumentsAsList,
-        //        IsWhisper = false,
-        //        Name = e.ChatterUserLogin,
-        //        DisplayName = e.ChatterUserName,
-        //        IsSub = e.IsSubscriber,
-        //        IsMod = e.IsModerator,
-        //        IsVip = e.IsVip,
-        //        IsBroadcaster = e.IsBroadcaster,
-        //        TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
-        //    };
-        //    return _serviceBackbone.OnCommand(eventArgs);
-        //}
+            var argsFull = e.Message.Text.Split(' ', 2);
+            var command = argsFull[0];
+            var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
+            var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
+            var eventArgs = new CommandEventArgs
+            {
+                Command = command[1..],
+                Arg = ArgumentsAsString,
+                Args = ArgumentsAsList,
+                IsWhisper = false,
+                Name = e.ChatterUserLogin,
+                DisplayName = e.ChatterUserName,
+                IsSub = e.IsSubscriber,
+                IsMod = e.IsModerator,
+                IsVip = e.IsVip,
+                IsBroadcaster = e.IsBroadcaster,
+                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
+            };
+            return _serviceBackbone.OnCommand(eventArgs);
+        }
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
         {
