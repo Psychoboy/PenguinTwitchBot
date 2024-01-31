@@ -54,11 +54,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ValidateAndRefreshToken();
         }
 
-        public async Task SendChatMessage(string message)
-        {
-            await _twitchApi.Helix.Chat.SendChatMessage(await GetBroadcasterUserId(), await GetBotUserId(), message, _configuration["twitchBotAccessToken"]);
-        }
-
         public async Task<List<Subscription>> GetAllSubscriptions()
         {
             await ValidateAndRefreshToken();
