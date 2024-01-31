@@ -75,8 +75,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DotNetTwitchBot.Core\DotNetTwitchBot.Core.csproj" />
-    <ProjectReference Include="..\DotNetTwitchBot.Twitch.EventSub\DotNetTwitchBot.Twitch.EventSub.csproj" />
     <ProjectReference Include="..\TwitchLib.Api\TwitchLib.Api\TwitchLib.Api.csproj" />
+    <ProjectReference Include="..\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets.csproj" />
   </ItemGroup>
 
   <ItemGroup>

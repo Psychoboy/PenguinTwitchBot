@@ -263,8 +263,6 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// Id associated with the Websocket Session. Needed for creating subscriptions for the socket.
         /// </summary>
         public string SessionId { get; private set; }
-        private IMemoryCache MessageIdCache { get; set; }
-        private readonly MemoryCacheEntryOptions _memoryCachOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
 
         private CancellationTokenSource _cts;
 
@@ -299,7 +297,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// <param name="websocketClient">Underlying Websocket client to connect to connect to EventSub Websocket service</param>
         /// <exception cref="ArgumentNullException">Throws ArgumentNullException if a dependency is null</exception>
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public EventSubWebsocketClient(ILogger<EventSubWebsocketClient> logger, IEnumerable<INotificationHandler> handlers, IServiceProvider serviceProvider, WebsocketClient websocketClient, IMemoryCache cache)
+        public EventSubWebsocketClient(ILogger<EventSubWebsocketClient> logger, IEnumerable<INotificationHandler> handlers, IServiceProvider serviceProvider, WebsocketClient websocketClient)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -313,7 +311,6 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
 
             _reconnectComplete = false;
             _reconnectRequested = false;
-            MessageIdCache = cache;
         }
 
         /// <summary>
@@ -322,7 +319,7 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
         /// <param name="loggerFactory">LoggerFactory used to construct Loggers for the EventSubWebsocketClient and underlying classes</param>
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-        public EventSubWebsocketClient(IMemoryCache cache, ILoggerFactory loggerFactory = null)
+        public EventSubWebsocketClient(ILoggerFactory loggerFactory = null)
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
@@ -349,7 +346,6 @@ namespace DotNetTwitchBot.Twitch.EventSub.Websockets
 
             _reconnectComplete = false;
             _reconnectRequested = false;
-            MessageIdCache = cache;
         }
 
         public Task<bool> ConnectAsync()

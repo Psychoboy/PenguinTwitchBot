@@ -1,7 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Core;
-using DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
