@@ -1,13 +1,13 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Twitch.EventSub.Twitch.EventSub.Core.SubscriptionTypes.Channel;
-using DotNetTwitchBot.Twitch.EventSub.Websockets;
-using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs;
-using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.Channel;
-using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.EventArgs.Stream;
-using DotNetTwitchBot.Twitch.EventSub.Websockets.Core.Models;
 using System.Collections.Concurrent;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+using TwitchLib.EventSub.Websockets;
+using TwitchLib.EventSub.Websockets.Core.EventArgs;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Stream;
+using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -62,10 +62,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _messageIdTracker = messageIdTracker;
         }
 
-        private Task ChannelChatMessage(object sender, Twitch.EventSub.Twitch.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
+        private Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
             if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
-
+            if (DidProcessMessage(e.Notification.Metadata)) return Task.CompletedTask;
             _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
             var e = args.Notification.Payload.Event;
             return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);

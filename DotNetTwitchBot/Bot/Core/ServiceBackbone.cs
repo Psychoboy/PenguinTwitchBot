@@ -4,9 +4,9 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Core;
-using DotNetTwitchBot.Twitch.EventSub.Core.SubscriptionTypes.Channel;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {

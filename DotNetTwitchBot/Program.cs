@@ -8,7 +8,6 @@ using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
-using DotNetTwitchBot.Twitch.EventSub.Websockets.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.HttpLogging;
@@ -21,6 +20,7 @@ using Quartz.AspNetCore;
 using Serilog;
 using System.Net;
 
+using TwitchLib.EventSub.Websockets.Extensions;
 internal class Program
 {
     private static async Task Main(string[] args)
@@ -64,7 +64,7 @@ internal class Program
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
 
         builder.Services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
-        builder.Services.AddTwitchEventSubWebsockets();
+        builder.Services.AddTwitchLibEventSubWebsockets();
         builder.Services.AddHostedService<TwitchWebsocketHostedService>();
 
 
