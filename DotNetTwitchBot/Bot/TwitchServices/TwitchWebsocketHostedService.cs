@@ -17,8 +17,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly EventSubWebsocketClient _eventSubWebsocketClient;
         private readonly ConcurrentBag<string> MessageIds = [];
         private readonly ITwitchService _twitchService;
-        private readonly IServiceBackbone _eventService;
+        private readonly IServiceBackbone _serviceBackbone;
         private readonly SubscriptionTracker _subscriptionHistory;
+        private readonly ChatMessageIdTracker _messageIdTracker;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
 
@@ -27,6 +28,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             IServiceBackbone eventService,
             EventSubWebsocketClient eventSubWebsocketClient,
             SubscriptionTracker subscriptionHistory,
+            ChatMessageIdTracker messageIdTracker,
             ITwitchService twitchService)
         {
             _logger = logger;
@@ -55,12 +57,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
 
             _twitchService = twitchService;
-            _eventService = eventService;
+            _serviceBackbone = eventService;
             _subscriptionHistory = subscriptionHistory;
+            _messageIdTracker = messageIdTracker;
         }
 
         private Task ChannelChatMessage(object sender, Twitch.EventSub.Twitch.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
         {
+            if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
+
             _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
             var e = args.Notification.Payload.Event;
             return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
@@ -78,7 +83,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster
             };
-            return _eventService.OnChatMessage(chatMessage);
+            return _serviceBackbone.OnChatMessage(chatMessage);
         }
 
         private Task ProcessCommandMessage(ChannelChatMessage e)
@@ -103,7 +108,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
             };
-            return _eventService.OnCommand(eventArgs);
+            return _serviceBackbone.OnCommand(eventArgs);
         }
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
@@ -116,14 +121,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 Length = e.Notification.Payload.Event.DurationSeconds,
                 StartedAt = e.Notification.Payload.Event.StartedAt
             };
-            await _eventService.OnAdBreakStartEvent(ev);
+            await _serviceBackbone.OnAdBreakStartEvent(ev);
         }
 
         private async Task OnChannelUnBan(object? sender, ChannelUnbanArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+            await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
         }
 
         private async Task OnChannelBan(object? sender, ChannelBanArgs e)
@@ -135,7 +140,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 return;
             }
             _logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-            await _eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
+            await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
         }
 
         private async Task OnChannelRaid(object? sender, ChannelRaidArgs e)
@@ -143,7 +148,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (DidProcessMessage(e.Notification.Metadata)) return;
 
             _logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
-            await _eventService.OnIncomingRaid(new Events.RaidEventArgs
+            await _serviceBackbone.OnIncomingRaid(new Events.RaidEventArgs
             {
                 Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
                 DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
@@ -169,16 +174,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is offline");
-            _eventService.IsOnline = false;
-            await _eventService.OnStreamEnded();
+            _serviceBackbone.IsOnline = false;
+            await _serviceBackbone.OnStreamEnded();
         }
 
         private async Task OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("Stream is online");
-            _eventService.IsOnline = true;
-            await _eventService.OnStreamStarted();
+            _serviceBackbone.IsOnline = true;
+            await _serviceBackbone.OnStreamStarted();
         }
 
         private async Task OnChannelSubscription(object? sender, ChannelSubscribeArgs e)
@@ -197,7 +202,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
 
-            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
@@ -217,7 +222,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
 
             if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
-            await _eventService.OnSubscription(new Events.SubscriptionEventArgs
+            await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
@@ -232,7 +237,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
+            await _serviceBackbone.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
             {
                 Name = e.Notification.Payload.Event.UserLogin,
                 DisplayName = e.Notification.Payload.Event.UserName,
@@ -246,7 +251,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (DidProcessMessage(e.Notification.Metadata)) return;
 
             _logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
-            await _eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+            await _serviceBackbone.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
         }
 
         private bool CheckIfExistsAndAddSubCache(string name)
@@ -278,13 +283,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _eventService.OnCheer(e.Notification.Payload.Event);
+            await _serviceBackbone.OnCheer(e.Notification.Payload.Event);
         }
 
         private async Task OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
-            await _eventService.OnChannelPointRedeem(
+            await _serviceBackbone.OnChannelPointRedeem(
                 e.Notification.Payload.Event.UserName,
                 e.Notification.Payload.Event.Reward.Title,
                 e.Notification.Payload.Event.UserInput);
@@ -295,7 +300,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if (DidProcessMessage(e.Notification.Metadata)) return;
             _logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _eventService.OnFollow(e.Notification.Payload.Event);
+            await _serviceBackbone.OnFollow(e.Notification.Payload.Event);
         }
 
         private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)

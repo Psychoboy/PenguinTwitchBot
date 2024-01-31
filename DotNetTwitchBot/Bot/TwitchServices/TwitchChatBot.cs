@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
          IConfiguration configuration,
          IServiceBackbone serviceBackbone,
          ITwitchService twitchService,
+         ChatMessageIdTracker messageIdTracker,
          SettingsFileManager settingsFileManager) : IHostedService, ITwitchChatBot
     {
         private TwitchClient TwitchClient { get; set; } = default!;
@@ -56,6 +57,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async Task CommandService_OnSendMessage(object? sender, string e)
         {
             var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), e);
+            messageIdTracker.AddMessageId(result.Data.First().MessageId);
             if (result.Data.First().IsSent == false)
             {
                 logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.FirstOrDefault()?.Message);
@@ -193,6 +195,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             TwitchClient.OnUserLeft += OnUserLeft;
             TwitchClient.OnReconnected += OnReconnected;
             await TwitchClient.ConnectAsync();
+            serviceBackbone.SendMessageEvent += CommandService_OnSendMessage;
 
             _twitchApi.Settings.ClientId = configuration["twitchBotClientId"];
             _twitchApi.Settings.AccessToken = configuration["twitchBotAccessToken"];
