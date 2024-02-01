@@ -99,6 +99,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("unpausechannelpoint", UnpauseChannelPoint);
             CommandTags.Add("enabletimergroup", EnableTimerGroup);
             CommandTags.Add("disabletimergroup", DisableTimerGroup);
+            CommandTags.Add("enablecommand", EnableCommand);
+            CommandTags.Add("disablecommand", DisableCommand);
         }
 
 
@@ -685,6 +687,29 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return new CustomCommandResult();
         }
 
+        private async Task<CustomCommandResult> EnableCommand(CommandEventArgs eventArgs, string args)
+        {
+            var commands = GetCustomCommands();
+
+            if (commands.TryGetValue(args.Trim(), out var command))
+            {
+                command.Disabled = false;
+                await SaveCommand(command);
+            }
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> DisableCommand(CommandEventArgs eventArgs, string args)
+        {
+            var commands = GetCustomCommands();
+
+            if (commands.TryGetValue(args.Trim(), out var command))
+            {
+                command.Disabled = true;
+                await SaveCommand(command);
+            }
+            return new CustomCommandResult();
+        }
 
         private async Task<CustomCommandResult> PauseChannelPoint(CommandEventArgs eventArgs, string args)
         {
