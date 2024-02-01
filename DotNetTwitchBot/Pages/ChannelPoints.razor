@@ -1,6 +1,10 @@
 ﻿@page "/redeems"
 @attribute [Authorize(Roles = "Streamer")]
+@using TwitchLib.Api.Helix.Models.ChannelPoints
+@using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward
+@using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
 @inject DotNetTwitchBot.Bot.Commands.ChannelPoints.IChannelPointRedeem CPR
+@inject DotNetTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
 
 <PageTitle>SPTV Twitch Bot - Channel Points</PageTitle>
 
@@ -8,7 +12,73 @@
     <MudGrid>
         <MudItem xs="8">
             <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@ChannelRewards">
+                    <ToolBarContent>
+                        <MudText Class="pa-4" Typo="Typo.h6">Channel Rewards</MudText>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Cost</MudTh>
+                        <MudTh>Enabled</MudTh>
+                        <MudTh>Paused</MudTh>
+                        <MudTh>Is Owned</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Reward.Title</MudTd>
+                        <MudTd>@context.Reward.Cost</MudTd>
+                        <MudTd>@context.Reward.IsEnabled</MudTd>
+                        <MudTd>@context.Reward.IsPaused</MudTd>
+                        <MudTd>@context.IsOwned</MudTd>
+                            <MudTd>
+                                @if (context.IsOwned == true)
+                                {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                @onclick="() => EditChannelReward(context)">
+                                    Edit
+                                </MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => DeleteChannelReward(context)">
+                                    Delete
+                                </MudButton>
+                                }
+                            </MudTd>
+                    </RowTemplate>
+                </MudTable>
+             </MudPaper>
+        </MudItem>
+            <MudItem xs="4">
+                <MudCard>
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <EditForm Model="@CreateCustomReward" OnValidSubmit="OnCreate">
+                            <MudText Class="pa-4" Typo="Typo.h6">Create Channel Reward</MudText>
+                            <MudTextField Label="Name" Required="true" @bind-Value="CreateCustomReward.Title" MaxLength="45"/>
+                            <MudNumericField Label="Cost" Required="true" @bind-Value="CreateCustomReward.Cost" Min="1" />
+                            <MudCheckBox Label="Is Enabled" @bind-Value="CreateCustomReward.IsEnabled" />
+                            <MudCheckBox Label="User input required?" @bind-Value="CreateCustomReward.IsUserInputRequired" />
+                            <MudTextField Label="Prompt" @bind-Value="CreateCustomReward.Prompt" MaxLength="200" />
+                            <MudColorPicker Label="Background Color" @bind-Text="CreateCustomReward.BackgroundColor" Required="true" Style="@($"mix-blend-mode: normal;background-color: {CreateCustomReward.BackgroundColor};")" DisableAlpha="true" />
+                            <MudCheckBox Label="Skips Queue" @bind-Value="CreateCustomReward.ShouldRedemptionsSkipRequestQueue" />
+                            <MudCheckBox Label="Max per Stream?" @bind-Value="CreateCustomReward.IsMaxPerStreamEnabled" />
+                            <MudNumericField Label="Max Per Stream" @bind-Value="CreateCustomReward.MaxPerStream"/>
+                            <MudCheckBox Label="Max per user per Stream?" @bind-Value="CreateCustomReward.IsMaxPerUserPerStreamEnabled" />
+                            <MudNumericField Label="Max Per user per Stream" @bind-Value="CreateCustomReward.MaxPerUserPerStream" />
+                            <MudCheckBox Label="Global Cooldown?" @bind-Value="CreateCustomReward.IsGlobalCooldownEnabled" />
+                            <MudNumericField Label="Global Cooldown (seconds)" @bind-Value="CreateCustomReward.GlobalCooldownSeconds" />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="8">
+            <MudPaper Elevation="2" Class="pa-4">
                 <MudTable Items="@ChannelPointRedeems">
+                    <ToolBarContent>
+                        <MudText Class="pa-4" Typo="Typo.h6">Redeem Configuration</MudText>
+                    </ToolBarContent>
                     <HeaderContent>
                         <MudTh>Name</MudTh>
                         <MudTh>Command</MudTh>
@@ -33,7 +103,12 @@
             <MudCard>
                 <MudPaper Elevation="2" Class="pa-4">
                     <EditForm Model="@ChannelPointRedeem" OnValidSubmit="OnSubmit">
-                        <MudTextField Label="Name" Required="true" @bind-Value="ChannelPointRedeem.Name" />
+                        <MudSelect @bind-Value="ChannelPointRedeem.Name" Label="Channel Reward" Required="true">
+                                @foreach (var reward in ChannelRewards)
+                            {
+                                <MudSelectItem Value="reward.Reward.Title">@reward.Reward.Title</MudSelectItem>
+                            }
+                        </MudSelect>
                             <MudTextField Label="Command" Required="true" @bind-Value="ChannelPointRedeem.Command" HelperText="(input) (username)"/>
                             <MudSelect @bind-Value="@ChannelPointRedeem.ElevatedPermission" Label="Execute As">
                                 @foreach (Rank item in Enum.GetValues(typeof(Rank)))
@@ -55,10 +130,20 @@
 @code {
     private List<DotNetTwitchBot.Bot.Models.ChannelPointRedeem> ChannelPointRedeems { get; set; } = new();
     private DotNetTwitchBot.Bot.Models.ChannelPointRedeem ChannelPointRedeem { get; set; } = new();
+    private List<ChannelPoint> ChannelRewards { get; set; } = new();
+    private CreateCustomRewardsRequest CreateCustomReward { get; set; } = new(){IsEnabled = true};
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    private class ChannelPoint
+    {
+        public CustomReward Reward { get; set; } = default!;
+        public bool IsOwned { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         ChannelPointRedeems = await CPR.GetRedeems();
+        ChannelRewards = await GetAllChannelPoints();
         await base.OnInitializedAsync();
     }
 
@@ -75,5 +160,64 @@
         ChannelPointRedeems = await CPR.GetRedeems();
         ChannelPointRedeem = new();
         StateHasChanged();
+    }
+
+    private async Task OnCreate()
+    {
+        try
+        {
+            await CP.CreateChannelPointReward(CreateCustomReward);
+            CreateCustomReward = new() { IsEnabled = true };
+            ChannelRewards = await GetAllChannelPoints();
+            StateHasChanged();
+        }catch(Exception){}
+    }
+
+    private async Task DeleteChannelReward(ChannelPoint channelPoint)
+    {
+        await CP.DeleteChannelPointReward(channelPoint.Reward.Id);
+        ChannelRewards = await GetAllChannelPoints();
+        StateHasChanged();
+    }
+
+    private async Task EditChannelReward(ChannelPoint channelPoint)
+    {
+        var reward = channelPoint.Reward;
+        var updateChannelPoint = new UpdateCustomRewardRequest
+            {
+                Title = reward.Title,
+                Prompt = reward.Prompt,
+                Cost = reward.Cost,
+                BackgroundColor = reward.BackgroundColor,
+                IsEnabled = reward.IsEnabled,
+                IsUserInputRequired = reward.IsUserInputRequired,
+                IsMaxPerStreamEnabled = reward.MaxPerStreamSetting.IsEnabled,
+                MaxPerStream = reward.MaxPerStreamSetting.MaxPerStream,
+                IsMaxPerUserPerStreamEnabled = reward.MaxPerUserPerStreamSetting.IsEnabled,
+                MaxPerUserPerStream = reward.MaxPerUserPerStreamSetting.MaxPerUserPerStream,
+                IsGlobalCooldownEnabled = reward.GlobalCooldownSetting.IsEnabled,
+                GlobalCooldownSeconds = reward.GlobalCooldownSetting.GlobalCooldownSeconds,
+                IsPaused = reward.IsPaused,
+                ShouldRedemptionsSkipRequestQueue = reward.ShouldRedemptionsSkipQueue
+            };
+        var parameter = new DialogParameters<ChannelPointsEdit>();
+        parameter.Add(x => x.Reward, updateChannelPoint);
+        parameter.Add(x => x.RewardId, reward.Id);
+        var dialog = await DialogService.ShowAsync<ChannelPointsEdit>($"Edit {reward.Title}", parameter);
+        var result = await dialog.Result;
+
+        if(!result.Canceled)
+        {
+            ChannelRewards = await GetAllChannelPoints();
+            StateHasChanged();
+        }
+    }
+
+    private async Task<List<ChannelPoint>> GetAllChannelPoints()
+    {
+        List<ChannelPoint> channelPoints = new();
+        channelPoints.AddRange((await CP.GetOwnedChannelPoints()).Select(x => new ChannelPoint{Reward = x, IsOwned = true}));
+        channelPoints.AddRange((await CP.GetAllChannelPoints()).Where(x => channelPoints.Any(y => y.Reward.Id.Equals(x.Id)) == false).Select(x => new ChannelPoint { Reward = x, IsOwned = false }));
+        return channelPoints.OrderBy(x => x.Reward.Title).ToList();
     }
 }

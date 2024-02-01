@@ -80,6 +80,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<IChatHistory, ChatHistory>();
 
             services.AddSingleton<Bot.Core.Leaderboards>();
+            services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
             return services;
         }
 

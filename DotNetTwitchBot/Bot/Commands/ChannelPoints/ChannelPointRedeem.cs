@@ -30,6 +30,8 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
             return Register();
         }
 
+
+
         public async Task AddRedeem(Models.ChannelPointRedeem channelPointRedeem)
         {
             await using var scope = scopeFactory.CreateAsyncScope();

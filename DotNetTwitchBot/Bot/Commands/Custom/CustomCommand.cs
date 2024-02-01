@@ -89,7 +89,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("elevatedcommand", ExecuteElevatedCommand);
             CommandTags.Add("ttsandprint", TTSAndPrint);
             CommandTags.Add("tts", TTS);
+            CommandTags.Add("enablechannelpoint", EnableChannelPoint);
+            CommandTags.Add("disablechannelpoint", DisableChannelPoint);
+            CommandTags.Add("pausechannelpoint", PauseChannelPoint);
+            CommandTags.Add("unpausechannelpoint", UnpauseChannelPoint);
         }
+
+
 
         public Dictionary<string, CustomCommands> GetCustomCommands()
         {
@@ -611,6 +617,78 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             request.Headers.Add("Accept", "text/plain");
             var result = await httpClient.SendAsync(request);
             return new CustomCommandResult(await result.Content.ReadAsStringAsync());
+        }
+
+        private async Task<CustomCommandResult> EnableChannelPoint(CommandEventArgs eventArgs, string args)
+        {
+            var channelPoints = await _twitchService.GetChannelPointRewards(true);
+            foreach (var channelPoint in channelPoints)
+            {
+                if (channelPoint.Title.Equals(args, StringComparison.OrdinalIgnoreCase))
+                {
+                    TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request = new()
+                    {
+                        IsEnabled = true
+                    };
+                    await _twitchService.UpdateChannelPointReward(channelPoint.Id, request);
+                    break;
+                }
+            }
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> DisableChannelPoint(CommandEventArgs eventArgs, string args)
+        {
+            var channelPoints = await _twitchService.GetChannelPointRewards(true);
+            foreach (var channelPoint in channelPoints)
+            {
+                if (channelPoint.Title.Equals(args, StringComparison.OrdinalIgnoreCase))
+                {
+                    TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request = new()
+                    {
+                        IsEnabled = false
+                    };
+                    await _twitchService.UpdateChannelPointReward(channelPoint.Id, request);
+                    break;
+                }
+            }
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> PauseChannelPoint(CommandEventArgs eventArgs, string args)
+        {
+            var channelPoints = await _twitchService.GetChannelPointRewards(true);
+            foreach (var channelPoint in channelPoints)
+            {
+                if (channelPoint.Title.Equals(args, StringComparison.OrdinalIgnoreCase))
+                {
+                    TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request = new()
+                    {
+                        IsPaused = true
+                    };
+                    await _twitchService.UpdateChannelPointReward(channelPoint.Id, request);
+                    break;
+                }
+            }
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> UnpauseChannelPoint(CommandEventArgs eventArgs, string args)
+        {
+            var channelPoints = await _twitchService.GetChannelPointRewards(true);
+            foreach (var channelPoint in channelPoints)
+            {
+                if (channelPoint.Title.Equals(args, StringComparison.OrdinalIgnoreCase))
+                {
+                    TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request = new()
+                    {
+                        IsPaused = false
+                    };
+                    await _twitchService.UpdateChannelPointReward(channelPoint.Id, request);
+                    break;
+                }
+            }
+            return new CustomCommandResult();
         }
 
         private async Task<CustomCommandResult> CustomApiNoResponse(CommandEventArgs eventArgs, string args)

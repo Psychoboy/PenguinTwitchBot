@@ -1,4 +1,7 @@
-﻿using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+﻿using TwitchLib.Api.Helix.Models.ChannelPoints;
+using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
+using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
+using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
@@ -33,5 +36,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<List<BannedUserEvent>> GetAllBannedViewers();
         bool IsServiceUp();
         Task<IEnumerable<Chatter>> GetCurrentChatters();
+        Task<IEnumerable<CustomReward>> GetChannelPointRewards();
+        Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
+        Task<IEnumerable<CustomReward>> GetChannelPointRewards(bool onlyManageable);
+        Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request);
+        Task DeleteChannelPointReward(string rewardId);
     }
 }

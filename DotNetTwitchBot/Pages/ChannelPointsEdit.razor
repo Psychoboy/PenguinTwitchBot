@@ -1,0 +1,48 @@
+﻿@using TwitchLib.Api.Helix.Models.ChannelPoints
+@using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward
+@using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
+@inject DotNetTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
+
+<MudDialog>
+    <TitleContent>
+        Update Reward
+    </TitleContent>
+    <DialogContent>
+        <MudText Class="pa-4" Typo="Typo.h6">Create Channel Reward</MudText>
+        <MudTextField Label="Name" Required="true" @bind-Value="Reward.Title" MaxLength="45" />
+        <MudNumericField Label="Cost" Required="true" @bind-Value="Reward.Cost" Min="1" />
+        <MudCheckBox Label="Is Enabled" @bind-Value="Reward.IsEnabled" />
+        <MudCheckBox Label="Is Paused" @bind-Value="Reward.IsPaused" />
+        <MudCheckBox Label="User input required?" @bind-Value="Reward.IsUserInputRequired" />
+        <MudTextField Label="Prompt" @bind-Value="Reward.Prompt" MaxLength="200" />
+        <MudColorPicker Label="Background Color" @bind-Text="Reward.BackgroundColor" Required="true" Style="@($"mix-blend-mode: normal;background-color: {Reward.BackgroundColor};")" DisableAlpha="true" />
+        <MudCheckBox Label="Skips Queue" @bind-Value="Reward.ShouldRedemptionsSkipRequestQueue" />
+        <MudCheckBox Label="Max per Stream?" @bind-Value="Reward.IsMaxPerStreamEnabled" />
+        <MudNumericField Label="Max Per Stream" @bind-Value="Reward.MaxPerStream" />
+        <MudCheckBox Label="Max per user per Stream?" @bind-Value="Reward.IsMaxPerUserPerStreamEnabled" />
+        <MudNumericField Label="Max Per user per Stream" @bind-Value="Reward.MaxPerUserPerStream" />
+        <MudCheckBox Label="Global Cooldown?" @bind-Value="Reward.IsGlobalCooldownEnabled" />
+        <MudNumericField Label="Global Cooldown (seconds)" @bind-Value="Reward.GlobalCooldownSeconds" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Success" OnClick="UpdateReward">Update Reward</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public UpdateCustomRewardRequest Reward { get; set; } = new()!;
+    [Parameter] public string RewardId { get; set; } = string.Empty;
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    public async Task UpdateReward()
+    {
+        await CP.UpdateChannelPointReward(RewardId, Reward);
+        MudDialog.Close(DialogResult.Ok("success"));
+    }
+}
