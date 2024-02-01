@@ -24,8 +24,21 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
         public Task StartAsync(CancellationToken cancellationToken)
         {
             ServiceBackbone.AdBreakStartEvent += AdBreak;
-
+            ServiceBackbone.StreamStarted += StreamStarted;
+            ServiceBackbone.StreamEnded += StreamEnded;
             return Register();
+        }
+
+        private Task StreamEnded(object sender, EventArgs args)
+        {
+            return RunGenericEvent(TwitchEventType.StreamEnd);
+        }
+
+
+
+        private Task StreamStarted(object sender, EventArgs args)
+        {
+            return RunGenericEvent(TwitchEventType.StreamStart);
         }
 
         private async Task AdBreak(object sender, Events.AdBreakStartEventArgs e)
@@ -110,6 +123,51 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
             ServiceBackbone.AdBreakStartEvent -= AdBreak;
             logger.LogInformation("{module} has stopped.", ModuleName);
             return Task.CompletedTask;
+        }
+
+        private async Task RunGenericEvent(TwitchEventType eventType)
+        {
+            var events = await GetTwitchEvents(eventType);
+
+            foreach (var evt in events)
+            {
+                if (string.IsNullOrWhiteSpace(evt.Command) == false)
+                {
+                    var commandArgs = evt.Command.Split(' ');
+                    var commandName = commandArgs[0];
+                    var newCommandArgs = new List<string>();
+                    var targetUser = "";
+                    if (commandArgs.Length > 1)
+                    {
+                        newCommandArgs.AddRange(commandArgs.Skip(1));
+                        targetUser = commandArgs[1];
+                    }
+
+                    var command = new CommandEventArgs
+                    {
+                        Command = commandName,
+                        Arg = string.Join(" ", newCommandArgs),
+                        Args = newCommandArgs,
+                        TargetUser = targetUser,
+                        IsWhisper = false,
+                        IsDiscord = false,
+                        DiscordMention = "",
+                        FromAlias = false,
+                        IsSub = evt.ElevatedPermission == Rank.Subscriber,
+                        IsMod = evt.ElevatedPermission == Rank.Moderator,
+                        IsVip = evt.ElevatedPermission == Rank.Vip,
+                        IsBroadcaster = evt.ElevatedPermission == Rank.Streamer,
+                        DisplayName = "",
+                        Name = ""
+                    };
+                    await ServiceBackbone.RunCommand(command);
+                }
+
+                if (string.IsNullOrWhiteSpace(evt.Message) == false)
+                {
+                    await ServiceBackbone.SendChatMessage(evt.Message);
+                }
+            }
         }
     }
 }

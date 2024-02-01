@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -37,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly GiveawayFeature _giveawayFeature;
         private readonly ITTSService _ttsService;
+        private readonly Timers _timers;
 
         public CustomCommand(
             ISendAlerts sendAlerts,
@@ -48,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
             ITTSService ttsService,
+            Timers timers,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
         {
             _sendAlerts = sendAlerts;
@@ -58,6 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _loyaltyFeature = loyaltyFeature;
             _giveawayFeature = giveawayFeature;
             _ttsService = ttsService;
+            _timers = timers;
             ServiceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
@@ -93,6 +97,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("disablechannelpoint", DisableChannelPoint);
             CommandTags.Add("pausechannelpoint", PauseChannelPoint);
             CommandTags.Add("unpausechannelpoint", UnpauseChannelPoint);
+            CommandTags.Add("enabletimergroup", EnableTimerGroup);
+            CommandTags.Add("disabletimergroup", DisableTimerGroup);
         }
 
 
@@ -654,6 +660,31 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
             return new CustomCommandResult();
         }
+
+        private async Task<CustomCommandResult> EnableTimerGroup(CommandEventArgs eventArgs, string args)
+        {
+            var timers = await _timers.GetTimerGroupsAsync();
+            var timerGroup = timers.Where(x => x.Name.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if (timerGroup != null)
+            {
+                timerGroup.Active = true;
+                await _timers.UpdateTimerGroup(timerGroup);
+            }
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> DisableTimerGroup(CommandEventArgs eventArgs, string args)
+        {
+            var timers = await _timers.GetTimerGroupsAsync();
+            var timerGroup = timers.Where(x => x.Name.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            if (timerGroup != null)
+            {
+                timerGroup.Active = false;
+                await _timers.UpdateTimerGroup(timerGroup);
+            }
+            return new CustomCommandResult();
+        }
+
 
         private async Task<CustomCommandResult> PauseChannelPoint(CommandEventArgs eventArgs, string args)
         {
