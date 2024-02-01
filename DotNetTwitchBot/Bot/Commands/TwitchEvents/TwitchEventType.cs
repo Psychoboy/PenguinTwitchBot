@@ -2,6 +2,8 @@
 {
     public enum TwitchEventType
     {
-        AdBreak
+        AdBreak,
+        StreamStart,
+        StreamEnd
     }
 }
