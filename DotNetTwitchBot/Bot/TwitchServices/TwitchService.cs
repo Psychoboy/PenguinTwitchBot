@@ -3,6 +3,7 @@ using System.Timers;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Core.Exceptions;
+using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using Timer = System.Timers.Timer;
@@ -52,6 +53,27 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await ValidateAndRefreshToken();
+        }
+
+        public async Task<IEnumerable<Chatter>> GetCurrentChatters()
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            var after = "";
+            List<Chatter> chatters = [];
+            while (true)
+            {
+                var curChatters = await _twitchApi.Helix.Chat.GetChattersAsync(broadcasterId, broadcasterId, after: after, accessToken: _configuration["twitchAccessToken"]);
+                if (curChatters != null)
+                {
+                    chatters.AddRange(curChatters.Data);
+                    if (string.IsNullOrEmpty(curChatters.Pagination.Cursor))
+                    {
+                        break;
+                    }
+                    after = curChatters.Pagination.Cursor;
+                }
+            }
+            return chatters;
         }
 
         public async Task<List<Subscription>> GetAllSubscriptions()
