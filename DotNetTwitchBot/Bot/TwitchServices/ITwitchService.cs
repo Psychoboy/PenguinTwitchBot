@@ -1,4 +1,5 @@
-﻿using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
+﻿using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
@@ -31,5 +32,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task ValidateAndRefreshToken();
         Task<List<BannedUserEvent>> GetAllBannedViewers();
         bool IsServiceUp();
+        Task<IEnumerable<Chatter>> GetCurrentChatters();
     }
 }

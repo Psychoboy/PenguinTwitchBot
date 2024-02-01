@@ -12,13 +12,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class ViewerFeature : BaseCommandService, IHostedService, IViewerFeature
     {
         private readonly ConcurrentDictionary<string, DateTime> _usersLastActive = new();
-        private readonly ConcurrentDictionary<string, byte> _users = new();
+        private ConcurrentBag<string> _users = new();
         private readonly ConcurrentDictionary<string, DateTime> _lurkers = new();
 
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly Timer _timer = new(TimeSpan.FromHours(1).TotalMilliseconds);
+        private readonly Timer _subscriberUpdateTimer = new(TimeSpan.FromHours(1).TotalMilliseconds);
+        private readonly Timer _chatterUpdateTimer = new(TimeSpan.FromMinutes(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge ActiveViewers = Prometheus.Metrics.CreateGauge("active_viewers", "Current active viewers in chat");
         private static readonly Prometheus.Gauge CurrentViewers = Prometheus.Metrics.CreateGauge("current_viewers", "Current viewers in chat");
 
@@ -36,17 +37,33 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             serviceBackbone.SubscriptionEndEvent += OnSubscriptionEnd;
             serviceBackbone.CheerEvent += OnCheer;
             serviceBackbone.FollowEvent += OnFollow;
-            serviceBackbone.UserJoinedEvent += OnUserJoined;
-            serviceBackbone.UserLeftEvent += OnUserLeft;
+
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
 
-            _timer.Elapsed += OnTimerElapsed;
-            _timer.Start();
+            _subscriberUpdateTimer.Elapsed += OnSubscriberTimerElapsed;
+            _subscriberUpdateTimer.Start();
+            _chatterUpdateTimer.Elapsed += OnChatterUpdaterTimerElapsed;
+            _chatterUpdateTimer.Start();
             Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(() =>
             {
                 GetCurrentViewers();
             });
+        }
+
+        private async void OnChatterUpdaterTimerElapsed(object? sender, ElapsedEventArgs e)
+        {
+            await UpdateChatters();
+        }
+
+        private async Task UpdateChatters()
+        {
+            var chatters = await _twitchService.GetCurrentChatters();
+            _users = new(chatters.Select(x => x.UserLogin).Distinct());
+            foreach (var chatter in chatters)
+            {
+                await AddOrUpdateLastSeen(chatter.UserLogin);
+            }
         }
 
         public async Task<Viewer?> GetViewer(int id)
@@ -68,22 +85,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return await db.Viewers.Find(x => x.Username.Contains(name) || x.DisplayName.Contains(name)).ToListAsync();
         }
 
-        private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
+        private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await UpdateSubscribers();
         }
 
-        private async Task OnUserLeft(object? sender, UserLeftEventArgs e)
-        {
-            _users.Remove(e.Username, out _);
-            await AddOrUpdateLastSeen(e.Username);
-        }
-
-        private async Task OnUserJoined(object? sender, UserJoinedEventArgs e)
-        {
-            _users[e.Username] = default;
-            await AddOrUpdateLastSeen(e.Username);
-        }
 
         private async Task AddOrUpdateLastSeen(string username)
         {
@@ -197,7 +203,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetCurrentViewers()
         {
-            var users = _users.Select(x => x.Key).ToList();
+            var users = _users.ToList();
             CurrentViewers.Set(users.Count);
             var activeViewers = GetActiveViewers();
             users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
@@ -385,7 +391,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var moduleName = "ViewerFeature";
             await RegisterDefaultCommand("lurk", this, moduleName);
-            await UpdateSubscribers();
             _logger.LogInformation("Registered {moduleName}", moduleName);
         }
 
@@ -399,9 +404,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return Register();
+            await UpdateSubscribers();
+            await UpdateChatters();
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

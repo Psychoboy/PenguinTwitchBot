@@ -93,38 +93,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         }
 
         [Fact]
-        public async Task OnUserJoined_ShouldAddUserAndUpdateLastSeen()
-        {
-            //Arrange
-            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
-
-            //Act
-            serviceBackbone.UserJoinedEvent += Raise.Event<AsyncEventHandler<UserJoinedEventArgs>>(this, new UserJoinedEventArgs { Username = "test" });
-
-            //Assert
-            dbContext.Viewers.Received(1).Update(testViewer);
-            await dbContext.Received(1).SaveChangesAsync();
-            Assert.Equal(DateTime.Now, testViewer.LastSeen, new TimeSpan(0, 1, 0));
-            Assert.Contains(testViewer.Username, viewerFeature.GetCurrentViewers());
-        }
-
-        [Fact]
-        public async Task OnUserLeft_ShouldRemoveUserAndUpdateLastSeen()
-        {
-            //Arrange
-            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
-
-            //Act
-            serviceBackbone.UserLeftEvent += Raise.Event<AsyncEventHandler<UserLeftEventArgs>>(this, new UserLeftEventArgs { Username = "test" });
-
-            //Assert
-            dbContext.Viewers.Received(1).Update(testViewer);
-            await dbContext.Received(1).SaveChangesAsync();
-            Assert.Equal(DateTime.Now, testViewer.LastSeen, new TimeSpan(0, 1, 0));
-            Assert.DoesNotContain(testViewer.Username, viewerFeature.GetCurrentViewers());
-        }
-
-        [Fact]
         public async Task OnFollow_ShouldAddFollow()
         {
             //Arrange
