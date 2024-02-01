@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _subscriberUpdateTimer = new(TimeSpan.FromHours(1).TotalMilliseconds);
-        private readonly Timer _chatterUpdateTimer = new(TimeSpan.FromMinutes(5).TotalMilliseconds);
+        private readonly Timer _chatterUpdateTimer = new(TimeSpan.FromMinutes(2).TotalMilliseconds);
         private static readonly Prometheus.Gauge ActiveViewers = Prometheus.Metrics.CreateGauge("active_viewers", "Current active viewers in chat");
         private static readonly Prometheus.Gauge CurrentViewers = Prometheus.Metrics.CreateGauge("current_viewers", "Current viewers in chat");
 
