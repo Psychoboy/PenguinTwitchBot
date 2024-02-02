@@ -58,11 +58,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task UpdateChatters()
         {
-            var chatters = await _twitchService.GetCurrentChatters();
-            _users = new(chatters.Select(x => x.UserLogin).Distinct());
-            foreach (var chatter in chatters)
+            try
             {
-                await AddOrUpdateLastSeen(chatter.UserLogin);
+                var chatters = await _twitchService.GetCurrentChatters();
+                _users = new(chatters.Select(x => x.UserLogin).Distinct());
+                foreach (var chatter in chatters)
+                {
+                    await AddOrUpdateLastSeen(chatter.UserLogin);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating chatters.");
             }
         }
 

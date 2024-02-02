@@ -58,6 +58,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<IEnumerable<Chatter>> GetCurrentChatters()
         {
+            await ValidateAndRefreshToken();
             var broadcasterId = await GetBroadcasterUserId();
             var after = "";
             List<Chatter> chatters = [];
@@ -78,42 +79,78 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         }
         public async Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request)
         {
-            var broadcasterId = await GetBroadcasterUserId();
-            return await _twitchApi.Helix.ChannelPoints.CreateCustomRewardsAsync(broadcasterId, request);
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                return await _twitchApi.Helix.ChannelPoints.CreateCustomRewardsAsync(broadcasterId, request);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating channel point reward");
+                return new();
+            }
         }
 
         public async Task<IEnumerable<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward>> GetChannelPointRewards()
         {
-            var broadcasterId = await GetBroadcasterUserId();
-            var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId);
-            if (rewards != null)
+            try
             {
-                return rewards.Data.ToList();
+                var broadcasterId = await GetBroadcasterUserId();
+                var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId);
+                if (rewards != null)
+                {
+                    return rewards.Data.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting channel point rewards.");
             }
             return [];
         }
 
         public async Task<IEnumerable<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward>> GetChannelPointRewards(bool onlyManageable)
         {
-            var broadcasterId = await GetBroadcasterUserId();
-            var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId, onlyManageableRewards: onlyManageable);
-            if (rewards != null)
+            try
             {
-                return rewards.Data.ToList();
+                var broadcasterId = await GetBroadcasterUserId();
+                var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId, onlyManageableRewards: onlyManageable);
+                if (rewards != null)
+                {
+                    return rewards.Data.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting channel point rewards.");
             }
             return [];
         }
 
         public async Task UpdateChannelPointReward(string rewardId, TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request)
         {
-            var broadcasterId = await GetBroadcasterUserId();
-            await _twitchApi.Helix.ChannelPoints.UpdateCustomRewardAsync(broadcasterId, rewardId, request);
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                await _twitchApi.Helix.ChannelPoints.UpdateCustomRewardAsync(broadcasterId, rewardId, request);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating channel point rewards.");
+            }
         }
 
         public async Task DeleteChannelPointReward(string rewardId)
         {
-            var broadcasterId = await GetBroadcasterUserId();
-            await _twitchApi.Helix.ChannelPoints.DeleteCustomRewardAsync(broadcasterId, rewardId);
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                await _twitchApi.Helix.ChannelPoints.DeleteCustomRewardAsync(broadcasterId, rewardId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting channel point rewards.");
+            }
         }
 
         public async Task<List<Subscription>> GetAllSubscriptions()
