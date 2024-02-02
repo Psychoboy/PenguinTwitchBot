@@ -70,6 +70,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
+            if (e.Args.Count == 0)
+            {
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "To Enter/Start a heist do !heist AMOUNT/ALL/MAX");
+                throw new SkipCooldownException();
+            }
+
             var amountStr = e.Args.First();
             var amount = 0L;
             if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
