@@ -33,15 +33,15 @@
                             <MudTd>
                                 @if (context.IsOwned == true)
                                 {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                @onclick="() => EditChannelReward(context)">
-                                    Edit
-                                </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                    @onclick="() => EditChannelReward(context)">
+                                        Edit
+                                    </MudButton>
+                                }
                                 <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => DeleteChannelReward(context)">
+                                           @onclick="() => DeleteChannelReward(context)">
                                     Delete
                                 </MudButton>
-                                }
                             </MudTd>
                     </RowTemplate>
                 </MudTable>

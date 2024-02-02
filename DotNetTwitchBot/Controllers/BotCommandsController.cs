@@ -9,12 +9,12 @@ namespace DotNetTwitchBot.Controllers
     public class BotCommandsController(
         ILogger<BotCommandsController> logger,
         IConfiguration configuration,
-        IServiceBackbone serviceBackbone
-            )
+        IServiceBackbone serviceBackbone) : ControllerBase
     {
         [HttpPut("/commands")]
         public async Task<ActionResult> RunCommand([FromHeader] string webauth, [FromHeader] string user, [FromHeader] string message)
         {
+            logger.LogInformation("{ipAddress} accessed /commands.", HttpContext.Connection?.RemoteIpAddress);
             if (!webauth.Equals(configuration["webauth"]))
             {
                 return new StatusCodeResult(403);
