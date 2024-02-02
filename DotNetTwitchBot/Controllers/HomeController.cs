@@ -57,6 +57,7 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult StreamerSignin()
         {
+            _logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchClientId"]);
 #else
@@ -68,6 +69,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("streamerredirect")]
         public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
+            _logger.LogInformation("{ipAddress} accessed /streamerredirect.", HttpContext.Connection?.RemoteIpAddress);
             if (_stateCache.TryGetValue(state, out var val))
             {
                 _stateCache.Remove(state);
@@ -101,6 +103,7 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult BotSignin()
         {
+            _logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/botredirect", _configuration["twitchBotClientId"]);
 #else
@@ -111,6 +114,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("botredirect")]
         public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
+            _logger.LogInformation("{ipAddress} accessed /botredirect.", HttpContext.Connection?.RemoteIpAddress);
             if (_stateCache.TryGetValue(state, out var val))
             {
                 _stateCache.Remove(state);
@@ -144,6 +148,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/signin")]
         public IActionResult Signin()
         {
+            _logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
             var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect");
 #else
@@ -157,6 +162,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/redirect")]
         public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
+            _logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
             if (_stateCache.TryGetValue(state, out var val))
             {
                 _stateCache.Remove(state);
@@ -246,6 +252,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/signout")]
         public async Task<IActionResult> Signout()
         {
+            _logger.LogInformation("{ipAddress} accessed /signout.", HttpContext.Connection?.RemoteIpAddress);
             // Clear the existing external cookie
             await HttpContext.SignOutAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme);
