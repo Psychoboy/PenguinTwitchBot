@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.Circuit
             if (circuitRemoved != null)
             {
                 OnUserRemoved(circuitRemoved.UserId);
-                _logger.LogInformation("{0} disconnected from web interface.", circuitRemoved.UserId);
+                _logger.LogInformation("{UserId} disconnected from web interface.", circuitRemoved.UserId);
                 OnCircuitsChanged();
             }
         }
@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Circuit
             {
                 Circuits[CircuitId].LastPage = uri;
                 Circuits[CircuitId].LastSeen = DateTime.Now;
-                _logger.LogDebug("{0} navigated to {1}.", Circuits[CircuitId].UserId, uri);
+                _logger.LogInformation("{UserId} navigated to {Uri}.", Circuits[CircuitId].UserId, uri);
                 OnCircuitsChanged();
             }
 
