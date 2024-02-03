@@ -101,7 +101,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
             var eventArgs = new CommandEventArgs
             {
-                Command = command[1..],
+                Command = command[1..].ToLower(),
                 Arg = ArgumentsAsString,
                 Args = ArgumentsAsList,
                 IsWhisper = false,
@@ -118,47 +118,75 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", e.Notification.Payload.Event.DurationSeconds, e.Notification.Payload.Event.StartedAt, e.Notification.Payload.Event.IsAutomatic);
-            var ev = new AdBreakStartEventArgs
+            try
             {
-                Automatic = e.Notification.Payload.Event.IsAutomatic,
-                Length = e.Notification.Payload.Event.DurationSeconds,
-                StartedAt = e.Notification.Payload.Event.StartedAt
-            };
-            await _serviceBackbone.OnAdBreakStartEvent(ev);
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", e.Notification.Payload.Event.DurationSeconds, e.Notification.Payload.Event.StartedAt, e.Notification.Payload.Event.IsAutomatic);
+                var ev = new AdBreakStartEventArgs
+                {
+                    Automatic = e.Notification.Payload.Event.IsAutomatic,
+                    Length = e.Notification.Payload.Event.DurationSeconds,
+                    StartedAt = e.Notification.Payload.Event.StartedAt
+                };
+                await _serviceBackbone.OnAdBreakStartEvent(ev);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelUnBan(object? sender, ChannelUnbanArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelBan(object? sender, ChannelBanArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            if (e.Notification.Payload.Event.IsPermanent == false)
+            try
             {
-                _logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-                return;
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                if (e.Notification.Payload.Event.IsPermanent == false)
+                {
+                    _logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
+                    return;
+                }
+                _logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
+                await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
             }
-            _logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-            await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelRaid(object? sender, ChannelRaidArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-
-            _logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
-            await _serviceBackbone.OnIncomingRaid(new Events.RaidEventArgs
+            try
             {
-                Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
-                DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
-                NumberOfViewers = e.Notification.Payload.Event.Viewers
-            });
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+
+                _logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
+                await _serviceBackbone.OnIncomingRaid(new Events.RaidEventArgs
+                {
+                    Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
+                    DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
+                    NumberOfViewers = e.Notification.Payload.Event.Viewers
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private bool DidProcessMessage(EventSubMetadata metadata)
@@ -176,42 +204,63 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("Stream is offline");
-            _serviceBackbone.IsOnline = false;
-            await _serviceBackbone.OnStreamEnded();
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("Stream is offline");
+                _serviceBackbone.IsOnline = false;
+                await _serviceBackbone.OnStreamEnded();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnStreamOnline(object? sender, StreamOnlineArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("Stream is online");
-            _serviceBackbone.IsOnline = true;
-            await _serviceBackbone.OnStreamStarted();
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("Stream is online");
+                _serviceBackbone.IsOnline = true;
+                await _serviceBackbone.OnStreamStarted();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelSubscription(object? sender, ChannelSubscribeArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
-            , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
-
-            await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
-
-            if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
+            try
             {
-                _logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
-                return;
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
+                , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
+
+                await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+
+                if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
+                {
+                    _logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
+                    return;
+                }
+
+                if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+
+                await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+                {
+                    Name = e.Notification.Payload.Event.UserLogin,
+                    DisplayName = e.Notification.Payload.Event.UserName,
+                    IsGift = e.Notification.Payload.Event.IsGift
+                });
             }
-
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
-
-            await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+            catch (Exception ex)
             {
-                Name = e.Notification.Payload.Event.UserLogin,
-                DisplayName = e.Notification.Payload.Event.UserName,
-                IsGift = e.Notification.Payload.Event.IsGift
-            });
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private Task<bool> CheckIfPreviousSub(string userLogin)
@@ -221,41 +270,62 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
-
-            if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
-            await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+            try
             {
-                Name = e.Notification.Payload.Event.UserLogin,
-                DisplayName = e.Notification.Payload.Event.UserName,
-                Count = e.Notification.Payload.Event.CumulativeMonths,
-                Streak = e.Notification.Payload.Event.StreakMonths,
-                IsRenewal = true,
-                Message = e.Notification.Payload.Event.Message?.Text
-            });
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+
+                if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+                await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+                {
+                    Name = e.Notification.Payload.Event.UserLogin,
+                    DisplayName = e.Notification.Payload.Event.UserName,
+                    Count = e.Notification.Payload.Event.CumulativeMonths,
+                    Streak = e.Notification.Payload.Event.StreakMonths,
+                    IsRenewal = true,
+                    Message = e.Notification.Payload.Event.Message?.Text
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _serviceBackbone.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
+            try
             {
-                Name = e.Notification.Payload.Event.UserLogin,
-                DisplayName = e.Notification.Payload.Event.UserName,
-                GiftAmount = e.Notification.Payload.Event.Total,
-                TotalGifted = e.Notification.Payload.Event.CumulativeTotal
-            });
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await _serviceBackbone.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
+                {
+                    Name = e.Notification.Payload.Event.UserLogin,
+                    DisplayName = e.Notification.Payload.Event.UserName,
+                    GiftAmount = e.Notification.Payload.Event.Total,
+                    TotalGifted = e.Notification.Payload.Event.CumulativeTotal
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
 
-            _logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
-            await _serviceBackbone.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+                _logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
+                await _serviceBackbone.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private bool CheckIfExistsAndAddSubCache(string name)
@@ -285,32 +355,54 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnChannelCheer(object? sender, ChannelCheerArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _serviceBackbone.OnCheer(e.Notification.Payload.Event);
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await _serviceBackbone.OnCheer(e.Notification.Payload.Event);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            await _serviceBackbone.OnChannelPointRedeem(
-                e.Notification.Payload.Event.UserName,
-                e.Notification.Payload.Event.Reward.Title,
-                e.Notification.Payload.Event.UserInput);
-            _logger.LogInformation("Channel pointed redeemed: {Title}", e.Notification.Payload.Event.Reward.Title);
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                await _serviceBackbone.OnChannelPointRedeem(
+                    e.Notification.Payload.Event.UserName,
+                    e.Notification.Payload.Event.Reward.Title,
+                    e.Notification.Payload.Event.UserInput);
+                _logger.LogInformation("Channel pointed redeemed: {Title}", e.Notification.Payload.Event.Reward.Title);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private async Task OnChannelFollow(object? sender, ChannelFollowArgs e)
         {
-            if (DidProcessMessage(e.Notification.Metadata)) return;
-            _logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-            await _serviceBackbone.OnFollow(e.Notification.Payload.Event);
+            try
+            {
+                if (DidProcessMessage(e.Notification.Metadata)) return;
+                _logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await _serviceBackbone.OnFollow(e.Notification.Payload.Event);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in websocket message");
+            }
         }
 
         private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            _logger.LogError("{message}", e.Message);
-            return Task.CompletedTask;
+            _logger.LogError("Error occured: {message}", e.Message);
+
+            return ForceReconnect();
         }
 
         private Task OnWebsocketReconnected(object? sender, EventArgs e)
