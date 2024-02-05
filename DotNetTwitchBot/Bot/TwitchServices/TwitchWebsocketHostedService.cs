@@ -23,6 +23,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private readonly ChatMessageIdTracker _messageIdTracker;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
+        private static bool Reconnecting { get; set; } = false;
 
         public TwitchWebsocketHostedService(
             ILogger<TwitchWebsocketHostedService> logger,
@@ -400,7 +401,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            _logger.LogError("Error occured: {message}", e.Message);
+            _logger.LogError(e.Exception, "Websocket error occured: {message}", e.Message);
 
             return ForceReconnect();
         }
@@ -418,8 +419,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task ForceReconnect()
         {
+            if (Reconnecting) return;
             try
             {
+                Reconnecting = true;
                 _logger.LogWarning("Twitch Websocket Disconnected");
                 var delayCounter = 1;
                 var attempts = 0;
@@ -441,13 +444,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
             }
+            finally { Reconnecting = false; }
         }
 
         private async Task Reconnect()
         {
+            if (Reconnecting) return;
             try
             {
-
+                Reconnecting = true;
                 var delayCounter = 1;
                 while (!await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
                 {
@@ -464,6 +469,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 _logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
             }
+            finally { Reconnecting = false; }
         }
 
 
