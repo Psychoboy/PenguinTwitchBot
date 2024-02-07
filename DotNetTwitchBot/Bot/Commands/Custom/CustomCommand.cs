@@ -670,7 +670,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (timerGroup != null)
             {
                 timerGroup.Active = true;
+                await _timers.UpdateNextRun(timerGroup);
                 await _timers.UpdateTimerGroup(timerGroup);
+
             }
             return new CustomCommandResult();
         }

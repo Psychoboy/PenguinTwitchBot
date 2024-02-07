@@ -401,7 +401,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            _logger.LogError(e.Exception, "Websocket error occured: {message}", e.Message);
+            _logger.LogDebug(e.Exception, "Websocket error occured: {message}", e.Message);
 
             return ForceReconnect();
         }
