@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _intervalTimer = new Timer(60000);
+            _intervalTimer = new Timer(10000);
             _intervalTimer.Elapsed += ElapseTimer;
 
             serviceBackbone.ChatMessageEvent += OnChatMessage;
@@ -163,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await UpdateNextRun(group);
         }
 
-        private async Task UpdateNextRun(TimerGroup group)
+        public async Task UpdateNextRun(TimerGroup group)
         {
             try
             {
