@@ -13,8 +13,14 @@
                 <MudText><code>(playsound hook:str)</code> - plays a sound hook on the alerts overlay</MudText>
                 <MudText><code>(playsound hook:str|volume:float)</code> - plays a sound hook on the alerts overlay, with audio volume set on a scale of 0.0-1.0</MudText>
             </MudExpansionPanel>
-            <MudExpansionPanel Text"sender">
+            <MudExpansionPanel Text="sender">
                 <MudText><code>(sender)</code> - The senders display name</MudText>
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="args">
+                <MudText><code>(args)</code> - passes arguments sent from sender</MudText>
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="randomint">
+                <MudText><code>(randomint firstnumber:int lastnumber:int)</code> - picks a number from firstnumber and last number</MudText>
             </MudExpansionPanel>
             <MudExpansionPanel Text="useronly">
                 <MudText><code>(useronly name:str)</code> - retricts to the given user to use the command</MudText>
@@ -28,12 +34,25 @@
             <MudExpansionPanel Text="customapitext">
                 <MudText><code>(customapitext url:str)</code> - gets the content at the specified url</MudText>
             </MudExpansionPanel>
+            <MudExpansionPanel Text="elevatedcommand">
+                <MudText><code>(elevatedcommand role command)</code> - executes a command with the given role (viewer, follower, subscriber, vip, moderator, broadcaster) </MudText>
+                <MudText><code>(elevatedcommand role command args)</code> - executes a command with the given role (viewer, follower, subscriber, vip, moderator, broadcaster) and passes args to it </MudText>
+            </MudExpansionPanel>
+            <MudExpansionPanel Text="elevatedcommand">
+                <MudText><code>(command command)</code> - executes a command </MudText>
+                <MudText><code>(command command args)</code> - executes a command and passes args to it </MudText>
+            </MudExpansionPanel>
         </MudExpansionPanels>
-    </DialogContent>
 
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">Ok</MudButton>
+    </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance? MudDialog { get; set; }
-    void Submit() => MudDialog?.Close(DialogResult.Ok(true));
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+    void Close() => MudDialog.Close(DialogResult.Ok(true));
 }

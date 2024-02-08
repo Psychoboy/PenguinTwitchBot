@@ -141,7 +141,7 @@
 
     private void OpenHelp()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         DialogService.Show<CustomCommandHelp>("Custom Command Help", options);
     }
 }
