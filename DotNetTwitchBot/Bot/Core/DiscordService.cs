@@ -63,8 +63,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task StreamStarted(object? sender, EventArgs _)
         {
+#if DEBUG
+            _logger.LogInformation("[DISCORD] Stream Is online - Not Announcing");
+#else
             _logger.LogInformation("[DISCORD] Stream Is online - Announcing soon");
             await AnnounceLive();
+#endif
 
         }
 
