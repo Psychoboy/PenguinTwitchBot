@@ -51,6 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
+                e.SkipLock = true;
                 await ServiceBackbone.RunCommand(e);
                 return true;
             }

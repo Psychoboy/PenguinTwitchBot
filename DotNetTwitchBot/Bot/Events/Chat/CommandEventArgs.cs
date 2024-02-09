@@ -13,5 +13,6 @@ namespace DotNetTwitchBot.Bot.Events.Chat
         public string DiscordMention { get; set; } = "";
 
         public bool FromAlias { get; set; } = false;
+        public bool SkipLock { get; set; } = false;
     }
 }

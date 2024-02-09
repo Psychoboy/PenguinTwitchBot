@@ -40,7 +40,8 @@ namespace DotNetTwitchBot.Controllers
                     IsSub = true,
                     IsMod = true,
                     IsBroadcaster = true,
-                    TargetUser = ""
+                    TargetUser = "",
+                    SkipLock = true
                 };
                 await serviceBackbone.RunCommand(args);
             }
