@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Set<T>().ToListAsync();
         }
 
-        public T? GetById(int id)
+        public T? GetById(int? id)
         {
             return _context.Set<T>().Find(id);
         }

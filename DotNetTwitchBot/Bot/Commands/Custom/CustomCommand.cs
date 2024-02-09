@@ -629,15 +629,17 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task<CustomCommandResult> EnableChannelPoint(CommandEventArgs eventArgs, string args)
         {
+            _logger.LogInformation("Trying to enable {title} channel point.", args);
             var channelPoints = await _twitchService.GetChannelPointRewards(true);
             foreach (var channelPoint in channelPoints)
             {
-                if (channelPoint.Title.Equals(args, StringComparison.OrdinalIgnoreCase))
+                if (channelPoint.Title.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
                     TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request = new()
                     {
                         IsEnabled = true
                     };
+                    _logger.LogInformation("Channel point {title} enabled.", channelPoint.Title);
                     await _twitchService.UpdateChannelPointReward(channelPoint.Id, request);
                     break;
                 }
@@ -665,6 +667,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task<CustomCommandResult> EnableTimerGroup(CommandEventArgs eventArgs, string args)
         {
+            _logger.LogInformation("Trying to enable {name} title", args);
             var timers = await _timers.GetTimerGroupsAsync();
             var timerGroup = timers.Where(x => x.Name.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
             if (timerGroup != null)
@@ -672,7 +675,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 timerGroup.Active = true;
                 await _timers.UpdateNextRun(timerGroup);
                 await _timers.UpdateTimerGroup(timerGroup);
-
+                _logger.LogInformation("Enabled {name} timer.", args);
             }
             return new CustomCommandResult();
         }

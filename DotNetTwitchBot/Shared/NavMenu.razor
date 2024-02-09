@@ -1,4 +1,5 @@
-﻿<CascadingAuthenticationState>  
+﻿@inject NavigationManager Navigation
+<CascadingAuthenticationState>  
     <AuthorizeView Roles="Streamer">
         <Authorized>
                 <MudNavMenu>
@@ -68,10 +69,17 @@
             <MudNavLink Href="/signout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Log Out</MudNavLink>
         </Authorized>
         <NotAuthorized>
-            <MudNavLink Href="/signin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+            <MudNavLink OnClick="Signin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
     </NotAuthorized>
     </AuthorizeView>
     </MudNavMenu>
 
 </CascadingAuthenticationState>
 <MudNavLink Href="https://forms.gle/1xbqeJb43HiaZqEF7" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Feedback" Target="_blank">Feedback</MudNavLink>
+
+@code {
+    private void Signin()
+    {
+        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+    }
+}

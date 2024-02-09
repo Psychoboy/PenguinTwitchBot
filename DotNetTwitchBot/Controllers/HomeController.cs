@@ -146,13 +146,13 @@ namespace DotNetTwitchBot.Controllers
         }
 
         [HttpGet("/signin")]
-        public IActionResult Signin()
+        public IActionResult Signin([FromQuery(Name = "r")] string? redirect)
         {
             _logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
-            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect");
+            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect", redirect);
 #else
-            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect");
+            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect", redirect);
 #endif
             return Redirect(url);
         }
@@ -163,7 +163,7 @@ namespace DotNetTwitchBot.Controllers
         public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
             _logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (_stateCache.TryGetValue(state, out var val))
+            if (_stateCache.TryGetValue(state, out string? redirect))
             {
                 _stateCache.Remove(state);
             }
@@ -246,7 +246,11 @@ namespace DotNetTwitchBot.Controllers
                 );
                 _logger.LogInformation("{login} logged in to web interface", user.Login);
             }
-            return Redirect("/");
+            if (string.IsNullOrEmpty(redirect))
+            {
+                return Redirect("/");
+            }
+            return Redirect(redirect);
         }
 
         [HttpGet("/signout")]
@@ -259,10 +263,10 @@ namespace DotNetTwitchBot.Controllers
             return Redirect("/");
         }
 
-        private string GetAuthorizationCodeUrl(string redirectUri)
+        private string GetAuthorizationCodeUrl(string redirectUri, string? redirect)
         {
             var stateString = Guid.NewGuid().ToString();
-            _stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
+            _stateCache.Set(stateString, redirect, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={_configuration["twitchClientId"]}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
