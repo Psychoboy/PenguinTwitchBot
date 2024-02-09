@@ -998,7 +998,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 IsVip = eventArgs.IsVip,
                 IsBroadcaster = eventArgs.IsBroadcaster,
                 DisplayName = eventArgs.DisplayName,
-                Name = eventArgs.Name
+                Name = eventArgs.Name,
+                SkipLock = true
             };
             await ServiceBackbone.RunCommand(command);
             return new CustomCommandResult();
@@ -1044,7 +1045,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 IsVip = commandPermission.Equals("vip") || eventArgs.IsVip,
                 IsBroadcaster = commandPermission.Equals("broadcaster") || eventArgs.IsBroadcaster,
                 DisplayName = eventArgs.DisplayName,
-                Name = eventArgs.Name
+                Name = eventArgs.Name,
+                SkipLock = true
             };
 
             await ServiceBackbone.RunCommand(command);

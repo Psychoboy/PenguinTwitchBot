@@ -68,14 +68,17 @@ namespace DotNetTwitchBot.Bot.Core
             }
             try
             {
-                if (await _semaphoreSlim.WaitAsync(500) == false)
+                if (eventArgs.SkipLock == false)
                 {
-                    logger.LogWarning("Lock expired while waiting...");
-                    HealthStatus = false;
-                }
-                else
-                {
-                    HealthStatus = true;
+                    if (await _semaphoreSlim.WaitAsync(500) == false)
+                    {
+                        logger.LogWarning("Lock expired while waiting...");
+                        HealthStatus = false;
+                    }
+                    else
+                    {
+                        HealthStatus = true;
+                    }
                 }
                 NumberOfCommands.WithLabels(eventArgs.Command, eventArgs.Name).Inc();
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
@@ -126,7 +129,8 @@ namespace DotNetTwitchBot.Bot.Core
             }
             finally
             {
-                _semaphoreSlim.Release();
+                if (eventArgs.SkipLock == false)
+                    _semaphoreSlim.Release();
             }
         }
 

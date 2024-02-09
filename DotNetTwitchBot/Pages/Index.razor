@@ -1,7 +1,16 @@
 ﻿@page "/"
+@using DotNetTwitchBot.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@using DotNetTwitchBot.Bot;
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+@inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@implements IAsyncDisposable
+
 <CascadingAuthenticationState>  
     <AuthorizeView Roles="Streamer">
         <Authorized>
@@ -11,27 +20,148 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
         </Authorized>
-    <NotAuthorized>
-    <center><MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        <MudText>Loading...</MudText>
-    </center>
-</NotAuthorized>
-</AuthorizeView>
+        <NotAuthorized>
+        </NotAuthorized>
+    </AuthorizeView>
+    <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+        <MudGrid>
+            <MudItem sm="6">
+                <MudPaper Class="pa-4" Elevation="0">
+                    <MudPaper Class="align-start d-flex" >
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
+                        <MudSpacer />
+                        <MudLink Href="viewergiveaway">Details</MudLink>
+                    </MudPaper>
+                    <MudDivider class="mb-2" />
+                    <center>
+                        <MudText Typo="Typo.h5">@prize</MudText>
+                        <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
+                    </center>
+                </MudPaper>
+            </MudItem>
+            <MudItem sm="6">
+                <MudPaper Class="pa-4" Elevation="0">
+                    <MudPaper Class="align-start d-flex">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Top 5 Pasties</MudText>
+                        <MudSpacer />
+                        <MudLink Href="leaderboards">Details</MudLink>
+                    </MudPaper>
+                    <MudDivider class="mb-2" />
+                    <MudTable Items="@pasties" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Rank</MudTh>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Amount</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Rank</MudTd>
+                            <MudTd DataLabel="Duration">@context.Name</MudTd>
+                            <MudTd DataLabel="Requested By">@context.Amount.ToString("n0")</MudTd>
+
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            <MudItem sm="6">
+                <MudPaper Class="pa-4" Elevation="0">
+                    <MudPaper Class="align-start d-flex">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Next 5 Song Requests</MudText>
+                        <MudSpacer />
+                        <MudLink Href="songrequests">Details</MudLink>
+                    </MudPaper>
+                    <MudDivider class="mb-2" />
+                    <MudTable Items="@songRequests" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Length</MudTh>
+                            <MudTh>Requested By</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Title</MudTd>
+                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            
+            <MudItem sm="6">
+                <MudPaper Class="pa-4" Elevation="0">
+                    <MudPaper Class="align-start d-flex">
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Top 5 Requested Songs</MudText>
+                        <MudSpacer />
+                            <MudLink Href="songRequests">Details</MudLink>
+                    </MudPaper>
+                    <MudTable Items="@topSongRequests" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Rank</MudTh>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Length</MudTh>
+                            <MudTh>Times Requested</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
+                            <MudTd DataLabel="Name">@context.Title</MudTd>
+                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                            <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
+                            <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">Video</MudLink></MudTd>
+
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
 </CascadingAuthenticationState>
 
-@code {
+    @code {
+    private string prize = "";
+    private string? imageUrl;
+    private List<Song> songRequests = new();
+    private HubConnection? ythub;
+    private List<LeaderPosition> pasties = new();
+    private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
+    protected override async Task OnInitializedAsync()
+    {
+        prize = await GiveawayFeature.GetPrize();
+        imageUrl = await GiveawayFeature.GetImageUrl();
+        topSongRequests = await SongRequestMetrics.GetTopN(5);
+        UpdateSongList(YtPlayer.GetRequestedSongs());
+        
+
+        var pageFilter = new PaginationFilter
+            {
+                Page = 0,
+                Count = 5
+            };
+        var pastiesResponse = await leaderBoards.GetPasties(pageFilter);
+        pasties = pastiesResponse.Data;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        var authState = await AuthenticationStateProvider
-           .GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity is null || !user.Identity.IsAuthenticated || !user.IsInRole("Streamer"))
+        ythub = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+
+        ythub.On<List<Song>>("CurrentSongRequests", (playlist) =>
         {
-            Navigation.NavigateTo("/viewergiveaway");
-        }
+            UpdateSongList(playlist);
+            InvokeAsync(StateHasChanged);
+        });
+        await ythub.StartAsync();
     }
 
+    private void UpdateSongList(List<Song> songs)
+    {
+        if (songs.Count > 5)
+        {
+            songs = songs.Slice(0, 5);
+        }
+        songRequests = songs;
+    }
 
     private async Task PauseAlerts()
     {
@@ -56,5 +186,18 @@
     private async Task ForceOffline()
     {
         await Admin.ForceStreamOffline();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (ythub is not null)
+        {
+            await ythub.DisposeAsync();
+        }
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
     }
 }

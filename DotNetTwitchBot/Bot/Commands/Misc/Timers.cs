@@ -219,7 +219,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     DisplayName = ServiceBackbone.BroadcasterName,
                     IsMod = true,
                     IsBroadcaster = true,
-                    IsSub = true
+                    IsSub = true,
+                    SkipLock = true
                 };
                 await ServiceBackbone.RunCommand(commandArgs);
             }
