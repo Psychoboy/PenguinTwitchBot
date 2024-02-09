@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.BackgroundWorkers;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;

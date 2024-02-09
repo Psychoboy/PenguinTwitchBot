@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Extensions
 {
     public static class BlockingCollectionExtensions
     {

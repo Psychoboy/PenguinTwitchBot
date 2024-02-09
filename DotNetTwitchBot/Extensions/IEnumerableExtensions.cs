@@ -4,13 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
 
-namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Extensions
 {
     public static class IEnumerableExtensions
     {
         public static T RandomElement<T>(this IEnumerable<T> list)
         {
-            return RandomElement(list, null);
+            return list.RandomElement(null);
         }
         public static T RandomElement<T>(this IEnumerable<T> list, ILogger? logger)
         {

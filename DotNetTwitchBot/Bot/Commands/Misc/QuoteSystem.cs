@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
