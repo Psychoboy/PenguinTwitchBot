@@ -77,7 +77,8 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                         IsVip = adEvent.ElevatedPermission == Rank.Vip,
                         IsBroadcaster = adEvent.ElevatedPermission == Rank.Streamer,
                         DisplayName = "",
-                        Name = ""
+                        Name = "",
+                        SkipLock = true
                     };
                     await ServiceBackbone.RunCommand(command);
                 }
@@ -158,7 +159,8 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                         IsVip = evt.ElevatedPermission == Rank.Vip,
                         IsBroadcaster = evt.ElevatedPermission == Rank.Streamer,
                         DisplayName = "",
-                        Name = ""
+                        Name = "",
+                        SkipLock = true
                     };
                     await ServiceBackbone.RunCommand(command);
                 }
