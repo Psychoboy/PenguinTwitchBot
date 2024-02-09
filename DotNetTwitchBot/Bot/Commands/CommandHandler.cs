@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 

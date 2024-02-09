@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Giveaway;
+using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Microsoft.AspNetCore.SignalR;
 using Timer = System.Timers.Timer;

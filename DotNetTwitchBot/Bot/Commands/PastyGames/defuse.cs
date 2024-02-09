@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Extensions;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
