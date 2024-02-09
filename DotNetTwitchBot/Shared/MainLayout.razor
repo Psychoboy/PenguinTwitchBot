@@ -49,7 +49,7 @@
                 </MudMenu>
             </Authorized>
             <NotAuthorized>
-                <MudLink Href="/signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>
+                <MudLink OnClick="Signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>
             </NotAuthorized>
          </AuthorizeView>
     </MudAppBar>
@@ -112,6 +112,11 @@
     {
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
+    }
+
+    private void Signin()
+    {
+        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
     }
 
     private void Signout()

@@ -10,10 +10,11 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
-</Authorized>
-<NotAuthorized>
-            <center><MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                <MudText>Loading...</MudText></center>
+        </Authorized>
+    <NotAuthorized>
+    <center><MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        <MudText>Loading...</MudText>
+    </center>
 </NotAuthorized>
 </AuthorizeView>
 </CascadingAuthenticationState>

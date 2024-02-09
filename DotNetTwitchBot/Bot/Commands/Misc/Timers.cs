@@ -163,15 +163,22 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await UpdateNextRun(group);
         }
 
-        public async Task UpdateNextRun(TimerGroup group)
+        public async Task UpdateNextRun(TimerGroup origGroup)
         {
             try
             {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var group = db.TimerGroups.GetById(origGroup.Id);
+                if (group == null)
+                {
+                    _logger.LogWarning("Time group was null!");
+                    return;
+                }
                 var randomNextMinutes = Tools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
                 group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
                 group.LastRun = DateTime.Now;
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
                 db.TimerGroups.Update(group);
                 await db.SaveChangesAsync();
             }
@@ -201,6 +208,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task SendMessage(TimerMessage message)
         {
+
             if (message.Message.StartsWith("command:"))
             {
                 var commandText = message.Message.Split(":");
