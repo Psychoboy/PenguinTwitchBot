@@ -43,6 +43,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task StreamStarted(object? sender, EventArgs _)
         {
+            MessageCounters.Clear();
+            MessageCounter = 0;
             var groups = await GetTimerGroupsAsync();
             groups.ForEach(async x => await UpdateNextRun(x));
             _intervalTimer.Start();
@@ -164,22 +166,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await UpdateNextRun(group);
         }
 
-        public async Task UpdateNextRun(TimerGroup origGroup)
+        public async Task<TimerGroup> UpdateNextRun(TimerGroup group)
         {
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var group = db.TimerGroups.GetById(origGroup.Id);
-                if (group == null)
-                {
-                    _logger.LogWarning("Time group was null!");
-                    return;
-                }
                 var randomNextMinutes = Tools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
                 group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
                 group.LastRun = DateTime.Now;
-
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.TimerGroups.Update(group);
                 await db.SaveChangesAsync();
             }
@@ -187,6 +182,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 _logger.LogError(ex, "Failed to update Next Run");
             }
+            return group;
         }
 
         private bool CheckEnoughMessagesAndUpdate(TimerGroup group)
