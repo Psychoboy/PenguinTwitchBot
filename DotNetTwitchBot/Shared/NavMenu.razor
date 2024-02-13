@@ -1,9 +1,11 @@
 ﻿@inject NavigationManager Navigation
+<MudNavMenu>
 <CascadingAuthenticationState>  
+    
     <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
     <AuthorizeView Roles="Streamer">
         <Authorized>
-                <MudNavMenu>
+                
                     
                     <MudNavLink Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                     <MudNavGroup Title="Commands" Expanded="false">
@@ -39,7 +41,6 @@
                     <MudNavLink Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/connectedviewers" Match="NavLinkMatch.Prefix">Current Users</MudNavLink>
                     
-                </MudNavMenu>
         </Authorized>
         <NotAuthorized>
             
@@ -47,19 +48,16 @@
     </AuthorizeView>
     <AuthorizeView Roles="Streamer, Moderator">
         <Authorized>
-            <MudNavMenu>
                 <MudNavGroup Icon="@Icons.Material.Filled.Shield" Title="Moderator" Expanded="false">
                     <MudNavLink Icon="@Icons.Material.Filled.People" Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/connectedviewers" Match="NavLinkMatch.Prefix">Current Users</MudNavLink>
                 </MudNavGroup>
-            </MudNavMenu>
         </Authorized>
         <NotAuthorized>
 
         </NotAuthorized>
     </AuthorizeView>
-    <MudNavMenu>
     <MudNavLink Href="/commands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.SystemSecurityUpdateWarning">Commands</MudNavLink>
     <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.NewReleases">Giveaway</MudNavLink>
     <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
@@ -73,10 +71,10 @@
             <MudNavLink OnClick="Signin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
     </NotAuthorized>
     </AuthorizeView>
-    </MudNavMenu>
 
 </CascadingAuthenticationState>
 <MudNavLink Href="https://forms.gle/1xbqeJb43HiaZqEF7" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Feedback" Target="_blank">Feedback</MudNavLink>
+</MudNavMenu>
 
 @code {
     private void Signin()
