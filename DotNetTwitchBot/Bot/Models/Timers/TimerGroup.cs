@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace DotNetTwitchBot.Bot.Models.Timers
 {
     public class TimerGroup
@@ -12,6 +7,7 @@ namespace DotNetTwitchBot.Bot.Models.Timers
         public int? Id { get; set; }
         public string Name { get; set; } = null!;
         public bool Active { get; set; } = true;
+        public bool Repeat { get; set; } = true;
         public int IntervalMinimum { get; set; } = 5;
         public int IntervalMaximum { get; set; } = 15;
         public int MinimumMessages { get; set; } = 15;
