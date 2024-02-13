@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly Timer _intervalTimer;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
         private int MessageCounter = 0;
+        public readonly ConcurrentBag<TimerGroup> ExecutedTimerGroups = new();
 
         public Timers(
             ILogger<Timers> logger,
@@ -45,6 +46,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             MessageCounters.Clear();
             MessageCounter = 0;
+            ExecutedTimerGroups.Clear();
             var groups = await GetTimerGroupsAsync();
             groups.ForEach(async x => await UpdateNextRun(x));
             _intervalTimer.Start();
@@ -145,6 +147,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             foreach (var group in timerGroups)
             {
+                if (group.Repeat == false)
+                {
+                    if (ExecutedTimerGroups.Where(x => x.Id == group.Id).Any())
+                    {
+                        continue;
+                    }
+                }
                 await RunGroup(group);
             }
         }

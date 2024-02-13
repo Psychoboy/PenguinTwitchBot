@@ -59,7 +59,8 @@
                         Variant="Variant.Text">
                     </MudNumericField>
 
-                    <MudCheckBox @bind-Checked="@timerGroup.Active" Label="Enabled?"></MudCheckBox>
+                    <MudCheckBox @bind-Value="@timerGroup.Active" Label="Enabled?"></MudCheckBox>
+                    <MudCheckBox @bind-Value="@timerGroup.Repeat" Label="Repeat?"></MudCheckBox>
                     <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                         Class="ml-auto">
                         Submit
