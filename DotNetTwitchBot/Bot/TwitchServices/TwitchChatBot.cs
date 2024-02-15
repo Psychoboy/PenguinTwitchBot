@@ -50,7 +50,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(configuration["twitchBotAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    TimeSpan.FromSeconds(validToken.ExpiresIn);
                     await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
                     return true;
                 }
