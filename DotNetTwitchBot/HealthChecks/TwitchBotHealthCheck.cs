@@ -5,25 +5,16 @@ namespace DotNetTwitchBot.HealthChecks
 {
     public class TwitchBotHealthCheck(ITwitchChatBot twitchChatBot) : IHealthCheck
     {
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var isConnected = twitchChatBot.IsConnected();
-            var isJoined = twitchChatBot.IsInChannel();
-            if (isConnected && isJoined)
+            var isConnected = await twitchChatBot.IsConnected();
+            if (isConnected)
             {
-                return Task.FromResult(HealthCheckResult.Healthy());
-            }
-            else if (!isConnected && !isJoined)
-            {
-                return Task.FromResult(HealthCheckResult.Unhealthy());
-            }
-            else if (!isConnected && isJoined)
-            {
-                return Task.FromResult(HealthCheckResult.Degraded("Bot is not connected"));
+                return HealthCheckResult.Healthy();
             }
             else
             {
-                return Task.FromResult(HealthCheckResult.Degraded("Bot is not joined to channel"));
+                return HealthCheckResult.Unhealthy();
             }
         }
     }
