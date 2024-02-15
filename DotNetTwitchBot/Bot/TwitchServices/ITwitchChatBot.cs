@@ -2,7 +2,6 @@
 {
     public interface ITwitchChatBot
     {
-        bool IsConnected();
-        bool IsInChannel();
+        Task<bool> IsConnected();
     }
 }
