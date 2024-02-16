@@ -153,6 +153,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     {
                         continue;
                     }
+                    else
+                    {
+                        ExecutedTimerGroups.Add(group);
+                    }
                 }
                 await RunGroup(group);
             }
