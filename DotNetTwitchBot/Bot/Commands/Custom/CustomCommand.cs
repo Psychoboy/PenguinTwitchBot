@@ -673,6 +673,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (timerGroup != null)
             {
                 timerGroup = await _timers.UpdateNextRun(timerGroup);
+                timerGroup.Active = true;
                 await _timers.UpdateTimerGroup(timerGroup);
                 _logger.LogInformation("Enabled {name} timer.", args);
             }
