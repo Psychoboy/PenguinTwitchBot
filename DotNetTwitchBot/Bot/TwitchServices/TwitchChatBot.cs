@@ -30,15 +30,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task CommandService_OnSendMessage(object? sender, string e)
         {
-            var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), e);
-            messageIdTracker.AddMessageId(result.Data.First().MessageId);
-            if (result.Data.First().IsSent == false)
+            try
             {
-                logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.FirstOrDefault()?.Message);
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), e);
+                messageIdTracker.AddMessageId(result.Data.First().MessageId);
+                if (result.Data.First().IsSent == false)
+                {
+                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.FirstOrDefault()?.Message);
+                }
+                else
+                {
+                    logger.LogInformation("BOTCHATMSG: {message}", e.Replace(Environment.NewLine, ""));
+                }
             }
-            else
+            catch (Exception ex)
             {
-                logger.LogInformation("BOTCHATMSG: {message}", e.Replace(Environment.NewLine, ""));
+                logger.LogError(ex, "Failed to send message.");
             }
         }
 
