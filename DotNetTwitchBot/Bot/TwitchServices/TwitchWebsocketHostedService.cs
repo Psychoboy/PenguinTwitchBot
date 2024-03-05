@@ -373,11 +373,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
+                if (string.IsNullOrWhiteSpace(e.Notification.Payload.Event.UserInput) == false &&
+                   await _twitchService.WillBeAutomodded(e.Notification.Payload.Event.UserInput))
+                {
+                    _logger.LogInformation("Message from {user} when doing Channel Point Redeem {Title} with Message {Message} will be automodded.", e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserInput);
+                }
                 await _serviceBackbone.OnChannelPointRedeem(
                     e.Notification.Payload.Event.UserName,
                     e.Notification.Payload.Event.Reward.Title,
                     e.Notification.Payload.Event.UserInput);
-                _logger.LogInformation("Channel pointed redeemed: {Title}", e.Notification.Payload.Event.Reward.Title);
+                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status} with message {Message}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status, e.Notification.Payload.Event.UserInput);
             }
             catch (Exception ex)
             {

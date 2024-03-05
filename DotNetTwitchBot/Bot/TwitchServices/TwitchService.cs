@@ -62,21 +62,57 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId();
             var after = "";
             List<Chatter> chatters = [];
-            while (true)
+            try
             {
-                var curChatters = await _twitchApi.Helix.Chat.GetChattersAsync(broadcasterId, broadcasterId, after: after, accessToken: _configuration["twitchAccessToken"]);
-                if (curChatters != null)
+                while (true)
                 {
-                    chatters.AddRange(curChatters.Data);
-                    if (string.IsNullOrEmpty(curChatters.Pagination.Cursor))
+                    var curChatters = await _twitchApi.Helix.Chat.GetChattersAsync(broadcasterId, broadcasterId, after: after, accessToken: _configuration["twitchAccessToken"]);
+                    if (curChatters != null)
                     {
-                        break;
+                        chatters.AddRange(curChatters.Data);
+                        if (string.IsNullOrEmpty(curChatters.Pagination.Cursor))
+                        {
+                            break;
+                        }
+                        after = curChatters.Pagination.Cursor;
                     }
-                    after = curChatters.Pagination.Cursor;
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting chatters.");
             }
             return chatters;
         }
+
+        public async Task<bool> WillBeAutomodded(string message)
+        {
+            await ValidateAndRefreshToken();
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                var result = await _twitchApi.Helix.Moderation.CheckAutoModStatusAsync(new List<TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus.Message>
+                {
+                    new() {
+                        MsgId = Guid.NewGuid().ToString(),
+                        MsgText = message
+                    }
+                }, broadcasterId, _configuration["twitchAccessToken"]);
+                if (result == null)
+                {
+                    _logger.LogWarning("Failed to check automod message.");
+                    return true;
+                }
+                return result.Data.First().IsPermitted;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking automod.");
+                return true;
+            }
+        }
+
         public async Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request)
         {
             try
