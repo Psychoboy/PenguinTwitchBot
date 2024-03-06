@@ -460,6 +460,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 await twitchService.SubscribeToAllTheStuffs(eventSubWebsocketClient.SessionId);
+                logger.LogInformation("Subscribed to events");
             }
             catch (Exception ex)
             {
@@ -470,7 +471,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
                 await Reconnect();
             }
-            logger.LogInformation("Subscribed to events");
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
