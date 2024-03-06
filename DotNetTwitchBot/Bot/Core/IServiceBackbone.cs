@@ -33,7 +33,8 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsKnownBot(string name);
         bool IsKnownBotOrCurrentStreamer(string name);
         Task OnAdBreakStartEvent(AdBreakStartEventArgs e);
-        Task OnChannelPointRedeem(string userName, string title, string userInput);
+        Task OnChannelPointRedeem(string userName, string title);
+        Task OnChannelPointRedeem(string userName, string id, string userInput);
         Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);

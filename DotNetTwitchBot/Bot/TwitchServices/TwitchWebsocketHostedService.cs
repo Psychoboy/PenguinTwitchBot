@@ -68,13 +68,33 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         }
 
-        private Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
+        private async Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
-            if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return Task.CompletedTask;
-            if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
-            _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
-            var e = args.Notification.Payload.Event;
-            return Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
+            if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return;
+            if (DidProcessMessage(args.Notification.Metadata)) return;
+
+            if (string.IsNullOrEmpty(args.Notification.Payload.Event.ChannelPointsCustomRewardId) == false)
+            {
+                var channelPoint = await _twitchService.GetCustomReward(args.Notification.Payload.Event.ChannelPointsCustomRewardId);
+                if (channelPoint == null)
+                {
+                    _logger.LogError("Failed to get channel point");
+                    return;
+                }
+                await _serviceBackbone.OnChannelPointRedeem(
+                   args.Notification.Payload.Event.ChatterUserName.ToLower(),
+                   channelPoint.Title,
+                   args.Notification.Payload.Event.Message.Text);
+                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+            }
+            else
+            {
+                _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+                var e = args.Notification.Payload.Event;
+                await Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
+            }
+
+
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
@@ -373,16 +393,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                if (string.IsNullOrWhiteSpace(e.Notification.Payload.Event.UserInput) == false &&
-                   await _twitchService.WillBeAutomodded(e.Notification.Payload.Event.UserInput))
-                {
-                    _logger.LogInformation("Message from {user} when doing Channel Point Redeem {Title} with Message {Message} will be automodded.", e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserInput);
-                }
+                if (string.IsNullOrWhiteSpace(e.Notification.Payload.Event.UserInput) == false) return; //Ignore wait for chat message
                 await _serviceBackbone.OnChannelPointRedeem(
                     e.Notification.Payload.Event.UserName,
-                    e.Notification.Payload.Event.Reward.Title,
-                    e.Notification.Payload.Event.UserInput);
-                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status} with message {Message}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status, e.Notification.Payload.Event.UserInput);
+                    e.Notification.Payload.Event.Reward.Title);
+                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status);
             }
             catch (Exception ex)
             {
