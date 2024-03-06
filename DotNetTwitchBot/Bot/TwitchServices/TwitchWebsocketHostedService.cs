@@ -12,84 +12,42 @@ using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchWebsocketHostedService : IHostedService
+    public class TwitchWebsocketHostedService(
+        ILogger<TwitchWebsocketHostedService> logger,
+        IServiceBackbone eventService,
+        EventSubWebsocketClient eventSubWebsocketClient,
+        SubscriptionTracker subscriptionHistory,
+        ChatMessageIdTracker messageIdTracker,
+        IMemoryCache memoryCache,
+        ITwitchService twitchService) : ITwitchWebsocketHostedService
     {
-        private readonly ILogger<TwitchWebsocketHostedService> _logger;
-        private readonly EventSubWebsocketClient _eventSubWebsocketClient;
-        private readonly IMemoryCache _eventIdCache;
-        private readonly ITwitchService _twitchService;
-        private readonly IServiceBackbone _serviceBackbone;
-        private readonly SubscriptionTracker _subscriptionHistory;
-        private readonly ChatMessageIdTracker _messageIdTracker;
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
+        private readonly CancellationTokenSource cts = new();
         private static bool Reconnecting { get; set; } = false;
-
-        public TwitchWebsocketHostedService(
-            ILogger<TwitchWebsocketHostedService> logger,
-            IServiceBackbone eventService,
-            EventSubWebsocketClient eventSubWebsocketClient,
-            SubscriptionTracker subscriptionHistory,
-            ChatMessageIdTracker messageIdTracker,
-            IMemoryCache memoryCache,
-            ITwitchService twitchService)
-        {
-            _logger = logger;
-            _eventSubWebsocketClient = eventSubWebsocketClient;
-            _eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
-            _eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
-            _eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
-            _eventSubWebsocketClient.ErrorOccurred += OnErrorOccurred;
-
-            _eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
-            _eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
-            _eventSubWebsocketClient.ChannelSubscribe += OnChannelSubscription;
-            _eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
-            _eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
-            _eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
-            _eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
-            _eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
-
-            _eventSubWebsocketClient.StreamOnline += OnStreamOnline;
-            _eventSubWebsocketClient.StreamOffline += OnStreamOffline;
-            _eventSubWebsocketClient.ChannelBan += OnChannelBan;
-            _eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
-
-            _eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
-            _eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
-
-
-            _twitchService = twitchService;
-            _serviceBackbone = eventService;
-            _subscriptionHistory = subscriptionHistory;
-            _messageIdTracker = messageIdTracker;
-            _eventIdCache = memoryCache;
-
-
-        }
 
         private async Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
-            if (_messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return;
+            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return;
             if (DidProcessMessage(args.Notification.Metadata)) return;
 
             if (string.IsNullOrEmpty(args.Notification.Payload.Event.ChannelPointsCustomRewardId) == false)
             {
-                var channelPoint = await _twitchService.GetCustomReward(args.Notification.Payload.Event.ChannelPointsCustomRewardId);
+                var channelPoint = await twitchService.GetCustomReward(args.Notification.Payload.Event.ChannelPointsCustomRewardId);
                 if (channelPoint == null)
                 {
-                    _logger.LogError("Failed to get channel point");
+                    logger.LogError("Failed to get channel point");
                     return;
                 }
-                await _serviceBackbone.OnChannelPointRedeem(
+                await eventService.OnChannelPointRedeem(
                    args.Notification.Payload.Event.ChatterUserName.ToLower(),
                    channelPoint.Title,
                    args.Notification.Payload.Event.Message.Text);
-                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+                logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
             }
             else
             {
-                _logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+                logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
                 var e = args.Notification.Payload.Event;
                 await Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
             }
@@ -109,7 +67,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster
             };
-            return _serviceBackbone.OnChatMessage(chatMessage);
+            return eventService.OnChatMessage(chatMessage);
         }
 
         private Task ProcessCommandMessage(ChannelChatMessage e)
@@ -134,7 +92,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
             };
-            return _serviceBackbone.OnCommand(eventArgs);
+            return eventService.OnCommand(eventArgs);
         }
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
@@ -142,18 +100,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", e.Notification.Payload.Event.DurationSeconds, e.Notification.Payload.Event.StartedAt, e.Notification.Payload.Event.IsAutomatic);
+                logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", e.Notification.Payload.Event.DurationSeconds, e.Notification.Payload.Event.StartedAt, e.Notification.Payload.Event.IsAutomatic);
                 var ev = new AdBreakStartEventArgs
                 {
                     Automatic = e.Notification.Payload.Event.IsAutomatic,
                     Length = e.Notification.Payload.Event.DurationSeconds,
                     StartedAt = e.Notification.Payload.Event.StartedAt
                 };
-                await _serviceBackbone.OnAdBreakStartEvent(ev);
+                await eventService.OnAdBreakStartEvent(ev);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -162,12 +120,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+                logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -178,15 +136,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 if (e.Notification.Payload.Event.IsPermanent == false)
                 {
-                    _logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
+                    logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
                     return;
                 }
-                _logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-                await _serviceBackbone.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
+                logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -196,8 +154,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
 
-                _logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
-                await _serviceBackbone.OnIncomingRaid(new Events.RaidEventArgs
+                logger.LogInformation("OnChannelRaid from {BroadcasterName}", e.Notification.Payload.Event.FromBroadcasterUserName);
+                await eventService.OnIncomingRaid(new Events.RaidEventArgs
                 {
                     Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
                     DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
@@ -206,19 +164,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
         private bool DidProcessMessage(EventSubMetadata metadata)
         {
-            if (_eventIdCache.TryGetValue(metadata.MessageId, out var messageId))
+            if (memoryCache.TryGetValue(metadata.MessageId, out var messageId))
             {
-                _logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
+                logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
             }
 
-            _eventIdCache.Set(metadata.MessageId, metadata.MessageId, TimeSpan.FromMinutes(10));
+            memoryCache.Set(metadata.MessageId, metadata.MessageId, TimeSpan.FromMinutes(10));
             return false;
 
         }
@@ -228,13 +186,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("Stream is offline");
-                _serviceBackbone.IsOnline = false;
-                await _serviceBackbone.OnStreamEnded();
+                logger.LogInformation("Stream is offline");
+                eventService.IsOnline = false;
+                await eventService.OnStreamEnded();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -243,13 +201,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("Stream is online");
-                _serviceBackbone.IsOnline = true;
-                await _serviceBackbone.OnStreamStarted();
+                logger.LogInformation("Stream is online");
+                eventService.IsOnline = true;
+                await eventService.OnStreamStarted();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -258,20 +216,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
+                logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
                 , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-                await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
 
                 if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
                 {
-                    _logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
+                    logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
                     return;
                 }
 
                 if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
 
-                await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+                await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
                     DisplayName = e.Notification.Payload.Event.UserName,
@@ -280,13 +238,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
         private Task<bool> CheckIfPreviousSub(string userLogin)
         {
-            return _subscriptionHistory.ExistingSub(userLogin);
+            return subscriptionHistory.ExistingSub(userLogin);
         }
 
         private async Task OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
@@ -294,11 +252,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await _subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+                logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
 
                 if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
-                await _serviceBackbone.OnSubscription(new Events.SubscriptionEventArgs
+                await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
                     DisplayName = e.Notification.Payload.Event.UserName,
@@ -310,7 +268,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -319,8 +277,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await _serviceBackbone.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
+                logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
                     DisplayName = e.Notification.Payload.Event.UserName,
@@ -330,7 +288,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -340,12 +298,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
 
-                _logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
-                await _serviceBackbone.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+                logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
+                await eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -357,12 +315,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    _logger.LogWarning("Subscriber name was null or white space");
+                    logger.LogWarning("Subscriber name was null or white space");
                     return false;
                 }
                 if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
                 {
-                    _logger.LogWarning("{name} Subscriber already in sub cache", name);
+                    logger.LogWarning("{name} Subscriber already in sub cache", name);
                     return true;
                 }
                 SubCache[name] = DateTime.Now;
@@ -379,12 +337,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await _serviceBackbone.OnCheer(e.Notification.Payload.Event);
+                logger.LogInformation("OnChannelCheer: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await eventService.OnCheer(e.Notification.Payload.Event);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -394,14 +352,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 if (string.IsNullOrWhiteSpace(e.Notification.Payload.Event.UserInput) == false) return; //Ignore wait for chat message
-                await _serviceBackbone.OnChannelPointRedeem(
+                await eventService.OnChannelPointRedeem(
                     e.Notification.Payload.Event.UserName,
                     e.Notification.Payload.Event.Reward.Title);
-                _logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status);
+                logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
@@ -410,25 +368,25 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                _logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await _serviceBackbone.OnFollow(e.Notification.Payload.Event);
+                logger.LogInformation("OnChannelFollow: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                await eventService.OnFollow(e.Notification.Payload.Event);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in websocket message");
+                logger.LogError(ex, "Error in websocket message");
             }
         }
 
         private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            _logger.LogDebug(e.Exception, "Websocket error occured: {message}", e.Message);
+            logger.LogDebug(e.Exception, "Websocket error occured: {message}", e.Message);
 
             return ForceReconnect();
         }
 
         private Task OnWebsocketReconnected(object? sender, EventArgs e)
         {
-            _logger.LogWarning("Twitch Websocket {SessionId} reconnected", _eventSubWebsocketClient.SessionId);
+            logger.LogWarning("Twitch Websocket {SessionId} reconnected", eventSubWebsocketClient.SessionId);
             return Task.CompletedTask;
         }
 
@@ -443,17 +401,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 Reconnecting = true;
-                _logger.LogWarning("Twitch Websocket Disconnected");
+                logger.LogWarning("Twitch Websocket Disconnected");
                 var delayCounter = 1;
                 var attempts = 0;
-                while (!await _eventSubWebsocketClient.ReconnectAsync())
+                while (!await eventSubWebsocketClient.ReconnectAsync())
                 {
                     delayCounter *= 2;
                     attempts++;
                     if (attempts > 5) break;
                     if (delayCounter > 60) delayCounter = 60;
-                    _logger.LogError("Twitch Websocket reconnection failed! Attempting again in {delayCounter} seconds.", delayCounter);
-                    await Task.Delay(delayCounter * 1000);
+                    logger.LogError("Twitch Websocket reconnection failed! Attempting again in {delayCounter} seconds.", delayCounter);
+                    await Task.Delay(delayCounter * 1000, cts.Token);
+                    if (cts.IsCancellationRequested) break;
                 }
                 if (attempts > 5)
                 {
@@ -462,7 +421,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
+                logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
             }
             finally { Reconnecting = false; }
         }
@@ -474,20 +433,21 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 Reconnecting = true;
                 var delayCounter = 1;
-                while (!await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
+                while (!await eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
                 {
                     delayCounter *= 2;
                     if (delayCounter > 300)
                     {
                         delayCounter = 300;
                     }
-                    await Task.Delay(delayCounter * 1000);
-                    _logger.LogError("Twitch Websocket connected failed! Attempting again in {delayCounter} seconds.", delayCounter);
+                    await Task.Delay(delayCounter * 1000, cts.Token);
+                    logger.LogError("Twitch Websocket connected failed! Attempting again in {delayCounter} seconds.", delayCounter);
+                    if (cts.IsCancellationRequested) break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
+                logger.LogError(ex, "Exception when trying to connect after being reconnect failed.");
             }
             finally { Reconnecting = false; }
         }
@@ -495,32 +455,75 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)
         {
-            _logger.LogInformation("Twitch Websocket connected");
+            logger.LogInformation("Twitch Websocket connected");
             if (e.IsRequestedReconnect) return;
             try
             {
-                await _twitchService.SubscribeToAllTheStuffs(_eventSubWebsocketClient.SessionId);
+                await twitchService.SubscribeToAllTheStuffs(eventSubWebsocketClient.SessionId);
+                logger.LogInformation("Subscribed to events");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error subscribing to the events");
-                if (!await _eventSubWebsocketClient.DisconnectAsync())
+                logger.LogError(ex, "Error subscribing to the events");
+                if (!await eventSubWebsocketClient.DisconnectAsync())
                 {
-                    _logger.LogWarning("Failed to disconnect when requested");
+                    logger.LogWarning("Failed to disconnect when requested");
                 }
                 await Reconnect();
             }
-            _logger.LogInformation("Subscribed to events");
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await _eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
+            eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
+            eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
+            eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
+            eventSubWebsocketClient.ErrorOccurred += OnErrorOccurred;
+
+            eventSubWebsocketClient.ChannelFollow += OnChannelFollow;
+            eventSubWebsocketClient.ChannelCheer += OnChannelCheer;
+            eventSubWebsocketClient.ChannelSubscribe += OnChannelSubscription;
+            eventSubWebsocketClient.ChannelSubscriptionGift += OnChannelSubscriptionGift;
+            eventSubWebsocketClient.ChannelSubscriptionEnd += OnChannelSubscriptionEnd;
+            eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionRenewal;
+            eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd += OnChannelPointRedeemed;
+            eventSubWebsocketClient.ChannelRaid += OnChannelRaid;
+
+            eventSubWebsocketClient.StreamOnline += OnStreamOnline;
+            eventSubWebsocketClient.StreamOffline += OnStreamOffline;
+            eventSubWebsocketClient.ChannelBan += OnChannelBan;
+            eventSubWebsocketClient.ChannelUnban += OnChannelUnBan;
+
+            eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
+            eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
+            await eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            await _eventSubWebsocketClient.DisconnectAsync();
+            eventSubWebsocketClient.WebsocketConnected -= OnWebsocketConnected;
+            eventSubWebsocketClient.WebsocketDisconnected -= OnWebsocketDisconnected;
+            eventSubWebsocketClient.WebsocketReconnected -= OnWebsocketReconnected;
+            eventSubWebsocketClient.ErrorOccurred -= OnErrorOccurred;
+
+            eventSubWebsocketClient.ChannelFollow -= OnChannelFollow;
+            eventSubWebsocketClient.ChannelCheer -= OnChannelCheer;
+            eventSubWebsocketClient.ChannelSubscribe -= OnChannelSubscription;
+            eventSubWebsocketClient.ChannelSubscriptionGift -= OnChannelSubscriptionGift;
+            eventSubWebsocketClient.ChannelSubscriptionEnd -= OnChannelSubscriptionEnd;
+            eventSubWebsocketClient.ChannelSubscriptionMessage -= OnChannelSubscriptionRenewal;
+            eventSubWebsocketClient.ChannelPointsCustomRewardRedemptionAdd -= OnChannelPointRedeemed;
+            eventSubWebsocketClient.ChannelRaid -= OnChannelRaid;
+
+            eventSubWebsocketClient.StreamOnline -= OnStreamOnline;
+            eventSubWebsocketClient.StreamOffline -= OnStreamOffline;
+            eventSubWebsocketClient.ChannelBan -= OnChannelBan;
+            eventSubWebsocketClient.ChannelUnban -= OnChannelUnBan;
+
+            eventSubWebsocketClient.ChannelAdBreakBegin -= ChannelAdBreakBegin;
+            eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
+            await eventSubWebsocketClient.DisconnectAsync();
+            cts.Cancel();
         }
     }
 }

@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
          IServiceBackbone serviceBackbone,
          ITwitchService twitchService,
          ChatMessageIdTracker messageIdTracker,
-         SettingsFileManager settingsFileManager) : IHostedService, ITwitchChatBot
+         SettingsFileManager settingsFileManager) : ITwitchChatBot
     {
         private readonly TwitchAPI _twitchApi = new();
 

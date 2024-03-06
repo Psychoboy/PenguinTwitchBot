@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler
-        ) : BaseCommandService(serviceBackbone, commandHandler, "ChannelPointRedeem"), IHostedService, IChannelPointRedeem
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ChannelPointRedeem"), IChannelPointRedeem
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {

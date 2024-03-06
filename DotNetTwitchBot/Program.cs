@@ -42,9 +42,6 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ILanguage, Language>();
-        builder.Services.AddSingleton<IServiceBackbone, ServiceBackbone>();
-        builder.Services.AddSingleton<ITwitchService, TwitchService>();
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
         builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -62,12 +59,7 @@ internal class Program
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
-
-        builder.Services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
         builder.Services.AddTwitchLibEventSubWebsockets();
-        builder.Services.AddHostedService<TwitchWebsocketHostedService>();
-
-
         builder.Services.AddBotCommands();
 
 

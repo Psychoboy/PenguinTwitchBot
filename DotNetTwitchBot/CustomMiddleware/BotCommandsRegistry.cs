@@ -13,6 +13,12 @@ namespace DotNetTwitchBot.CustomMiddleware
     {
         public static IServiceCollection AddBotCommands(this IServiceCollection services)
         {
+            services.AddSingleton<IServiceBackbone, ServiceBackbone>();
+            services.AddSingleton<ITwitchService, TwitchService>();
+            services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
+            services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
+            services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
+
             services.AddSingleton<Bot.Alerts.ISendAlerts, Bot.Alerts.SendAlerts>();
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
 
