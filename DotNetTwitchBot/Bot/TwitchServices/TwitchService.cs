@@ -3,6 +3,7 @@ using System.Timers;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Core.Exceptions;
+using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
@@ -83,6 +84,24 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex, "Error getting chatters.");
             }
             return chatters;
+        }
+
+        public async Task<CustomReward?> GetCustomReward(string id)
+        {
+            await ValidateAndRefreshToken();
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                var result = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId, [id], accessToken: _configuration["twitchAccessToken"]);
+                return result == null
+                    ? throw new BadParameterException("Result from Twitch API getting channel point reward was null")
+                    : result.Data.First();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting custom reward.");
+            }
+            return null;
         }
 
         public async Task<bool> WillBeAutomodded(string message)

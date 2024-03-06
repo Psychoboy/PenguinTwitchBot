@@ -323,6 +323,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
+        public Task OnChannelPointRedeem(string userName, string title)
+        {
+            return OnChannelPointRedeem(userName, title, "");
+        }
+
         public async Task OnChannelPointRedeem(string userName, string title, string userInput)
         {
             if (ChannelPointRedeemEvent != null)
