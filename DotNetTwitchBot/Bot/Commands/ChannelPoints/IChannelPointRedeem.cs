@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
 {
-    public interface IChannelPointRedeem
+    public interface IChannelPointRedeem : IHostedService
     {
         Task AddRedeem(Models.ChannelPointRedeem channelPointRedeem);
         Task DeleteRedeem(Models.ChannelPointRedeem channelPointRedeem);

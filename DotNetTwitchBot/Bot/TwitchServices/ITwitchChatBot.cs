@@ -1,6 +1,6 @@
 ﻿namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public interface ITwitchChatBot
+    public interface ITwitchChatBot : IHostedService
     {
         Task<bool> IsConnected();
     }
