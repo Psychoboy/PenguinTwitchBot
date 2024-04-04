@@ -28,11 +28,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ValidateAndRefreshToken();
         }
 
-        private async Task CommandService_OnSendMessage(object? sender, string e)
+        private async Task CommandService_OnSendMessage(object? sender, string message)
         {
             try
             {
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), e);
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message);
                 messageIdTracker.AddMessageId(result.Data.First().MessageId);
                 if (result.Data.First().IsSent == false)
                 {
@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
                 else
                 {
-                    logger.LogInformation("BOTCHATMSG: {message}", e.Replace(Environment.NewLine, ""));
+                    logger.LogInformation("BOTCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
                 }
             }
             catch (Exception ex)
