@@ -411,12 +411,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return await IsStreamOnline(userId);
         }
 
-        public async Task SendMessage(string message)
-        {
-
-            await _twitchApi.Helix.Chat.SendChatMessage(await GetBroadcasterUserId(), await GetBotUserId(), message, _configuration["twitchBotAccessToken"]);
-        }
-
         public async Task<bool> IsStreamOnline(string userId)
         {
             try
