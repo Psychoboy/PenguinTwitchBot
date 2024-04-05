@@ -3,12 +3,14 @@
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.TwitchServices.ITwitchService twitchService;
+@inject ISnackbar Snackbar
 
 <PageTitle>SPTV Twitch Bot - Bot Signin</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/botsignin">Bot Auth Streamer</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => TestAlert()">Test Alert</MudButton>
         @if(twitchService.IsServiceUp())
         {
             <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>
@@ -21,5 +23,8 @@
 </MudContainer>
 
 @code {
-
+    private void TestAlert()
+    {
+        Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+    }
 }

@@ -5,6 +5,8 @@
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @implements IAsyncDisposable
+@inject ISnackbar Snackbar
+@inject ILogger<MusicPlayer> logger
 
 <PageTitle>SPTV Twitch Bot - Music Player</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
@@ -202,7 +204,15 @@
             songRequests = playlist;
             InvokeAsync(StateHasChanged);
         });
-        await hubConnection.StartAsync();
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
     }
 
     private async Task StartPlaylist(MusicPlaylist musicPlaylist)

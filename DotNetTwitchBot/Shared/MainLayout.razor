@@ -10,6 +10,8 @@
 @inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject CircuitHandler BlazorCircuitHandler
 @implements IDisposable
+@inject ISnackbar Snackbar
+@inject ILogger<MainLayout> logger
 
 <PageTitle>SPTV Twitch Bot</PageTitle>
 <MudThemeProvider IsDarkMode=true />
@@ -105,7 +107,16 @@
             StreamOnline = status;
             InvokeAsync(StateHasChanged);
         });
-        await hubConnection.StartAsync();
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
+
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)

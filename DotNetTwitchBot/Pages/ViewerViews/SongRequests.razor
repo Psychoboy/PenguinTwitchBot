@@ -4,6 +4,8 @@
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
 @implements IAsyncDisposable
+@inject ISnackbar Snackbar
+@inject ILogger<SongRequests> logger
 
 <PageTitle>SPTV Twitch Bot - Song Requests</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -99,7 +101,15 @@
             songRequests = playlist;
             InvokeAsync(StateHasChanged);
         });
-        await hubConnection.StartAsync();
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
     }
 
     private string GetYoutubeLink(string songId)
