@@ -4,6 +4,8 @@
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ILogger<Giveaway> logger
 
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
 
@@ -102,7 +104,15 @@ else
             prize = Prize;
             InvokeAsync(StateHasChanged);
         });
-        await hubConnection.StartAsync();
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
     }
 
     private async Task Draw()

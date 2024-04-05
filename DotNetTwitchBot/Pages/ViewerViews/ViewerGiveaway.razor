@@ -8,6 +8,8 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
 @inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature LoyaltyFeature;
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ILogger<ViewerGiveaway> logger
 
 <PageTitle>SPTV Twitch Bot - Viewer Giveaway</PageTitle>
 
@@ -185,7 +187,14 @@
             entrants = curEntrants;
             InvokeAsync(StateHasChanged);
         });
-        await hubConnection.StartAsync();
+        try
+        {
+            await hubConnection.StartAsync();
+        } catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
     }
 
     private async Task EnterTickets()
