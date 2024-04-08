@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
+using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
@@ -28,7 +29,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
-
+            services.AddScoped<ILurkBait, LurkBait>();
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();

@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
 #else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/streamerredirect");
 #endif
 
             if (resp == null) { return Redirect("/"); }
