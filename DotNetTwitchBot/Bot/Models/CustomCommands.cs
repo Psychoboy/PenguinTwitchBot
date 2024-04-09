@@ -10,5 +10,6 @@ namespace DotNetTwitchBot.Bot.Models
     {
         [DataType(DataType.MultilineText)]
         public string Response { get; set; } = null!;
+        public bool RespondAsStreamer { get; set; } = false;
     }
 }

@@ -11,27 +11,15 @@ using System.Security.Claims;
 
 namespace DotNetTwitchBot.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(
+        IConfiguration configuration,
+        ILogger<HomeController> logger,
+        SettingsFileManager settingsFileManager,
+        IViewerFeature viewerFeature,
+        IMemoryCache stateCache,
+        ITwitchChatBot twitchChatBot,
+        ITwitchService twitchService) : Controller
     {
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<HomeController> _logger;
-        private readonly IViewerFeature _viewerFeature;
-        private readonly SettingsFileManager _settingsFileManager;
-        private readonly IMemoryCache _stateCache;
-
-        public HomeController(
-            IConfiguration configuration,
-            ILogger<HomeController> logger,
-            SettingsFileManager settingsFileManager,
-            IViewerFeature viewerFeature,
-            IMemoryCache stateCache)
-        {
-            _configuration = configuration;
-            _logger = logger;
-            _viewerFeature = viewerFeature;
-            _settingsFileManager = settingsFileManager;
-            _stateCache = stateCache;
-        }
         public IActionResult Index()
         {
             return View();
@@ -57,9 +45,9 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult StreamerSignin()
         {
-            _logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
+            logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
-            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", _configuration["twitchClientId"]);
+            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", configuration["twitchClientId"]);
 #else
             var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect", _configuration["twitchClientId"]);
 #endif
@@ -69,32 +57,33 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("streamerredirect")]
         public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
-            _logger.LogInformation("{ipAddress} accessed /streamerredirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (_stateCache.TryGetValue(state, out var val))
+            logger.LogInformation("{ipAddress} accessed /streamerredirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out var val))
             {
-                _stateCache.Remove(state);
+                stateCache.Remove(state);
             }
             else
             {
                 return Redirect("/");
             }
             var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = _configuration["twitchClientId"];
+            api.Settings.ClientId = configuration["twitchClientId"];
 #if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
 #else
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/streamerredirect");
 #endif
 
             if (resp == null) { return Redirect("/"); }
 
-            _configuration["twitchAccessToken"] = resp.AccessToken;
-            _configuration["expiresIn"] = resp.ExpiresIn.ToString();
-            _configuration["twitchRefreshToken"] = resp.RefreshToken;
+            configuration["twitchAccessToken"] = resp.AccessToken;
+            configuration["expiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchRefreshToken"] = resp.RefreshToken;
+            twitchService.SetAccessToken(resp.AccessToken);
 
-            await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
-            await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
-            await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
+            await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
 
             return Redirect("/botauth");
         }
@@ -103,9 +92,9 @@ namespace DotNetTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult BotSignin()
         {
-            _logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
+            logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
-            var url = GetBotScopeUrl("https://localhost:7293/botredirect", _configuration["twitchBotClientId"]);
+            var url = GetBotScopeUrl("https://localhost:7293/botredirect", configuration["twitchBotClientId"]);
 #else
             var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", _configuration["twitchBotClientId"]);
 #endif
@@ -114,10 +103,10 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("botredirect")]
         public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
-            _logger.LogInformation("{ipAddress} accessed /botredirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (_stateCache.TryGetValue(state, out var val))
+            logger.LogInformation("{ipAddress} accessed /botredirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out var val))
             {
-                _stateCache.Remove(state);
+                stateCache.Remove(state);
             }
             else
             {
@@ -125,22 +114,23 @@ namespace DotNetTwitchBot.Controllers
             }
 
             var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = _configuration["twitchBotClientId"];
+            api.Settings.ClientId = configuration["twitchBotClientId"];
 #if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchBotClientSecret"], "https://localhost:7293/botredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], "https://localhost:7293/botredirect");
 #else
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchBotClientSecret"], "https://bot.superpenguin.tv/botredirect");
 #endif
 
             if (resp == null) { return Redirect("/"); }
 
-            _configuration["twitchBotAccessToken"] = resp.AccessToken;
-            _configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
-            _configuration["twitchBotRefreshToken"] = resp.RefreshToken;
+            configuration["twitchBotAccessToken"] = resp.AccessToken;
+            configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchBotRefreshToken"] = resp.RefreshToken;
+            twitchChatBot.SetAccessToken(resp.AccessToken);
 
-            await _settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
-            await _settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
-            await _settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
 
             return Redirect("/botauth");
         }
@@ -148,7 +138,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/signin")]
         public IActionResult Signin([FromQuery(Name = "r")] string? redirect)
         {
-            _logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
+            logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
 #if DEBUG
             var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect", redirect);
 #else
@@ -162,33 +152,33 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/redirect")]
         public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
         {
-            _logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (_stateCache.TryGetValue(state, out string? redirect))
+            logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out string? redirect))
             {
-                _stateCache.Remove(state);
+                stateCache.Remove(state);
             }
             else
             {
                 return Redirect("/");
             }
             var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = _configuration["twitchClientId"];
+            api.Settings.ClientId = configuration["twitchClientId"];
 #if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://localhost:7293/redirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/redirect");
 #else
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
 #endif
-            var broadcaster = _configuration["broadcaster"];
+            var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {
-                _logger.LogError("Broadcaster is not set.");
+                logger.LogError("Broadcaster is not set.");
                 return Redirect("/");
             }
 
-            var botName = _configuration["botName"];
+            var botName = configuration["botName"];
             if (botName == null)
             {
-                _logger.LogError("Botname is not set.");
+                logger.LogError("Botname is not set.");
                 return Redirect("/");
             }
 
@@ -206,11 +196,11 @@ namespace DotNetTwitchBot.Controllers
                 };
 
 
-                if (await _viewerFeature.IsFollower(user.Login))
+                if (await viewerFeature.IsFollower(user.Login))
                 {
                     claims.Add(new Claim(ClaimTypes.Role, "Follower"));
                 }
-                var viewer = await _viewerFeature.GetViewer(user.Login);
+                var viewer = await viewerFeature.GetViewer(user.Login);
                 if (viewer != null)
                 {
                     if (viewer.isMod)
@@ -244,7 +234,7 @@ namespace DotNetTwitchBot.Controllers
                     new ClaimsPrincipal(claimsIdentity),
                     authProperties
                 );
-                _logger.LogInformation("{login} logged in to web interface", user.Login);
+                logger.LogInformation("{login} logged in to web interface", user.Login);
             }
             if (string.IsNullOrEmpty(redirect))
             {
@@ -256,7 +246,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/signout")]
         public async Task<IActionResult> Signout()
         {
-            _logger.LogInformation("{ipAddress} accessed /signout.", HttpContext.Connection?.RemoteIpAddress);
+            logger.LogInformation("{ipAddress} accessed /signout.", HttpContext.Connection?.RemoteIpAddress);
             // Clear the existing external cookie
             await HttpContext.SignOutAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme);
@@ -266,9 +256,9 @@ namespace DotNetTwitchBot.Controllers
         private string GetAuthorizationCodeUrl(string redirectUri, string? redirect)
         {
             var stateString = Guid.NewGuid().ToString();
-            _stateCache.Set(stateString, redirect, DateTimeOffset.Now.AddMinutes(60));
+            stateCache.Set(stateString, redirect, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
-                   $"client_id={_configuration["twitchClientId"]}&" +
+                   $"client_id={configuration["twitchClientId"]}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
                    $"state={stateString}&" +
                    "response_type=code&" +
@@ -350,7 +340,7 @@ namespace DotNetTwitchBot.Controllers
             };
             var scopeStr = String.Join("+", scopes);
             var stateString = Guid.NewGuid().ToString();
-            _stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
+            stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={clientId}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +

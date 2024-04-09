@@ -5,6 +5,15 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
+    /// <summary>
+    /// Everything here is executed as the Twitch Bot configured.
+    /// </summary>
+    /// <param name="logger"></param>
+    /// <param name="configuration"></param>
+    /// <param name="serviceBackbone"></param>
+    /// <param name="twitchService"></param>
+    /// <param name="messageIdTracker"></param>
+    /// <param name="settingsFileManager"></param>
     public class TwitchChatBot(
         ILogger<TwitchChatBot> logger,
          IConfiguration configuration,
@@ -17,6 +26,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private readonly Timer HealthStatusTimer = new();
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
+
+        public void SetAccessToken(string accessToken)
+        {
+            _twitchApi.Settings.AccessToken = accessToken;
+        }
 
         public Task<bool> IsConnected()
         {
