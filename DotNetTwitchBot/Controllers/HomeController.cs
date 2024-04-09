@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", configuration["twitchClientId"]);
 #else
-            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect", _configuration["twitchClientId"]);
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect", configuration["twitchClientId"]);
 #endif
 
             return Redirect(url);
@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
 #else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/streamerredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://bot.superpenguin.tv/streamerredirect");
 #endif
 
             if (resp == null) { return Redirect("/"); }
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var url = GetBotScopeUrl("https://localhost:7293/botredirect", configuration["twitchBotClientId"]);
 #else
-            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", _configuration["twitchBotClientId"]);
+            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", configuration["twitchBotClientId"]);
 #endif
             return Redirect(url);
         }
@@ -118,7 +118,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], "https://localhost:7293/botredirect");
 #else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchBotClientSecret"], "https://bot.superpenguin.tv/botredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], "https://bot.superpenguin.tv/botredirect");
 #endif
 
             if (resp == null) { return Redirect("/"); }
@@ -166,7 +166,7 @@ namespace DotNetTwitchBot.Controllers
 #if DEBUG
             var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/redirect");
 #else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, _configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
 #endif
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
