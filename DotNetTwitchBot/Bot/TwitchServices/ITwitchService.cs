@@ -43,5 +43,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task DeleteChannelPointReward(string rewardId);
         Task<bool> WillBeAutomodded(string message);
         Task<CustomReward?> GetCustomReward(string id);
+        void SetAccessToken(string accessToken);
+        Task SendMessage(string message);
     }
 }

@@ -12,6 +12,9 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
+    /// <summary>
+    /// Everything here is executed as the streamer
+    /// </summary>
     public class TwitchService : ITwitchService
     {
         private readonly TwitchAPI _twitchApi = new();
@@ -21,11 +24,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         readonly ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new();
         readonly Timer _timer;
         private readonly SettingsFileManager _settingsFileManager;
+        private readonly ChatMessageIdTracker _messageIdTracker;
         private bool serviceUp = false;
         private string? broadcasterId = string.Empty;
         private string? botId = string.Empty;
 
-        public TwitchService(ILogger<TwitchService> logger, IConfiguration configuration, SettingsFileManager settingsFileManager)
+        public TwitchService(
+            ILogger<TwitchService> logger,
+            IConfiguration configuration,
+            SettingsFileManager settingsFileManager,
+            ChatMessageIdTracker messageIdTracker)
         {
 
             _logger = logger;
@@ -38,6 +46,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _timer = new Timer(300000); //5 minutes
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
+            _messageIdTracker = messageIdTracker;
 
             foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
             {
@@ -47,9 +56,36 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         }
 
+        public void SetAccessToken(string accessToken)
+        {
+            _twitchApi.Settings.AccessToken = accessToken;
+        }
+
         public bool IsServiceUp()
         {
             return serviceUp;
+        }
+
+        public async Task SendMessage(string message)
+        {
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                _messageIdTracker.AddMessageId(result.Data.First().MessageId);
+                if (result.Data.First().IsSent == false)
+                {
+                    _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.FirstOrDefault()?.Message);
+                }
+                else
+                {
+                    _logger.LogInformation("STREAMERCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send message.");
+            }
         }
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)

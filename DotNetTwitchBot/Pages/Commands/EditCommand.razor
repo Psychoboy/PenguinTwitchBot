@@ -34,6 +34,8 @@ else
                 <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
                 <MudCheckBox @bind-Value="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@customCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@customCommand.RespondAsStreamer" Label="Respond as Streamer?">
+                </MudCheckBox>
                 <MudCheckBox @bind-Value="@customCommand.ExcludeFromUi" Label="Exclude from web interface?" />
                 <MudCheckBox @bind-Value="@customCommand.Disabled" Label="Disabled?"></MudCheckBox>
                 <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">

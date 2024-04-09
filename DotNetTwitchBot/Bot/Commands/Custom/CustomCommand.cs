@@ -278,7 +278,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsVip = e.IsVip,
                         IsBroadcaster = e.IsBroadcaster,
                     };
-                    await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response);
+                    await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response, false);
                     if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
                     {
                         CommandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
@@ -340,7 +340,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 _semaphoreSlim.Release();
             }
 
-            await ProcessTagsAndSayMessage(e, Commands[e.Command].Response);
+            await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
         }
 
         public override async Task Register()
@@ -495,7 +495,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText)
+        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText, bool respondAsStreamer)
         {
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
@@ -509,7 +509,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
                     message = UnescapeTagsInMessages(result.Message);
-                    await ServiceBackbone.SendChatMessage(message);
+                    if (respondAsStreamer)
+                    {
+                        await _twitchService.SendMessage(message);
+                    }
+                    else
+                    {
+                        await ServiceBackbone.SendChatMessage(message);
+                    }
                 }
             }
         }
