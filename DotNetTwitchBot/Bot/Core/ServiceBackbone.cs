@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
-using DotNetTwitchBot.Core;
+using DotNetTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
