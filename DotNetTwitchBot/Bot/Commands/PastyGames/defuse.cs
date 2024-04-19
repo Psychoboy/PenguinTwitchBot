@@ -1,8 +1,10 @@
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -10,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ILoyaltyFeature loyaltyFeature,
         IServiceBackbone serviceBackbone,
         IViewerFeature viewerFeature,
-        ISendAlerts sendAlerts,
+        IMediator mediator,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
             ) : BaseCommandService(serviceBackbone, commandHandler, "Defuse"), IHostedService
@@ -61,12 +63,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var value = Tools.Next(min, max + 1);
                 await loyaltyFeature.AddPointsToViewer(e.Name, value);
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
-                sendAlerts.QueueAlert(new AlertImage().Generate("defuse.gif,8"));
+
+                await mediator.Send(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
             }
             else
             {
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
-                sendAlerts.QueueAlert(new AlertImage().Generate("detonated.gif,10"));
+                await mediator.Send(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
             }
         }
 

@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Application.Alias.Handlers
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Aliases.Find(x => x.AliasName.Equals(request.Name, StringComparison.OrdinalIgnoreCase)).FirstOrDefaultAsync(cancellationToken);
+            return await db.Aliases.Find(x => x.AliasName.Equals(request.Name)).FirstOrDefaultAsync(cancellationToken);
         }
     }
 }

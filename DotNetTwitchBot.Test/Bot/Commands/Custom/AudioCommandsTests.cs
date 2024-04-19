@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Alerts;
+﻿using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -7,10 +7,12 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
+using NSubstitute.ReceivedExtensions;
 
 namespace DotNetTwitchBot.Tests
 {
@@ -27,7 +29,7 @@ namespace DotNetTwitchBot.Tests
         public async Task AddAudioCommand_ShouldAddCommandToDatabase()
         {
             // Arrange
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -43,7 +45,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -61,7 +63,7 @@ namespace DotNetTwitchBot.Tests
         public async Task AddAudioCommand_ShouldNotAddCommandToDatabase()
         {
             // Arrange
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -76,7 +78,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { audioCommand }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -92,7 +94,7 @@ namespace DotNetTwitchBot.Tests
         public async Task SaveAudioCommand_ShouldSave()
         {
             // Arrange
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -107,7 +109,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -125,7 +127,7 @@ namespace DotNetTwitchBot.Tests
         public async Task GetAudioCommand_ShouldGet()
         {
             // Arrange
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -141,7 +143,7 @@ namespace DotNetTwitchBot.Tests
             var queryable = new List<AudioCommand> { audiCommand }.AsQueryable().BuildMockDbSet();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
                 _langage, Substitute.For<ICommandHandler>());
 
@@ -159,7 +161,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -175,7 +177,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -194,7 +196,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
+            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -203,7 +205,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -219,7 +221,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -236,7 +238,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
+            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -245,7 +247,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -261,7 +263,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -278,7 +280,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
+            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -287,7 +289,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -303,7 +305,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -320,7 +322,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            sendAlerts.Received(0).QueueAlert(Arg.Any<AlertSound>());
+            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -329,7 +331,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var sendAlerts = Substitute.For<ISendAlerts>();
+            var mediator = Substitute.For<IMediator>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -345,7 +347,7 @@ namespace DotNetTwitchBot.Tests
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
-            var audioCommands = new AudioCommands(sendAlerts, scopeFactory,
+            var audioCommands = new AudioCommands(mediator, scopeFactory,
                 Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
                 _langage, commandHandler);
 
@@ -362,7 +364,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            sendAlerts.Received(1).QueueAlert(Arg.Any<AlertSound>());
+            await mediator.Received(1).Send(Arg.Any<QueueAlert>());
         }
     }
 }

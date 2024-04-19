@@ -1,13 +1,15 @@
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
     public class AudioCommands(
-        ISendAlerts sendAlerts,
+        IMediator mediator,
         IServiceScopeFactory scopeFactory,
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,
@@ -165,7 +167,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 AudioHook = audioCommand.AudioFile
             };
-            sendAlerts.QueueAlert(alertSound);
+            mediator.Send(new QueueAlert(alertSound.Generate()));
             if (Commands[e.Command].GlobalCooldown > 0)
             {
                 CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
