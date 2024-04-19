@@ -24,6 +24,7 @@ using System.Net;
 using TwitchLib.EventSub.Websockets.Extensions;
 internal class Program
 {
+    private static ILogger<Program> logger;
     private static async Task Main(string[] args)
     {
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
@@ -185,12 +186,13 @@ internal class Program
             .WithExceptionStats(CaptureLevel.Errors)
             .StartCollecting();
 
-        var logger = app.Logger;
+        logger = app.Services.GetRequiredService<ILogger<Program>>();
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
             logger.LogInformation("Application Starting");
         });
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         lifetime.ApplicationStopping.Register(async () =>
@@ -198,38 +200,21 @@ internal class Program
             logger.LogInformation("Application trying to stop.");
             await websocketMessenger.CloseAllSockets();
         });
-        AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
-        {
-            if (
-                eventArgs.Exception.GetType() == typeof(System.Net.Sockets.SocketException) ||
-                eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(TwitchLib.Api.Core.Exceptions.InternalServerErrorException) ||
-                eventArgs.Exception.GetType() == typeof(System.OperationCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(System.Threading.Tasks.TaskCanceledException) ||
-                eventArgs.Exception.GetType() == typeof(Microsoft.AspNetCore.Connections.ConnectionAbortedException) ||
-                eventArgs.Exception.GetType() == typeof(Discord.WebSocket.GatewayReconnectException) ||
-                eventArgs.Exception.GetType() == typeof(System.IO.InvalidDataException) ||
-                eventArgs.Exception.GetType() == typeof(System.Threading.Channels.ChannelClosedException) ||
-                eventArgs.Exception.GetType() == typeof(System.Net.WebSockets.WebSocketException) ||
-                eventArgs.Exception.Message.Contains("JavaScript")
-                )
-            {
-                return; //Ignore
-            }
 
-            if (eventArgs.Exception.InnerException?.GetType() == typeof(System.Net.Sockets.SocketException))
-            {
-                var ex = eventArgs.Exception.InnerException as System.Net.Sockets.SocketException;
-                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.OperationAborted) return;
-                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionAborted) return;
-                if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset) return;
-            }
-        };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
         await app.RunAsync(); //Start in future to read input
 
+    }
+
+    private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        var ex = e.ExceptionObject as Exception;
+        if (e.IsTerminating)
+            logger.LogCritical(ex, "Unhandled Exception - Application failed critically and is closing.");
+        else
+            logger.LogError(ex, "Unhandled Exception");
     }
 }
