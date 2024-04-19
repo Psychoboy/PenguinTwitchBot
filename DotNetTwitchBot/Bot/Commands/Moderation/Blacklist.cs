@@ -22,7 +22,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         {
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;
-            ServiceBackbone.ChatMessageEvent += ChatMessage;
         }
 
         public async Task AddBlacklist(WordFilter wordFilter)
@@ -70,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             return _blackList.ToList();
         }
 
-        private async Task ChatMessage(object? sender, ChatMessageEventArgs e)
+        public async Task ChatMessage(ChatMessageEventArgs e)
         {
             bool match = false;
             if (e.IsMod || e.IsBroadcaster) return;

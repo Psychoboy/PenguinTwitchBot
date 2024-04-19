@@ -21,7 +21,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "ShoutoutSystem")
         {
-            serviceBackbone.ChatMessageEvent += OnChatMessage;
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;
             _logger = logger;
@@ -56,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
-        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             if (ServiceBackbone.IsOnline == false) return;
             var name = e.Name;

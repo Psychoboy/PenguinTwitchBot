@@ -196,7 +196,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
+            await mediator.Received(0).Publish(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -238,7 +238,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
+            await mediator.Received(0).Publish(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -280,7 +280,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
+            await mediator.Received(0).Publish(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -322,7 +322,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await mediator.Received(0).Send(Arg.Any<QueueAlert>());
+            await mediator.Received(0).Publish(Arg.Any<QueueAlert>());
         }
 
         [Fact]
@@ -364,7 +364,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await mediator.Received(1).Send(Arg.Any<QueueAlert>());
+            await mediator.Received(1).Publish(Arg.Any<QueueAlert>());
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
-using TwitchLib.Api;
+﻿using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using Timer = System.Timers.Timer;
 
@@ -10,14 +9,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     /// </summary>
     /// <param name="logger"></param>
     /// <param name="configuration"></param>
-    /// <param name="serviceBackbone"></param>
     /// <param name="twitchService"></param>
     /// <param name="messageIdTracker"></param>
     /// <param name="settingsFileManager"></param>
     public class TwitchChatBot(
         ILogger<TwitchChatBot> logger,
          IConfiguration configuration,
-         IServiceBackbone serviceBackbone,
          ITwitchService twitchService,
          ChatMessageIdTracker messageIdTracker,
          SettingsFileManager settingsFileManager) : ITwitchChatBot
@@ -42,7 +39,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ValidateAndRefreshToken();
         }
 
-        private async Task CommandService_OnSendMessage(object? sender, string message)
+        public async Task SendMessage(string message)
         {
             try
             {
@@ -111,7 +108,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             HealthStatusTimer.Interval = 30000;
             HealthStatusTimer.Elapsed += HealthStatusTimer_Elapsed;
-            serviceBackbone.SendMessageEvent += CommandService_OnSendMessage;
 
             _twitchApi.Settings.ClientId = configuration["twitchBotClientId"];
             _twitchApi.Settings.AccessToken = configuration["twitchBotAccessToken"];
@@ -130,7 +126,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             HealthStatusTimer.Stop();
             HealthStatusTimer.Elapsed -= HealthStatusTimer_Elapsed;
-            serviceBackbone.SendMessageEvent -= CommandService_OnSendMessage;
             return Task.CompletedTask;
         }
     }

@@ -1,9 +1,12 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.CustomMiddleware;
+using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
@@ -12,13 +15,13 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class ServiceBackbone(
         ILogger<ServiceBackbone> logger,
+        IMediator mediator,
         IKnownBots knownBots,
         IConfiguration configuration,
         IServiceScopeFactory scopeFactory,
         ICommandHandler commandHandler,
         IHubContext<MainHub> hubContext) : IServiceBackbone
     {
-        private readonly ICollector<ICounter> ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", ["viewer"]).WithExtendLifetimeOnUse();
         private static readonly Prometheus.Gauge NumberOfCommands = Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: ["command", "viewer"]);
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         public bool HealthStatus { get; private set; } = true;
@@ -27,13 +30,11 @@ namespace DotNetTwitchBot.Bot.Core
 
         public event AsyncEventHandler<AdBreakStartEventArgs>? AdBreakStartEvent;
         public event AsyncEventHandler<CommandEventArgs>? CommandEvent;
-        public event AsyncEventHandler<String>? SendMessageEvent;
         public event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         public event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         public event AsyncEventHandler<SubscriptionEventArgs>? SubscriptionEvent;
         public event AsyncEventHandler<SubscriptionGiftEventArgs>? SubscriptionGiftEvent;
         public event AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;
-        public event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         public event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
@@ -172,30 +173,21 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task SendChatMessage(string message)
+        public Task SendChatMessage(string message)
         {
-            if (SendMessageEvent != null)
-            {
-                await SendMessageEvent(this, message);
-            }
+            return mediator.Publish(new SendBotMessage(message));
         }
 
         public async Task SendChatMessage(string name, string message)
         {
-            if (SendMessageEvent != null)
-            {
-                await SendMessageEvent(this, string.Format("@{0}, {1}", name, message));
-            }
+            await SendChatMessage(string.Format("@{0}, {1}", name, message));
         }
         public async Task SendChatMessageWithTitle(string viewerName, string message)
         {
-            if (SendMessageEvent != null)
-            {
-                using var scope = scopeFactory.CreateAsyncScope();
-                var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-                var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
-                await SendMessageEvent(this, string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
-            }
+            using var scope = scopeFactory.CreateAsyncScope();
+            var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
+            var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
+            await SendChatMessage(string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
         }
 
         public async Task OnStreamStarted()
@@ -282,14 +274,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnChatMessage(ChatMessageEventArgs message)
         {
-            if (message.Name != null && IsKnownBot(message.Name) == false)
-            {
-                ChatMessagesCounter.WithLabels(message.Name).Inc();
-            }
-            if (ChatMessageEvent != null)
-            {
-                await ChatMessageEvent(this, message);
-            }
+            await mediator.Publish(new ReceivedChatMessage { EventArgs = message });
         }
 
         public async Task OnSubscription(SubscriptionEventArgs eventArgs)

@@ -21,5 +21,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<int> GetBitsPerTicket();
         Task SetTicketsPerSub(int numberOfTicketsPerSub);
         Task<int> GetTicketsPerSub();
+        Task OnChatMessage(ChatMessageEventArgs e);
     }
 }

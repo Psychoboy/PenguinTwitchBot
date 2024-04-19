@@ -14,12 +14,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         event AsyncEventHandler<AdBreakStartEventArgs>? AdBreakStartEvent;
         event AsyncEventHandler<ChannelPointRedeemEventArgs>? ChannelPointRedeemEvent;
-        event AsyncEventHandler<ChatMessageEventArgs>? ChatMessageEvent;
         event AsyncEventHandler<CheerEventArgs>? CheerEvent;
         event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
-        event AsyncEventHandler<string>? SendMessageEvent;
         event AsyncEventHandler? StreamEnded;
         event AsyncEventHandler? StreamStarted;
         event AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;

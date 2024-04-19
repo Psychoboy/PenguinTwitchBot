@@ -9,17 +9,17 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class Timers : BaseCommandService, IHostedService
+    public class AutoTimers : BaseCommandService, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<Timers> _logger;
+        private readonly ILogger<AutoTimers> _logger;
         private readonly Timer _intervalTimer;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
         private int MessageCounter = 0;
         public readonly ConcurrentBag<TimerGroup> ExecutedTimerGroups = new();
 
-        public Timers(
-            ILogger<Timers> logger,
+        public AutoTimers(
+            ILogger<AutoTimers> logger,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler
@@ -30,7 +30,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             _intervalTimer = new Timer(10000);
             _intervalTimer.Elapsed += ElapseTimer;
 
-            serviceBackbone.ChatMessageEvent += OnChatMessage;
             serviceBackbone.CommandEvent += CommandMessage;
             serviceBackbone.StreamStarted += StreamStarted;
             serviceBackbone.StreamEnded += StreamEnded;
@@ -58,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return Task.CompletedTask;
         }
 
-        private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public Task OnChatMessage()
         {
             MessageCounter++;
             return Task.CompletedTask;

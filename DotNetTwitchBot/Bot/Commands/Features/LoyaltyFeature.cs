@@ -34,8 +34,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _intervalTimer.Elapsed += ElapseTimer;
             _intervalTimer.Start();
 
-            ServiceBackbone.ChatMessageEvent += OnChatMessage;
-
             //Loyalty Stuff
             ServiceBackbone.SubscriptionEvent += OnSubscription;
             ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
@@ -165,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public static Int64 MaxBet { get; } = 200000069;
 
-        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             if (!ServiceBackbone.IsOnline) return;
             if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;

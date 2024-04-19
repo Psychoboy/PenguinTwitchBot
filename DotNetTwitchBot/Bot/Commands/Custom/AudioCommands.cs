@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
 using MediatR;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
@@ -16,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         ILanguage language,
         ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks"), IHostedService
     {
-        readonly Dictionary<string, AudioCommand> Commands = [];
+        readonly ConcurrentDictionary<string, AudioCommand> Commands = [];
 
         private async Task LoadAudioCommands()
         {
@@ -84,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public Dictionary<string, AudioCommand> GetAudioCommands()
         {
-            return Commands;
+            return Commands.ToDictionary();
         }
 
         public async Task<AudioCommand?> GetAudioCommand(int id)
@@ -167,7 +168,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 AudioHook = audioCommand.AudioFile
             };
-            mediator.Send(new QueueAlert(alertSound.Generate()));
+            mediator.Publish(new QueueAlert(alertSound.Generate()));
             if (Commands[e.Command].GlobalCooldown > 0)
             {
                 CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);

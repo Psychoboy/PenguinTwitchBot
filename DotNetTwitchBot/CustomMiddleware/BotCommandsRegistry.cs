@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
             services.AddHostedApiService<Bot.Commands.Misc.Weather>();
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
-            services.AddHostedApiService<Bot.Commands.Misc.Timers>();
+            services.AddHostedApiService<Bot.Commands.Misc.AutoTimers>();
             services.AddHostedApiService<Bot.Commands.Custom.CustomCommand>();
             services.AddHostedApiService<AudioCommands>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();

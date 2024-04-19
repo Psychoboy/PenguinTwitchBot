@@ -4,7 +4,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Application.Alert.Handlers
 {
-    public class QueueAlertHandler(IWebSocketMessenger webSocketMessenger) : IRequestHandler<QueueAlert>
+    public class QueueAlertHandler(IWebSocketMessenger webSocketMessenger) : INotificationHandler<QueueAlert>
     {
         public Task Handle(QueueAlert request, CancellationToken cancellationToken)
         {

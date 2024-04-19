@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<bool> IsFollower(string username);
         Task<bool> IsModerator(string username);
         Task<bool> IsSubscriber(string username);
+        Task OnChatMessage(ChatMessageEventArgs e);
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
         Task SaveViewer(Viewer viewer);

@@ -62,6 +62,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Application\Metrics\Notifications\" />
     <Folder Include="Authorization\" />
   </ItemGroup>
 
