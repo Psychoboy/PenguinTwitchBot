@@ -61,12 +61,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var value = Tools.Next(min, max + 1);
                 await loyaltyFeature.AddPointsToViewer(e.Name, value);
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
-                sendAlerts.QueueAlert("defuse.gif,8");
+                sendAlerts.QueueAlert(new AlertImage().Generate("defuse.gif,8"));
             }
             else
             {
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
-                sendAlerts.QueueAlert("detonated.gif,10");
+                sendAlerts.QueueAlert(new AlertImage().Generate("detonated.gif,10"));
             }
         }
 
