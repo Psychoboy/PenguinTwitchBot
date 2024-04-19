@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
+using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.CustomMiddleware;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
@@ -124,11 +125,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnStreamStarted()
         {
-            //var labels = NumberOfCommands.GetAllLabelValues();
-            //foreach (var label in labels)
-            //{
-            //    NumberOfCommands.RemoveLabelled(label);
-            //}
+            await mediator.Publish(new StreamStartedNotification());
 
             await hubContext.Clients.All.SendAsync("StreamChanged", true);
 
