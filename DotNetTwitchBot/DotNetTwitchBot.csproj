@@ -42,7 +42,7 @@
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.2.0" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.3.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.0-beta.2" />
@@ -56,7 +56,7 @@
     <PackageReference Include="Serilog.Expressions" Version="4.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.2.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.0" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
     <PackageReference Include="MudBlazor" Version="6.14.0" />
   </ItemGroup>
