@@ -1,9 +1,9 @@
-using DotNetTwitchBot.Application.Alias.Requests;
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using MediatR;
 
-namespace DotNetTwitchBot.Bot.Commands.Custom
+namespace DotNetTwitchBot.Bot.Commands.Alias
 {
     public class Alias(
         IMediator mediator,
@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<bool> CommandExists(string alias)
         {
-            return (await mediator.Send(new GetAliasByName(alias))) != null;
+            return await mediator.Send(new GetAliasByName(alias)) != null;
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)

@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace DotNetTwitchBot.Application.Alias.Requests
+namespace DotNetTwitchBot.Bot.Commands.Alias.Requests
 {
     public class DeleteAlias(AliasModel alias) : IRequest
     {

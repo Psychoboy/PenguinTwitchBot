@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.BackgroundWorkers;
-using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.Alias;
+using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
@@ -33,7 +34,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();
-            services.AddSingleton<Bot.Commands.Custom.IAlias, Bot.Commands.Custom.Alias>();
+            services.AddSingleton<IAlias, Alias>();
             //Add Alerts
             services.AddSingleton<Bot.Alerts.AlertImage>();
 

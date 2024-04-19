@@ -225,8 +225,7 @@ internal class Program
                 if (ex?.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionReset) return;
             }
             //special for Discord.NET ignore websocket exceptions
-
-            logger.LogDebug(eventArgs.Exception, "Global Exception Caught from {sender} in {source}, InnerEx Begin\n{InnerException}\nInnerEx End", sender, eventArgs.Exception.Source, eventArgs.Exception.InnerException);
+            return;
         };
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");

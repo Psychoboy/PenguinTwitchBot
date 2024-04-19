@@ -1,6 +1,6 @@
-using DotNetTwitchBot.Application.Alias.Requests;
 using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.Alias;
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using MediatR;

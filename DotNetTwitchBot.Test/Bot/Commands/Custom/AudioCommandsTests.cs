@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Core;

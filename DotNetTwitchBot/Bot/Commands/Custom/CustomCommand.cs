@@ -314,7 +314,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             try
             {
-                await _semaphoreSlim.WaitAsync();
+                if (await _semaphoreSlim.WaitAsync(500) == false)
+                {
+                    _logger.LogWarning("CustomCommand Lock expired while waiting...");
+                }
 
                 var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                 if (isCoolDownExpired == false) return;

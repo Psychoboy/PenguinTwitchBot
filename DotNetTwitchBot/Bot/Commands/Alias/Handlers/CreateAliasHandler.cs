@@ -1,8 +1,8 @@
-﻿using DotNetTwitchBot.Application.Alias.Requests;
+﻿using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Repository;
 using MediatR;
 
-namespace DotNetTwitchBot.Application.Alias.Handlers
+namespace DotNetTwitchBot.Bot.Commands.Alias.Handlers
 {
     public class CreateAliasHandler(IServiceScopeFactory scopeFactory) : IRequestHandler<CreateAlias>
     {

@@ -1,7 +1,7 @@
 @page "/aliases/{id:int}"
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
-@inject DotNetTwitchBot.Bot.Commands.Custom.IAlias AliasCommand
+@inject DotNetTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 <PageTitle>SPTV Twitch Bot - Edit Alias</PageTitle>
