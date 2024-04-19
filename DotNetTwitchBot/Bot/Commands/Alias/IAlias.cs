@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
 
-namespace DotNetTwitchBot.Bot.Commands.Custom
+namespace DotNetTwitchBot.Bot.Commands.Alias
 {
     public interface IAlias
     {

@@ -1,11 +1,9 @@
 using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.Alias;
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Repository;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using MockQueryable.NSubstitute;
+using MediatR;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
@@ -14,33 +12,23 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
     {
         private readonly ICommandHandler commandHandler;
         private readonly AliasModel testAlias;
-        private readonly DbSet<AliasModel> aliasQueryable;
-        private readonly DbSet<AliasModel> emptyAliasQueryable;
+        private readonly List<AliasModel> aliasQueryable;
+        private readonly List<AliasModel> emptyAliasQueryable;
         private readonly Alias alias;
-        private readonly IServiceScopeFactory scopeFactory;
-        private readonly IUnitOfWork dbContext;
-        private readonly IServiceProvider serviceProvider;
-        private readonly IServiceScope scope;
+        private readonly IMediator mediator;
         private readonly IServiceBackbone serviceBackbone;
 
         public AliasTests()
         {
-            scopeFactory = Substitute.For<IServiceScopeFactory>();
-            dbContext = Substitute.For<IUnitOfWork>();
-            serviceProvider = Substitute.For<IServiceProvider>();
-            scope = Substitute.For<IServiceScope>();
             serviceBackbone = Substitute.For<IServiceBackbone>();
             commandHandler = Substitute.For<ICommandHandler>();
-
-            scopeFactory.CreateScope().Returns(scope);
-            scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            mediator = Substitute.For<IMediator>();
 
             testAlias = new AliasModel { AliasName = "thealias", CommandName = "testcommand", Id = 1 };
-            aliasQueryable = new List<AliasModel> { testAlias }.AsQueryable().BuildMockDbSet();
-            emptyAliasQueryable = new List<AliasModel>().AsQueryable().BuildMockDbSet();
+            aliasQueryable = new List<AliasModel> { testAlias };
+            emptyAliasQueryable = new List<AliasModel>();
 
-            alias = new Alias(scopeFactory, serviceBackbone, commandHandler);
+            alias = new Alias(mediator, serviceBackbone, commandHandler);
 
         }
 
@@ -48,7 +36,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
         public async Task GetAliasesAsync_ShouldGetAllAliases()
         {
             //Arrange
-            dbContext.Aliases.GetAllAsync().Returns(aliasQueryable);
+            mediator.Send(Arg.Any<GetAliases>()).ReturnsForAnyArgs(aliasQueryable);
 
             //Act
             var result = await alias.GetAliasesAsync();
@@ -61,7 +49,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
         public async Task GetAliasAsync_ShouldReturnAlias()
         {
             //Arrange
-            dbContext.Aliases.Find(x => true).ReturnsForAnyArgs(aliasQueryable);
+            mediator.Send(Arg.Any<GetAliasById>()).ReturnsForAnyArgs(testAlias);
 
             //Act
             var result = await alias.GetAliasAsync(1);
@@ -81,8 +69,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
             await alias.CreateOrUpdateAliasAsync(newTestAlias);
 
             // Assert
-            await dbContext.Aliases.Received(1).AddAsync(newTestAlias);
-            await dbContext.Received(1).SaveChangesAsync();
+            await mediator.Received(1).Send(Arg.Any<CreateAlias>());
         }
 
         [Fact]
@@ -95,8 +82,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
             await alias.CreateOrUpdateAliasAsync(newTestAlias);
 
             // Assert
-            dbContext.Aliases.Received(1).Update(newTestAlias);
-            await dbContext.Received(1).SaveChangesAsync();
+            await mediator.Received(1).Send(Arg.Any<UpdateAlias>());
         }
 
         [Fact]
@@ -108,8 +94,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
             await alias.DeleteAliasAsync(testAlias);
 
             // Assert
-            dbContext.Aliases.Received(1).Remove(testAlias);
-            await dbContext.Received(1).SaveChangesAsync();
+            await mediator.Received(1).Send(Arg.Any<DeleteAlias>());
 
         }
 
@@ -118,7 +103,8 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
         public async Task RunCommand_RunAlias()
         {
             // Arrange
-            dbContext.Aliases.Find(x => true).ReturnsForAnyArgs(aliasQueryable);
+            //dbContext.Aliases.Find(x => true).ReturnsForAnyArgs(aliasQueryable);
+            mediator.Send(Arg.Any<GetAliasByName>()).Returns(testAlias);
             var testCommand = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs();
             // Act
             var result = await alias.RunCommand(testCommand);
@@ -132,7 +118,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
         public async Task RunCommand_RunAlias_ShouldFail()
         {
             // Arrange
-            dbContext.Aliases.Find(x => true).ReturnsForAnyArgs(aliasQueryable);
+            mediator.Send(Arg.Any<GetAliasByName>()).Returns(testAlias);
             var testCommand = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs();
             testCommand.FromAlias = true;
             // Act

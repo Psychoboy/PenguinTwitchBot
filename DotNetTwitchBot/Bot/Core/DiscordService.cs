@@ -65,6 +65,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
 #if DEBUG
             _logger.LogInformation("[DISCORD] Stream Is online - Not Announcing");
+            await Task.CompletedTask;
 #else
             _logger.LogInformation("[DISCORD] Stream Is online - Announcing soon");
             await AnnounceLive();
@@ -137,7 +138,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task MessageReceived(SocketMessage arg)
         {
-            if (arg.Type != MessageType.Default) return;
+            if (arg.Type != MessageType.Default && arg.Type != MessageType.Reply) return;
             if (arg.Author is IGuildUser == false) return;
             var user = arg.Author as IGuildUser;
             var message = await arg.Channel.GetMessageAsync(arg.Id);

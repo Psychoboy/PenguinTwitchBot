@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.BackgroundWorkers;
-using DotNetTwitchBot.Bot.Commands.Custom;
+using DotNetTwitchBot.Bot.Commands.Alias;
+using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
@@ -14,13 +15,13 @@ namespace DotNetTwitchBot.CustomMiddleware
     {
         public static IServiceCollection AddBotCommands(this IServiceCollection services)
         {
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
             services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
             services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
             services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
 
-            services.AddSingleton<Bot.Alerts.ISendAlerts, Bot.Alerts.SendAlerts>();
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
 
             services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
@@ -33,7 +34,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();
-            services.AddSingleton<Bot.Commands.Custom.IAlias, Bot.Commands.Custom.Alias>();
+            services.AddSingleton<IAlias, Alias>();
             //Add Alerts
             services.AddSingleton<Bot.Alerts.AlertImage>();
 
@@ -55,7 +56,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
             services.AddHostedApiService<Bot.Commands.Misc.Weather>();
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
-            services.AddHostedApiService<Bot.Commands.Misc.Timers>();
+            services.AddHostedApiService<Bot.Commands.Misc.AutoTimers>();
             services.AddHostedApiService<Bot.Commands.Custom.CustomCommand>();
             services.AddHostedApiService<AudioCommands>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();

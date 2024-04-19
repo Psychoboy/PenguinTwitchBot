@@ -404,8 +404,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogWarning("Twitch Websocket Disconnected");
                 var delayCounter = 1;
                 var attempts = 0;
-                while (!await eventSubWebsocketClient.ReconnectAsync())
+                while (true)
                 {
+                    try
+                    {
+                        if (await eventSubWebsocketClient.ReconnectAsync()) return;
+                    }
+                    catch (Exception)
+                    {
+                        //Ignore
+                    }
                     delayCounter *= 2;
                     attempts++;
                     if (attempts > 5) break;
@@ -433,8 +441,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 Reconnecting = true;
                 var delayCounter = 1;
-                while (!await eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws")))
+                while (true)
                 {
+                    try
+                    {
+                        if (await eventSubWebsocketClient.ConnectAsync()) return;
+                    }
+                    catch (Exception)
+                    {
+                        //Ignore
+                    }
                     delayCounter *= 2;
                     if (delayCounter > 300)
                     {
@@ -496,7 +512,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
-            await eventSubWebsocketClient.ConnectAsync(new Uri("wss://eventsub.wss.twitch.tv/ws"));
+            await Reconnect();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

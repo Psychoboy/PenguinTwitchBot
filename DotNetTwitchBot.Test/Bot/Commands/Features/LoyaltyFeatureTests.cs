@@ -205,7 +205,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone.IsKnownBotOrCurrentStreamer(Arg.Any<string>()).Returns(false);
 
             // Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
+            await loyaltyFeature.OnChatMessage(chatMessageEvent);
 
             // Assert
             dbContext.ViewerMessageCounts.Received(1).Update(testViewer);
@@ -224,7 +224,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone.IsKnownBotOrCurrentStreamer(Arg.Any<string>()).Returns(false);
 
             // Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, chatMessageEvent);
+            await loyaltyFeature.OnChatMessage(chatMessageEvent);
 
             // Assert
             dbContext.ViewerMessageCounts.Received(1).Update(Arg.Any<ViewerMessageCount>());

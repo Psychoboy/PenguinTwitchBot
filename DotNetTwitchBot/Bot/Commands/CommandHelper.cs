@@ -1,4 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom;
+﻿using DotNetTwitchBot.Bot.Commands.Alias;
+using DotNetTwitchBot.Bot.Commands.AudioCommand;
+using DotNetTwitchBot.Bot.Commands.Custom;
 
 namespace DotNetTwitchBot.Bot.Commands
 {

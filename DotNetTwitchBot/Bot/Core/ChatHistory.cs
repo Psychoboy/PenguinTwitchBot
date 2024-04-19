@@ -56,21 +56,19 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public Task AddChatMessage(ChatMessageEventArgs e)
         {
             return AddMessage(e.Name, e.DisplayName, e.Message);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _serviceBackbone.ChatMessageEvent += OnChatMessage;
             _serviceBackbone.CommandEvent += OnCommandMessage;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _serviceBackbone.ChatMessageEvent -= OnChatMessage;
             _serviceBackbone.CommandEvent -= OnCommandMessage;
             return Task.CompletedTask;
         }

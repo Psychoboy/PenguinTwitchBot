@@ -1,49 +1,40 @@
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Repository;
+using MediatR;
 
-namespace DotNetTwitchBot.Bot.Commands.Custom
+namespace DotNetTwitchBot.Bot.Commands.Alias
 {
     public class Alias(
-        IServiceScopeFactory scopeFactory,
+        IMediator mediator,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias"), IAlias, IHostedService
     {
         public async Task<List<AliasModel>> GetAliasesAsync()
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await db.Aliases.GetAllAsync()).ToList();
+            return (await mediator.Send(new GetAliases())).ToList();
         }
 
-        public async Task<AliasModel?> GetAliasAsync(int id)
+        public Task<AliasModel?> GetAliasAsync(int id)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Aliases.Find(x => x.Id == id).FirstOrDefaultAsync();
+            return mediator.Send(new GetAliasById(id));
         }
 
-        public async Task CreateOrUpdateAliasAsync(AliasModel alias)
+        public Task CreateOrUpdateAliasAsync(AliasModel alias)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             if (alias.Id == null)
             {
-                await db.Aliases.AddAsync(alias);
+                return mediator.Send(new CreateAlias(alias));
             }
             else
             {
-                db.Aliases.Update(alias);
+                return mediator.Send(new UpdateAlias(alias));
             }
-            await db.SaveChangesAsync();
         }
 
-        public async Task DeleteAliasAsync(AliasModel alias)
+        public Task DeleteAliasAsync(AliasModel alias)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.Aliases.Remove(alias);
-            await db.SaveChangesAsync();
+            return mediator.Send(new DeleteAlias(alias));
         }
 
         public async Task<bool> RunCommand(CommandEventArgs e)
@@ -65,17 +56,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         public async Task<bool> CommandExists(string alias)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Aliases.Find(x => x.AliasName == alias).AnyAsync();
+            return await mediator.Send(new GetAliasByName(alias)) != null;
         }
 
         private async Task<bool> IsAlias(CommandEventArgs e)
         {
             if (e.FromAlias) return false; //Prevents endless recursion
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var alias = await db.Aliases.Find(x => x.AliasName.Equals(e.Command)).FirstOrDefaultAsync();
+
+            var alias = await mediator.Send(new GetAliasByName(e.Command));
             if (alias != null)
             {
                 e.Command = alias.CommandName;

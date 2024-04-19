@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ) : base(serviceBackbone, commandHandler, "ViewerFeature")
         {
             _logger = logger;
-            serviceBackbone.ChatMessageEvent += OnChatMessage;
+
             serviceBackbone.SubscriptionEvent += OnSubscription;
             serviceBackbone.SubscriptionEndEvent += OnSubscriptionEnd;
             serviceBackbone.CheerEvent += OnCheer;
@@ -304,7 +304,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _usersLastActive[sender] = DateTime.Now;
         }
 
-        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             UpdateLastActive(e.Name);
             Viewer? viewer = await GetViewer(e.Name);

@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
@@ -6,6 +7,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -30,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         readonly Dictionary<string, Models.CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<Models.KeywordWithRegex> Keywords = [];
-        private readonly ISendAlerts _sendAlerts;
+        private readonly IMediator _mediator;
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
@@ -38,10 +40,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly GiveawayFeature _giveawayFeature;
         private readonly ITTSService _ttsService;
-        private readonly Timers _timers;
+        private readonly AutoTimers _timers;
 
         public CustomCommand(
-            ISendAlerts sendAlerts,
+            IMediator mediator,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
@@ -50,10 +52,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
             ITTSService ttsService,
-            Timers timers,
+            AutoTimers timers,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
         {
-            _sendAlerts = sendAlerts;
+            _mediator = mediator;
             _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -62,7 +64,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _giveawayFeature = giveawayFeature;
             _ttsService = ttsService;
             _timers = timers;
-            ServiceBackbone.ChatMessageEvent += OnChatMessage;
 
             //RegisterCommands Here
             CommandTags.Add("alert", Alert);
@@ -242,7 +243,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         }
 
         //To check for keywords
-        private async Task OnChatMessage(object? sender, ChatMessageEventArgs e)
+        public async Task ReceivedChatMessage(ChatMessageEventArgs e)
         {
             bool match = false;
             foreach (var keyword in Keywords)
@@ -313,7 +314,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             try
             {
-                await _semaphoreSlim.WaitAsync();
+                if (await _semaphoreSlim.WaitAsync(500) == false)
+                {
+                    _logger.LogWarning("CustomCommand Lock expired while waiting...");
+                }
 
                 var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                 if (isCoolDownExpired == false) return;
@@ -544,7 +548,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             return await Task.Run(() =>
             {
                 var alertImage = new AlertImage();
-                _sendAlerts.QueueAlert(alertImage.Generate(args));
+                _mediator.Publish(new QueueAlert(alertImage.Generate(args)));
                 return new CustomCommandResult();
             });
         }
@@ -580,7 +584,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     AudioHook = args
                 };
-                _sendAlerts.QueueAlert(alertSound);
+                _mediator.Publish(new QueueAlert(alertSound.Generate(args)));
                 return new CustomCommandResult();
             });
         }
@@ -896,7 +900,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             if (!string.IsNullOrWhiteSpace(counterAlert))
             {
                 var alertImage = new AlertImage();
-                _sendAlerts.QueueAlert(alertImage.Generate(counterAlert));
+                await _mediator.Publish(new QueueAlert(alertImage.Generate(counterAlert)));
             }
 
             return new CustomCommandResult(amount.ToString());

@@ -1,6 +1,6 @@
 @page "/audiocommands"
 @attribute [Authorize(Roles = "Streamer")]
-@inject DotNetTwitchBot.Bot.Commands.Custom.AudioCommands AudioCommand
+@inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 

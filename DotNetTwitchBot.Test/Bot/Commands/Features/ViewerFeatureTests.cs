@@ -262,7 +262,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.ChatMessageEvent += Raise.Event<AsyncEventHandler<ChatMessageEventArgs>>(this, new ChatMessageEventArgs { Name = "test", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
+            await viewerFeature.OnChatMessage(new ChatMessageEventArgs { Name = "test", IsBroadcaster = true, IsMod = true, IsSub = true, DisplayName = "NewDisplayName", IsVip = true });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());
