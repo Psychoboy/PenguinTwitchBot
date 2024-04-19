@@ -410,7 +410,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     {
                         if (await eventSubWebsocketClient.ReconnectAsync()) return;
                     }
-                    catch (Exception) { }
+                    catch (Exception)
+                    {
+                        //Ignore
+                    }
                     delayCounter *= 2;
                     attempts++;
                     if (attempts > 5) break;
@@ -444,7 +447,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     {
                         if (await eventSubWebsocketClient.ConnectAsync()) return;
                     }
-                    catch (Exception) { }
+                    catch (Exception)
+                    {
+                        //Ignore
+                    }
                     delayCounter *= 2;
                     if (delayCounter > 300)
                     {

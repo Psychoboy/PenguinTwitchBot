@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Application.Alias.Requests
 {
-    public class GetAliases() : IRequest<IEnumerable<AliasModel>>
+    public class GetAliases : IRequest<IEnumerable<AliasModel>>
     {
     }
 }
