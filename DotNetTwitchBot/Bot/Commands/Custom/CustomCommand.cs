@@ -584,7 +584,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     AudioHook = args
                 };
-                _mediator.Publish(new QueueAlert(alertSound.Generate(args)));
+                _mediator.Publish(new QueueAlert(alertSound.Generate()));
                 return new CustomCommandResult();
             });
         }
