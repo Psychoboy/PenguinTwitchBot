@@ -200,7 +200,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(",", payouts)));
+                    await ServiceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(", ", payouts)));
                 }
                 CleanUp();
             }
