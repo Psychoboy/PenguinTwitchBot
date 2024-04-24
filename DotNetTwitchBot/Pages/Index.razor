@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using DotNetTwitchBot.Bot.StreamSchedule
 @using DotNetTwitchBot.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot;
@@ -9,6 +10,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@inject ISchedule schedule;
 @implements IAsyncDisposable
 
 <CascadingAuthenticationState>  
@@ -42,22 +44,19 @@
             <MudItem sm="6">
                 <MudPaper Class="pa-4" Elevation="0">
                     <MudPaper Class="align-start d-flex">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Top 5 Pasties</MudText>
-                        <MudSpacer />
-                        <MudLink Href="leaderboards">Details</MudLink>
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
                     </MudPaper>
                     <MudDivider class="mb-2" />
-                    <MudTable Items="@pasties" Elevation="0">
+                    <MudTable Items="@scheduledStreams" Elevation="0">
                         <HeaderContent>
-                            <MudTh>Rank</MudTh>
-                            <MudTh>Name</MudTh>
-                            <MudTh>Amount</MudTh>
+                            <MudTh>Title</MudTh>
+                            <MudTh>Start</MudTh>
+                            <MudTh>End</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Rank</MudTd>
-                            <MudTd DataLabel="Duration">@context.Name</MudTd>
-                            <MudTd DataLabel="Requested By">@context.Amount.ToString("n0")</MudTd>
-
+                            <MudTd>@context.Title</MudTd>
+                            <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+                            <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
                         </RowTemplate>
                     </MudTable>
                 </MudPaper>
@@ -116,18 +115,20 @@
     </MudContainer>
 </CascadingAuthenticationState>
 
-    @code {
+@code {
     private string prize = "";
     private string? imageUrl;
     private List<Song> songRequests = new();
     private HubConnection? ythub;
     private List<LeaderPosition> pasties = new();
     private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
+    private List<ScheduledStream> scheduledStreams = new();
     protected override async Task OnInitializedAsync()
     {
         prize = await GiveawayFeature.GetPrize();
         imageUrl = await GiveawayFeature.GetImageUrl();
         topSongRequests = await SongRequestMetrics.GetTopN(5);
+        scheduledStreams = await schedule.GetNextStreams();
         UpdateSongList(YtPlayer.GetRequestedSongs());
         
 

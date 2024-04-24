@@ -88,6 +88,24 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        public async Task<TwitchLib.Api.Helix.Models.Schedule.ChannelStreamSchedule?> GetStreamSchedule()
+        {
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                var result = await _twitchApi.Helix.Schedule.GetChannelStreamScheduleAsync(broadcasterId);
+                if (result != null)
+                {
+                    return result.Schedule;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting stream schedule.");
+            }
+            return null;
+        }
+
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await ValidateAndRefreshToken();
