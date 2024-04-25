@@ -87,7 +87,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>

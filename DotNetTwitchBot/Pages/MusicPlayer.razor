@@ -184,7 +184,7 @@
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
         
-        hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>

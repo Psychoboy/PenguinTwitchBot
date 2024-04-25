@@ -11,6 +11,8 @@
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
 @inject ISchedule schedule;
+@inject ISnackbar Snackbar
+@inject ILogger<Index> logger
 @implements IAsyncDisposable
 
 <CascadingAuthenticationState>  
@@ -120,39 +122,38 @@
     private string? imageUrl;
     private List<Song> songRequests = new();
     private HubConnection? ythub;
-    private List<LeaderPosition> pasties = new();
     private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
     private List<ScheduledStream> scheduledStreams = new();
     protected override async Task OnInitializedAsync()
     {
-        prize = await GiveawayFeature.GetPrize();
-        imageUrl = await GiveawayFeature.GetImageUrl();
-        topSongRequests = await SongRequestMetrics.GetTopN(5);
-        scheduledStreams = await schedule.GetNextStreams();
+            prize = await GiveawayFeature.GetPrize();
+            imageUrl = await GiveawayFeature.GetImageUrl();
+            topSongRequests = await SongRequestMetrics.GetTopN(5);
+            scheduledStreams = await schedule.GetNextStreams();
         UpdateSongList(YtPlayer.GetRequestedSongs());
-        
-
-        var pageFilter = new PaginationFilter
-            {
-                Page = 0,
-                Count = 5
-            };
-        var pastiesResponse = await leaderBoards.GetPasties(pageFilter);
-        pasties = pastiesResponse.Data;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        ythub = new HubConnectionBuilder()
+        ythub = new HubConnectionBuilder().WithAutomaticReconnect()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
-        ythub.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        ythub.On<List<Song>>("CurrentSongRequests", async (playlist) =>
         {
+            if (songRequests.Count == 0 && playlist.Count == 0) return;
             UpdateSongList(playlist);
-            InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged);
         });
-        await ythub.StartAsync();
+        try
+        {
+            await ythub.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning(ex, "Failed to connect to ythub");
+        }
     }
 
     private void UpdateSongList(List<Song> songs)
