@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<Giveaway> logger
+@implements IAsyncDisposable
 
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
 
@@ -92,7 +93,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
         .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
         hubConnection.On<List<GiveawayWinner>>("Winners", (Winners) =>
         {
@@ -139,5 +140,13 @@ else
             await TicketsFeature.ResetAllPoints();
         }
         StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

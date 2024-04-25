@@ -9,7 +9,7 @@
 @inject ICircuitUserService UserService
 @inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject CircuitHandler BlazorCircuitHandler
-@implements IDisposable
+@implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<MainLayout> logger
 
@@ -100,7 +100,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
        .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
         hubConnection.On<bool>("StreamChanged", (status) =>
         {
@@ -139,8 +139,12 @@
     {
         _drawerOpen = !_drawerOpen;
     }
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }
