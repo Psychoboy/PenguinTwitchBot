@@ -24,7 +24,7 @@ using System.Net;
 using TwitchLib.EventSub.Websockets.Extensions;
 internal class Program
 {
-    private static ILogger<Program> logger;
+    private static ILogger<Program>? logger;
     private static async Task Main(string[] args)
     {
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
@@ -83,12 +83,29 @@ internal class Program
         builder.Services.AddQuartz(q =>
         {
             var backupDbJobKey = new JobKey("BackupDbJob");
+            var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
+            var UpdatePostedScheduleKey = new JobKey("UpdatePostedSchedule");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
                 .ForJob(backupDbJobKey)
                 .WithIdentity("BackupDb-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
             );
+
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.UpdateDiscordEvents>(opts => opts.WithIdentity(updateDiscordEventsKey));
+            q.AddTrigger(opts => opts
+                .ForJob(updateDiscordEventsKey)
+                .WithIdentity("UpdateDiscord-Trigger")
+                .WithCronSchedule(CronScheduleBuilder.CronSchedule("0 0/5 * * * ?"))
+            );
+
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(UpdatePostedScheduleKey));
+            q.AddTrigger(opts => opts
+                .ForJob(UpdatePostedScheduleKey)
+                .WithIdentity("UpdateDiscordSchedule-Trigger")
+                .WithCronSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 9, 0))
+                );
+
         });
         builder.Services.AddQuartzServer(
             q => q.WaitForJobsToComplete = true
@@ -96,13 +113,13 @@ internal class Program
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        {
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: System.TimeSpan.FromSeconds(15),
-                errorNumbersToAdd: null
-            ));
-        });
+            {
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: System.TimeSpan.FromSeconds(15),
+                    errorNumbersToAdd: null
+                ));
+            });
 
         builder.Services.AddSignalR();
 
@@ -190,14 +207,14 @@ internal class Program
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
-            logger.LogInformation("Application Starting");
+            logger?.LogInformation("Application Starting");
         });
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         lifetime.ApplicationStopping.Register(async () =>
         {
-            logger.LogInformation("Application trying to stop.");
+            logger?.LogInformation("Application trying to stop.");
             await websocketMessenger.CloseAllSockets();
         });
 
@@ -213,8 +230,8 @@ internal class Program
     {
         var ex = e.ExceptionObject as Exception;
         if (e.IsTerminating)
-            logger.LogCritical(ex, "Unhandled Exception - Application failed critically and is closing.");
+            logger?.LogCritical(ex, "Unhandled Exception - Application failed critically and is closing.");
         else
-            logger.LogError(ex, "Unhandled Exception");
+            logger?.LogError(ex, "Unhandled Exception");
     }
 }

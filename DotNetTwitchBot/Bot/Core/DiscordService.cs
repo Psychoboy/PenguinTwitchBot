@@ -3,6 +3,7 @@ using Discord.Net;
 using Discord.WebSocket;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -104,7 +105,8 @@ namespace DotNetTwitchBot.Bot.Core
                     var role = guild.GetRole(_settings.PingRoleWhenLive);
                     message += role.Mention;
                 }
-                await channel.SendMessageAsync(message, embed: embed);
+                var msg = await channel.SendMessageAsync(message, embed: embed);
+
             }
             catch (Exception ex)
             {
@@ -113,6 +115,81 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation("[DISCORD] Did announcement");
         }
 
+        public Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents()
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            return guild.GetEventsAsync();
+        }
+
+        public Task<IGuildScheduledEvent> GetEvent(ulong id)
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            return guild.GetEventAsync(id);
+        }
+
+        public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)
+        {
+            await evt.ModifyAsync(x =>
+            {
+                x.StartTime = (DateTimeOffset)DateTime.SpecifyKind(startTime, DateTimeKind.Utc);
+                x.EndTime = (DateTimeOffset)DateTime.SpecifyKind(endTime, DateTimeKind.Utc);
+                x.Name = title;
+            });
+        }
+
+        public async Task DeleteEvent(IGuildScheduledEvent evt)
+        {
+            await evt.DeleteAsync();
+        }
+
+        public async Task<ulong> CreateScheduledEvent(ScheduledStream scheduledStream)
+        {
+            //1033836361653964851
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: "https://twitch.tv/superpenguintv");
+            return evt.Id;
+        }
+
+        public async Task DeletePostedScheduled(ulong id)
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            await channel.DeleteMessageAsync(id);
+        }
+
+        public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            await channel.ModifyMessageAsync(id, x =>
+            {
+                x.Embed = GenerateScheduleEmbed(scheduledStreams);
+            });
+        }
+
+        private static Embed GenerateScheduleEmbed(List<ScheduledStream> scheduledStreams)
+        {
+            var embed = new EmbedBuilder().WithColor(100, 65, 164)
+               .WithTitle("Stream Schedule");
+            foreach (var schedule in scheduledStreams)
+            {
+                var scheduledTime = new TimestampTag(schedule.Start, TimestampTagStyles.LongDateTime);
+                var scheduleTimeRemaining = new TimestampTag(schedule.Start, TimestampTagStyles.Relative);
+                embed.AddField(schedule.Title, $"{scheduledTime} {scheduleTimeRemaining}");
+            }
+            return embed.Build();
+        }
+
+        public async Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams)
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            //1033836361653964851 - Schedule
+            //679541861861425153 - Audit
+            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            var embed = GenerateScheduleEmbed(scheduledStreams);
+            var msg = await channel.SendMessageAsync("", embed: embed);
+            return msg.Id;
+        }
 
         private async Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
         {

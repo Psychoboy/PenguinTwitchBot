@@ -47,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<UserRegisteredVoice> UserRegisteredVoices { get; set; } = null!;
         public DbSet<ChannelPointRedeem> ChannelPointRedeems { get; set; } = null!;
         public DbSet<TwitchEvent> TwitchEvents { get; set; } = null!;
+        public DbSet<DiscordEventMap> DiscordEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
