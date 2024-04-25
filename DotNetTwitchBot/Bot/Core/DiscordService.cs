@@ -153,14 +153,14 @@ namespace DotNetTwitchBot.Bot.Core
         public async Task DeletePostedScheduled(ulong id)
         {
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             await channel.DeleteMessageAsync(id);
         }
 
         public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
         {
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             await channel.ModifyMessageAsync(id, x =>
             {
                 x.Embed = GenerateScheduleEmbed(scheduledStreams);
@@ -185,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Core
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
             //1033836361653964851 - Schedule
             //679541861861425153 - Audit
-            var channel = (IMessageChannel)await guild.GetChannelAsync(679541861861425153);
+            var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             var embed = GenerateScheduleEmbed(scheduledStreams);
             var msg = await channel.SendMessageAsync("", embed: embed);
             return msg.Id;
