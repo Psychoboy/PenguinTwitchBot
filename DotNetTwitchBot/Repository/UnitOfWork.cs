@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Repository
             UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
             ChannelPointRedeems = new ChannelPointRedeemsRepository(_context);
             TwitchEvents = new TwitchEventsRepository(_context);
-
+            DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -96,6 +96,7 @@ namespace DotNetTwitchBot.Repository
         public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
         public IChannelPointRedeemsRepository ChannelPointRedeems { get; private set; }
         public ITwitchEventsRepository TwitchEvents { get; private set; }
+        public IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; private set; }
 
         public void Dispose()
         {

@@ -44,6 +44,7 @@
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
         IChannelPointRedeemsRepository ChannelPointRedeems { get; }
         ITwitchEventsRepository TwitchEvents { get; }
+        IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
