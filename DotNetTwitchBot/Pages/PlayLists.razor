@@ -157,7 +157,7 @@
         }
         catch (TaskCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Please refresh or navigate to another page. If error persist check your browser version and for any OS updates.", Severity.Error);
+            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning("User lost connection to bot.");
         }
         catch (Exception ex)
