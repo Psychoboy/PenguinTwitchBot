@@ -109,6 +109,11 @@ else
         {
             await hubConnection.StartAsync();
         }
+        catch (TaskCanceledException)
+        {
+            Snackbar.Add("Lost connection to bot. Please refresh or navigate to another page. If error persist check your browser version and for any OS updates.", Severity.Error);
+            logger.LogWarning("User lost connection to bot.");
+        }
         catch (Exception ex)
         {
             Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
