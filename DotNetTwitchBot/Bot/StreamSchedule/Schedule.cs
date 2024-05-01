@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             if (result == null) return;
             var anyUpdates = false;
             var foundEvents = new List<ulong>();
-            foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7)))
+            foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7) || x.IsRecurring == false))
             {
                 if (stream.CanceledUntil != null) continue;
                 await using var scope = scopeFactory.CreateAsyncScope();
