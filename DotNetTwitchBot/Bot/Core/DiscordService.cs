@@ -17,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly DiscordSettings _settings;
+        private bool isReady = false;
 
         public DiscordService(
             CustomCommand customCommands,
@@ -357,6 +358,7 @@ namespace DotNetTwitchBot.Bot.Core
                     _logger.LogError(exception, "Error creating command");
                 }
             }
+            isReady = true;
             _logger.LogInformation("Discord Bot is ready.");
         }
 
@@ -380,11 +382,28 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private Task Connected()
+        private async Task Connected()
         {
             _logger.LogInformation("Discord Bot Connected.");
-
-            return Task.CompletedTask;
+            if (isReady)
+            {
+                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                await guild.DownloadUsersAsync(); //Load all users
+                var users = await guild.GetUsersAsync();
+                foreach (var user in users)
+                {
+                    var activities = user.Activities;
+                    if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                    {
+                        await UserStreaming(user, true);
+                    }
+                    else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
+                    {
+                        await UserStreaming(user, false);
+                        _logger.LogInformation("Removed live streaming role from user on reconnect.");
+                    }
+                }
+            }
         }
 
         private async Task Initialize(string? discordToken)
