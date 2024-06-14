@@ -344,20 +344,28 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    foreach (var subscriber in subscribers)
+                    foreach (var subscriber in subscribers.DistinctBy(x => x.UserLogin))
                     {
-                        var viewer = await GetViewer(subscriber.UserLogin);
-                        viewer ??= new Viewer
+                        try
                         {
-                            Username = subscriber.UserLogin,
-                            DisplayName = subscriber.UserName
-                        };
-                        if (viewer.isSub == false)
-                        {
-                            _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
+                            var viewer = await GetViewer(subscriber.UserLogin);
+                            viewer ??= new Viewer
+                            {
+                                Username = subscriber.UserLogin,
+                                DisplayName = subscriber.UserName
+                            };
+
+                            if (viewer.isSub == false)
+                            {
+                                _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
+                            }
+                            viewer.isSub = true;
+                            db.Viewers.Update(viewer);
                         }
-                        viewer.isSub = true;
-                        db.Viewers.Update(viewer);
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed updating subscription for {userlogin}", subscriber.UserLogin);
+                        }
                     }
                     await db.SaveChangesAsync();
                 }
