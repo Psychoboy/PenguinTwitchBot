@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             var streams = new List<ScheduledStream>();
             foreach (var stream in result.Segments)
             {
-                if (stream.CanceledUntil != null) continue;
+                if (stream.CanceledUntil.HasValue) continue;
                 streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
             }
             return streams;

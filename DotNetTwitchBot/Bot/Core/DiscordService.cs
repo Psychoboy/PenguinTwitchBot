@@ -312,6 +312,10 @@ namespace DotNetTwitchBot.Bot.Core
                 {
                     await UserStreaming(user, true);
                 }
+                else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
+                {
+                    await UserStreaming(user, false);
+                }
             }
             {
                 var guildCommand = new SlashCommandBuilder();
@@ -379,6 +383,7 @@ namespace DotNetTwitchBot.Bot.Core
         private Task Connected()
         {
             _logger.LogInformation("Discord Bot Connected.");
+
             return Task.CompletedTask;
         }
 

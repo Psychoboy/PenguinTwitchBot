@@ -377,11 +377,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        private Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
+        private async Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
             logger.LogDebug(e.Exception, "Websocket error occured: {message}", e.Message);
 
-            return ForceReconnect();
+            await ForceReconnect();
         }
 
         private Task OnWebsocketReconnected(object? sender, EventArgs e)
