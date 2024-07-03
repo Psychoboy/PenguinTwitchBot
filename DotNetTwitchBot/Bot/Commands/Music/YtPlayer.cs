@@ -5,6 +5,7 @@ using DotNetTwitchBot.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.Music
 {
@@ -18,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
+        private ConcurrentQueue<Song> UnplayedSongs = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
@@ -100,12 +102,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 return song.SongId;
             }
 
-
-            if (BackupPlaylist.Songs.Count == 0)
+            if (UnplayedSongs.IsEmpty)
             {
                 await LoadBackupList();
             }
-            var randomSong = BackupPlaylist.Songs.RandomElement();
+            if (UnplayedSongs.TryDequeue(out var randomSong) == false) return "";
             randomSong.RequestedBy = "DJ Waffle";
             LastSong = CurrentSong?.CreateDeepCopy();
             CurrentSong = randomSong.CreateDeepCopy();
@@ -136,6 +137,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         BackupPlaylist = playList;
                         await UpdateRequestedSongsState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+                        UpdateUnplayedSongs();
                         return;
                     }
                 }
@@ -146,6 +148,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         BackupPlaylist = playList;
                         await UpdateRequestedSongsState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+                        UpdateUnplayedSongs();
                         return;
                     }
                 }
@@ -157,6 +160,18 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             song = await GetSong("EAwWPadFsOA");
             if (song != null)
                 BackupPlaylist.Songs.Add(song);
+            UpdateUnplayedSongs();
+        }
+
+        private void UpdateUnplayedSongs()
+        {
+            var songList = BackupPlaylist.Songs.ToList();
+            songList.Shuffle();
+
+            foreach (var nextSong in songList)
+            {
+                UnplayedSongs.Enqueue(nextSong);
+            }
         }
 
         public async void UpdateState(int state)
