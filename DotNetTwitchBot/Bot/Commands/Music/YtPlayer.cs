@@ -283,6 +283,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await AddSongToRequests(song);
         }
 
+        public async Task AddSongToQueue(Song song)
+        {
+            if (song == null) return;
+            await AddSongToRequests(song);
+        }
+
         public async Task MoveSongToNext(string songId)
         {
             Song? song;
