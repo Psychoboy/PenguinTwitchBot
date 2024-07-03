@@ -110,8 +110,14 @@
                         <RowTemplate>
                             <MudTd DataLabel="Name">@context.Title</MudTd>
                             <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="Edit">
+                            <MudTd DataLabel="Queue">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           @onclick="() => QueueSong(context)">
+                                    Queue
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Remove">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
                                 @onclick="() => RemoveSong(context)">
                                     Remove</MudButton>
                             </MudTd>
@@ -183,7 +189,7 @@
                 _timer?.Dispose();
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
-        
+
         hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
         .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
 
@@ -236,6 +242,11 @@
     private async Task RemoveSong(Song song)
     {
         await YtPlayer.RemoveSong(song);
+    }
+
+    private async Task QueueSong(Song song)
+    {
+        await YtPlayer.AddSongToQueue(song);
     }
 
     private async Task RemoveSongRequest(Song song)
