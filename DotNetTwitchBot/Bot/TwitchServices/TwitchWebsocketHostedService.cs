@@ -445,19 +445,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 {
                     try
                     {
-                        await eventSubWebsocketClient.DisconnectAsync();
-                    } catch (Exception)
-                    {
-                        //ignore
-                    }
-                    try
-                    {
                         
                         if (await eventSubWebsocketClient.ConnectAsync()) return;
                     }
                     catch (Exception)
                     {
                         //Ignore
+                    }
+                    try
+                    {
+                        await eventSubWebsocketClient.DisconnectAsync();
+                    }
+                    catch (Exception)
+                    {
+                        //ignore
                     }
                     delayCounter *= 2;
                     if (delayCounter > 300)
