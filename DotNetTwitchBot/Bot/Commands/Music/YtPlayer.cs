@@ -16,6 +16,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly ILogger<YtPlayer> _logger;
         private readonly YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
+
+        public IGauge SongsInBackupQueueMetric { get; }
+
         private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
@@ -60,6 +63,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 ApplicationName = "DotNetBot"
             });
             SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
+            SongsInBackupQueueMetric = Prometheus.Metrics.CreateGauge("songs_in_backup_queue", "Songs in Backup Queue");
         }
 
         private void IncrementSong(Song? song)
@@ -107,6 +111,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await LoadBackupList();
             }
             if (UnplayedSongs.TryDequeue(out var randomSong) == false) return "";
+            SongsInBackupQueueMetric.DecTo(UnplayedSongs.Count);
             randomSong.RequestedBy = "DJ Waffle";
             LastSong = CurrentSong?.CreateDeepCopy();
             CurrentSong = randomSong.CreateDeepCopy();
@@ -172,6 +177,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 UnplayedSongs.Enqueue(nextSong);
             }
+            SongsInBackupQueueMetric.IncTo(UnplayedSongs.Count);
         }
 
         public async void UpdateState(int state)

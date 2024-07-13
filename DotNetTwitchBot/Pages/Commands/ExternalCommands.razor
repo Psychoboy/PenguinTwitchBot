@@ -64,7 +64,7 @@
                                          Variant="Variant.Text">
                         </MudNumericField>
 
-                        <MudCheckBox @bind-Checked="@externalCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudCheckBox @bind-Value="@externalCommand.Disabled" Label="Disabled?"></MudCheckBox>
                         <MudSelect @bind-Value="@externalCommand.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {

@@ -205,7 +205,7 @@
         parameter.Add(x => x.RewardId, reward.Id);
         var dialog = await DialogService.ShowAsync<ChannelPointsEdit>($"Edit {reward.Title}", parameter);
         var result = await dialog.Result;
-
+        if (result == null) return;
         if(!result.Canceled)
         {
             ChannelRewards = await GetAllChannelPoints();
