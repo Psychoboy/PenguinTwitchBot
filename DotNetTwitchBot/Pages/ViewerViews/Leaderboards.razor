@@ -8,7 +8,7 @@
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
         <MudItem sm="6">
-            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(PastieReload))"
+            <MudTable ServerData="PastieReload"
                       Dense="true" Hover="true" @ref="pastieTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Pasties</MudText>
@@ -38,7 +38,7 @@
             </MudTable>
         </MudItem>
         <MudItem sm="6">
-            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(TicketsReload))"
+            <MudTable ServerData="TicketsReload"
                       Dense="true" Hover="true" @ref="ticketsTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Tickets</MudText>
@@ -68,7 +68,7 @@
             </MudTable>
         </MudItem>
         <MudItem sm="6">
-            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(LoudestReload))"
+            <MudTable ServerData="LoudestReload"
                       Dense="true" Hover="true" @ref="loudestTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Loudest</MudText>
@@ -98,7 +98,7 @@
             </MudTable>
         </MudItem>
         <MudItem sm="6">
-            <MudTable ServerData="@(new Func<TableState, Task<TableData<LeaderPosition>>>(TimeReload))"
+            <MudTable ServerData="TimeReload"
                       Dense="true" Hover="true" @ref="timeTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Watched Time</MudText>
@@ -149,7 +149,7 @@
         
     }
 
-    private async Task<TableData<LeaderPosition>> PastieReload(TableState state)
+    private async Task<TableData<LeaderPosition>> PastieReload(TableState state, CancellationToken _)
     {
         var pageFilter = new PaginationFilter();
         pageFilter.Page = state.Page;
@@ -162,7 +162,7 @@
         return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    private async Task<TableData<LeaderPosition>> TicketsReload(TableState state)
+    private async Task<TableData<LeaderPosition>> TicketsReload(TableState state, CancellationToken _)
     {
         var pageFilter = new PaginationFilter();
         pageFilter.Page = state.Page;
@@ -175,7 +175,7 @@
         return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    private async Task<TableData<LeaderPosition>> LoudestReload(TableState state)
+    private async Task<TableData<LeaderPosition>> LoudestReload(TableState state, CancellationToken _)
     {
         var pageFilter = new PaginationFilter();
         pageFilter.Page = state.Page;
@@ -188,7 +188,7 @@
         return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    private async Task<TableData<LeaderPosition>> TimeReload(TableState state)
+    private async Task<TableData<LeaderPosition>> TimeReload(TableState state, CancellationToken _)
     {
         var pageFilter = new PaginationFilter();
         pageFilter.Page = state.Page;

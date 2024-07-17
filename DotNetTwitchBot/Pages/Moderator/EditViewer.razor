@@ -29,10 +29,10 @@ else
                             Variant="Variant.Text" />
                         <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
                         <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
-                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isSub" Label="Subscriber?" />
-                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isVip" Label="VIP?" />
-                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isMod" Label="Moderator?" />
-                        <MudCheckBox ReadOnly="true" @bind-Checked="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
+                        <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isSub" Label="Subscriber?" />
+                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isVip" Label="VIP?" />
+                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isMod" Label="Moderator?" />
+                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
                         <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
                         <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
                         <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
@@ -48,7 +48,7 @@ else
                 </MudPaper>
             </MudItem>
             <MudItem xs="12">
-                    <MudTable ServerData="@(new Func<TableState, Task<TableData<ViewerChatHistory>>>(MessagesReload))"
+                <MudTable ServerData="MessagesReload" 
                               Dense="true" Hover="true" @ref="messagesTable">
                         <ToolBarContent>
                             <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
@@ -130,7 +130,7 @@ else
         navigationManager.NavigateTo($"/viewers");
     }
 
-    private async Task<TableData<ViewerChatHistory>> MessagesReload(TableState state)
+    private async Task<TableData<ViewerChatHistory>> MessagesReload(TableState state, CancellationToken _)
     {
         var pageFilter = new Models.PaginationFilter();
         pageFilter.Page = state.Page;

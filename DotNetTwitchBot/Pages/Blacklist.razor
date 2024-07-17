@@ -49,7 +49,7 @@
                         <MudCardContent>
                             <MudTextField Label="Phrase" Required="true" RequiredError="Phrase is required"
                             @bind-Value="wordFilter.Phrase" />
-                            <MudCheckBox @bind-Checked="@wordFilter.IsRegex" Label="Is Regex?"></MudCheckBox>
+                            <MudCheckBox @bind-Value="@wordFilter.IsRegex" Label="Is Regex?"></MudCheckBox>
                             <MudTextField Label="Message" Required="true" RequiredError="Message is required"
                             @bind-Value="wordFilter.Message" />
                             <MudTextField Label="Ban Reason" Required="true" RequiredError="Ban Reason is required"
@@ -57,12 +57,12 @@
                             <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length"
                                 Variant="Variant.Text">
                             </MudNumericField>
-                            <MudCheckBox @bind-Checked="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
-                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?">
+                            <MudCheckBox @bind-Value="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
+                            <MudCheckBox @bind-Value="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?">
                             </MudCheckBox>
-                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?">
+                            <MudCheckBox @bind-Value="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?">
                             </MudCheckBox>
-                            <MudCheckBox @bind-Checked="@wordFilter.ExcludeVips" Label="Exclude Vips?"></MudCheckBox>
+                            <MudCheckBox @bind-Value="@wordFilter.ExcludeVips" Label="Exclude Vips?"></MudCheckBox>
 
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                                 Class="ml-auto">

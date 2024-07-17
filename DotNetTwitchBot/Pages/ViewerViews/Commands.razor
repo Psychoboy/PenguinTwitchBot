@@ -15,7 +15,7 @@
         <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Commands</MudText>
-                <MudChipSet SelectedChipsChanged="ChipsChanged" MultiSelection="true" Filter="true">
+                <MudChipSet T="string" SelectedValuesChanged="e => ChipsChanged(e)" SelectionMode="SelectionMode.MultiSelection" CheckMark=true>
                     <MudChip Text="Giveaway"></MudChip>
                     <MudChip Text="HFX"></MudChip>
                     <MudChip Text="Sounds"></MudChip>
@@ -51,11 +51,12 @@
 </MudContainer>
 
 
-    @code {
+@code {
     private List<CommandModel> originalCommands = new();
     private List<CommandModel> commands = new();
     private string searchString1 = "";
-    MudChip[]? selected;
+    //MudChip[]? selected;
+    private IReadOnlyCollection<string> _selected = [];
 
     public class CommandModel
     {
@@ -164,16 +165,16 @@
 
     }
 
-    private void ChipsChanged(MudChip[] chips)
+    private void ChipsChanged(IEnumerable<string> selected)
     {
-        selected = chips;
-        if(chips.Length == 0)
+        
+        if (selected.Count() == 0)
         {
             commands = originalCommands.OrderBy(x => x.Command).ToList();
             return;
         }
         commands = new();
-        if (chips.Where(x => x.Text.Equals("Giveaway")).Any())
+        if (selected.Where(x => x.Equals("Giveaway")).Any())
         {
             commands.AddRange(originalCommands.Where(x => 
                 x.Category.Contains("Giveaway") ||
@@ -186,15 +187,15 @@
                 x.Category.Contains("Waffle")
             ));
         }
-        if (chips.Where(x => x.Text.Equals("HFX")).Any())
+        if (selected.Where(x => x.Equals("HFX")).Any())
         {
             commands.AddRange(originalCommands.Where(x => x.Category.Equals("HFX")));
         }
-        if (chips.Where(x => x.Text.Equals("Sounds")).Any())
+        if (selected.Where(x => x.Equals("Sounds")).Any())
         {
             commands.AddRange(originalCommands.Where(x => x.Category.Equals("Sounds")));
         }
-        if(chips.Where(x => x.Text.Equals("Ticket Games")).Any())
+        if (selected.Where(x => x.Equals("Ticket Games")).Any())
         {
             commands.AddRange(originalCommands.Where(x =>
                 x.Category.Contains("Bacon") ||
@@ -206,7 +207,7 @@
                 x.Category.Contains("Ticket Games")
             ));
         }
-        if (chips.Where(x => x.Text.Equals("Pasties & Games")).Any())
+        if (selected.Where(x => x.Equals("Pasties & Games")).Any())
         {
             commands.AddRange(originalCommands.Where(x => 
                  x.Category.Contains("Pastie") ||
