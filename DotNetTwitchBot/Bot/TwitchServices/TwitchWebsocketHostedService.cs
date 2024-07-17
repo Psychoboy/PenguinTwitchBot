@@ -416,16 +416,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     }
                     delayCounter *= 2;
                     attempts++;
-                    if (attempts > 5) break;
+                    if (attempts > 3) break;
                     if (delayCounter > 60) delayCounter = 60;
                     logger.LogError("Twitch Websocket reconnection failed! Attempting again in {delayCounter} seconds.", delayCounter);
                     await Task.Delay(delayCounter * 1000, cts.Token);
                     if (cts.IsCancellationRequested) break;
                 }
-                if (attempts > 5)
-                {
-                    await Reconnect();
-                }
+                Reconnecting = false;
+                await Reconnect();
             }
             catch (Exception ex)
             {
