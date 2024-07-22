@@ -14,10 +14,12 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             {
                 return [];
             }
+            var vacation = result.Vacation;
             var streams = new List<ScheduledStream>();
             foreach (var stream in result.Segments)
             {
                 if (stream.CanceledUntil.HasValue) continue;
+                if(vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
                 streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
             }
             return streams;
@@ -29,9 +31,11 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             if (result == null) return;
             var anyUpdates = false;
             var foundEvents = new List<ulong>();
+            var vacation = result.Vacation;
             foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7) || x.IsRecurring == false))
             {
                 if (stream.CanceledUntil != null) continue;
+                if (vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var twitchDiscordEvent = await db.DiscordTwitchEventMap.Find(x => x.TwitchEventId.Equals(stream.Id)).FirstOrDefaultAsync();
