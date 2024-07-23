@@ -31,7 +31,7 @@
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.6.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
-	<PackageReference Include="MediatR" Version="12.3.0" />
+	<PackageReference Include="MediatR" Version="12.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.7" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.7">
