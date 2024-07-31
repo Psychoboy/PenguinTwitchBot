@@ -34,6 +34,7 @@ else
                             <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isMod" Label="Moderator?" />
                             <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
                         <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
+                            <MudTextField @bind-Value="viewer.DateCreated" Label="Account Created" ReadOnly="true" Variant="Variant.Text" />
                         <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
                         <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
                         <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
@@ -82,7 +83,6 @@ else
 
     private MudTable<ViewerChatHistory>? messagesTable;
 
-    // private DotNetTwitchBot.Bot.Models.Viewer? viewer { get; set; }
     private ViewViewer viewer { get; set; } = new();
     private string username { get; set; } = "";
     public class ViewViewer
@@ -90,6 +90,7 @@ else
         public DotNetTwitchBot.Bot.Models.Viewer? Viewer { get; set; }
         public DateTime FollowDated { get; set; }
         public DateTime? LastSub { get; set; }
+        public DateTime? DateCreated { get; set; }
         public ViewerMessageCountWithRank? Messages { get; set; }
         public ViewerPointWithRank? Pasties { get; set; }
         public ViewerTicketWithRanks? Tickets { get; set; }
@@ -113,6 +114,7 @@ else
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
             viewer.Pasties = await loyaltyFeature.GetUserPastiesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
+            viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
             if(viewer.Time != null)
             {
                 viewer.WatchedTime = Tools.ConvertToCompoundDuration((long)viewer.Time.Time);

@@ -9,6 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<string> GetDisplayName(string username);
         Task<Follower?> GetFollowerAsync(string username);
         Task<string> GetNameWithTitle(string username);
+        Task<DateTime?> GetUserCreatedAsync(string username);
         Task<Viewer?> GetViewer(int id);
         Task<Viewer?> GetViewer(string username);
         Task<bool> IsFollower(string username);

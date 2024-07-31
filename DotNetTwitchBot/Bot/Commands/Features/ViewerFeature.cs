@@ -199,6 +199,24 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return follower;
         }
 
+        public async Task<DateTime?> GetUserCreatedAsync(string username)
+        {
+            DateTime? dateCreated = null;
+            try
+            {
+                var user = await _twitchService.GetUser(username);
+                if (user != null)
+                {
+                    dateCreated = user.CreatedAt;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error getting user");
+            }
+            return dateCreated;
+        }
+
         public List<string> GetActiveViewers()
         {
             var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
