@@ -59,7 +59,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
-    <PackageReference Include="MudBlazor" Version="7.4.0" />
+    <PackageReference Include="MudBlazor" Version="7.6.0" />
   </ItemGroup>
 
   <ItemGroup>
