@@ -333,17 +333,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                 }
 
-                var result = await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
-                if (result)
+                await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
+                if (Commands[e.Command].GlobalCooldown > 0)
                 {
-                    if (Commands[e.Command].GlobalCooldown > 0)
-                    {
-                        CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
-                    }
-                    if (Commands[e.Command].UserCooldown > 0)
-                    {
-                        CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
-                    }
+                    CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                }
+                if (Commands[e.Command].UserCooldown > 0)
+                {
+                    CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
                 }
             }
             finally
@@ -509,7 +506,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
         }
 
-        private async Task<bool> ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText, bool respondAsStreamer)
+        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText, bool respondAsStreamer)
         {
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
@@ -518,7 +515,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (string.IsNullOrWhiteSpace(message)) continue;
 
                 var result = await ProcessTags(eventArgs, message);
-                if (result.Cancel) return false;
+                if (result.Cancel) throw new SkipCooldownException();
 
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
@@ -533,7 +530,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                 }
             }
-            return true;
         }
 
 
