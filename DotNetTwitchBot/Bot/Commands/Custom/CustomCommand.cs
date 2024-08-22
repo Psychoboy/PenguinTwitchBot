@@ -314,9 +314,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             try
             {
-                if (await _semaphoreSlim.WaitAsync(500) == false)
+                if (false == e.SkipLock)
                 {
-                    _logger.LogWarning("CustomCommand Lock expired while waiting...");
+                    if (await _semaphoreSlim.WaitAsync(500) == false)
+                    {
+                        _logger.LogWarning("CustomCommand Lock expired while waiting...");
+                    }
                 }
 
                 var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
@@ -330,6 +333,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                 }
 
+                await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
                 if (Commands[e.Command].GlobalCooldown > 0)
                 {
                     CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
@@ -341,10 +345,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             }
             finally
             {
-                _semaphoreSlim.Release();
+                if (false == e.SkipLock)
+                {
+                    _semaphoreSlim.Release();
+                }
             }
 
-            await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
+            
         }
 
         public override async Task Register()
@@ -508,7 +515,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (string.IsNullOrWhiteSpace(message)) continue;
 
                 var result = await ProcessTags(eventArgs, message);
-                if (result.Cancel) return;
+                if (result.Cancel) throw new SkipCooldownException();
 
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
