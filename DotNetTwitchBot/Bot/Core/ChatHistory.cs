@@ -10,13 +10,13 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly IServiceBackbone _serviceBackbone = serviceBackbone;
         private readonly ILogger<ChatHistory> _logger = logger;
 
-        public async Task<PagedDataResponse<ViewerChatHistory>> GetViewerChatMessages(PaginationFilter filter)
+        public async Task<PagedDataResponse<ViewerChatHistory>> GetViewerChatMessages(PaginationFilter filter, bool includeCommands)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var validFilter = new PaginationFilter(filter.Page, filter.Count);
             var pagedData = await unitOfWork.ViewerChatHistories.GetAsync(
-                filter: x => x.Username.Equals(filter.Filter),
+                filter: includeCommands ? x => x.Username.Equals(filter.Filter) : x => x.Username.Equals(filter.Filter) && x.Message.StartsWith("!") == false,
                 orderBy: a => a.OrderByDescending(b => b.CreatedAt),
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count

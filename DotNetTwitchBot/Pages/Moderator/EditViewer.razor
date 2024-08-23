@@ -53,6 +53,7 @@ else
                               Dense="true" Hover="true" @ref="messagesTable">
                         <ToolBarContent>
                             <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
+                        <MudCheckBox Label="Include Commands?" Value="includeCommands" @onclick="CommandsViewChange" />
                         </ToolBarContent>
                         <HeaderContent>
                             <MudTh>Date</MudTh>
@@ -85,6 +86,9 @@ else
 
     private ViewViewer viewer { get; set; } = new();
     private string username { get; set; } = "";
+    private bool includeCommands { get; set; } = false;
+
+    private EventCallback<bool> CommandsViewChanged { get; set; }
     public class ViewViewer
     {
         public DotNetTwitchBot.Bot.Models.Viewer? Viewer { get; set; }
@@ -125,6 +129,17 @@ else
         StateHasChanged();
     }
 
+
+    private async Task CommandsViewChange()
+    {
+        includeCommands = !includeCommands;
+        if (messagesTable != null)
+        {
+            await messagesTable.ReloadServerData();
+        }
+        StateHasChanged();
+    }
+
     public async void OnSubmit()
     {
         if (viewer.Viewer == null) return;
@@ -138,7 +153,12 @@ else
         pageFilter.Page = state.Page;
         pageFilter.Count = state.PageSize;
         pageFilter.Filter = username;
-        var response = await chatHistory.GetViewerChatMessages(pageFilter);
+        var response = await chatHistory.GetViewerChatMessages(pageFilter, includeCommands);
         return new TableData<ViewerChatHistory>() { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+    public class CommandsConverter : BoolConverter<bool>
+    {
+        
     }
 }
