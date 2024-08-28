@@ -10,5 +10,7 @@ namespace DotNetTwitchBot.Bot.Models.Giveaway
         public string Prize { get; set; } = "";
         public string PrizeTier { get; set; } = "";
         public bool IsFollowing { get; set; }
+        public string Email { get; set; } = "";
+        public string ClaimedBy { get; set; } = "";
     }
 }
