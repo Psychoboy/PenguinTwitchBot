@@ -1,0 +1,68 @@
+﻿@page "/giveawayhistory"
+@using DotNetTwitchBot.Bot.Models.Giveaway
+@attribute [Authorize(Roles = "Streamer")]
+
+<PageTitle>SPTV Twitch Bot - Giveaway History</PageTitle>
+
+<style>
+    .mud-contrast-text {
+        color: var(--mud-palette-white);
+    }
+</style>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    @if (pastWinners == null)
+    {
+        <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+    }
+    else
+    {
+        <MudPaper>
+            <MudText Typo="Typo.h3">Past Winners</MudText>
+            <MudTable Items="@pastWinners" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted" SortLabel="Sort By">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Username)">Name</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Prize)">Prize</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.WinningDate)">Date</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.PrizeTier)">Tier</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Email)">Email</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.ClaimedBy)">Claimed By</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Username</MudTd>
+                    <MudTd DataLabel="Prize">@context.Prize</MudTd>
+                    <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+                    <MudTd DataLabel="Tier">@context.PrizeTier</MudTd>
+                    <MudTd DataLabel="Email">@context.Email</MudTd>
+                    <MudTd DataLabel="ClaimedBy">@context.ClaimedBy</MudTd>
+                </RowTemplate>
+                <RowEditingTemplate>
+                    <MudTd DataLabel="Name">@context.Username</MudTd>
+                    <MudTd DataLabel="Prize"><MudTextField @bind-Value="context.Prize" /></MudTd>
+                    <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
+                    <MudTd DataLabel="Tier"><MudTextField @bind-Value="context.PrizeTier" /></MudTd>
+                    <MudTd DataLabel="Email"><MudTextField @bind-Value="context.Email" /></MudTd>
+                    <MudTd DataLabel="ClaimedBy"><MudTextField @bind-Value="context.ClaimedBy" /></MudTd>
+
+                </RowEditingTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private List<Bot.Models.Giveaway.GiveawayWinner>? pastWinners;
+    [Inject]
+    private DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature giveawayFeature { get; set; } = default!;
+    protected override async Task OnInitializedAsync()
+    {
+        pastWinners = await giveawayFeature.PastWinners();
+
+    }
+
+    private async void ItemHasBeenCommitted(object element)
+    {
+        var winner = (Bot.Models.Giveaway.GiveawayWinner)element;
+        await giveawayFeature.UpdateWinner(winner);
+    }
+}

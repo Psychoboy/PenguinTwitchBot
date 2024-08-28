@@ -356,6 +356,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             await _hubContext.Clients.All.SendAsync("Winners", Winners);
         }
+
+        public async Task UpdateWinner(GiveawayWinner winner)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.GiveawayWinners.Update(winner);
+            await db.SaveChangesAsync();
+
+        }
         private async Task Enter(string sender, string amount)
         {
             await Enter(sender, amount, false);
