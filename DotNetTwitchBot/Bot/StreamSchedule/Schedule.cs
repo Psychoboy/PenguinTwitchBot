@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             foreach (var stream in result.Segments)
             {
                 if (stream.CanceledUntil.HasValue) continue;
-                if(vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
+                if(vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
                 streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
             }
             return streams;
