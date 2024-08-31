@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Commands.Shoutout;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -10,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ShoutoutSystem> _logger;
+        private readonly IClipService _clipService;
         private readonly DateTime LastShoutOut = DateTime.Now;
         private readonly Dictionary<string, DateTime> UserLastShoutout = [];
 
@@ -18,12 +20,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IClipService clipService
             ) : base(serviceBackbone, commandHandler, "ShoutoutSystem")
         {
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;
             _logger = logger;
+            _clipService = clipService;
         }
 
         public async Task<List<AutoShoutout>> GetAutoShoutoutsAsync()
@@ -68,11 +72,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             if (autoShoutout != null)
             {
-                await Shoutout(name);
+                await Shoutout(name, false);
             }
         }
 
-        private async Task Shoutout(string name)
+        private async Task Shoutout(string name, bool playClip)
         {
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -97,8 +101,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             message = message.Replace("(name)", name).Replace("(game)", game);
             await ServiceBackbone.SendChatMessage(message);
-
+            await _clipService.PlayRandomClipForStreamer(name);
             await TwitchShoutOut(userId);
+            
         }
 
 
@@ -162,7 +167,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     {
                         throw new SkipCooldownException();
                     }
-                    await Shoutout(e.TargetUser);
+                    await Shoutout(e.TargetUser, true);
                     break;
             }
         }

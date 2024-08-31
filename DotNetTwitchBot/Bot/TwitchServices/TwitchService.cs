@@ -687,6 +687,68 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetClips(string user)
+        {
+            var userId = await GetUserId(user);
+            try
+            {
+                var result = await _twitchApi.Helix.Clips.GetClipsAsync(null, null, userId, null, null, null, null, null, 100, _configuration["twitchAccessToken"]);
+                return [.. result.Clips];
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing GetClips: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetClips(): {error}", error);
+            }
+            return [];
+        }
+
+        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetFeaturedClips(string user)
+        {
+            var userId = await GetUserId(user);
+            try
+            {
+                var result = await _twitchApi.Helix.Clips.GetClipsAsync(null, null, userId, null, null, null, null, true, 100, _configuration["twitchAccessToken"]);
+                return [.. result.Clips];
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing GetFeaturedClips: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetFeaturedClips(): {error}", error);
+            }
+            return [];
+        }
+
+        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetClip(string clipId)
+        {
+            try
+            {
+                var result = await _twitchApi.Helix.Clips.GetClipsAsync([clipId], null, null, null, null, null, null, null, 1, _configuration["twitchAccessToken"]);
+                return [.. result.Clips];
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing GetFeaturedClips: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetFeaturedClips(): {error}", error);
+            }
+            return [];
+        }
+
         public async Task TimeoutUser(string name, int length, string reason)
         {
             var broadcasterId = await GetBroadcasterUserId();

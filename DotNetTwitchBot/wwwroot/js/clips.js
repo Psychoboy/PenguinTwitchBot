@@ -1,4 +1,4 @@
-isDebug = true;
+﻿isDebug = true;
 let audioFormats = {
     maybe: [],
     probably: []
@@ -93,16 +93,16 @@ async function handleQueue() {
                 isPlaying = true;
                 lastPlaying = Date.now();
 
-                if (event.alert_image !== undefined) {
-                    handleGifAlert(event);
-                } else if (event.audio_panel_hook !== undefined) {
-                    handleAudioHook(event);
+                if (event.clip !== undefined) {
+                    handleClipAlert(event);
+                } else if (event.stopclip !== undefined) {
+                    handleStopClip();
                 } else {
                     isPlaying = false;
                 }
             } else {
                 lastPlayingInSeconds = Math.floor((Date.now() - lastPlaying) / 1000);
-                if (lastPlayingInSeconds > 60) {
+                if (lastPlayingInSeconds > 180) {
                     printDebug('isPlaying is stuck, resetting');
                     isPlaying = false;
                 }
@@ -308,9 +308,7 @@ async function handleClipAlert(json) {
     } else { return; }
 
     htmlObj = $('<iframe/>', {
-        'src': clipUrl,
-        'height': 480,
-        'width': 854
+        'src': clipUrl
     });
     htmlObj.attr('height', 480);
     htmlObj.attr('width', 854);

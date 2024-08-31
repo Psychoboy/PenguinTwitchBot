@@ -2,6 +2,7 @@
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Schedule;
 using TwitchLib.Api.Helix.Models.Subscriptions;
@@ -47,5 +48,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         void SetAccessToken(string accessToken);
         Task SendMessage(string message);
         Task<ChannelStreamSchedule?> GetStreamSchedule();
+        Task<List<Clip>> GetFeaturedClips(string user);
+        Task<List<Clip>> GetClips(string user);
+        Task<List<Clip>> GetClip(string clipId);
     }
 }

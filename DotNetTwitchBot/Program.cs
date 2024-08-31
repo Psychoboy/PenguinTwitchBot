@@ -111,6 +111,8 @@ internal class Program
             q => q.WaitForJobsToComplete = true
         );
 
+        //builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
+
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
