@@ -88,7 +88,7 @@ async function handleQueue() {
     try {
         while (queue.length > 0) {
             let event = queue[0];
-            if (isPlaying === false) {
+            if (isPlaying === false || event.stopclip !== undefined) {
                 await sleep(100);
                 isPlaying = true;
                 lastPlaying = Date.now();
@@ -97,6 +97,10 @@ async function handleQueue() {
                     handleGifAlert(event);
                 } else if (event.audio_panel_hook !== undefined) {
                     handleAudioHook(event);
+                } else if (event.clip !== undefined) {
+                    handleClipAlert(event);
+                } else if (event.stopclip !== undefined) {
+                    handleStopClip();
                 } else {
                     console.log('Something bad happened 100');
                     isPlaying = false;
@@ -287,6 +291,46 @@ async function handleGifAlert(json) {
             isPlaying = false;
         });
 
+}
+
+async function handleClipAlert(json) {
+    let clipData = json.clip,
+        clipDuration = 30,
+        clipUrl = '',
+        htmlObj,
+        clipVolume = '0.8';
+
+    if (clipData.indexOf(',') !== -1) {
+        let clipSettingsParts = clipData.split(',');
+        clipSettingsParts.forEach(function (value, index) {
+            switch (index) {
+                case 0:
+                    clipUrl = value + "&parent=localhost&autoplay=true"
+                case 1:
+                    clipDuration = (parseInt(value) * 1000);
+            }
+        });
+    } else { return; }
+
+    htmlObj = $('<iframe/>', {
+        'src': clipUrl,
+        'height': 480,
+        'width': 854
+    });
+    htmlObj.attr('height', 480);
+    htmlObj.attr('width', 854);
+    htmlObj.attr('id', 'clipplayer');
+
+    $('#alert').append(htmlObj).fadeIn(1e2, async function () { })
+        .delay(clipDuration).fadeOut(1e2, function () {
+            let t = $(this);
+            t.find("iframe").remove();
+        });
+    isPlaying = false;
+}
+
+function handleStopClip() {
+    $("#clipplayer").remove();
 }
 
 function getAudioFile(name, path) {

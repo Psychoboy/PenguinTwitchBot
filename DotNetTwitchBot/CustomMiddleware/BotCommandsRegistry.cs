@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
+using DotNetTwitchBot.Bot.Commands.Shoutout;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
@@ -78,6 +79,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.TwitchEvents.ITwitchEventsService, Bot.Commands.TwitchEvents.TwitchEventsService>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
+            services.AddHostedApiService<IClipService, ClipService>();
 
 
             RegisterCommandServices(services);
