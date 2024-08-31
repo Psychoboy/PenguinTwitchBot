@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7) || x.IsRecurring == false))
             {
                 if (stream.CanceledUntil != null) continue;
-                if (vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
+                if (vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var twitchDiscordEvent = await db.DiscordTwitchEventMap.Find(x => x.TwitchEventId.Equals(stream.Id)).FirstOrDefaultAsync();
