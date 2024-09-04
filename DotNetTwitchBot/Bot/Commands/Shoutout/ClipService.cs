@@ -18,6 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         IMediator mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
     {
+        public HttpClient Client { get; private set; }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommand(e.Command);
@@ -55,13 +57,32 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
             } 
         }
 
-        private async Task PlayRandomClip(List<Clip> featuredClips)
+        private async Task PlayRandomClip(List<Clip> clips)
         {
-            var clip = featuredClips.RandomElement();
+            var clip = clips.RandomElement();
+            await PlayClip(clip);
+        }
+        private async Task PlayClip(Clip clip)
+        {
+            if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
+            {
+                var thumbUrl = clip.ThumbnailUrl;
+                var thumbParts = thumbUrl.Split("-preview");
+                var mp4Url = new Uri(thumbParts[0] + ".mp4");
+                var response = await Client.GetAsync(mp4Url);
+                if (!Directory.Exists("wwwroot/clips/")) Directory.CreateDirectory("wwwroot/clips/");
+
+                using (var fs = File.OpenWrite("wwwroot/clips/" + clip.Id + ".mp4"))
+                {
+                    await response.Content.CopyToAsync(fs);
+                }
+            }
+
+
             var playClip = new ClipAlert
             {
-                Duration = (int)Math.Ceiling(clip.Duration),
-                ClipUrl = clip.EmbedUrl
+                ClipFile = clip.Id + ".mp4",
+                Duration = clip.Duration
             };
             await mediator.Publish(new QueueAlert(playClip.Generate()));
         }
@@ -81,12 +102,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                 var clips = await twitchService.GetClip(id);
                 if (clips == null || clips.Count == 0) return;
                 var clip = clips.First();
-                var playClip = new ClipAlert
-                {
-                    Duration = (int)Math.Ceiling(clip.Duration),
-                    ClipUrl = clip.EmbedUrl
-                };
-                await mediator.Publish(new QueueAlert(playClip.Generate()));
+                await PlayClip(clip);
 
             }
             catch (Exception ex)
@@ -102,9 +118,11 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
             logger.LogInformation("Registered commands for {moduleName}", ModuleName);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return Register();
+            Client = new HttpClient();
+            await PlayRandomClipForStreamer("thornbergmedia");
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
