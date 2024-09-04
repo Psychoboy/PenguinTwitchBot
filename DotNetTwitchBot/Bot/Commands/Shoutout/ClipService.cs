@@ -121,7 +121,6 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             Client = new HttpClient();
-            await PlayRandomClipForStreamer("thornbergmedia");
             await Register();
         }
 
