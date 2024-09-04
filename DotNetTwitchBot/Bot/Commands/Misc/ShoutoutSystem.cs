@@ -101,7 +101,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             message = message.Replace("(name)", name).Replace("(game)", game);
             await ServiceBackbone.SendChatMessage(message);
-            await _clipService.PlayRandomClipForStreamer(name);
+            if(playClip) await _clipService.PlayRandomClipForStreamer(name);
+            
             await TwitchShoutOut(userId);
             
         }

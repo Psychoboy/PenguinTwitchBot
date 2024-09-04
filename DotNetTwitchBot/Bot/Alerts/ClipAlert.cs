@@ -2,12 +2,12 @@
 {
     public class ClipAlert : BaseAlert
     {
-        public int Duration { get; set; }
-        public string ClipUrl { get; set; } = "";
+        public float Duration { get; set; }
+        public string ClipFile { get; set; } = "";
 
         public override string Generate()
         {
-            return string.Format("{{\"clip\":\"{0}, {1}\"}}", ClipUrl, Duration);
+            return string.Format("{{\"clip\":\"{0}, {1}\"}}", ClipFile, Duration);
         }
 
         public override string Generate(string fullConfig)

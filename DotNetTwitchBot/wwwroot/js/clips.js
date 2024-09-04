@@ -94,7 +94,7 @@ async function handleQueue() {
                 lastPlaying = Date.now();
 
                 if (event.clip !== undefined) {
-                    handleClipAlert(event);
+                    handleGifAlert(event);
                 } else if (event.stopclip !== undefined) {
                     handleStopClip();
                 } else {
@@ -121,8 +121,8 @@ async function handleQueue() {
 
 async function handleGifAlert(json) {
     // Make sure we can allow alerts.
-    let defaultPath = '/gifs/',
-        gifData = json.alert_image,
+    let defaultPath = '/clips/',
+        gifData = json.clip,
         gifDuration = 3000,
         gifVolume = '0.8',
         gifFile = '',
@@ -169,7 +169,9 @@ async function handleGifAlert(json) {
         htmlObj = $('<video/>', {
             'src': defaultPath + gifFile,
             'style': gifCss,
-            'preload': 'auto'
+            'preload': 'auto',
+            'width': 854,
+            'height': 480
         });
 
         htmlObj.prop('volume', gifVolume);

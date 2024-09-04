@@ -5,7 +5,10 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using System.Diagnostics;
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
 namespace DotNetTwitchBot.Bot.Commands.Shoutout
@@ -18,6 +21,8 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         IMediator mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
     {
+        public HttpClient Client { get; private set; }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommand(e.Command);
@@ -55,23 +60,46 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
             } 
         }
 
-        private async Task PlayRandomClip(List<Clip> featuredClips)
+        private async Task PlayRandomClip(List<Clip> clips)
         {
-            var clip = featuredClips.RandomElement();
+            var clip = clips.RandomElement();
+            await PlayClip(clip);
+        }
+        private async Task PlayClip(Clip clip)
+        {
+            if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
+            {
+ 
+
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "youtube-dl.exe",
+                        Arguments = "-o wwwroot/clips/" + clip.Id + ".mp4 " + clip.Url
+                    }
+                };
+
+                process.Start();
+                process.WaitForExit();
+            }
+
+
             var playClip = new ClipAlert
             {
-                Duration = (int)Math.Ceiling(clip.Duration),
-                ClipUrl = clip.EmbedUrl
+                ClipFile = clip.Id + ".mp4",
+                Duration = clip.Duration
             };
             await mediator.Publish(new QueueAlert(playClip.Generate()));
         }
 
         private async Task WatchRequestedClip(CommandEventArgs e)
         {
-            if (string.IsNullOrEmpty(e.Arg)) return;
+            var args = Regex.Replace(e.Arg.Trim(), @"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]", "");
+            if (string.IsNullOrEmpty(args.Trim())) return;
             try
             {
-                var url = new Uri(e.Arg);
+                var url = new Uri(args.Trim());
                 if (url.Segments.Length != 4)
                 {
                     logger.LogWarning("Not complete segments for !watch. {arg} was used.", e.Arg);
@@ -81,12 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                 var clips = await twitchService.GetClip(id);
                 if (clips == null || clips.Count == 0) return;
                 var clip = clips.First();
-                var playClip = new ClipAlert
-                {
-                    Duration = (int)Math.Ceiling(clip.Duration),
-                    ClipUrl = clip.EmbedUrl
-                };
-                await mediator.Publish(new QueueAlert(playClip.Generate()));
+                await PlayClip(clip);
 
             }
             catch (Exception ex)
@@ -102,9 +125,10 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
             logger.LogInformation("Registered commands for {moduleName}", ModuleName);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return Register();
+            Client = new HttpClient();
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
