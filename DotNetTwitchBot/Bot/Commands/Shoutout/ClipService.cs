@@ -5,7 +5,10 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using System.Diagnostics;
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
 namespace DotNetTwitchBot.Bot.Commands.Shoutout
@@ -66,16 +69,19 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         {
             if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
             {
-                var thumbUrl = clip.ThumbnailUrl;
-                var thumbParts = thumbUrl.Split("-preview");
-                var mp4Url = new Uri(thumbParts[0] + ".mp4");
-                var response = await Client.GetAsync(mp4Url);
-                if (!Directory.Exists("wwwroot/clips/")) Directory.CreateDirectory("wwwroot/clips/");
+ 
 
-                using (var fs = File.OpenWrite("wwwroot/clips/" + clip.Id + ".mp4"))
+                var process = new Process
                 {
-                    await response.Content.CopyToAsync(fs);
-                }
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = "youtube-dl.exe",
+                        Arguments = "-o wwwroot/clips/" + clip.Id + ".mp4 " + clip.Url
+                    }
+                };
+
+                process.Start();
+                process.WaitForExit();
             }
 
 
@@ -89,10 +95,11 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
 
         private async Task WatchRequestedClip(CommandEventArgs e)
         {
-            if (string.IsNullOrEmpty(e.Arg)) return;
+            var args = Regex.Replace(e.Arg.Trim(), @"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]", "");
+            if (string.IsNullOrEmpty(args.Trim())) return;
             try
             {
-                var url = new Uri(e.Arg);
+                var url = new Uri(args.Trim());
                 if (url.Segments.Length != 4)
                 {
                     logger.LogWarning("Not complete segments for !watch. {arg} was used.", e.Arg);
