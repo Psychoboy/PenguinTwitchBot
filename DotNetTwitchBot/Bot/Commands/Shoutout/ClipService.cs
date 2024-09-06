@@ -131,17 +131,18 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
 
         private async Task WatchRequestedClip(CommandEventArgs e)
         {
-            var args = Regex.Replace(e.Arg.Trim(), @"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]", "");
-            if (string.IsNullOrEmpty(args.Trim())) return;
+            if (e.Args.Count == 0) return;
+            var arg = Regex.Replace(e.Args.First().Trim(), @"[\u0000-\u0008\u000A-\u001F\u0100-\uFFFF]", "");
+            if (string.IsNullOrEmpty(arg)) return;
             try
             {
-                var url = new Uri(args.Trim());
-                if (url.Segments.Length != 4)
+                if(!arg.StartsWith("https://twitch.tv/") && !arg.StartsWith("https://www.twitch.tv/") && !arg.StartsWith("https://clips.twitch.tv/"))
                 {
-                    logger.LogWarning("Not complete segments for !watch. {arg} was used.", e.Arg);
+                    logger.LogWarning("Invalid twitch clip URL");
                     return;
                 }
-                var id = url.Segments[3];
+
+                var id = arg.Split('/').Last();
                 var clips = await twitchService.GetClip(id);
                 if (clips == null || clips.Count == 0) return;
                 var clip = clips.First();
