@@ -300,7 +300,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             try
             {
-                var winningTicket = Tickets.RandomElement(_logger);
+                var winningTicket = Tickets.RandomElementOrDefault(_logger);
                 var viewer = await _viewerFeature.GetViewer(winningTicket);
                 var isFollower = await _viewerFeature.IsFollower(winningTicket);
                 var prize = await GetPrize();

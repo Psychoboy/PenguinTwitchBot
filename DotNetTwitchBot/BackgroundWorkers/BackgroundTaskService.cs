@@ -1,18 +1,12 @@
 ﻿namespace DotNetTwitchBot.BackgroundWorkers
 {
-    public class BackgroundTaskService : BackgroundService
+    public class BackgroundTaskService(IBackgroundTaskQueue taskQueue, ILogger<BackgroundTaskService> logger) : BackgroundService
     {
-        private readonly IBackgroundTaskQueue _taskQueue;
-        public BackgroundTaskService(IBackgroundTaskQueue taskQueue)
-        {
-            _taskQueue = taskQueue;
-        }
-
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var workItem = await _taskQueue.DequeueAsync(stoppingToken);
+                var workItem = await taskQueue.DequeueAsync(stoppingToken);
 
                 try
                 {
@@ -21,9 +15,9 @@
                         await workItem(stoppingToken);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Log the exception if necessary
+                    logger.LogError(ex, "Error processing background Queue.");
                 }
             }
         }

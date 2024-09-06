@@ -8,14 +8,14 @@ namespace DotNetTwitchBot.Extensions
 {
     public static class IEnumerableExtensions
     {
-        public static T RandomElement<T>(this IEnumerable<T> list)
+        public static T RandomElementOrDefault<T>(this IEnumerable<T> list)
         {
-            return list.RandomElement(null);
+            return list.RandomElementOrDefault(null);
         }
-        public static T RandomElement<T>(this IEnumerable<T> list, ILogger? logger)
+        public static T RandomElementOrDefault<T>(this IEnumerable<T> list, ILogger? logger)
         {
 #pragma warning disable CS8603 //disable the possible null warning
-            if (list.Count() == 0) return default;
+            if (!list.Any()) return default;
 #pragma warning restore CS8603
             var elementNum = RandomNumberGenerator.GetInt32(list.Count());
             logger?.LogInformation("Got ElementNum: {0} from total: {1}", elementNum, list.Count());
