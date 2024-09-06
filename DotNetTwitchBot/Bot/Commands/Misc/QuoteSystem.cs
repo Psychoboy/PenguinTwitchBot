@@ -140,7 +140,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                quote = db.FilteredQuotes.Find(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElement();
+                quote = db.FilteredQuotes.Find(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam)).RandomElementOrDefault();
             }
 
 
@@ -148,7 +148,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                quote = (await db.FilteredQuotes.GetAllAsync()).RandomElement();
+                quote = (await db.FilteredQuotes.GetAllAsync()).RandomElementOrDefault();
             }
             if (quote != null)
             {

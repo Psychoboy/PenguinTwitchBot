@@ -4,34 +4,90 @@
     <meta charset="utf-8" />
     <title></title>
     <style>
+        :root {
+            --video-width: 1000px;
+            --avatar-width: 200px;
+            --game-width: 100px;
+            --text-color: #fff;
+            --background-color: #000;
+        }
+
+        img {
+            display: block;
+        }
+
+        html,
         body {
-            background-color: transparent;
-        }
-
-        #main-video-clips {
-            text-align: center;
-        }
-
-        .main-alert {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .main-text-alert {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #main-emotes {
-            position: absolute;
-            left: 0;
-            top: 0;
-            overflow: hidden;
-            width: 100%;
             height: 100%;
         }
+
+        body {
+            font-family: system-ui;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #333;
+        }
+
+        .container {
+            position: relative;
+        }
+
+        #avatar {
+            width: var(--avatar-width);
+            aspect-ratio: 1/1;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        #box-art {
+            width: var(--game-width);
+            aspect-ratio: 1/1;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            transform: translate(50%, 50%);
+        }
+
+            #box-art img,
+            #avatar img {
+                height: 100%;
+                width: 100%;
+            }
+
+        #alert {
+            img, video
+
+        {
+            width: var(--video-width);
+            aspect-ratio: 848 / 480;
+        }
+
+        }
+
+        #alert-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            font-size: 2em;
+            color: var(--text-color);
+            background-image: linear-gradient(to right, rgba(25,25,25,0.75), transparent);
+            text-align: left;
+            box-sizing: border-box;
+            padding-left: calc(var(--avatar-width) / 2 + 1rem);
+            width: 100%;
+            max-width: var(--video-width);
+            transform: translateY(-100%);
+        }
+
+            #alert-text p {
+                margin: 1rem 0;
+            }
 
         #browserInteractionButton {
             cursor: pointer;
@@ -42,48 +98,36 @@
             top: 50%;
             width: 50vw;
         }
-
-        video.fullscreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 100%;
-        }
-
-        .animatedEmote {
-            position: fixed;
-        }
     </style>
 </head>
 <body>
-    <!-- <h1>WebSocket Sample Application</h1>
-    <p id="stateLabel">Ready to connect...</p>
-    <div>
-        <label for="connectionUrl">WebSocket Server URL:</label>
-        <input id="connectionUrl" />
-        <button id="connectButton" type="submit">Connect</button>
+    <!--<div class="clip-avatar">
+        <div id="avatar"></div>
     </div>
-    <p></p>
-    <div>
-        <label for="sendMessage">Message to send:</label>
-        <input id="sendMessage" disabled />
-        <button id="sendButton" type="submit" disabled>Send</button>
-        <button id="closeButton" disabled>Close Socket</button>
-    </div> -->
-    <div id="main-video-clips">
-        <!-- Where the video clips are played. -->
+    <div class="main-alert">-->
+    <!-- Where the gif gets played. -->
+    <!--<div id="alert"></div>
     </div>
-    <div id="main-emotes">
-        <!-- Where the emotes are played. -->
+    <div class="main-text-alert">-->
+    <!-- Where the custom gif text is displayed. -->
+    <!--<div id="alert-text"></div>
     </div>
-    <div class="main-alert">
-        <!-- Where the gif gets played. -->
-        <div id="alert"></div>
-    </div>
-    <div class="main-text-alert">
-        <!-- Where the custom gif text is displayed. -->
-        <div id="alert-text"></div>
+    <div class="clip-box-art">
+        <div id="box-art"></div>
+    </div>-->
+    <div class="container">
+
+        <div class="main">
+            <!-- Where the gif gets played. -->
+            <div id="alert">
+            </div>
+            <div id="alert-text">
+            </div>
+            <div id="avatar">
+            </div>
+            <div id="box-art">
+            </div>
+        </div>
     </div>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>

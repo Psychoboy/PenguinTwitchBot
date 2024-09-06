@@ -94,7 +94,7 @@ async function handleQueue() {
                 lastPlaying = Date.now();
 
                 if (event.clip !== undefined) {
-                    handleGifAlert(event);
+                    handleClipAlert(event);
                 } else if (event.stopclip !== undefined) {
                     handleStopClip();
                 } else {
@@ -119,88 +119,78 @@ async function handleQueue() {
     }
 }
 
-async function handleGifAlert(json) {
+async function handleClipAlert(json) {
     // Make sure we can allow alerts.
     let defaultPath = '/clips/',
-        gifData = json.clip,
-        gifDuration = 3000,
-        gifVolume = '0.8',
-        gifFile = '',
-        gifCss = '',
-        gifText = '',
+        clipData = json.clip,
+        clipDuration = 3000,
+        clipVolume = '0.8',
+        clipFile = '',
+        clipText = '',
+        clipAvatar = '',
+        clipGameImage = '',
+        clipStreamer = '',
         htmlObj,
         audio,
         isVideo = false,
         hasAudio = false;
 
     // If a comma is found, that means there are custom settings.
-    if (gifData.indexOf(',') !== -1) {
-        let gifSettingParts = gifData.split(',');
+    if (clipData.indexOf(',') !== -1) {
+        let clipSettingParts = clipData.split(',');
 
         // Loop through each setting and set it if found.
-        gifSettingParts.forEach(function (value, index) {
+        clipSettingParts.forEach(function (value, index) {
             switch (index) {
                 case 0:
-                    gifFile = value;
+                    clipFile = value;
                     break;
                 case 1:
-                    gifDuration = (parseInt(value) * 1000);
+                    clipDuration = (parseInt(value) * 1000);
                     break;
                 case 2:
-                    gifVolume = value;
+                    clipStreamer = value;
                     break;
                 case 3:
-                    gifCss = value;
+                    clipAvatar = value;
                     break;
                 case 4:
-                    gifText = value;
-                    break;
+                    clipGameImage = value;
                 default:
-                    gifText = gifText + ',' + value;
+                    clipText = clipText + ',' + value;
                     break;
             }
         });
     } else {
-        gifFile = gifData;
+        clipFile = clipData;
     }
 
-    // Check if the file is a gif, or video.
-    if (gifFile.match(/\.(webm|mp4|ogg|ogv)$/) !== null) {
-        htmlObj = $('<video/>', {
-            'src': defaultPath + gifFile,
-            'style': gifCss,
-            'preload': 'auto',
-            'width': 854,
-            'height': 480
-        });
-
-        htmlObj.prop('volume', gifVolume);
-        isVideo = true;
-
-        let ext = gifFile.substring(gifFile.lastIndexOf('.') + 1);
-        if (!videoFormats.probably.includes(ext) && !videoFormats.maybe.includes(ext)) {
-            printDebug('Video format ' + ext + ' was not supported by the browser!', true);
-        }
+    if (clipStreamer.trim().length === 0) {
+        clipText = '';
     } else {
-        htmlObj = $('<img/>', {
-            'src': defaultPath + gifFile,
-            'style': gifCss,
-            'alt': "Video"
-        });
-        await htmlObj[0].decode();
+        clipText = 'Checkout ' + clipStreamer.trim() + ' and follow!';
     }
 
-    let audioPath = getAudioFile(gifFile.slice(0, gifFile.indexOf('.')), defaultPath);
+    htmlObj = $('<video/>', {
+        'src': defaultPath + clipFile,
+        'preload': 'auto',
+        'width': 854,
+        'height': 480,
+        'id':'clipplayer'
+    });
 
-    if (audioPath.length > 0 && gifFile.substring(gifFile.lastIndexOf('.') + 1) !== audioPath.substring(audioPath.lastIndexOf('.') + 1)) {
-        hasAudio = true;
-        audio = new Audio(audioPath);
+    htmlObj.prop('volume', clipVolume);
+    isVideo = true;
+
+    let ext = clipFile.substring(clipFile.lastIndexOf('.') + 1);
+    if (!videoFormats.probably.includes(ext) && !videoFormats.maybe.includes(ext)) {
+        printDebug('Video format ' + ext + ' was not supported by the browser!', true);
     }
 
-    // p object to hold custom gif alert text and style
+    // p object to hold custom clip alert text and style
     textObj = $('<p/>', {
-        'style': gifCss
-    }).html(gifText);
+        'id': 'textObj'
+    }).html(clipText);
 
     await sleep(500);
 
@@ -220,33 +210,27 @@ async function handleGifAlert(json) {
             await promisePoll(() => videoIsReady(), { pollIntervalMs: 250 });
         } catch (err) { }
     }
-    if (hasAudio) {
-        let isReady = false;
-        audio.oncanplay = (event) => {
-            isReady = true;
-        };
-        audio.oncanplaythrough = (event) => {
-            isReady = true;
-        };
-        const audioIsReady = () => {
-            return isReady;
-        };
 
-        audio.load();
-        await promisePoll(() => audioIsReady(), { pollIntervalMs: 250 });
-        audio.volume = gifVolume;
-    }
+    avatarObj = $('<img/>', {
+        'src': clipAvatar,
+        'id':'avatarObj'
+    });
+
+    gameImageObj = $('<img/>', {
+        'src': clipGameImage,
+        'id':'gameImageObj'
+    });
 
     await sleep(500);
 
     // Append the custom text object to the page
-    $('#alert-text').append(textObj).fadeIn(1e2).delay(gifDuration)
-        .fadeOut(1e2, function () { //Remove the text with a fade out.
-            let t = $(this);
+    $('#alert-text').append(textObj).fadeIn(1e2).delay(clipDuration)
+    .fadeOut(1e2, function () { //Remove the text with a fade out.
+        let t = $(this);
 
-            // Remove the p tag
-            t.find('p').remove();
-        });
+        // Remove the p tag
+        t.find('p').remove();
+    });
 
     // Append a new the image.
     $('#alert').append(htmlObj).fadeIn(1e2, async function () {// Set the volume.
@@ -261,127 +245,41 @@ async function handleGifAlert(json) {
                 // Ignore.
             });
         }
-    }).delay(gifDuration) // Wait this time before removing this image.
-        .fadeOut(1e2, function () { // Remove the image with a fade out.
-            let t = $(this);
+    }).delay(clipDuration) // Wait this time before removing this image.
+    .fadeOut(1e2, function () { // Remove the image with a fade out.
+        let t = $(this);
 
-            // Remove either the img tag or video tag.
-            if (!isVideo) {
-                // Remove the image.
-                t.find('img').remove();
-            } else {
-                // Remove the video.
-                t.find('video').remove();
-            }
-
-            if (hasAudio) {
-                // Stop the audio.
-                audio.pause();
-                // Reset the duration.
-                audio.currentTime = 0;
-            }
-            if (isVideo) {
-                htmlObj[0].pause();
-                htmlObj[0].currentTime = 0;
-            }
-            // Mark as done playing.
-            isPlaying = false;
-        });
-
-}
-
-async function handleClipAlert(json) {
-    let clipData = json.clip,
-        clipDuration = 30,
-        clipUrl = '',
-        htmlObj,
-        clipVolume = '0.8';
-
-    if (clipData.indexOf(',') !== -1) {
-        let clipSettingsParts = clipData.split(',');
-        clipSettingsParts.forEach(function (value, index) {
-            switch (index) {
-                case 0:
-                    clipUrl = value + "&parent=localhost&autoplay=true"
-                case 1:
-                    clipDuration = (parseInt(value) * 1000);
-            }
-        });
-    } else { return; }
-
-    htmlObj = $('<iframe/>', {
-        'src': clipUrl
+        // Remove the video.
+        t.find('video').remove();
+        htmlObj[0].pause();
+        htmlObj[0].currentTime = 0;
+        // Mark as done playing.
+        isPlaying = false;
     });
-    htmlObj.attr('height', 480);
-    htmlObj.attr('width', 854);
-    htmlObj.attr('id', 'clipplayer');
+    $('#avatar').append(avatarObj).fadeIn(1e2).delay(clipDuration)
+    .fadeOut(1e2, function () { //Remove the text with a fade out.
+        let t = $(this);
 
-    $('#alert').append(htmlObj).fadeIn(1e2, async function () { })
-        .delay(clipDuration).fadeOut(1e2, function () {
-            let t = $(this);
-            t.find("iframe").remove();
-        });
-    isPlaying = false;
+        // Remove the p tag
+        t.find('img').remove();
+    });
+
+    $('#box-art').append(gameImageObj).fadeIn(1e2).delay(clipDuration)
+    .fadeOut(1e2, function () { //Remove the text with a fade out.
+        let t = $(this);
+
+        // Remove the p tag
+        t.find('img').remove();
+    });
+
 }
 
 function handleStopClip() {
     $("#clipplayer").remove();
-}
-
-function getAudioFile(name, path) {
-    let defaultPath = '/audio/',
-        fileName = '';
-
-    if (path !== undefined) {
-        defaultPath = path;
-    }
-
-    fileName = findFirstFile(defaultPath, name, audioFormats.probably);
-
-    if (fileName.length === 0) {
-        fileName = findFirstFile(defaultPath, name, audioFormats.maybe);
-    }
-
-    if (fileName.length === 0) {
-        printDebug(`Could not find a supported audio file for ${name}.`, true);
-    }
-
-    if (getOptionSetting('enableDebug', getOptionSetting('show-debug', 'false')) === 'true' && fileName.length === 0) {
-        $('.main-alert').append('<br />getAudioFile(' + name + '): Unable to find file in a supported format');
-    }
-
-    return fileName;
-}
-
-function handleAudioHook(json) {
-    // Make sure we can allow audio hooks.
-    let audioFile = getAudioFile(json.audio_panel_hook),
-        audio;
-
-    if (audioFile.length === 0) {
-        printDebug('Failed to find audio file.', true);
-        isPlaying = false;
-        return;
-    }
-
-    // Create a new audio file.
-    audio = new Audio(audioFile);
-    // Set the volume.
-    audio.volume = getOptionSetting('audioHookVolume', getOptionSetting('audio-hook-volume', '1'));
-
-    if (json.hasOwnProperty("audio_panel_volume") && json.audio_panel_volume >= 0.0) {
-        audio.volume = json.audio_panel_volume;
-    }
-    // Add an event handler.
-    $(audio).on('ended', function () {
-        audio.currentTime = 0;
-        isPlaying = false;
-    });
-    playingAudioFiles.push(audio);
-    // Play the audio.
-    audio.play().catch(function (err) {
-        console.log(err);
-    });
+    $("#gameImageObj").remove();
+    $("#textObj").remove();
+    $("#avatarObj").remove();
+    isPlaying = false;
 }
 
 function getOptionSetting(option, def) {
@@ -466,13 +364,6 @@ function getWebSocket() {
     });
 }
 
-// var connectionUrl = document.getElementById("connectionUrl");
-// var connectButton = document.getElementById("connectButton");
-// var stateLabel = document.getElementById("stateLabel");
-// var sendMessage = document.getElementById("sendMessage");
-// var sendButton = document.getElementById("sendButton");
-// var testBody = document.getElementById("testBody");
-//var closeButton = document.getElementById("closeButton");
 var socket;
 
 var scheme = document.location.protocol === "https:" ? "wss" : "ws";
@@ -485,8 +376,6 @@ let playingAudioFiles = [];
 
 connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
 
-//stateLabel.innerHTML = "Connecting";
-//socket = new WebSocket(connectionUrl);
 socket = getWebSocket();
 socket.onopen = function (event) {
     updateState();
@@ -513,79 +402,8 @@ socket.onmessage = function (event) {
 setInterval(handleQueue, 500);
 
 function updateState() {
-    // function disable() {
-    //     sendMessage.disabled = true;
-    //     sendButton.disabled = true;
-    //     closeButton.disabled = true;
-    // }
-    // function enable() {
-    //     sendMessage.disabled = false;
-    //     sendButton.disabled = false;
-    //     closeButton.disabled = false;
-    // }
 
-    // connectionUrl.disabled = true;
-    // connectButton.disabled = true;
-
-    // if (!socket) {
-    //     disable();
-    // } else {
-    //     switch (socket.readyState) {
-    //         case WebSocket.CLOSED:
-    //             // stateLabel.innerHTML = "Closed";
-    //             disable();
-    //             // connectionUrl.disabled = false;
-    //             // connectButton.disabled = false;
-    //             break;
-    //         case WebSocket.CLOSING:
-    //             // stateLabel.innerHTML = "Closing...";
-    //             disable();
-    //             break;
-    //         case WebSocket.CONNECTING:
-    //             // stateLabel.innerHTML = "Connecting...";
-    //             disable();
-    //             break;
-    //         case WebSocket.OPEN:
-    //             // stateLabel.innerHTML = "Open";
-    //             enable();
-    //             break;
-    //         default:
-    //             // stateLabel.innerHTML = "Unknown WebSocket State: " + htmlEscape(socket.readyState);
-    //             disable();
-    //             break;
-    //     }
-    // }
 }
-
-// closeButton.onclick = function () {
-//     if (!socket || socket.readyState !== WebSocket.OPEN) {
-//         alert("socket not connected");
-//     }
-//     socket.close(1000, "Closing from client");
-// };
-
-// sendButton.onclick = function () {
-//     if (!socket || socket.readyState !== WebSocket.OPEN) {
-//         alert("socket not connected");
-//     }
-//     var data = sendMessage.value;
-//     socket.send(data);
-// };
-
-// connectButton.onclick = function() {
-//     stateLabel.innerHTML = "Connecting";
-//     socket = new WebSocket(connectionUrl.value);
-//     socket.onopen = function (event) {
-//         updateState();
-//     };
-//     socket.onclose = function (event) {
-//         updateState();
-//     };
-//     socket.onerror = updateState;
-//     socket.onmessage = function (event) {
-//         testBody.innerHTML = event.data;
-//     };
-// };
 
 function htmlEscape(str) {
     return str.toString()

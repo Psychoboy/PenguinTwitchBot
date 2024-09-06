@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.BackgroundWorkers;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -18,7 +19,8 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
         ITwitchService twitchService,
-        IMediator mediator
+        IMediator mediator,
+        IBackgroundTaskQueue backgroundTaskQueue
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; }
@@ -42,55 +44,92 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         {
             try
             {
+                Clip? clip = null;
                 var featuredClips = await twitchService.GetFeaturedClips(streamer);
                 if (featuredClips.Count > 0)
                 {
-                    await PlayRandomClip(featuredClips);
-                    return;
+                    clip = GetValidClip(featuredClips);
                 }
 
                 var clips = await twitchService.GetClips(streamer);
-                if(clips.Count > 0)
+                if(clip != null && clips.Count > 0)
                 {
-                    await PlayRandomClip(clips);
-                    return;
+                    clip = GetValidClip(clips);
+                }
+                if(clip != null)
+                {
+                    await PlayClip(clip);
                 }
             } catch (Exception ex) {
                 logger.LogError(ex, "Error playing random clip");
             } 
         }
 
-        private async Task PlayRandomClip(List<Clip> clips)
+        private static Clip? GetValidClip(List<Clip> clips)
         {
-            var clip = clips.RandomElement();
-            await PlayClip(clip);
+            return clips.Where(x => x.Duration < 60.1).RandomElementOrDefault();
+            
         }
         private async Task PlayClip(Clip clip)
         {
-            if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
+            try
             {
- 
-
-                var process = new Process
+                var user = await twitchService.GetUser(clip.BroadcasterName);
+                if (user == null)
                 {
-                    StartInfo = new ProcessStartInfo()
+                    logger.LogWarning("{user} does not exist.", clip.BroadcasterName);
+                    return;
+                }
+                string gameUrl = "";
+        
+                var gameInfo = await twitchService.GetGameInfo(clip.GameId);
+                if (gameInfo != null)
+                {
+                    gameUrl = gameInfo.BoxArtUrl;
+                    gameUrl = gameUrl.Replace("{width}", "200").Replace("{height}", "200");
+                }
+
+                //Queue it to allow processing of other commands 
+                backgroundTaskQueue.QueueBackgroundWorkItem(async token => 
+                {
+                    try
                     {
-                        FileName = "youtube-dl.exe",
-                        Arguments = "-o wwwroot/clips/" + clip.Id + ".mp4 " + clip.Url
+                        if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
+                        {
+                            var process = new Process
+                            {
+                                StartInfo = new ProcessStartInfo()
+                                {
+                                    FileName = "youtube-dl.exe",
+                                    Arguments = "-o wwwroot/clips/" + clip.Id + ".mp4 " + clip.Url
+                                }
+                            };
+
+                            process.Start();
+                            process.WaitForExit();
+                        }
+
+                        var playClip = new ClipAlert
+                        {
+                            ClipFile = clip.Id + ".mp4",
+                            Duration = clip.Duration,
+                            StreamerName = user.DisplayName,
+                            StreamerAvatarUrl = user.ProfileImageUrl,
+                            GameImageUrl = gameUrl
+                        };
+                        await mediator.Publish(new QueueAlert(playClip.Generate()), token);
                     }
-                };
-
-                process.Start();
-                process.WaitForExit();
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error downloading clip.");
+                    }
+                });
+                
             }
-
-
-            var playClip = new ClipAlert
+            catch (Exception ex)
             {
-                ClipFile = clip.Id + ".mp4",
-                Duration = clip.Duration
-            };
-            await mediator.Publish(new QueueAlert(playClip.Generate()));
+                logger.LogError(ex, "Error playing clip.");
+            }
         }
 
         private async Task WatchRequestedClip(CommandEventArgs e)

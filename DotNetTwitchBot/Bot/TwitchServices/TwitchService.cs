@@ -600,6 +600,47 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return "";
         }
 
+        public async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.ChannelInformation?> GetChannelInfo(string userId)
+        {
+            try
+            {
+                var channelInfo = await GetChannelInformation(userId);
+                return channelInfo?.Data?.FirstOrDefault();
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing GetChannelInfo: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetChannelInfo(): {error}", error);
+            }
+            return null;
+        }
+
+        public async Task<TwitchLib.Api.Helix.Models.Games.Game?> GetGameInfo(string gameId)
+        {
+            try
+            {
+                var gameInfo = await _twitchApi.Helix.Games.GetGamesAsync([gameId]);
+                return gameInfo?.Data?.FirstOrDefault();
+
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing GetGameInfo: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetGameInfo(): {error}", error);
+            }
+            return null;
+        }
+
         public async Task<string> GetStreamTitle()
         {
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");

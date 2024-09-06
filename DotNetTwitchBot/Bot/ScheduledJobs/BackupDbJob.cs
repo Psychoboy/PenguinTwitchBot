@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
             foreach (var file in files)
             {
                 var fileInfo = new FileInfo(file);
-                if (fileInfo.LastAccessTime < DateTime.Now.AddDays(-1))
+                if (fileInfo.LastAccessTime < DateTime.Now.AddDays(-30))
                 {
                     logger.LogInformation("Deleting File {file} Last Accessed {lastAccessed}", fileInfo.Name, fileInfo.LastAccessTime.ToString());
                     fileInfo.Delete();

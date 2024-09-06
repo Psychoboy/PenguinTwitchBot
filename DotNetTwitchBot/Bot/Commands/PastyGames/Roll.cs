@@ -84,13 +84,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         resultMessage += string.Format("Boxcars to the max!!! {0} pasties! ", prizes[5]);
                         break;
                 }
-                var winMessage = string.Format(WinMessages.RandomElement(), e.DisplayName);
+                var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
                 await _loyaltyFeature.AddPointsToViewer(e.Name, prizes[dice1 - 1]);
             }
             else
             {
-                var lostMessage = string.Format(LostMessages.RandomElement(), e.DisplayName);
+                var lostMessage = string.Format(LostMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + lostMessage);
             }
 

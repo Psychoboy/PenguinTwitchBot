@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 return;
             }
 
-            var voice = voices.RandomElement();
+            var voice = voices.RandomElementOrDefault();
             SayMessage(voice, e.Name + " says " + e.Arg);
         }
 
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         public async Task<RegisteredVoice> GetRandomVoice()
         {
             var voices = await GetRegisteredVoices();
-            return voices.RandomElement();
+            return voices.RandomElementOrDefault();
         }
 
         public async Task<RegisteredVoice> GetRandomVoice(string name)
@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
             {
                 voices = await GetRegisteredVoices();
             }
-            return voices.RandomElement();
+            return voices.RandomElementOrDefault();
         }
 
         public async Task<List<RegisteredVoice>> GetAllVoices()

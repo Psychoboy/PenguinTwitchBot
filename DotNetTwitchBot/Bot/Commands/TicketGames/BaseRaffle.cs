@@ -127,7 +127,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var winners = new List<string>();
             for (var n = 0; n < winnerCount; n++)
             {
-                var winner = _entered.RandomElement();
+                var winner = _entered.RandomElementOrDefault();
                 _entered.RemoveAll(x => x.ToLower().Equals(winner.ToLower()));
                 winners.Add(winner);
             }

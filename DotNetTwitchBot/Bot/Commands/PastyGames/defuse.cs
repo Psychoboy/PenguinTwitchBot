@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var chosenWire = Wires.RandomElement();
+            var chosenWire = Wires.RandomElementOrDefault();
             if (chosenWire == null)
             {
                 logger.LogError("Couldn't choose a wire for defuse");
