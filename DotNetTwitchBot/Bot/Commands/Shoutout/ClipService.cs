@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
+using YoutubeDLSharp.Options;
 
 namespace DotNetTwitchBot.Bot.Commands.Shoutout
 {
@@ -96,17 +97,13 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                     {
                         if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
                         {
-                            var process = new Process
-                            {
-                                StartInfo = new ProcessStartInfo()
-                                {
-                                    FileName = "youtube-dl.exe",
-                                    Arguments = "-o wwwroot/clips/" + clip.Id + ".mp4 " + clip.Url
-                                }
+                            logger.LogInformation("Downloading clip: {clipUrl}", clip.Url);
+                            var ytdl = new YoutubeDLSharp.YoutubeDL();
+                            var options = new OptionSet() {
+                                Output = "wwwroot/clips/" + clip.Id + ".mp4"
                             };
-
-                            process.Start();
-                            process.WaitForExit();
+                            var res = await ytdl.RunVideoDownload(clip.Url, overrideOptions: options);
+                            logger.LogInformation("Downloaded clip: {clipUrl}, Path: {path}", clip.Url, res.Data);
                         }
 
                         var playClip = new ClipAlert

@@ -487,3 +487,5 @@ DotNetTwitchBot/Bot/Commands/Misc/DailyCounter.cs
 /DotNetTwitchBot/gtts.json
 /DotNetTwitchBot/output.mp3
 /DotNetTwitchBot/wwwroot/clips
+/DotNetTwitchBot/ffmpeg.exe
+/DotNetTwitchBot/yt-dlp.exe
