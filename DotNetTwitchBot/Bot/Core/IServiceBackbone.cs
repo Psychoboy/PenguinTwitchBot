@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnAdBreakStartEvent(AdBreakStartEventArgs e);
         Task OnChannelPointRedeem(string userName, string title);
         Task OnChannelPointRedeem(string userName, string id, string userInput);
-        Task OnChatMessage(ChatMessageEventArgs message);
+        //Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);
         Task OnFollow(ChannelFollow ev);

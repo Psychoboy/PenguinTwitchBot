@@ -336,7 +336,8 @@ namespace DotNetTwitchBot.Controllers
                 "user:read:chat",
                 "channel:manage:ads",
                 "channel:read:ads",
-                "user:write:chat"
+                "user:write:chat",
+                "moderator:read:suspicious_users"
             };
             var scopeStr = String.Join("+", scopes);
             var stateString = Guid.NewGuid().ToString();

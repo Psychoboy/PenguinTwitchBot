@@ -852,7 +852,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     {"broadcaster_user_id", userId},
                     {"user_id", userId}
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -862,7 +862,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     {"broadcaster_user_id", userId},
                     {"moderator_user_id", userId}
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -870,7 +870,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "channel.subscribe", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -878,7 +878,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "channel.subscription.end", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -886,7 +886,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "channel.subscription.gift", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -894,7 +894,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "channel.subscription.message", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -902,7 +902,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "channel.cheer", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -911,7 +911,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -920,7 +920,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -929,7 +929,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -938,7 +938,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 "1",
                 new Dictionary<string, string>{{"to_broadcaster_user_id", userId},
                 },
-                TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+                EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
@@ -947,7 +947,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
                },
-               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
 
@@ -956,7 +956,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
                },
-               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
 
@@ -965,11 +965,20 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
                },
-               TwitchLib.Api.Core.Enums.EventSubTransportMethod.Websocket,
+               EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
 
-            // Maybe do a from also and switch this handling raid events
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.suspicious_user.message",
+                "1",
+                new Dictionary<string, string>{
+                    {"broadcaster_user_id", userId},
+                    {"moderator_user_id", userId}
+                },
+                EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+                );
 
 
         }
@@ -982,8 +991,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(_configuration["twitchAccessToken"]);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    TimeSpan.FromSeconds(validToken.ExpiresIn);
-                    await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
+                    //TimeSpan.FromSeconds(validToken.ExpiresIn);
+                   // await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", validToken.ExpiresIn);
                     serviceUp = true;
                 }
                 else

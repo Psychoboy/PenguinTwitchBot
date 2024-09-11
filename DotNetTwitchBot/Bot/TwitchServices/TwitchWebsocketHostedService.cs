@@ -1,8 +1,11 @@
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
@@ -19,7 +22,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         SubscriptionTracker subscriptionHistory,
         ChatMessageIdTracker messageIdTracker,
         IMemoryCache memoryCache,
-        ITwitchService twitchService) : ITwitchWebsocketHostedService
+        ITwitchService twitchService,
+        IMediator mediator) : ITwitchWebsocketHostedService
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
@@ -51,8 +55,25 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var e = args.Notification.Payload.Event;
                 await Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
             }
+        }
 
-
+        private async Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
+        {
+            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return;
+            if (DidProcessMessage(args.Notification.Metadata)) return;
+            logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Notification.Payload.Event.UserName, args.Notification.Payload.Event.Message);
+            var e = args.Notification.Payload.Event;
+            var chatMessage = new ChatMessageEventArgs
+            {
+                Message = e.Message.Text,
+                Name = e.UserLogin,
+                DisplayName = e.UserName,
+                IsSub = false,
+                IsMod = false,
+                IsVip = false,
+                IsBroadcaster = false,
+            };
+            await mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
@@ -67,7 +88,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster
             };
-            return eventService.OnChatMessage(chatMessage);
+            return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessCommandMessage(ChannelChatMessage e)
@@ -519,8 +540,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
+            eventSubWebsocketClient.ChannelSuspiciousUserMessage += ChannelSuspiciousUserMessage;
             await Reconnect();
         }
+
+        
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
