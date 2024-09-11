@@ -201,10 +201,10 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnChatMessage(ChatMessageEventArgs message)
-        {
-            await mediator.Publish(new ReceivedChatMessage { EventArgs = message });
-        }
+        //public async Task OnChatMessage(ChatMessageEventArgs message)
+        //{
+        //    await mediator.Publish(new ReceivedChatMessage { EventArgs = message });
+        //}
 
         public async Task OnSubscription(SubscriptionEventArgs eventArgs)
         {
