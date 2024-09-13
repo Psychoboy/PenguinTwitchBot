@@ -114,6 +114,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                             StreamerAvatarUrl = user.ProfileImageUrl,
                             GameImageUrl = gameUrl
                         };
+                        File.SetLastWriteTime("wwwroot/clips/" + clip.Id + ".mp4", DateTime.Now);
                         await mediator.Publish(new QueueAlert(playClip.Generate()), token);
                     }
                     catch (Exception ex)
