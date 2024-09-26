@@ -52,11 +52,15 @@ namespace DotNetTwitchBot.Repository
             ChannelPointRedeems = new ChannelPointRedeemsRepository(_context);
             TwitchEvents = new TwitchEventsRepository(_context);
             DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
+            SongRequestHistory = new SongRequestHistoryRepository(_context);
+            SongRequestHistoryWithRank = new SongRequestHistoryWithRankRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
         public IDefaultCommandRepository DefaultCommands { get; private set; }
         public ISongRequestMetricsRepository SongRequestMetrics { get; private set; }
+        public ISongRequestHistoryRepository SongRequestHistory { get; private set; }
+        public ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; private set; }
         public ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public ITicketsRepository ViewerTickets { get; private set; }

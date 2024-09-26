@@ -39,7 +39,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<KnownBot> KnownBots { get; set; } = null!;
         public DbSet<DefaultCommand> DefaultCommands { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetric> SongRequestMetrics { get; set; } = null!;
+        public DbSet<Models.Metrics.SongRequestHistory> SongRequestHistories { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
+        public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
         public DbSet<ExternalCommands> ExternalCommands { get; set; } = null!;
         public DbSet<BannedViewer> BannedViewers { get; set; } = null!;
         public DbSet<FilteredQuoteType> FilteredQuotes { get; set; } = null!;
@@ -80,6 +82,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
             modelBuilder.Entity<Models.Metrics.SongRequestMetricsWithRank>()
                 .ToView(nameof(Models.Metrics.SongRequestMetricsWithRank))
+            .HasKey(c => c.SongId);
+
+            modelBuilder.Entity<Models.Metrics.SongRequestHistoryWithRank>()
+                .ToView(nameof(Models.Metrics.SongRequestHistoryWithRank))
             .HasKey(c => c.SongId);
         }
     }

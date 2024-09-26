@@ -22,65 +22,49 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
         public async Task IncrementSongCount(Song song)
         {
-            var songRequestMetric = await GetRequestedSongMetric(song);
-            var create = false;
-            if (songRequestMetric == null)
-            {
-                create = true;
-                songRequestMetric = new Models.Metrics.SongRequestMetric
-                {
-                    SongId = song.SongId,
-                    Title = song.Title,
-                    Duration = song.Duration,
-                };
-            }
-
-            songRequestMetric.RequestedCount++;
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            if (create)
+            await db.SongRequestHistory.AddAsync(new Models.Metrics.SongRequestHistory
             {
-                await db.SongRequestMetrics.AddAsync(songRequestMetric);
-            }
-            else
-            {
-                db.SongRequestMetrics.Update(songRequestMetric);
-            }
+                SongId = song.SongId,
+                Title = song.Title,
+                Duration = song.Duration
+            });
             await db.SaveChangesAsync();
         }
 
         public async Task DecrementSongCount(Song song)
         {
 
-            var songRequestMetric = await GetRequestedSongMetric(song);
+            var songRequestMetric = await GetLastRequestForSong(song);
             if (songRequestMetric == null) return;
-
-            songRequestMetric.RequestedCount--;
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.SongRequestMetrics.Update(songRequestMetric);
+            db.SongRequestHistory.Remove(songRequestMetric);
             await db.SaveChangesAsync();
         }
 
         public async Task<int> GetRequestedCount(Song song)
         {
-            var songRequestMetric = await GetRequestedSongMetric(song);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var songRequestMetric = await db.SongRequestHistoryWithRank.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
             return songRequestMetric == null ? 0 : songRequestMetric.RequestedCount;
         }
 
-        public async Task<List<Models.Metrics.SongRequestMetricsWithRank>> GetTopN(int topN)
+        private async Task<Models.Metrics.SongRequestHistory?> GetLastRequestForSong(Song song)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.SongRequestMetricsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
+            return await db.SongRequestHistory.Find(x => x.SongId == song.SongId).OrderByDescending(x => x.RequestDate).FirstOrDefaultAsync();
         }
 
-        private async Task<Models.Metrics.SongRequestMetric?> GetRequestedSongMetric(Song song)
+        public async Task<List<Models.Metrics.SongRequestHistoryWithRank>> GetTopN(int topN)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.SongRequestMetrics.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
+            return await db.SongRequestHistoryWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

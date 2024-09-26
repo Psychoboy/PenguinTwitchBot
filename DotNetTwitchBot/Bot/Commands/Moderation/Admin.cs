@@ -1,7 +1,9 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Metrics;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
@@ -61,6 +63,28 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             _webSocketMessenger.Pause();
             await ServiceBackbone.SendChatMessage("Alerts paused.");
         }
+
+        public async Task UpdateSongs()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.SongRequestHistory.ExecuteDeleteAll();
+            var oldHistory = await db.SongRequestMetrics.GetAllAsync();
+            var songs = new List<SongRequestHistory>();
+            foreach (var item in oldHistory)
+            {
+                for (var i = 0; i < item.RequestedCount; i++) {
+                    songs.Add(new SongRequestHistory
+                    {
+                        SongId = item.SongId,
+                        Title = item.Title,
+                        Duration = item.Duration,
+                    });
+                }
+            }
+            await db.SongRequestHistory.AddRangeAsync(songs);
+            await db.SaveChangesAsync();
+        } 
 
         public async Task ReconnectTwitchWebsocket()
         {

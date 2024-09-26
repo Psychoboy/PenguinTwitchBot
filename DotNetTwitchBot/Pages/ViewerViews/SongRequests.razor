@@ -1,8 +1,9 @@
 ﻿@page "/songrequests"
+@using DotNetTwitchBot.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
-@inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
@@ -47,14 +48,16 @@
 
         <MudItem xs="8">
             <MudPaper Elevation="2">
-                <MudText Class="pa-4" Typo="Typo.h6">Top 10 Requested Songs</MudText>
-                <MudTable Items="@topSongRequests">
+                <MudTable ServerData="HistoryReload" Dense="true" Hover="true" @ref=historyTable>
+                    <ToolBarContent>
+                        <MudText Class="pa-4" Typo="Typo.h6">Top 10 Requested Songs (last 30 days)</MudText>
+                    </ToolBarContent>
                     <HeaderContent>
                         <MudTh>Rank</MudTh>
-                        <MudTh>Title</MudTh>
-                        <MudTh>Length</MudTh>
-                        <MudTh>Times Requested</MudTh>
-                        <MudTh></MudTh>
+                         <MudTh>Title</MudTh>
+                         <MudTh>Length</MudTh>
+                         <MudTh>Times Requested</MudTh>
+                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
@@ -62,8 +65,16 @@
                         <MudTd DataLabel="Duration">@context.Duration</MudTd>
                         <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
                         <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">@GetYoutubeLink(context.SongId)</MudLink></MudTd>
-
                     </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No matching records found</MudText>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudText>Loading...</MudText>
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
                 </MudTable>
             </MudPaper>
         </MudItem>
@@ -75,13 +86,12 @@
     private Song? currentSong;
     private List<Song> songRequests = new();
     private HubConnection? hubConnection;
-    private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
+    private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         currentSong = YtPlayer.GetCurrentSong();
         songRequests = YtPlayer.GetRequestedSongs();
-        topSongRequests = await SongRequestMetrics.GetTopN(10);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -115,6 +125,15 @@
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning(ex, "Failed to connect to hub");
         }
+    }
+
+    private async Task<TableData<Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = state.Page;
+        pageFilter.Count = state.PageSize;
+        var response = await leaderBoards.GetSongs(pageFilter);
+        return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
     }
 
     private string GetYoutubeLink(string songId)

@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 messageIdTracker.AddMessageId(result.Data.First().MessageId);
                 if (result.Data.First().IsSent == false)
                 {
-                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.FirstOrDefault()?.Message);
+                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
                 }
                 else
                 {
