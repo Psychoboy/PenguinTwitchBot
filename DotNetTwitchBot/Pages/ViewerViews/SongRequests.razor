@@ -50,7 +50,17 @@
             <MudPaper Elevation="2">
                 <MudTable ServerData="HistoryReload" Dense="true" Hover="true" @ref=historyTable>
                     <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Top 10 Requested Songs (last 30 days)</MudText>
+                        <MudText Class="pa-4" Typo="Typo.h6">Top Requested Songs</MudText>
+                        <MudSpacer />
+                        <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
+                            Label="Months" Value="@numberOfMonths"
+                        >
+                            <MudSelectItem Value=1>1 Month</MudSelectItem>
+                            <MudSelectItem Value=3>2 Months</MudSelectItem>
+                            <MudSelectItem Value=6>6 Months</MudSelectItem>
+                            <MudSelectItem Value=12>12 Months</MudSelectItem>
+                            <MudSelectItem Value=0>All</MudSelectItem>
+                        </MudSelect>
                     </ToolBarContent>
                     <HeaderContent>
                         <MudTh>Rank</MudTh>
@@ -87,6 +97,7 @@
     private List<Song> songRequests = new();
     private HubConnection? hubConnection;
     private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
+    private int numberOfMonths = 1;
 
     protected override void OnInitialized()
     {
@@ -132,8 +143,18 @@
         var pageFilter = new PaginationFilter();
         pageFilter.Page = state.Page;
         pageFilter.Count = state.PageSize;
-        var response = await leaderBoards.GetSongs(pageFilter);
+        var response = await leaderBoards.GetSongs(numberOfMonths, pageFilter);
         return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+
+    private void OnMonthsChanged(int months)
+    {
+        numberOfMonths = months;
+        if(historyTable != null)
+        {
+            historyTable.ReloadServerData();
+        }
     }
 
     private string GetYoutubeLink(string songId)

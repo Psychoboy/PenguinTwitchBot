@@ -40,14 +40,13 @@ namespace DotNetTwitchBot.Bot.Core
             };
         }
 
-        public async Task<PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>> GetSongs(PaginationFilter filter)
+        public async Task<PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>> GetSongs(int numberOfMonths, PaginationFilter filter)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var validFilter = new PaginationFilter(filter.Page, filter.Count);
-            var pagedData = await unitOfWork.SongRequestHistoryWithRank.GetAsync(
-                filter: null,
-                orderBy: a => a.OrderBy(b => b.Ranking),
+            var pagedData = await unitOfWork.SongRequestHistory.QuerySongRequestHistoryLimitedByMonths(
+                numberOfMonths: numberOfMonths,
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
