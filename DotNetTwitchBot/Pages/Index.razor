@@ -25,6 +25,7 @@
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateDiscordEvents">Update Discord Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PostSchedule">Post Schedule</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateSongs">Update Songs</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
@@ -124,7 +125,7 @@
     private string? imageUrl;
     private List<Song> songRequests = new();
     private HubConnection? ythub;
-    private List<Bot.Models.Metrics.SongRequestMetricsWithRank> topSongRequests = new();
+    private List<Bot.Models.Metrics.SongRequestHistoryWithRank> topSongRequests = new();
     private List<ScheduledStream> scheduledStreams = new();
     protected override async Task OnInitializedAsync()
     {
@@ -195,6 +196,11 @@
     private async Task ForceOffline()
     {
         await Admin.ForceStreamOffline();
+    }
+
+    private async Task UpdateSongs()
+    {
+        await Admin.UpdateSongs();
     }
 
     private async Task UpdateDiscordEvents()
