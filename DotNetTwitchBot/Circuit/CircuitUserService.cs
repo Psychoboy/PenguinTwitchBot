@@ -1,12 +1,11 @@
 ﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace DotNetTwitchBot.Circuit
 {
-    public class CircuitUserService : ICircuitUserService
+    public class CircuitUserService(ILogger<CircuitUserService> logger, IpLog ipLog) : ICircuitUserService
     {
-        public ConcurrentDictionary<string, CircuitUser> Circuits { get; private set; }
-
-        private readonly ILogger<CircuitUserService> _logger;
+        public ConcurrentDictionary<string, CircuitUser> Circuits { get; private set; } = new ConcurrentDictionary<string, CircuitUser>();
 
         public event EventHandler? CircuitsChanged;
         public event UserRemovedEventHandler? UserRemoved;
@@ -14,23 +13,14 @@ namespace DotNetTwitchBot.Circuit
         void OnCircuitsChanged() => CircuitsChanged?.Invoke(this, EventArgs.Empty);
         void OnUserRemoved(string UserId)
         {
-            var args = new UserRemovedEventArgs();
-            args.UserId = UserId;
+            var args = new UserRemovedEventArgs
+            {
+                UserId = UserId
+            };
             UserRemoved?.Invoke(this, args);
         }
 
-        public CircuitUserService(ILogger<CircuitUserService> logger)
-        {
-            Circuits = new ConcurrentDictionary<string, CircuitUser>();
-            _logger = logger;
-        }
-
-        public void Connect(string CircuitId, string UserId)
-        {
-            Connect(CircuitId, UserId, "Unknown");
-        }
-
-        public void Connect(string CircuitId, string UserId, string? userIp)
+        public async Task Connect(string CircuitId, string UserId, string? userIp)
         {
             if (string.IsNullOrEmpty(CircuitId)) return;
             if (string.IsNullOrEmpty(UserId)) UserId = "Anonymous";
@@ -39,13 +29,16 @@ namespace DotNetTwitchBot.Circuit
                 Circuits[CircuitId].UserId = UserId;
             else
             {
-                var circuitUser = new CircuitUser();
-                circuitUser.UserId = UserId;
-                circuitUser.CircuitId = CircuitId;
-                circuitUser.UserIp = userIp;
+                var circuitUser = new CircuitUser
+                {
+                    UserId = UserId,
+                    CircuitId = CircuitId,
+                    UserIp = userIp
+                };
                 Circuits[CircuitId] = circuitUser;
             }
-            _logger.LogInformation("{userId} connected to web interface. Ip: {ip}", UserId, userIp);
+            await ipLog.AddLogEntry(UserId, userIp);
+            logger.LogInformation("{userId} connected to web interface. Ip: {ip}", UserId, userIp);
             OnCircuitsChanged();
         }
 
@@ -55,7 +48,7 @@ namespace DotNetTwitchBot.Circuit
             if (circuitRemoved != null)
             {
                 OnUserRemoved(circuitRemoved.UserId);
-                _logger.LogInformation("{UserId} disconnected from web interface.", circuitRemoved.UserId);
+                logger.LogInformation("{UserId} disconnected from web interface.", circuitRemoved.UserId);
                 OnCircuitsChanged();
             }
         }
@@ -67,7 +60,7 @@ namespace DotNetTwitchBot.Circuit
             {
                 Circuits[CircuitId].LastPage = uri;
                 Circuits[CircuitId].LastSeen = DateTime.Now;
-                _logger.LogInformation("{UserId} navigated to {Uri}.", Circuits[CircuitId].UserId, uri);
+                logger.LogInformation("{UserId} navigated to {Uri}.", Circuits[CircuitId].UserId, uri);
                 OnCircuitsChanged();
             }
 

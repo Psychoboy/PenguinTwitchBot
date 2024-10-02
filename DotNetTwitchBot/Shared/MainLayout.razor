@@ -92,7 +92,7 @@
             }
         }
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
-        UserService.Connect(handler.CircuitId, Username, BlazorAppContext?.CurrentUserIP);
+        await UserService.Connect(handler.CircuitId, Username, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
         StreamOnline = serviceBackbone.IsOnline;

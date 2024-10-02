@@ -54,6 +54,7 @@ namespace DotNetTwitchBot.Repository
             DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
             SongRequestHistory = new SongRequestHistoryRepository(_context);
             SongRequestHistoryWithRank = new SongRequestHistoryWithRankRepository(_context);
+            IpLogs = new IpLogRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -101,6 +102,7 @@ namespace DotNetTwitchBot.Repository
         public IChannelPointRedeemsRepository ChannelPointRedeems { get; private set; }
         public ITwitchEventsRepository TwitchEvents { get; private set; }
         public IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; private set; }
+        public IIpLogRepository IpLogs { get; private set; }
 
         public void Dispose()
         {
