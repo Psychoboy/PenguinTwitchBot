@@ -30,6 +30,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
 
             services.AddSingleton<Bot.Core.SubscriptionTracker>();
+            services.AddSingleton<Circuit.IpLog>();
 
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();

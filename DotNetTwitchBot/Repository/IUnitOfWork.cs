@@ -47,6 +47,7 @@
         IChannelPointRedeemsRepository ChannelPointRedeems { get; }
         ITwitchEventsRepository TwitchEvents { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
+        IIpLogRepository IpLogs { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

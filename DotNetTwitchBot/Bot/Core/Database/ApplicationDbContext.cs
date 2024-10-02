@@ -50,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ChannelPointRedeem> ChannelPointRedeems { get; set; } = null!;
         public DbSet<TwitchEvent> TwitchEvents { get; set; } = null!;
         public DbSet<DiscordEventMap> DiscordEvents { get; set; }
+        public DbSet<IpLogEntry> IpLogEntrys { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
