@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -35,6 +36,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
             services.AddScoped<ILurkBait, LurkBait>();
+            services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();

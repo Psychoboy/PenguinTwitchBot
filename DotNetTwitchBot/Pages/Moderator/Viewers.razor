@@ -1,7 +1,9 @@
 @page "/viewers"
+@using DotNetTwitchBot.Bot.Models.IpLogs
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject DotNetTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
 
 <PageTitle>SPTV Twitch Bot - Viewers</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
@@ -43,17 +45,61 @@
             </MudTable>
         </MudPaper>
     </MudItem>
+        <MudItem xs="12">
+            <MudTable ServerData="LogsReload" @ref=logsTable
+                      Dense="true" Hover="true">
+                <ToolBarContent>
+                    <MudText Class="pa-4" Typo="Typo.h6">Users Matching Ip</MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Ip</MudTh>
+                    <MudTh>Count</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudLink Href=@LinkBuilder("/editviewer/", context.User1)>
+                            @context.User1
+                        </MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Name">
+                        <MudLink Href=@LinkBuilder("/editviewer/", context.User2)>
+                            @context.User2
+                        </MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Ip">@context.Ip</MudTd>
+                    <MudTd DataLabel="Count">@context.Count</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No matching records found</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Loading...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
 </MudGrid>
 </MudContainer>
 @code {
     private List<Viewer>? viewers = new();
     private SearchForm model = new();
+    private MudTable<IpLogUsersWithSameIp>? logsTable;
 
     public class SearchForm
     {
         [Required]
         [StringLength(25, ErrorMessage = "Search must be between 3 and 25 characters", MinimumLength = 3)]
         public string Username { get; set; } = "";
+    }
+
+    private async Task<TableData<IpLogUsersWithSameIp>> LogsReload(TableState state, CancellationToken _token)
+    {
+        var response = await ipLogFeature.GetAllDuplicateIps();
+        return new TableData<IpLogUsersWithSameIp> { TotalItems = response.Count, Items = response };
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)
@@ -64,5 +110,10 @@
     {
         viewers = await viewerFeature.SearchForViewer(model.Username);
         StateHasChanged();
+    }
+
+    private string LinkBuilder(string _route, string _parameter)
+    {
+        return _route + _parameter;
     }
 }

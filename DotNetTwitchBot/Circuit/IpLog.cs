@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Repository;
+﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Circuit
 {

@@ -1,8 +1,11 @@
-﻿namespace DotNetTwitchBot.Repository
+﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+
+namespace DotNetTwitchBot.Repository
 {
     public interface IIpLogRepository : IGenericRepository<IpLogEntry>
     {
-        Task<List<IpLogEntry>> GetKnownIpsForUser(string username);
-        Task GetDuplicateIps();
+        Task<List<IpLogsForUser>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null);
+        Task<List<IpLogsForUser>> GetDuplicateIpsForUser(string username, int? limit = null, int? offset = null);
+        Task<List<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null);
     }
 }

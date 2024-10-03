@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Models.Giveaway;
+using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Bot.Core.Database

@@ -3,13 +3,10 @@ using System.Linq.Expressions;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T> where T : class
+    public class GenericRepository<T>(ApplicationDbContext context) : IGenericRepository<T> where T : class
     {
-        protected readonly ApplicationDbContext _context;
-        public GenericRepository(ApplicationDbContext context)
-        {
-            _context = context;
-        }
+        protected readonly ApplicationDbContext _context = context;
+
         public void Add(T entity)
         {
             _context.Set<T>().Add(entity);
