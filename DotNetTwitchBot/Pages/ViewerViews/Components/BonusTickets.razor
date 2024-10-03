@@ -1,0 +1,88 @@
+﻿@using DotNetTwitchBot.Bot.Commands.TicketGames
+@using Microsoft.AspNetCore.SignalR.Client
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBonusTickets bonusTickets
+@inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
+@inject NavigationManager Navigation
+<MudPaper Class="pa-4" Elevation="0" Style="margin-bottom:16px">
+    <MudPaper Class="align-start d-flex">
+        <MudText Typo="Typo.h5" class="mud-contrast-text">Bonus Tickets</MudText>
+    </MudPaper>
+    <MudDivider class="mb-2" />
+    <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
+    <AuthorizeView>
+        <Authorized>
+            <center>
+                
+                @if(disabled || StreamOnline == false)
+                {
+                    @if (StreamOnline == false)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            Stream is currently offline.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success" Dense="true">
+                            You have alraedy collected your bonus this stream.
+                        </MudAlert>
+                    }
+                } else
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" Disabled="@disabled" @onclick="() => ClaimBonus()">
+                        Get Bonus Tickets
+                    </MudButton>
+                }
+            </center>
+        </Authorized>
+        <NotAuthorized>
+            <MudText><MudLink Href="/signin" Match="NavLinkMatch.Prefix">Sign In</MudLink>  with Twitch to get bonus tickets.</MudText>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudPaper>
+@code {
+
+    private bool disabled = true;
+    private string Username = "";
+    private bool StreamOnline = false;
+    private HubConnection? hubConnection;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
+        {
+            Username = user.Identity.Name;
+            disabled = await bonusTickets.DidUserRedeemBonus(Username);
+        }
+        StreamOnline = serviceBackbone.IsOnline;
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
+       .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
+        hubConnection.On<bool>("StreamChanged", (status) =>
+        {
+            StreamOnline = status;
+            InvokeAsync(StateHasChanged);
+        });
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        finally { }
+    }
+
+    private async Task ClaimBonus()
+    {
+        if (string.IsNullOrWhiteSpace(Username)) return;
+        disabled = true;
+        await bonusTickets.RedeemBonus(Username);
+        StateHasChanged();
+    }
+}
