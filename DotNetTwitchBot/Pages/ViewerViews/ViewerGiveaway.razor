@@ -1,6 +1,7 @@
 ﻿@page "/viewergiveaway"
 
 @using System.Security.Claims
+@using DotNetTwitchBot.Pages.ViewerViews.Components
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -24,6 +25,7 @@
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
         <MudItem sm="6">
+            <BonusTickets/>
             <MudPaper Class="pa-4" Elevation="0">
                  <center>
                     <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>

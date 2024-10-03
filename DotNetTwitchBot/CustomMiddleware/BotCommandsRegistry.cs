@@ -44,6 +44,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             //Add Alerts
             services.AddSingleton<Bot.Alerts.AlertImage>();
 
+            services.AddSingleton<IBonusTickets, BonusTickets>();
+
 
             services.AddHostedApiService<GiveawayFeature>();
             services.AddHostedApiService<WaffleRaffle>();

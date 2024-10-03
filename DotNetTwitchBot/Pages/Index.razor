@@ -3,6 +3,7 @@
 @using DotNetTwitchBot.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot;
+@using DotNetTwitchBot.Pages.ViewerViews.Components;
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -23,9 +24,6 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateDiscordEvents">Update Discord Events</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PostSchedule">Post Schedule</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateSongs">Update Songs</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
@@ -33,6 +31,7 @@
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>
             <MudItem sm="6">
+                <BonusTickets/>
                 <MudPaper Class="pa-4" Elevation="0">
                     <MudPaper Class="align-start d-flex" >
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
