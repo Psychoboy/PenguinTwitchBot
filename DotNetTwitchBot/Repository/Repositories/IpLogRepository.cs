@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Username = x.Key.Username,
                     Ip = x.Key.Ip,
                     Count = x.Count(),
-                    LastUsed = x.Max(x => x.ConnectedDate),
+                    LastUsed = x.Max(x => x.ConnectedDate).ToUniversalTime(),
                 });
 
             if (offset != null)
@@ -89,7 +89,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Username = g.Key.Username,
                     Ip = g.Key.Ip,
                     Count = g.Count(),
-                    LastUsed = g.Max(z => z.ConnectedDate)
+                    LastUsed = g.Max(z => z.ConnectedDate).ToUniversalTime()
                 });
 
             if (offset != null)
