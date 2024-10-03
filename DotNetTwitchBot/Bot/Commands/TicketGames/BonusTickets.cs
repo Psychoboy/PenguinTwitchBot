@@ -6,7 +6,11 @@ using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class BonusTickets(ITicketsFeature ticketsFeature, IMediator mediator, IServiceBackbone serviceBackbone) : IBonusTickets
+    public class BonusTickets(
+        ITicketsFeature ticketsFeature, 
+        IMediator mediator, 
+        IServiceBackbone serviceBackbone, 
+        ILogger<BonusTickets> logger) : IBonusTickets
     {
         private static readonly List<string> ClaimedBonuses = [];
         private static readonly SemaphoreSlim _semaphoreSlim = new(1);
@@ -28,11 +32,20 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await _semaphoreSlim.WaitAsync();
             try
             {
-                if (ClaimedBonuses.Contains(username)) return;
-                if(serviceBackbone.IsOnline == false) return;
+                if (ClaimedBonuses.Contains(username))
+                {
+                    logger.LogWarning("{username} tried to claim tickets twice.", username);
+                    return;
+                }
+                if(serviceBackbone.IsOnline == false)
+                {
+                    logger.LogWarning("{username} tried to claim tickets while stream offline.", username);
+                    return;
+                }
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
                 var amount = await ticketsFeature.GiveTicketsToViewer(username, ticketsWon);
+                logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",
                     username, ticketsWon, amount);
