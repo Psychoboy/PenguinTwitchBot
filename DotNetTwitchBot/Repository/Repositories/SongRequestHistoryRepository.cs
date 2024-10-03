@@ -31,12 +31,12 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Ranking = i+1
                 });
 
-            if(offset != null)
+            if (offset != null)
             {
                 query = query.Skip((int)offset);
             }
 
-            if (limit != null) 
+            if (limit != null)
             {
                 query = query.Take((int)limit);
             }
