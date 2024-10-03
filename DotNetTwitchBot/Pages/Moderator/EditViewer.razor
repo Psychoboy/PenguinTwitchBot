@@ -89,7 +89,7 @@ else
                     <RowTemplate>
                         <MudTd DataLabel="Ip">@context.Ip</MudTd>
                         <MudTd DataLabel="Count">@context.Count</MudTd>
-                        <MudTd DataLabel="Last Used">@context.LastUsed</MudTd>
+                        <MudTd DataLabel="Last Used"><ToLocal DateTime="@context.LastUsed" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
                         <MudText>No matching records found</MudText>
@@ -122,7 +122,7 @@ else
                         </MudTd>
                         <MudTd DataLabel="Ip">@context.Ip</MudTd>
                         <MudTd DataLabel="Count">@context.Count</MudTd>
-                        <MudTd DataLabel="Last Used">@context.LastUsed</MudTd>
+                        <MudTd DataLabel="Last Used"><ToLocal DateTime="context.LastUsed" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
                         <MudText>No matching records found</MudText>
