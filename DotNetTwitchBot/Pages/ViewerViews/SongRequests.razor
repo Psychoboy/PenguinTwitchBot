@@ -3,7 +3,6 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
-@inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
@@ -24,69 +23,12 @@
 
         }
         
-        @if (songRequests != null)
-        {
-            <MudItem xs="8">
-                <MudPaper Elevation="2" >
-                    <MudText Class="pa-4" Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
-                    <MudTable Items="@songRequests">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Length</MudTh>
-                            <MudTh>Requested By</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Title</MudTd>
-                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-                            
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudItem>
-        }
+        <MudItem xs="8">
+            <DotNetTwitchBot.Pages.ViewerViews.Components.SongRequests />
+        </MudItem>
 
         <MudItem xs="8">
-            <MudPaper Elevation="2">
-                <MudTable ServerData="HistoryReload" Dense="true" Hover="true" @ref=historyTable>
-                    <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Top Requested Songs</MudText>
-                        <MudSpacer />
-                        <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
-                            Label="Months" Value="@numberOfMonths"
-                        >
-                            <MudSelectItem Value=1>1 Month</MudSelectItem>
-                            <MudSelectItem Value=3>2 Months</MudSelectItem>
-                            <MudSelectItem Value=6>6 Months</MudSelectItem>
-                            <MudSelectItem Value=12>12 Months</MudSelectItem>
-                            <MudSelectItem Value=0>All</MudSelectItem>
-                        </MudSelect>
-                    </ToolBarContent>
-                    <HeaderContent>
-                        <MudTh>Rank</MudTh>
-                         <MudTh>Title</MudTh>
-                         <MudTh>Length</MudTh>
-                         <MudTh>Times Requested</MudTh>
-                         <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
-                        <MudTd DataLabel="Name">@context.Title</MudTd>
-                        <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                        <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
-                        <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">@GetYoutubeLink(context.SongId)</MudLink></MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText>No matching records found</MudText>
-                    </NoRecordsContent>
-                    <LoadingContent>
-                        <MudText>Loading...</MudText>
-                    </LoadingContent>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-                </MudTable>
-            </MudPaper>
+            <DotNetTwitchBot.Pages.ViewerViews.Components.TopRequestedSongs />
         </MudItem>
     </MudGrid>
 </MudContainer>
@@ -94,15 +36,11 @@
 
 @code {
     private Song? currentSong;
-    private List<Song> songRequests = new();
     private HubConnection? hubConnection;
-    private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
-    private int numberOfMonths = 1;
 
     protected override void OnInitialized()
     {
         currentSong = YtPlayer.GetCurrentSong();
-        songRequests = YtPlayer.GetRequestedSongs();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -117,11 +55,6 @@
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
-        {
-            songRequests = playlist;
-            InvokeAsync(StateHasChanged);
-        });
         try
         {
             await hubConnection.StartAsync();
@@ -136,30 +69,6 @@
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning(ex, "Failed to connect to hub");
         }
-    }
-
-    private async Task<TableData<Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
-    {
-        var pageFilter = new PaginationFilter();
-        pageFilter.Page = state.Page;
-        pageFilter.Count = state.PageSize;
-        var response = await leaderBoards.GetSongs(numberOfMonths, pageFilter);
-        return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
-    }
-
-
-    private void OnMonthsChanged(int months)
-    {
-        numberOfMonths = months;
-        if(historyTable != null)
-        {
-            historyTable.ReloadServerData();
-        }
-    }
-
-    private string GetYoutubeLink(string songId)
-    {
-        return $"https://youtu.be/{songId}";
     }
 
     public async ValueTask DisposeAsync()

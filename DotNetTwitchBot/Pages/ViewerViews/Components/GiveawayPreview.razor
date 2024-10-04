@@ -1,0 +1,22 @@
+﻿@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+<MudPaper Class="pa-4" Elevation="0">
+    <MudPaper Class="align-start d-flex">
+        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
+        <MudSpacer />
+        <MudLink Href="viewergiveaway">Details</MudLink>
+    </MudPaper>
+    <MudDivider class="mb-2" />
+    <center>
+        <MudText Typo="Typo.h5">@prize</MudText>
+        <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
+    </center>
+</MudPaper>
+@code {
+    private string prize = "";
+    private string? imageUrl;
+    protected override async Task OnInitializedAsync()
+    {
+        prize = await GiveawayFeature.GetPrize();
+        imageUrl = await GiveawayFeature.GetImageUrl();
+    }
+}

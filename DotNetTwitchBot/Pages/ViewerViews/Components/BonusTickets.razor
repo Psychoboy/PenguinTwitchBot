@@ -4,6 +4,7 @@
 @inject IBonusTickets bonusTickets
 @inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject NavigationManager Navigation
+@implements IAsyncDisposable
 <MudPaper Class="pa-4" Elevation="0" Style="margin-bottom:16px">
     <MudPaper Class="align-start d-flex">
         <MudText Typo="Typo.h5" class="mud-contrast-text">Bonus Tickets</MudText>
@@ -84,5 +85,12 @@
         disabled = true;
         await bonusTickets.RedeemBonus(Username);
         StateHasChanged();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }
