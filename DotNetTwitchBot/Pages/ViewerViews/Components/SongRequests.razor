@@ -1,0 +1,102 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject ISnackbar Snackbar
+@inject ILogger<SongRequests> logger
+@implements IAsyncDisposable
+<MudPaper Class="pa-4" Elevation="0">
+    <MudPaper Class="align-start d-flex">
+
+        <MudText Typo="Typo.h5" class="mud-contrast-text">@Title</MudText>
+            
+        @if(IsPreview)
+        {
+            <MudSpacer />
+            <MudLink Href="songrequests">Details</MudLink>
+        }
+        
+    </MudPaper>
+    <MudDivider class="mb-2" />
+    <MudTable Items="@songRequests" Dense="true" Hover="true" Elevation="0">
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Requested By</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Title</MudTd>
+            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+@code {
+    private List<Song> songRequests = new();
+    private HubConnection? hubConnection;
+
+    [Parameter]
+    public int LimitNumberOfSongs { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Song Requests";
+
+    [Parameter]
+    public bool IsPreview { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        songRequests = YtPlayer.GetRequestedSongs();
+        UpdateSongList(YtPlayer.GetRequestedSongs());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
+        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+
+        hubConnection.On<List<Song>>("CurrentSongRequests", (playlist) =>
+        {
+            if (songRequests.Count == 0 && playlist.Count == 0) return;
+            UpdateSongList(playlist);
+            InvokeAsync(StateHasChanged);
+        });
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
+            logger.LogWarning("User lost connection to bot.");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
+            logger.LogWarning(ex, "Failed to connect to hub");
+        }
+    }
+
+    private void UpdateSongList(List<Song> songs)
+    {
+        if (LimitNumberOfSongs > 0 && songs.Count > LimitNumberOfSongs)
+        {
+            songs = songs.Slice(0, LimitNumberOfSongs);
+        }
+        songRequests = songs;
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,89 @@
+﻿@using DotNetTwitchBot.Models
+@inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+@inject ISnackbar Snackbar
+@inject ILogger<SongRequests> logger
+
+<MudPaper Elevation="0">
+    <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
+        <ToolBarContent>
+            <MudText Class="pa-4" Typo="Typo.h6">@Title</MudText>
+            <MudSpacer />
+            @if (!IsPreview)
+            {
+                <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
+                    Label="Months" Value="@numberOfMonths">
+                    <MudSelectItem Value=1>1 Month</MudSelectItem>
+                    <MudSelectItem Value=3>2 Months</MudSelectItem>
+                    <MudSelectItem Value=6>6 Months</MudSelectItem>
+                    <MudSelectItem Value=12>12 Months</MudSelectItem>
+                    <MudSelectItem Value=0>All</MudSelectItem>
+                </MudSelect>
+            } else
+            {
+                <MudLink Href="songRequests">Details</MudLink>
+            }
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Rank</MudTh>
+            <MudTh>Title</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Times Requested</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
+            <MudTd DataLabel="Name">@context.Title</MudTd>
+            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+            <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
+            <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">Video</MudLink></MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+        <PagerContent>
+            @if (!IsPreview)
+            {
+                <MudTablePager />
+            }
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
+    private int numberOfMonths = 1;
+
+    [Parameter]
+    public bool IsPreview { get; set; } = false;
+
+    [Parameter]
+    public string Title { get; set; } = "Top Requested Songs";
+
+
+    private async Task<TableData<Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = IsPreview ? 0 : state.Page;
+        pageFilter.Count = IsPreview ? 5 : state.PageSize;
+        var response = await leaderBoards.GetSongs(numberOfMonths, pageFilter);
+        return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+
+    private void OnMonthsChanged(int months)
+    {
+        numberOfMonths = months;
+        if (historyTable != null)
+        {
+            historyTable.ReloadServerData();
+        }
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+}

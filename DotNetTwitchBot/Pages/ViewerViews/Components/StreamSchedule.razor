@@ -1,0 +1,28 @@
+﻿@using DotNetTwitchBot.Bot.StreamSchedule
+@inject ISchedule schedule;
+<MudPaper Class="pa-4" Elevation="0">
+    <MudPaper Class="align-start d-flex">
+        <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
+    </MudPaper>
+    <MudDivider class="mb-2" />
+    <MudTable Items="@scheduledStreams" Elevation="0">
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Start</MudTh>
+            <MudTh>End</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Title</MudTd>
+            <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+            <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+@code {
+    private List<ScheduledStream> scheduledStreams = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        scheduledStreams = (await schedule.GetNextStreams()).Take(5).ToList();
+    }
+}

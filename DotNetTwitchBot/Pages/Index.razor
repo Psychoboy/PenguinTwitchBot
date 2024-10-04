@@ -1,5 +1,4 @@
 ﻿@page "/"
-@using DotNetTwitchBot.Bot.StreamSchedule
 @using DotNetTwitchBot.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot;
@@ -8,10 +7,8 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
-@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
-@inject ISchedule schedule;
 @inject ISnackbar Snackbar
 @inject ILogger<Index> logger
 @implements IAsyncDisposable
@@ -32,65 +29,18 @@
         <MudGrid>
             <MudItem sm="6">
                 <BonusTickets/>
-                <MudPaper Class="pa-4" Elevation="0">
-                    <MudPaper Class="align-start d-flex" >
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
-                        <MudSpacer />
-                        <MudLink Href="viewergiveaway">Details</MudLink>
-                    </MudPaper>
-                    <MudDivider class="mb-2" />
-                    <center>
-                        <MudText Typo="Typo.h5">@prize</MudText>
-                        <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
-                    </center>
-                </MudPaper>
+                <GiveawayPreview/>
             </MudItem>
             <MudItem sm="6">
-                <MudPaper Class="pa-4" Elevation="0">
-                    <MudPaper Class="align-start d-flex">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
-                    </MudPaper>
-                    <MudDivider class="mb-2" />
-                    <MudTable Items="@scheduledStreams" Elevation="0">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Start</MudTh>
-                            <MudTh>End</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd>@context.Title</MudTd>
-                            <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-                            <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
+                <StreamSchedule />
             </MudItem>
             <MudItem sm="6">
-                <MudPaper Class="pa-4" Elevation="0">
-                    <MudPaper Class="align-start d-flex">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Next 5 Song Requests</MudText>
-                        <MudSpacer />
-                        <MudLink Href="songrequests">Details</MudLink>
-                    </MudPaper>
-                    <MudDivider class="mb-2" />
-                    <MudTable Items="@songRequests" Elevation="0">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Length</MudTh>
-                            <MudTh>Requested By</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Title</MudTd>
-                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
+                <SongRequests IsPreview="true" LimitNumberOfSongs="5" Title="Next 5 Song Requests" />
             </MudItem>
             
             <MudItem sm="6">
-                <MudPaper Class="pa-4" Elevation="0">
+                <TopRequestedSongs IsPreview="true" Title="Top 5 Requested Songs" />
+                @* <MudPaper Class="pa-4" Elevation="0">
                     <MudPaper Class="align-start d-flex">
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Top 5 Requested Songs</MudText>
                         <MudSpacer />
@@ -113,25 +63,19 @@
 
                         </RowTemplate>
                     </MudTable>
-                </MudPaper>
+                </MudPaper> *@
             </MudItem>
         </MudGrid>
     </MudContainer>
 </CascadingAuthenticationState>
 
 @code {
-    private string prize = "";
-    private string? imageUrl;
     private List<Song> songRequests = new();
     private HubConnection? ythub;
     private List<Bot.Models.Metrics.SongRequestHistoryWithRank> topSongRequests = new();
-    private List<ScheduledStream> scheduledStreams = new();
     protected override async Task OnInitializedAsync()
     {
-        prize = await GiveawayFeature.GetPrize();
-        imageUrl = await GiveawayFeature.GetImageUrl();
         topSongRequests = await SongRequestMetrics.GetTopN(5);
-        scheduledStreams = (await schedule.GetNextStreams()).Take(5).ToList();
         UpdateSongList(YtPlayer.GetRequestedSongs());
     }
 
@@ -200,16 +144,6 @@
     private async Task UpdateSongs()
     {
         await Admin.UpdateSongs();
-    }
-
-    private async Task UpdateDiscordEvents()
-    {
-        await schedule.UpdateEvents();
-    }
-
-    private async Task PostSchedule()
-    {
-        await schedule.PostSchedule();
     }
 
     public async ValueTask DisposeAsync()
