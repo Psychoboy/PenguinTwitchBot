@@ -232,10 +232,13 @@ internal class Program
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        var ex = e.ExceptionObject as Exception;
-        if (e.IsTerminating)
-            logger?.LogCritical(ex, "Unhandled Exception - Application failed critically and is closing.");
+        if (e.ExceptionObject is Exception ex)
+        {
+            Log.Fatal("Unhandled exception:", ex);
+        }
         else
-            logger?.LogError(ex, "Unhandled Exception");
+        {
+            Log.Fatal("Unhandled non-exception object:", e.ExceptionObject);
+        }
     }
 }
