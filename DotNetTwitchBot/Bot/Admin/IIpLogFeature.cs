@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Admin
 {
@@ -6,6 +7,6 @@ namespace DotNetTwitchBot.Bot.Admin
     {
         Task<List<IpLogsForUser>> GetDuplicateIpsForUser(string username);
         Task<List<IpLogsForUser>> GetIpLogsForUser(string username);
-        Task<List<IpLogUsersWithSameIp>> GetAllDuplicateIps();
+        Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps(int offset, int limit);
     }
 }

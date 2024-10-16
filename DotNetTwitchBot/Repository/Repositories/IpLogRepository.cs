@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         }
 
-        public async Task<List<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null)
+        public async Task<IQueryable<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null)
         {
             var query = from p1 in _context.IpLogEntrys
                         join p2 in _context.IpLogEntrys on p1.Ip equals p2.Ip
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 User2 = x.Key.User2,
                 Ip = x.Key.Ip,
                 Count = x.Count()
-            });
+            }).OrderBy(x => x.User1);
 
             if (offset != null)
             {
@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 query = query.Take((int)limit);
             }
 
-            return await query.ToListAsync();
+            return query;
         }
 
         public async Task<List<IpLogsForUser>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null)

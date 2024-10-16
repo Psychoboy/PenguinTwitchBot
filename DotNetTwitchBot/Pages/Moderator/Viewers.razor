@@ -98,8 +98,8 @@
 
     private async Task<TableData<IpLogUsersWithSameIp>> LogsReload(TableState state, CancellationToken _token)
     {
-        var response = await ipLogFeature.GetAllDuplicateIps();
-        return new TableData<IpLogUsersWithSameIp> { TotalItems = response.Count, Items = response };
+        var response = await ipLogFeature.GetAllDuplicateIps(state.Page, state.PageSize);
+        return new TableData<IpLogUsersWithSameIp> { TotalItems = response.TotalItems, Items = response.Data };
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)
