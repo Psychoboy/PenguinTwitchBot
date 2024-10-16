@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Admin
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps(index, offset);
+            return await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps(offset, index);
         }
     }
 }

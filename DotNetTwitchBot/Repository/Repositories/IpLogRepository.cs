@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 User2 = x.Key.User2,
                 Ip = x.Key.Ip,
                 Count = x.Count()
-            });
+            }).OrderBy(x => x.User1);
 
             if (offset != null)
             {
