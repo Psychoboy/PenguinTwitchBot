@@ -98,7 +98,7 @@
 
     private async Task<TableData<IpLogUsersWithSameIp>> LogsReload(TableState state, CancellationToken _token)
     {
-        var response = await ipLogFeature.GetAllDuplicateIps();
+        var response = await ipLogFeature.GetAllDuplicateIps(state.Page, state.PageSize);
         return new TableData<IpLogUsersWithSameIp> { TotalItems = response.Count, Items = response };
     }
 

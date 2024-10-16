@@ -19,11 +19,11 @@ namespace DotNetTwitchBot.Bot.Admin
             return await unitOfWork.IpLogs.GetDuplicateIpsForUser(username);
         }
 
-        public async Task<List<IpLogUsersWithSameIp>> GetAllDuplicateIps()
+        public async Task<List<IpLogUsersWithSameIp>> GetAllDuplicateIps(int index, int offset)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
+            return await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps(index, offset);
         }
     }
 }
