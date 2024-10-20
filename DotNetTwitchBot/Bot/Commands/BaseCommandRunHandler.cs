@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -20,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands
                     }
                 }
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
-                if (commandService != null && commandService.CommandProperties.Disabled == false)
+                if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckToRunBroadcasterOnly(eventArgs, commandService.CommandProperties))
                 {
                     if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
                     {

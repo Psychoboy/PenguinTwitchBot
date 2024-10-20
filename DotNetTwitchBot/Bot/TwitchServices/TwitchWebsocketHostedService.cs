@@ -91,9 +91,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private Task ProcessCommandMessage(ChannelChatMessage e)
+        private async Task ProcessCommandMessage(ChannelChatMessage e)
         {
-            if (e.Message.Text.StartsWith('!') == false) return Task.CompletedTask;
+            if (e.Message.Text.StartsWith('!') == false) return;
 
             var argsFull = e.Message.Text.Split(' ', 2);
             var command = argsFull[0];
@@ -111,9 +111,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
-                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : ""
+                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : "",
+                FromOwnChannel = e.BroadcasterUserId.Equals(await twitchService.GetBroadcasterUserId(), StringComparison.CurrentCultureIgnoreCase)
             };
-            return eventService.OnCommand(eventArgs);
+            await eventService.OnCommand(eventArgs);
         }
 
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)

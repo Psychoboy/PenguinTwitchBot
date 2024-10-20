@@ -303,12 +303,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 return;
             }
 
+            if(Bot.Commands.CommandHandler.CheckToRunBroadcasterOnly(e, Commands[e.Command]) == false) return;
+
             if ((await CommandHandler.CheckPermission(Commands[e.Command], e)) == false)
             {
                 return;
             }
             await ExecuteCommand(e);
         }
+
 
         private async Task ExecuteCommand(CommandEventArgs e)
         {

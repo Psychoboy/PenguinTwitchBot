@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Models
         public bool ExcludeFromUi { get; set; } = false;
         public string Category { get; set; } = "";
         public string Description { get; set; } = "";
+        public bool RunFromBroadcasterOnly { get; set; } = false;
 
     }
 }

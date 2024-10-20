@@ -46,6 +46,7 @@ else
                 <MudCheckBox @bind-Value="@defaultCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@defaultCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@defaultCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@defaultCommand.RunFromBroadcasterOnly" Label="Run from own channel only?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@defaultCommand.ExcludeFromUi" Label="Exclude from web interface?" />
                 <MudSelect @bind-Value="@defaultCommand.MinimumRank" Label="Minimum Rank">
                     @foreach (Rank item in Enum.GetValues(typeof(Rank)))
