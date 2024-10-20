@@ -110,6 +110,8 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             if (Commands.ContainsKey(e.Command) == false) return;
             if (Commands[e.Command].Disabled) return;
 
+            if (Bot.Commands.CommandHandler.CheckToRunBroadcasterOnly(e, Commands[e.Command]) == false) return;
+
             var isCooldownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
             if (isCooldownExpired == false) return;
 

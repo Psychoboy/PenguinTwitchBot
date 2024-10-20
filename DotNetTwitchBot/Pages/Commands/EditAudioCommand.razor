@@ -34,6 +34,7 @@
                 <MudCheckBox @bind-Value="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@audioCommand.RunFromBroadcasterOnly" Label="Run from own channel only?"></MudCheckBox>
                 <MudSelect @bind-Value="@audioCommand.MinimumRank" Label="Minimum Rank">
                     @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                     {

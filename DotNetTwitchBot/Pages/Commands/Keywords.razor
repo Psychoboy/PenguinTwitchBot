@@ -65,6 +65,7 @@
                         <MudCheckBox @bind-Value="@keyword.SayRankRequirement" Label="Say Rank Requirement?">
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="@keyword.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudCheckBox @bind-Value="@keyword.RunFromBroadcasterOnly" Label="Run from own channel only?"></MudCheckBox>
                         <MudSelect @bind-Value="@keyword.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {
