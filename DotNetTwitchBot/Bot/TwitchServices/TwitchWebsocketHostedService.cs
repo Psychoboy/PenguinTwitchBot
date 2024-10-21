@@ -112,7 +112,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : "",
-                FromOwnChannel = e.BroadcasterUserId.Equals(await twitchService.GetBroadcasterUserId(), StringComparison.CurrentCultureIgnoreCase)
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
             };
             await eventService.OnCommand(eventArgs);
         }
