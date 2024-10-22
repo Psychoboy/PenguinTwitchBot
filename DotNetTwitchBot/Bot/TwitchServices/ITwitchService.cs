@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     public interface ITwitchService
     {
         Task Announcement(string message);
-        Task<List<string>> AreStreamsOnline(List<string> userIds);
+        Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds);
         Task<List<Subscription>> GetAllSubscriptions();
         Task<string?> GetBotUserId();
         Task<string?> GetBroadcasterUserId();

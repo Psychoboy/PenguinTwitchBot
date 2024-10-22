@@ -185,7 +185,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
             serviceBackbone.IsOnline = true;
 
-            twitchService.AreStreamsOnline(Arg.Any<List<string>>()).ReturnsForAnyArgs(new List<string> { "123" });
+            twitchService.AreStreamsOnline(Arg.Any<List<string>>()).ReturnsForAnyArgs([new()]);
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, Substitute.For<ICommandHandler>());
 
             //Act

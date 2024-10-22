@@ -490,7 +490,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return false;
         }
 
-        public async Task<List<string>> AreStreamsOnline(List<string> userIds)
+        public async Task<List<TwitchModels.OnlineStream>> AreStreamsOnline(List<string> userIds)
         {
             try
             {
@@ -499,7 +499,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 {
                     return [];
                 }
-                return streams.Streams.Select(x => x.UserId).ToList();
+                return streams.Streams.Select(x => new TwitchModels.OnlineStream
+                {
+                    UserId = x.UserId,
+                    UserName = x.UserName,
+                    DisplayName = x.UserName,
+                    Game = x.GameName
+                }).ToList();
             }
             catch (HttpResponseException ex)
             {
