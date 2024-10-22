@@ -10,6 +10,7 @@
         <HeaderContent>
             <MudTh>Name</MudTh>
             <MudTh>Online?</MudTh>
+            <MudTh>Game</MudTh>
             <MudTh>Incoming Raids</MudTh>
             <MudTh>Avg. Per</MudTh>
             <MudTh>Last Incoming</MudTh>
@@ -21,14 +22,15 @@
         <RowTemplate>
             <MudTd DataLabel="Name">@context.DisplayName</MudTd>
             <MudTd DataLabel="Is Online">@context.IsOnline</MudTd>
+            <MudTd DateLabel="Game">@context.LastGame</MudTd>
             <MudTd DataLabel="Incoming">@context.TotalIncomingRaids</MudTd>
             <MudTd DataLabel="Avg. Incoming"> @(context.TotalIncomingRaids > 0 ? context.TotalIncomingRaidViewers /
             context.TotalIncomingRaids : 0) </MudTd>
-            <MudTd DataLabel="Last Incoming">@context.LastIncomingRaid</MudTd>
+            <MudTd DataLabel="Last Incoming">@context.LastIncomingRaid.ToShortDateString()</MudTd>
             <MudTd DataLabel="Outgoing">@context.TotalOutgoingRaids</MudTd>
             <MudTd DataLabel="Avg. Per"> @(context.TotalOutgoingRaids > 0 ? context.TotalOutGoingRaidViewers /
             context.TotalOutgoingRaids : 0)</MudTd>
-                <MudTd DataLabel="Last Outgoing">@context.LastOutgoingRaid</MudTd>
+            <MudTd DataLabel="Last Outgoing">@context.LastOutgoingRaid.ToShortDateString()</MudTd>
                 <MudTd DataLabel="Edit">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Raid(context)">Raid</MudButton>
                 </MudTd>

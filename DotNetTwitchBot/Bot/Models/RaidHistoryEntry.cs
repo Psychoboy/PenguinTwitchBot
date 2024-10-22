@@ -21,5 +21,6 @@ namespace DotNetTwitchBot.Bot.Models
         public DateTime LastIncomingRaid { get; set; } = DateTime.Now;
         public DateTime LastOutgoingRaid { get; set; } = DateTime.Now;
         public DateTime LastCheckOnline { get; set; } = DateTime.MinValue;
+        public string LastGame { get; set; } = string.Empty;
     }
 }

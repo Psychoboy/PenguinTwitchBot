@@ -72,8 +72,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     var onlineStreams = await _twitchService.AreStreamsOnline(userIds.ToList());
                     foreach (var raidHistoryItem in raidHistory)
                     {
-                        raidHistoryItem.IsOnline = onlineStreams.Contains(raidHistoryItem.UserId);
+                        var matchingStream = onlineStreams.FirstOrDefault(x => x.UserId == raidHistoryItem.UserId);
+                        raidHistoryItem.IsOnline = matchingStream != null;
                         raidHistoryItem.LastCheckOnline = DateTime.Now;
+                        if(matchingStream != null)
+                        {
+                            raidHistoryItem.DisplayName = matchingStream.DisplayName;
+                            raidHistoryItem.Name = matchingStream.UserName;
+                            raidHistoryItem.LastGame = matchingStream.Game;
+                        }
                     }
                     db.RaidHistory.UpdateRange(raidHistory);
                     await db.SaveChangesAsync();
@@ -96,26 +103,27 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var raidHistory = await db.RaidHistory.Find(x => x.Name.Equals(e.Name)).FirstOrDefaultAsync();
+                var userId = await _twitchService.GetUserId(e.Name);
+                if(userId == null)
+                {
+                    _logger.LogWarning("Didn't save raid from {DisplayName} because we couldn't get the users ID.", e.DisplayName);
+                    return;
+                }
+                var raidHistory = await db.RaidHistory.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
                 if (raidHistory == null)
                 {
-                    string? userId = "";
-                    userId = await _twitchService.GetUserId(e.Name);
-                    if (userId == null)
-                    {
-                        _logger.LogWarning("Didn't save raid from {DisplayName} because we couldn't get the users ID.", e.DisplayName);
-                        return;
-                    }
                     raidHistory = new RaidHistoryEntry
                     {
-                        UserId = userId,
-                        Name = e.Name,
-                        DisplayName = e.DisplayName
+                        UserId = userId
                     };
                 }
                 raidHistory.TotalIncomingRaids++;
                 raidHistory.TotalIncomingRaidViewers += e.NumberOfViewers;
                 raidHistory.LastIncomingRaid = DateTime.Now;
+                raidHistory.Name = e.Name;
+                raidHistory.DisplayName = e.DisplayName;
+                var game = await _twitchService.GetCurrentGame(userId);
+                raidHistory.LastGame = string.IsNullOrWhiteSpace(game) ? "" : game;
                 db.RaidHistory.Update(raidHistory);
                 await db.SaveChangesAsync();
             }
