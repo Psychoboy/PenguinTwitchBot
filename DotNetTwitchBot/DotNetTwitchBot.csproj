@@ -33,6 +33,7 @@
     <PackageReference Include="EFCore.BulkExtensions" Version="8.1.1" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3570" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.8.0" />
+    <PackageReference Include="iluvadev.ConsoleProgressBar" Version="1.1.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
 	<PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.10" />

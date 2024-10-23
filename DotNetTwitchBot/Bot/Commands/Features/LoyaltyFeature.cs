@@ -170,11 +170,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewer = await db.ViewerMessageCounts.Find(x => x.UserId.Equals(e.UserId)).FirstOrDefaultAsync();
+            if(viewer == null)
+            {
+                _logger.LogWarning("Didn't get user by Id so Getting by Name {name}", e.Name);
+                viewer = await db.ViewerMessageCounts.Find(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
+            }
             viewer ??= new ViewerMessageCount
             {
-                UserId = e.UserId,
-                MessageCount = 0
+                
             };
+            viewer.UserId = e.UserId;
             viewer.Username = e.Name;
             viewer.MessageCount++;
             db.ViewerMessageCounts.Update(viewer);
