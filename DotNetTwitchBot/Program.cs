@@ -8,6 +8,8 @@ using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
+using DotNetTwitchBot.Repository;
+using iluvadev.ConsoleProgressBar;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.HttpLogging;

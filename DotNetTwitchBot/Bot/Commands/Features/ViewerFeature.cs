@@ -4,6 +4,8 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using iluvadev.ConsoleProgressBar;
+using NetTopologySuite.Algorithm.Construct;
 using System.Collections.Concurrent;
 using System.Timers;
 using TwitchLib.Api.Helix.Models.Teams;
@@ -501,125 +503,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await UpdateViewerIds();
             await UpdateSubscribers();
             await UpdateChatters();
             await Register();
-        }
-
-        private async Task UpdateViewerIds()
-        {
-            _logger.LogInformation("Updating viewer Ids");
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            if(db.Viewers.Get(x => x.UserId.Length > 0).Any())
-            {
-                _logger.LogInformation("User ID already completed.");
-                return;
-            }
-
-            _logger.LogInformation("Upgrading Viewers");
-            var viewers = db.Viewers.Get(x => x.UserId.Equals("")).ToList();
-            foreach (var viewer in viewers)
-            {
-                var tViewer = await _twitchService.GetUserByName(viewer.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", viewer.Username);
-                    continue;
-                }
-                viewer.UserId = tViewer.Id;
-                db.Viewers.Update(viewer);
-            }
-
-            _logger.LogInformation("Upgrading Follows");
-            var follows = db.Followers.GetAll();
-            foreach (var follow in follows)
-            {
-                var tViewer = await _twitchService.GetUserByName(follow.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", follow.Username);
-                    continue;
-                }
-                follow.UserId = tViewer.Id;
-                db.Followers.Update(follow);
-            }
-
-            _logger.LogInformation("Upgrading Subscription Histories");
-            var subscriptions = db.SubscriptionHistories.GetAll();
-            foreach (var sub in subscriptions)
-            {
-                var tViewer = await _twitchService.GetUserByName(sub.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", sub.Username);
-                    continue;
-                }
-                sub.UserId = tViewer.Id;
-                db.SubscriptionHistories.Update(sub);
-            }
-
-            _logger.LogInformation("Upgrading Message Count");
-            var messageCounts = db.ViewerMessageCounts.GetAll();
-            foreach (var count in messageCounts)
-            {
-                var tViewer = await _twitchService.GetUserByName(count.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", count.Username);
-                    continue;
-                }
-                count.UserId = tViewer.Id;
-                db.ViewerMessageCounts.Update(count);
-            }
-
-            _logger.LogInformation("Upgrading Viewer Points");
-            var viewerPoints = db.ViewerPoints.GetAll();
-            foreach (var viewerPoint in viewerPoints)
-            {
-                var tViewer = await _twitchService.GetUserByName(viewerPoint.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", viewerPoint.Username);
-                    continue;
-                }
-                viewerPoint.UserId = tViewer.Id;
-                db.ViewerPoints.Update(viewerPoint);
-            }
-
-            _logger.LogInformation("Upgrading Viewer Tickets");
-            var viewerTickets = db.ViewerTickets.GetAll();
-            foreach (var viewerTicket in viewerTickets)
-            {
-                var tViewer = await _twitchService.GetUserByName(viewerTicket.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", viewerTicket.Username);
-                    continue;
-                }
-                viewerTicket.UserId = tViewer.Id;
-                db.ViewerTickets.Update(viewerTicket);
-            }
-
-            _logger.LogInformation("Upgrading Viewer Time");
-            var viewerTimes = db.ViewersTime.GetAll();
-            foreach (var viewerTime in viewerTimes)
-            {
-                var tViewer = await _twitchService.GetUserByName(viewerTime.Username);
-                if (tViewer == null)
-                {
-                    _logger.LogWarning("No viewer exists with name: {name}", viewerTime.Username);
-                    continue;
-                }
-                viewerTime.UserId = tViewer.Id;
-                db.ViewersTime.Update(viewerTime);
-            }
-            var result = await db.SaveChangesAsync();
-            _logger.LogInformation("Finished updating. Updated {number} records", result);
-
-
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
