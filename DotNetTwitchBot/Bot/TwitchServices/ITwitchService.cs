@@ -23,7 +23,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<string> GetCurrentGame(string userId);
         Task<string> GetStreamThumbnail();
         Task<string> GetStreamTitle();
-        Task<User?> GetUser(string user);
+        Task<User?> GetUserByName(string user);
+        Task<User?> GetUserById(string userId);
         Task<Follower?> GetUserFollow(string user);
         Task<string?> GetUserId(string user);
         Task<int> GetViewerCount();

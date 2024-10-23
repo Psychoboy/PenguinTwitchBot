@@ -301,7 +301,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 var winningTicket = Tickets.RandomElementOrDefault(_logger);
-                var viewer = await _viewerFeature.GetViewer(winningTicket);
+                var viewer = await _viewerFeature.GetViewerByUserName(winningTicket);
                 var isFollower = await _viewerFeature.IsFollower(winningTicket);
                 var prize = await GetPrize();
                 var message = lang.Get("giveawayfeature.draw.winner")
@@ -385,7 +385,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
                 }
-                var displayName = await _viewerFeature.GetDisplayName(sender);
+                var displayName = await _viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
                 {
                     var message = lang.Get("giveawayfeature.enter.notvalid");

@@ -88,7 +88,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             foreach (var viewer in viewers)
             {
                 long bonus = 0;
-                var viewerData = await _viewerFeature.GetViewer(viewer);
+                var viewerData = await _viewerFeature.GetViewerByUserName(viewer);
                 if (viewerData != null)
                 {
                     bonus = viewerData.isSub ? subBonusAmount : 0; // Sub Bonus
@@ -101,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (ServiceBackbone.IsKnownBot(viewer)) return 0;
             ViewerTicket? viewerPoints;
-            var viewerRec = await _viewerFeature.GetViewer(viewer);
+            var viewerRec = await _viewerFeature.GetViewerByUserName(viewer);
             if (viewerRec == null)
             {
                 _logger.LogWarning("Couldn't give tickets to viewer, they don't exist {viewer}", viewer);
@@ -226,7 +226,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
                             var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
-                            await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayName(e.TargetUser), amount, totalPoints));
+                            await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayNameByUsername(e.TargetUser), amount, totalPoints));
                         }
                         break;
                     }

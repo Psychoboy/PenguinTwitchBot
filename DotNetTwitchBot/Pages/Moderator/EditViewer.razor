@@ -169,11 +169,11 @@ else
     protected override async void OnParametersSet()
     {
         if(int.TryParse(id, out var realId)){
-            viewer.Viewer = await viewerFeature.GetViewer(realId);
+            viewer.Viewer = await viewerFeature.GetViewerById(realId);
         } 
         else
         {
-            viewer.Viewer = await viewerFeature.GetViewer(id);
+            viewer.Viewer = await viewerFeature.GetViewerByUserName(id);
         }
 
         if(viewer.Viewer != null)

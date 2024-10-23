@@ -285,7 +285,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException();
             }
 
-            var target = await _viewerFeature.GetViewer(e.TargetUser);
+            var target = await _viewerFeature.GetViewerByUserName(e.TargetUser);
             if (target == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
@@ -351,7 +351,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var viewer = await _viewerFeature.GetViewer(target);
+                var viewer = await _viewerFeature.GetViewerByUserName(target);
                 if(viewer == null)
                 {
                     _logger.LogInformation("No viewer record for {target}", target);
@@ -391,7 +391,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             try
             {
-                var viewerRec = await _viewerFeature.GetViewer(viewer);
+                var viewerRec = await _viewerFeature.GetViewerByUserName(viewer);
                 if(viewerRec == null)
                 {
                     _logger.LogWarning("Couldn't get viewer to update time. {viewer}", viewer);

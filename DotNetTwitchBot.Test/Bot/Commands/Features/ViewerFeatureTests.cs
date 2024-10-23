@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            var result = await viewerFeature.GetViewer(1);
+            var result = await viewerFeature.GetViewerById(1);
 
             //Assert
             Assert.Equal(testViewer, result);
@@ -116,7 +116,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            var result = await viewerFeature.GetDisplayName("test");
+            var result = await viewerFeature.GetDisplayNameByUsername("test");
 
             //Assert
             Assert.Equal("Test", result);

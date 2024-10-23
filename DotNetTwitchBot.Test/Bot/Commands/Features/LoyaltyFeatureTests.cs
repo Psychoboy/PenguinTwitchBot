@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Repository;
+using Microsoft.AspNetCore.Mvc.Razor.Compilation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -237,6 +238,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
 
             // Act
             await loyaltyFeature.AddPointsToViewer("test", 5);
@@ -253,6 +255,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint();
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
 
             // Act
             await loyaltyFeature.AddPointsToViewer("test", 5);
@@ -272,6 +275,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewersTime.Find(x => true).ReturnsForAnyArgs(timeQuerable);
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.GetActiveViewers().Returns(new List<string> { "test" });
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
             serviceBackbone.IsKnownBot("test").Returns(false);
             serviceBackbone.IsOnline = true;
 
@@ -340,7 +344,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             };
             commandHandler.GetCommandDefaultName("gift").Returns("gift");
 
-            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
 
             // Act
             await loyaltyFeature.OnCommand(this, commandEventArgs);
@@ -373,7 +377,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             };
             commandHandler.GetCommandDefaultName("gift").Returns("gift");
 
-            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
 
             // Act
 
@@ -402,7 +406,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             };
             commandHandler.GetCommandDefaultName("gift").Returns("gift");
 
-            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
 
             // Act
 
@@ -458,7 +462,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             };
             commandHandler.GetCommandDefaultName("gift").Returns("gift");
 
-            viewerFeature.GetViewer("TestTarget").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
 
             // Act
 
@@ -507,6 +511,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint { Points = 10 };
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
+            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
             var commandEventArgs = new CommandEventArgs
             {
                 TargetUser = "TestTarget",

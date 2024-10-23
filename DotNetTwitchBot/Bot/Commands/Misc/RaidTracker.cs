@@ -163,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task Raid(string targetUser)
         {
-            var user = await _twitchService.GetUser(targetUser);
+            var user = await _twitchService.GetUserByName(targetUser);
             if (user == null)
             {
                 await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.");

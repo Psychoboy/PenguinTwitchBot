@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();
-            twitchService.GetUser("").ReturnsNull();
+            twitchService.GetUserByName("").ReturnsNull();
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
             //Act
@@ -89,7 +89,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();
-            twitchService.GetUser("").Returns(new User());
+            twitchService.GetUserByName("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(false);
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
@@ -119,7 +119,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();
-            twitchService.GetUser("").Returns(new User());
+            twitchService.GetUserByName("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, Substitute.For<ICommandHandler>());
@@ -216,7 +216,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();
-            twitchService.GetUser("").Returns(new User());
+            twitchService.GetUserByName("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
             commandHandler.GetCommandDefaultName("raid").Returns("raid");

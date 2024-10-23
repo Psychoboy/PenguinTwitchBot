@@ -22,6 +22,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
 
             serviceBackbone.IsKnownBot(Arg.Any<string>()).Returns(false);
 
@@ -32,7 +34,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicket> { new ViewerTicket() }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
+            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
             //Act
             var result = await ticketFeature.GiveTicketsToViewer("test", 5);
@@ -53,6 +55,9 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
 
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
+
             serviceBackbone.IsKnownBot(Arg.Any<string>()).Returns(false);
 
             scopeFactory.CreateScope().Returns(scope);
@@ -63,7 +68,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicket> { testUser }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
+            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
             //Act
             var result = await ticketFeature.GiveTicketsToViewer("test", 5);
@@ -96,7 +101,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer();
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
@@ -131,7 +136,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = true };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
 
             var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
@@ -166,7 +171,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = false };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string>());
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(false);
@@ -203,7 +208,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = false };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string>());
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(true);
@@ -241,7 +246,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = false };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string> { "test" });
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(false);
@@ -279,7 +284,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = false };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string>());
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(false);
@@ -316,7 +321,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = true };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string>());
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(true);
@@ -354,7 +359,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var testViewer = new Viewer { isSub = false };
-            viewerFeature.GetViewer(Arg.Any<string>()).Returns(testViewer);
+            viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(testViewer);
             viewerFeature.GetActiveViewers().Returns(new List<string> { "test" });
             viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
             viewerFeature.IsSubscriber("test").Returns(false);
@@ -494,6 +499,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
 
             serviceBackbone.IsKnownBot(Arg.Any<string>()).Returns(false);
 
@@ -505,7 +512,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var queryable = new List<ViewerTicket> { testUser }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerTickets.Find(x => true).ReturnsForAnyArgs(queryable);
 
-            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
+            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
 
             //Act
             var result = await ticketFeature.RemoveTicketsFromViewer("test", 5);
@@ -597,6 +604,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            viewerFeature.GetViewerByUserName("Test").Returns(new Viewer());
 
             serviceBackbone.IsKnownBot(Arg.Any<string>()).Returns(false);
 
@@ -610,7 +619,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             commandHandler.GetCommandDefaultName("givetickets").Returns("givetickets");
 
-            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, Substitute.For<IViewerFeature>(), commandHandler);
+            var ticketFeature = new TicketsFeature(Substitute.For<ILogger<TicketsFeature>>(), serviceBackbone, scopeFactory, viewerFeature, commandHandler);
             var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
             {
                 Command = "givetickets",
