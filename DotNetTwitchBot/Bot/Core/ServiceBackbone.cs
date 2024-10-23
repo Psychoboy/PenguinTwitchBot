@@ -180,6 +180,7 @@ namespace DotNetTwitchBot.Bot.Core
                 await FollowEvent(this, new FollowEventArgs
                 {
                     Username = ev.UserLogin,
+                    UserId = ev.UserId,
                     DisplayName = ev.UserName,
                     FollowDate = ev.FollowedAt.DateTime
                 });
@@ -222,11 +223,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnSubscriptionEnd(string userName)
+        public async Task OnSubscriptionEnd(string userName, string userId)
         {
             if (SubscriptionEndEvent != null)
             {
-                await SubscriptionEndEvent(this, new SubscriptionEndEventArgs { Name = userName });
+                await SubscriptionEndEvent(this, new SubscriptionEndEventArgs { Name = userName, UserId = userId });
             }
         }
         public async Task OnAdBreakStartEvent(AdBreakStartEventArgs e)
@@ -237,12 +238,12 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public Task OnChannelPointRedeem(string userName, string title)
+        public Task OnChannelPointRedeem(string userId, string userName, string title)
         {
-            return OnChannelPointRedeem(userName, title, "");
+            return OnChannelPointRedeem(userId, userName, title, "");
         }
 
-        public async Task OnChannelPointRedeem(string userName, string title, string userInput)
+        public async Task OnChannelPointRedeem(string userId, string userName, string title, string userInput)
         {
             if (ChannelPointRedeemEvent != null)
             {
@@ -271,11 +272,11 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnViewerBan(string username, bool unbanned)
+        public async Task OnViewerBan(string userId, string username, bool unbanned)
         {
             if (BanEvent != null)
             {
-                await BanEvent(this, new BanEventArgs { Name = username, IsUnBan = unbanned });
+                await BanEvent(this, new BanEventArgs {UserId = userId, Name = username, IsUnBan = unbanned });
             }
         }
     }

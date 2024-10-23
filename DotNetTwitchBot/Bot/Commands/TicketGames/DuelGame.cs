@@ -199,7 +199,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 throw new SkipCooldownException();
             }
-            var defender = await _viewerFeature.GetViewer(e.TargetUser);
+            var defender = await _viewerFeature.GetViewerByUserName(e.TargetUser);
             if (defender == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "Could not find that viewer");

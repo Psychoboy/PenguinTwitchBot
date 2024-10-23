@@ -91,6 +91,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 _logger.LogError(ex, "Error Updating Incoming Raid");
             }
         }
+
+        public async Task RemoveRaidHistory(RaidHistoryEntry raidHistoryEntry)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.RaidHistory.Remove(raidHistoryEntry);
+            await db.SaveChangesAsync();
+        }
+
         private async Task OnIncomingRaid(object? sender, RaidEventArgs e)
         {
             await OnIncomingRaid(e);
@@ -154,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task Raid(string targetUser)
         {
-            var user = await _twitchService.GetUser(targetUser);
+            var user = await _twitchService.GetUserByName(targetUser);
             if (user == null)
             {
                 await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.");

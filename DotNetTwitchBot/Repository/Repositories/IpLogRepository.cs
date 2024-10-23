@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         }
 
-        public async Task<IQueryable<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null)
+        public IQueryable<IpLogUsersWithSameIp> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null)
         {
             var query = from p1 in _context.IpLogEntrys
                         join p2 in _context.IpLogEntrys on p1.Ip equals p2.Ip

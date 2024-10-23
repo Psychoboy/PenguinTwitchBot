@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Events.Chat
         public bool IsBroadcaster { get; set; }
         public string DisplayName { get; set; } = "";
         public string Name { get; set; } = "";
+        public string UserId { get; set; } = string.Empty;
 
         public bool IsSubOrHigher()
         {

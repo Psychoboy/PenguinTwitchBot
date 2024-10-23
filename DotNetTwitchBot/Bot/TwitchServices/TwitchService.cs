@@ -330,15 +330,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<string?> GetUserId(string user)
         {
-            return (await GetUser(user))?.Id;
+            return (await GetUserByName(user))?.Id;
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUser(string user)
+        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUserByName(string user)
         {
             try
             {
-
-
                 if (UserCache.TryGetValue(user, out var twitchUser))
                 {
                     if (twitchUser != null)
@@ -351,6 +349,54 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var userObj = users.Users.FirstOrDefault();
                 UserCache[user] = userObj;
                 return userObj;
+            }
+            catch (TooManyRequestsException ex)
+            {
+                return null;
+            }
+            catch (Exception)
+            {
+                _logger.LogCritical("Failed getting user");
+                return null;
+            }
+        }
+
+        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUserById(string userId)
+        {
+            try
+            {
+
+                var users = await _twitchApi.Helix.Users.GetUsersAsync([userId],null, _configuration["twitchAccessToken"]);
+                var userObj = users.Users.FirstOrDefault();
+                return userObj;
+            }
+            catch (TooManyRequestsException ex)
+            {
+                return null;
+            }
+            catch (Exception)
+            {
+                _logger.LogCritical("Failed getting user");
+                return null;
+            }
+        }
+
+        public async Task<List<TwitchLib.Api.Helix.Models.Users.GetUsers.User?>?> GetUsers(List<string> userNames)
+        {
+            try
+            {
+
+                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, userNames, _configuration["twitchAccessToken"]);
+                if (users == null) throw new Exception("Got a null response");
+                foreach (var user in users.Users)
+                {
+                    UserCache[user.Login] = user;
+                }
+                return [.. users.Users];
+            }
+            catch (TooManyRequestsException ex)
+            {
+                return null;
             }
             catch (Exception)
             {
@@ -368,6 +414,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 return new()
                 {
+                    UserId = userId,
                     DisplayName = user,
                     Username = user,
                     FollowDate = DateTime.Now
@@ -385,6 +432,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 return new Follower()
                 {
                     Username = firstFollower.FromLogin,
+                    UserId = firstFollower.FromUserId,
                     DisplayName = firstFollower.FromLogin,
                     FollowDate = firstFollower.FollowedAt
                 };

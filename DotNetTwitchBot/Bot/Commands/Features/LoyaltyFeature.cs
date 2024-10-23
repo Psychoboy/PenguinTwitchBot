@@ -169,12 +169,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var viewer = await db.ViewerMessageCounts.Find(x => x.Username.Equals(e.Name)).FirstOrDefaultAsync();
+            var viewer = await db.ViewerMessageCounts.Find(x => x.UserId.Equals(e.UserId)).FirstOrDefaultAsync();
             viewer ??= new ViewerMessageCount
             {
-                Username = e.Name,
+                UserId = e.UserId,
                 MessageCount = 0
             };
+            viewer.Username = e.Name;
             viewer.MessageCount++;
             db.ViewerMessageCounts.Update(viewer);
             await db.SaveChangesAsync();
@@ -284,7 +285,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException();
             }
 
-            var target = await _viewerFeature.GetViewer(e.TargetUser);
+            var target = await _viewerFeature.GetViewerByUserName(e.TargetUser);
             if (target == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
@@ -350,11 +351,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var viewer = await _viewerFeature.GetViewerByUserName(target);
+                if(viewer == null)
+                {
+                    _logger.LogInformation("No viewer record for {target}", target);
+                    return;
+                }
                 var viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(target)).FirstOrDefaultAsync();
                 viewerPoint ??= new ViewerPoint
                 {
-                    Username = target.ToLower()
+                    UserId = viewer.UserId
                 };
+                viewerPoint.Username = target.ToLower();
                 viewerPoint.Points += points;
                 db.ViewerPoints.Update(viewerPoint);
                 await db.SaveChangesAsync();
@@ -383,13 +391,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             try
             {
-
+                var viewerRec = await _viewerFeature.GetViewerByUserName(viewer);
+                if(viewerRec == null)
+                {
+                    _logger.LogWarning("Couldn't get viewer to update time. {viewer}", viewer);
+                    return;
+                }
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var viewerTime = await db.ViewersTime.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
                 viewerTime ??= new ViewerTime
                 {
-                    Username = viewer
+                    UserId = viewerRec.UserId
                 };
+                viewerTime.Username = viewer;
                 viewerTime.Time += timeToAdd;
                 db.ViewersTime.Update(viewerTime);
                 await db.SaveChangesAsync();

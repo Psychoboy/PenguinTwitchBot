@@ -23,7 +23,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<string> GetCurrentGame(string userId);
         Task<string> GetStreamThumbnail();
         Task<string> GetStreamTitle();
-        Task<User?> GetUser(string user);
+        Task<User?> GetUserByName(string user);
+        Task<User?> GetUserById(string userId);
         Task<Follower?> GetUserFollow(string user);
         Task<string?> GetUserId(string user);
         Task<int> GetViewerCount();
@@ -55,5 +56,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<List<Clip>> GetClip(string clipId);
         Task<ChannelInformation?> GetChannelInfo(string userId);
         Task<Game?> GetGameInfo(string gameId);
+        Task<List<User?>?> GetUsers(List<string> userNames);
     }
 }

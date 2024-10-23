@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
 
             commandHandler.GetCommandDefaultName("death").Returns("death");
-            viewerFeature.GetDisplayName(Arg.Any<string>()).Returns("TheStreamer");
+            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("TheStreamer");
         }
 
 

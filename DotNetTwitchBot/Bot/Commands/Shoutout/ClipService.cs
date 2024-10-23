@@ -75,7 +75,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         {
             try
             {
-                var user = await twitchService.GetUser(clip.BroadcasterName);
+                var user = await twitchService.GetUserByName(clip.BroadcasterName);
                 if (user == null)
                 {
                     logger.LogWarning("{user} does not exist.", clip.BroadcasterName);

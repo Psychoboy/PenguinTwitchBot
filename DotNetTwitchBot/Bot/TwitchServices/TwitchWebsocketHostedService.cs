@@ -44,6 +44,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     return;
                 }
                 await eventService.OnChannelPointRedeem(
+                    args.Notification.Payload.Event.ChatterUserId,
                    args.Notification.Payload.Event.ChatterUserName.ToLower(),
                    channelPoint.Title,
                    args.Notification.Payload.Event.Message.Text);
@@ -66,6 +67,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var chatMessage = new ChatMessageEventArgs
             {
                 Message = e.Message.Text,
+                UserId = e.UserId,
                 Name = e.UserLogin,
                 DisplayName = e.UserName,
                 IsSub = false,
@@ -81,6 +83,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var chatMessage = new ChatMessageEventArgs
             {
                 Message = e.Message.Text,
+                UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin.ToLower(),
                 DisplayName = e.ChatterUserName,
                 IsSub = e.IsSubscriber,
@@ -105,6 +108,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 Arg = ArgumentsAsString,
                 Args = ArgumentsAsList,
                 IsWhisper = false,
+                UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin,
                 DisplayName = e.ChatterUserName,
                 IsSub = e.IsSubscriber,
@@ -143,7 +147,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, true);
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, true);
             }
             catch (Exception ex)
             {
@@ -162,7 +166,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     return;
                 }
                 logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-                await eventService.OnViewerBan(e.Notification.Payload.Event.UserLogin, false);
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, false);
             }
             catch (Exception ex)
             {
@@ -180,6 +184,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 await eventService.OnIncomingRaid(new Events.RaidEventArgs
                 {
                     Name = e.Notification.Payload.Event.FromBroadcasterUserLogin,
+                    UserId = e.Notification.Payload.Event.FromBroadcasterUserId,
                     DisplayName = e.Notification.Payload.Event.FromBroadcasterUserName,
                     NumberOfViewers = e.Notification.Payload.Event.Viewers
                 });
@@ -241,7 +246,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
                 , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
                 if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
                 {
@@ -254,6 +259,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
+                    UserId = e.Notification.Payload.Event.UserId,
                     DisplayName = e.Notification.Payload.Event.UserName,
                     IsGift = e.Notification.Payload.Event.IsGift
                 });
@@ -275,12 +281,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin);
+                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
                 if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
                 await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
+                    UserId = e.Notification.Payload.Event.UserId,
                     DisplayName = e.Notification.Payload.Event.UserName,
                     Count = e.Notification.Payload.Event.CumulativeMonths,
                     Streak = e.Notification.Payload.Event.StreakMonths,
@@ -303,6 +310,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 await eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
+                    UserId = e.Notification.Payload.Event.UserId,
                     DisplayName = e.Notification.Payload.Event.UserName,
                     GiftAmount = e.Notification.Payload.Event.Total,
                     TotalGifted = e.Notification.Payload.Event.CumulativeTotal
@@ -321,7 +329,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(e.Notification.Metadata)) return;
 
                 logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin} Type: {SubscriptionType}", e.Notification.Payload.Event.UserLogin, e.Notification.Metadata.SubscriptionType);
-                await eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin);
+                await eventService.OnSubscriptionEnd(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
             }
             catch (Exception ex)
             {
@@ -375,6 +383,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 if (string.IsNullOrWhiteSpace(e.Notification.Payload.Event.UserInput) == false) return; //Ignore wait for chat message
                 await eventService.OnChannelPointRedeem(
+                    e.Notification.Payload.Event.UserId,
                     e.Notification.Payload.Event.UserName,
                     e.Notification.Payload.Event.Reward.Title);
                 logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status}", e.Notification.Payload.Event.Reward.Title, e.Notification.Payload.Event.UserName, e.Notification.Payload.Event.Status);
