@@ -91,6 +91,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 _logger.LogError(ex, "Error Updating Incoming Raid");
             }
         }
+
+        public async Task RemoveRaidHistory(RaidHistoryEntry raidHistoryEntry)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.RaidHistory.Remove(raidHistoryEntry);
+            await db.SaveChangesAsync();
+        }
+
         private async Task OnIncomingRaid(object? sender, RaidEventArgs e)
         {
             await OnIncomingRaid(e);

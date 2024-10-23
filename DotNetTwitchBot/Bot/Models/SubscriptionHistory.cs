@@ -13,6 +13,6 @@ namespace DotNetTwitchBot.Bot.Models
         public int? Id { get; set; }
         public string Username { get; set; } = null!;
         public DateTime LastSub { get; set; } = DateTime.Now;
-
+        public string UserId { get; set; } = string.Empty;
     }
 }

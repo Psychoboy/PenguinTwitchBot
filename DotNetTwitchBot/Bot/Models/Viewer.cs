@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int? Id { get; set; }
+        public string UserId { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;

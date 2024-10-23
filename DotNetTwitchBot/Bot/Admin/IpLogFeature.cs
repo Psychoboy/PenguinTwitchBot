@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Admin
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var query = await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
+            var query = unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
             return new PagedDataResponse<IpLogUsersWithSameIp>
             {
                 TotalItems = await query.CountAsync(),

@@ -12,6 +12,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<DateTime?> GetUserCreatedAsync(string username);
         Task<Viewer?> GetViewer(int id);
         Task<Viewer?> GetViewer(string username);
+        Task<Viewer?> GetViewerByUserId(string userId);
+        Task<Viewer?> GetViewerByUserIdOrName(string userId, string username);
         Task<bool> IsFollower(string username);
         Task<bool> IsModerator(string username);
         Task<bool> IsSubscriber(string username);

@@ -159,6 +159,7 @@ internal class Program
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             dbContext.Database.Migrate();
         }
+
         //Loads all the command stuff into memory
         app.Services.GetRequiredService<IDiscordService>();
 

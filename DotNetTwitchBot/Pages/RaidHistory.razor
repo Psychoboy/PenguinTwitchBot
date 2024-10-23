@@ -18,6 +18,7 @@
             <MudTh>Avg. Per</MudTh>
             <MudTh>Last Outgoing</MudTh>
             <MudTh>Raid</MudTh>
+            <MudTh>Remove</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Name">@context.DisplayName</MudTd>
@@ -33,6 +34,10 @@
             <MudTd DataLabel="Last Outgoing">@context.LastOutgoingRaid.ToShortDateString()</MudTd>
                 <MudTd DataLabel="Edit">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Raid(context)">Raid</MudButton>
+                
+                </MudTd>
+                <MudTd DataLabel="Remove">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Remove(context)">Remove</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -51,6 +56,17 @@
         try
         {
             await RaidTracker.Raid(item.Name);
+        }
+        catch (Exception)
+        { }
+    }
+    private async Task Remove(RaidHistoryEntry item)
+    {
+        try
+        {
+            await RaidTracker.RemoveRaidHistory(item);
+            raidHistory = await RaidTracker.GetHistory();
+            StateHasChanged();
         }
         catch (Exception)
         { }

@@ -1,10 +1,12 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
 using System.Timers;
+using TwitchLib.Api.Helix.Models.Teams;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
@@ -64,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _users = new(chatters.Select(x => x.UserLogin).Distinct());
                 foreach (var chatter in chatters)
                 {
-                    await AddOrUpdateLastSeen(chatter.UserLogin);
+                    await AddOrUpdateLastSeen(chatter.UserId, chatter.UserLogin);
                 }
             }
             catch (Exception ex)
@@ -98,12 +100,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
 
-        private async Task AddOrUpdateLastSeen(string username)
+        private async Task AddOrUpdateLastSeen(string userId, string userLogin)
         {
-            var viewer = await GetViewer(username);
+            var viewer = await GetViewerByUserIdOrName(userId, userLogin);
             if (viewer == null)
             {
-                await AddBasicUser(username);
+                await AddBasicUser(userId, userLogin);
             }
             else
             {
@@ -158,6 +160,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     follower = new Follower
                     {
+                        UserId = args.UserId,
                         Username = args.Username,
                         DisplayName = args.DisplayName,
                         FollowDate = args.FollowDate
@@ -240,6 +243,25 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
+        }
+
+        public async Task<Viewer?> GetViewerByUserId(string userId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
+        }
+
+        public async Task<Viewer?> GetViewerByUserIdOrName(string userId, string username)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var viewer =  await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
+            if(viewer == null)
+            {
+                viewer = await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
+            }
+            return viewer;
         }
 
         public async Task<string> GetDisplayName(string username)
@@ -325,14 +347,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             UpdateLastActive(e.Name);
-            Viewer? viewer = await GetViewer(e.Name);
+            Viewer? viewer = await GetViewerByUserIdOrName(e.UserId, e.Name);
 
             viewer ??= new Viewer
             {
-                DisplayName = e.DisplayName,
-                Username = e.Name
+                UserId = e.UserId
             };
             if (viewer.DisplayName != e.DisplayName) viewer.DisplayName = e.DisplayName;
+            if (viewer.Username != e.Name) viewer.Username = e.Name;
             if (viewer.isMod != e.IsMod) viewer.isMod = e.IsMod;
             if (viewer.isSub != e.IsSub) viewer.isSub = e.IsSub;
             if (viewer.isVip != e.IsVip) viewer.isVip = e.IsVip;
@@ -341,14 +363,15 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await UpdateViewer(viewer);
         }
 
-        private async Task AddBasicUser(string name)
+        private async Task AddBasicUser(string userId, string userLogin)
         {
-            var viewer = await GetViewer(name);
+            var viewer = await GetViewerByUserIdOrName(userId, userLogin);
             if (viewer != null) return;
             viewer = new Viewer
             {
-                DisplayName = name,
-                Username = name,
+                DisplayName = userLogin,
+                UserId = userId,
+                Username = userLogin,
                 LastSeen = DateTime.Now
             };
             await UpdateViewer(viewer);
@@ -366,17 +389,18 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         try
                         {
-                            var viewer = await GetViewer(subscriber.UserLogin);
+                            var viewer = await GetViewerByUserIdOrName(subscriber.UserId,subscriber.UserLogin);
                             viewer ??= new Viewer
                             {
-                                Username = subscriber.UserLogin,
-                                DisplayName = subscriber.UserName
+                                UserId = subscriber.UserId
                             };
 
                             if (viewer.isSub == false)
                             {
                                 _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
                             }
+                            viewer.Username = subscriber.UserLogin;
+                            viewer.DisplayName = subscriber.UserName;
                             viewer.isSub = true;
                             db.Viewers.Update(viewer);
                         }
@@ -394,7 +418,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     var missingNames = await subTracker.MissingSubs(subscribers.Select(x => x.UserLogin));
                     foreach (var missingName in missingNames)
                     {
-                        await subTracker.AddOrUpdateSubHistory(missingName);
+                        var viewer = await _twitchService.GetUser(missingName);
+                        if(viewer == null)
+                        {
+                            _logger.LogWarning("Viewer doesn't exist: {name}", missingName);
+                            continue;
+                        }
+                        await subTracker.AddOrUpdateSubHistory(missingName, viewer.Id);
                     }
                 }
 
@@ -439,9 +469,151 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            await UpdateViewerIds();
             await UpdateSubscribers();
             await UpdateChatters();
             await Register();
+        }
+
+        private async Task UpdateViewerIds()
+        {
+            _logger.LogInformation("Updating viewer Ids");
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            _logger.LogInformation("Upgrading Viewers");
+            //var viewers = db.Viewers.Get(x => x.UserId.Equals("")).ToList();
+            //while (viewers.Any())
+            //{
+            //    _logger.LogInformation("{num} records to process.", viewers.Count);
+            //    var procViewers = viewers.Take(100);
+            //    if (viewers.Count > 100)
+            //    {
+            //        viewers.RemoveRange(0, 100);
+            //    } else
+            //    {
+            //        viewers.Clear();
+            //    }
+            //    var users = await _twitchService.GetUsers(procViewers.Select(x => x.Username).ToList());
+            //    if(users == null)
+            //    {
+            //        users = await _twitchService.GetUsers(procViewers.Select(x => x.Username).ToList());
+            //    }
+            //    if(users == null)
+            //    {
+            //        _logger.LogWarning("Received null...");
+            //        continue;
+            //    }
+            //    foreach (var user in users) 
+            //    { 
+            //        var dbUser = procViewers.Where(x => x.Username.Equals(user.Login, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+            //        if (dbUser != null)
+            //        {
+            //            dbUser.UserId = user.Id;
+            //            db.Viewers.Update(dbUser);
+            //        }
+            //    }
+            //}
+
+            _logger.LogInformation("Upgrading Viewers");
+            var viewers = db.Viewers.Get(x => x.UserId.Equals("")).ToList();
+            foreach (var viewer in viewers)
+            {
+                var tViewer = await _twitchService.GetUser(viewer.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", viewer.Username);
+                    continue;
+                }
+                viewer.UserId = tViewer.Id;
+                db.Viewers.Update(viewer);
+            }
+
+            _logger.LogInformation("Upgrading Follows");
+            var follows = db.Followers.GetAll();
+            foreach (var follow in follows)
+            {
+                var tViewer = await _twitchService.GetUser(follow.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", follow.Username);
+                    continue;
+                }
+                follow.UserId = tViewer.Id;
+                db.Followers.Update(follow);
+            }
+
+            _logger.LogInformation("Upgrading Subscription Histories");
+            var subscriptions = db.SubscriptionHistories.GetAll();
+            foreach (var sub in subscriptions)
+            {
+                var tViewer = await _twitchService.GetUser(sub.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", sub.Username);
+                    continue;
+                }
+                sub.UserId = tViewer.Id;
+                db.SubscriptionHistories.Update(sub);
+            }
+
+            _logger.LogInformation("Upgrading Message Count");
+            var messageCounts = db.ViewerMessageCounts.GetAll();
+            foreach (var count in messageCounts)
+            {
+                var tViewer = await _twitchService.GetUser(count.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", count.Username);
+                    continue;
+                }
+                count.UserId = tViewer.Id;
+                db.ViewerMessageCounts.Update(count);
+            }
+
+            _logger.LogInformation("Upgrading Viewer Points");
+            var viewerPoints = db.ViewerPoints.GetAll();
+            foreach (var viewerPoint in viewerPoints)
+            {
+                var tViewer = await _twitchService.GetUser(viewerPoint.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", viewerPoint.Username);
+                    continue;
+                }
+                viewerPoint.UserId = tViewer.Id;
+                db.ViewerPoints.Update(viewerPoint);
+            }
+
+            _logger.LogInformation("Upgrading Viewer Tickets");
+            var viewerTickets = db.ViewerTickets.GetAll();
+            foreach (var viewerTicket in viewerTickets)
+            {
+                var tViewer = await _twitchService.GetUser(viewerTicket.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", viewerTicket.Username);
+                    continue;
+                }
+                viewerTicket.UserId = tViewer.Id;
+                db.ViewerTickets.Update(viewerTicket);
+            }
+
+            _logger.LogInformation("Upgrading Viewer Time");
+            var viewerTimes = db.ViewersTime.GetAll();
+            foreach (var viewerTime in viewerTimes)
+            {
+                var tViewer = await _twitchService.GetUser(viewerTime.Username);
+                if (tViewer == null)
+                {
+                    _logger.LogWarning("No viewer exists with name: {name}", viewerTime.Username);
+                    continue;
+                }
+                viewerTime.UserId = tViewer.Id;
+                db.ViewersTime.Update(viewerTime);
+            }
+            var result = await db.SaveChangesAsync();
+            _logger.LogInformation("Finished updating. Updated {number} records", result);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

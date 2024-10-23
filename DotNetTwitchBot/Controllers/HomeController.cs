@@ -192,7 +192,8 @@ namespace DotNetTwitchBot.Controllers
                     new Claim(ClaimTypes.Name, user.Login),
                     new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) || botName.Equals(user.Login) ? "Streamer": "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
-                    new Claim("DisplayName", user.DisplayName)
+                    new Claim("DisplayName", user.DisplayName),
+                    new Claim("UserId", user.Id)
                 };
 
 
@@ -200,7 +201,7 @@ namespace DotNetTwitchBot.Controllers
                 {
                     claims.Add(new Claim(ClaimTypes.Role, "Follower"));
                 }
-                var viewer = await viewerFeature.GetViewer(user.Login);
+                var viewer = await viewerFeature.GetViewerByUserId(user.Id);
                 if (viewer != null)
                 {
                     if (viewer.isMod)

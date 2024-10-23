@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task AddOrUpdateSubHistory(string name)
+        public async Task AddOrUpdateSubHistory(string name, string userId)
         {
             try
             {
@@ -65,8 +65,9 @@ namespace DotNetTwitchBot.Bot.Core
                 var subHistory = await db.SubscriptionHistories.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
                 subHistory ??= new SubscriptionHistory()
                 {
-                    Username = name
+                    UserId = userId
                 };
+                subHistory.Username = name;
                 subHistory.LastSub = DateTime.Now;
                 db.SubscriptionHistories.Update(subHistory);
                 await db.SaveChangesAsync();

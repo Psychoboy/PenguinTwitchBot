@@ -87,6 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
                 TargetUser = targetUser,
                 IsWhisper = false,
                 IsDiscord = false,
+                UserId = e.UserId,
                 DiscordMention = "",
                 FromAlias = false,
                 IsSub = redeem.ElevatedPermission == Rank.Subscriber,

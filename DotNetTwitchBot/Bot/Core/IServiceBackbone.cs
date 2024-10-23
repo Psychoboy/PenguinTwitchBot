@@ -31,8 +31,8 @@ namespace DotNetTwitchBot.Bot.Core
         bool IsKnownBot(string name);
         bool IsKnownBotOrCurrentStreamer(string name);
         Task OnAdBreakStartEvent(AdBreakStartEventArgs e);
-        Task OnChannelPointRedeem(string userName, string title);
-        Task OnChannelPointRedeem(string userName, string id, string userInput);
+        Task OnChannelPointRedeem(string userId, string userName, string title);
+        Task OnChannelPointRedeem(string userId, string userName, string id, string userInput);
         //Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);
@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnStreamEnded();
         Task OnStreamStarted();
         Task OnSubscription(SubscriptionEventArgs eventArgs);
-        Task OnSubscriptionEnd(string userName);
+        Task OnSubscriptionEnd(string userName, string userId);
         Task OnSubscriptionGift(SubscriptionGiftEventArgs eventArgs);
         Task OnUserJoined(string username);
         Task OnUserLeft(string username);
@@ -50,6 +50,6 @@ namespace DotNetTwitchBot.Bot.Core
         Task SendChatMessage(string message);
         Task SendChatMessage(string name, string message);
         Task SendChatMessageWithTitle(string viewerName, string message);
-        Task OnViewerBan(string username, bool unbanned);
+        Task OnViewerBan(string userId, string username, bool unbanned);
     }
 }

@@ -101,6 +101,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (ServiceBackbone.IsKnownBot(viewer)) return 0;
             ViewerTicket? viewerPoints;
+            var viewerRec = await _viewerFeature.GetViewer(viewer);
+            if (viewerRec == null)
+            {
+                _logger.LogWarning("Couldn't give tickets to viewer, they don't exist {viewer}", viewer);
+                return 0;
+            }
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -108,9 +114,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             viewerPoints ??= new ViewerTicket
             {
-                Username = viewer.ToLower(),
+                UserId = viewerRec.UserId,
                 Points = 0
             };
+            viewerPoints.Username = viewer;
             viewerPoints.Points += amount;
             if (viewerPoints.Points < 0)
             {

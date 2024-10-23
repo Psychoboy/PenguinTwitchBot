@@ -55,5 +55,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<List<Clip>> GetClip(string clipId);
         Task<ChannelInformation?> GetChannelInfo(string userId);
         Task<Game?> GetGameInfo(string gameId);
+        Task<List<User?>?> GetUsers(List<string> userNames);
     }
 }
