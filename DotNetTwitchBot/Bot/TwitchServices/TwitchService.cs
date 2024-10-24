@@ -423,29 +423,30 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             try
             {
-                var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-                if (response.Follows.Length == 0)
+                //var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
+                var response = await _twitchApi.Helix.Channels.GetChannelFollowersAsync(broadcasterId, userId, 1, null, _configuration["twitchAccessToken"]);
+                if (response.Data.Length == 0)
                 {
                     return null;
                 }
-                var firstFollower = response.Follows.First();
+                var firstFollower = response.Data[0];
                 return new Follower()
                 {
-                    Username = firstFollower.FromLogin,
-                    UserId = firstFollower.FromUserId,
-                    DisplayName = firstFollower.FromLogin,
-                    FollowDate = firstFollower.FollowedAt
+                    Username = firstFollower.UserLogin,
+                    UserId = firstFollower.UserId,
+                    DisplayName = firstFollower.UserName,
+                    FollowDate = DateTime.Parse( firstFollower.FollowedAt)
                 };
             }
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing GetUserFollow(): {error}", error);
+                _logger.LogError("Error doing GetUserFollow():{user} {error}", user, error);
             }
             catch (Exception ex)
             {
                 var error = ex.Message;
-                _logger.LogError("Error doing GetUserFollow(): {error}", error);
+                _logger.LogError("Error doing GetUserFollow():{user} {error}", user, error);
             }
             return null;
         }
