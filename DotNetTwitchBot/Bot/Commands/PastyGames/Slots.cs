@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, prizeWinnings);
+                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1)
@@ -88,7 +88,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, prizeWinnings);
+                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
@@ -104,7 +104,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return 0;
             }
 
-            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.Name, e.Args.First(), 25);
+            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 25);
             switch (maxBet.Result)
             {
                 case MaxBet.ParseResult.Success:

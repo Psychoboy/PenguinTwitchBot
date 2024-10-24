@@ -12,7 +12,6 @@
         ITicketsRepository ViewerTickets { get; }
         ITicketsWithRankRepository ViewerTicketsWithRank { get; }
         IViewersRepository Viewers { get; }
-        IFollowerRepository Followers { get; }
         IAliasRepository Aliases { get; }
         ISettingsRepository Settings { get; }
         IGiveawayEntriesRepository GiveawayEntries { get; }

@@ -329,7 +329,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (isCoolDownExpired == false) return;
                 if (Commands[e.Command].Cost > 0)
                 {
-                    if ((await _loyaltyFeature.RemovePointsFromUser(e.Name, Commands[e.Command].Cost)) == false)
+                    if ((await _loyaltyFeature.RemovePointsFromUserByUserId(e.UserId, Commands[e.Command].Cost)) == false)
                     {
                         await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
                         return;

@@ -302,7 +302,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 var winningTicket = Tickets.RandomElementOrDefault(_logger);
                 var viewer = await _viewerFeature.GetViewerByUserName(winningTicket);
-                var isFollower = await _viewerFeature.IsFollower(winningTicket);
+                var isFollower = await _viewerFeature.IsFollowerByUsername(winningTicket);
                 var prize = await GetPrize();
                 var message = lang.Get("giveawayfeature.draw.winner")
                     .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.CurrentCultureIgnoreCase)
@@ -424,7 +424,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                 }
 
-                if (!(await _ticketsFeature.RemoveTicketsFromViewer(sender, points)))
+                if (!(await _ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
                 {
                     var message = lang.Get("giveawayfeature.enter.failure");
                     if (!fromUi)

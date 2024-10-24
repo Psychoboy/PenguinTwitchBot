@@ -5,13 +5,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class MaxBetCalculator(ILoyaltyFeature loyaltyFeature)
     {
-        public async Task<MaxBet> CheckBetAndRemovePasties(string name, string betAmount, long minBet)
+        public async Task<MaxBet> CheckBetAndRemovePasties(string userId, string betAmount, long minBet)
         {
             long amount;
             if (betAmount.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                betAmount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
-                amount = await loyaltyFeature.GetMaxPointsFromUser(name);
+                amount = await loyaltyFeature.GetMaxPointsFromUserByUserId(userId);
             }
             else if (!Int64.TryParse(betAmount, out amount))
             {
@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 };
             }
 
-            if (!(await loyaltyFeature.RemovePointsFromUser(name, amount)))
+            if (!(await loyaltyFeature.RemovePointsFromUserByUserId(userId, amount)))
             {
                 return new MaxBet { Result = ParseResult.NotEnough };
             }

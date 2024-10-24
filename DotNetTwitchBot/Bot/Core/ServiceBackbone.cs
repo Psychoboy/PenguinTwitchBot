@@ -168,7 +168,8 @@ namespace DotNetTwitchBot.Bot.Core
                     DisplayName = ev.UserName,
                     Amount = ev.Bits,
                     Message = ev.Message,
-                    IsAnonymous = ev.IsAnonymous
+                    IsAnonymous = ev.IsAnonymous,
+                    UserId = ev.UserId
                 });
             }
         }

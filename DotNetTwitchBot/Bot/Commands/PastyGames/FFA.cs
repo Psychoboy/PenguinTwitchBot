@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             GameState = State.Finishing;
             if (Entered.Count == 1)
             {
-                await _loyaltyFeature.AddPointsToViewer(Entered[0], Cost);
+                await _loyaltyFeature.AddPointsToViewerByUsername(Entered[0], Cost);
                 await ServiceBackbone.SendChatMessage("Not enough viewers joined the FFA, returning the fees.");
                 CleanUp();
                 return;
@@ -62,7 +62,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var winner = Entered[winnerIndex];
             var winnings = Entered.Count * Cost;
             await ServiceBackbone.SendChatMessage(string.Format("The dust finally settled and the last one standing is {0}", await _viewFeature.GetNameWithTitle(winner)));
-            await _loyaltyFeature.AddPointsToViewer(winner, winnings);
+            await _loyaltyFeature.AddPointsToViewerByUsername(winner, winnings);
             CleanUp();
         }
 
@@ -100,7 +100,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, Cost)))
+            if (!(await _loyaltyFeature.RemovePointsFromUserByUserId(e.UserId, Cost)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to enter the FFA, which you do not have.", Cost));
                 throw new SkipCooldownException();

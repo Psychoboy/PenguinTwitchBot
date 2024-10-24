@@ -6,7 +6,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 {
     public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
-        public DbSet<Follower> Followers { get; set; } = null!;
         public DbSet<GiveawayEntry> GiveawayEntries { get; set; } = null!;
         public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;
         public DbSet<GiveawayExclusion> GiveawayExclusions { get; set; } = null!;

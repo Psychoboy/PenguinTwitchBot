@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             logger.LogInformation("{username} caught a {fish} worth {gold} gold with {catchRating} stars and rarity of {rarity}",
                 lbtrigger.Username, lbtrigger.CatchName, lbtrigger.CatchValue, lbtrigger.CatchRating, lbtrigger.CatchRarity);
 
-            await loyaltyFeature.AddPointsToViewer(lbtrigger.Username, lbtrigger.CatchValue * lbtrigger.CatchRating * 10);
+            await loyaltyFeature.AddPointsToViewerByUsername(lbtrigger.Username, lbtrigger.CatchValue * lbtrigger.CatchRating * 10);
         }
     }
 }

@@ -142,44 +142,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("{DisplayName} Followed.", e.DisplayName);
             await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
             UpdateLastActive(e.Username);
-            await AddFollow(e);
         }
 
-        private async Task<Follower?> GetFollower(string username)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Followers.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
-
-        }
-
-        private async Task AddFollow(FollowEventArgs args)
-        {
-            try
-            {
-                Follower? follower = await GetFollower(args.Username);
-                if (follower == null)
-                {
-                    follower = new Follower
-                    {
-                        UserId = args.UserId,
-                        Username = args.Username,
-                        DisplayName = args.DisplayName,
-                        FollowDate = args.FollowDate
-                    };
-                    await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    await db.Followers.AddAsync(follower);
-                    await db.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error adding follow");
-            }
-        }
-
-        public async Task<bool> IsFollower(string username)
+        public async Task<bool> IsFollowerByUsername(string username)
         {
             var follower = await GetFollowerAsync(username);
             return follower != null;
@@ -187,20 +152,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Follower?> GetFollowerAsync(string username)
         {
-            Follower? follower = await GetFollower(username);
-            if (follower != null)
-            {
-                return follower;
-            }
-
-            follower = await _twitchService.GetUserFollow(username);
+            var follower = await _twitchService.GetUserFollow(username);
             if (follower == null) return null;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                await db.Followers.AddAsync(follower);
-                await db.SaveChangesAsync();
-            }
             return follower;
         }
 
@@ -501,6 +454,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return Task.CompletedTask;
         }
 
+
+        public async Task<string?> GetViewerId(string username)
+        {
+            var dbViewer = await GetViewerByUserName(username);
+            if(dbViewer != null && !string.IsNullOrWhiteSpace(dbViewer.UserId))
+            {
+                return dbViewer.UserId;
+            }
+
+            var viewer = await _twitchService.GetUserByName(username);
+            if (viewer != null)
+            {
+                return viewer.Id;
+            }
+            else 
+            {
+                return null;
+            }
+        }
+
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await UpdateSubscribers();
@@ -513,5 +486,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
+
     }
 }

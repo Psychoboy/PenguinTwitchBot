@@ -136,7 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await ServiceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote));
             foreach (var winner in winners)
             {
-                await _ticketsFeature.GiveTicketsToViewer(winner, (long)eachWins);
+                await _ticketsFeature.GiveTicketsToViewerByUsername(winner, (long)eachWins);
             }
             CurrentState = State.NotRunning;
         }

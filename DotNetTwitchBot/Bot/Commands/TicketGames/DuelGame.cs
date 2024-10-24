@@ -128,30 +128,30 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 return;
             }
 
-            var removedTicketsFromAttacker = await _ticketsFeature.RemoveTicketsFromViewer(existingDuel.Attacker, existingDuel.Amount);
+            var removedTicketsFromAttacker = await _ticketsFeature.RemoveTicketsFromViewerByUsername(existingDuel.Attacker, existingDuel.Amount);
             if (removedTicketsFromAttacker == false)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
                 return;
             }
 
-            var removedTicketsFromDefender = await _ticketsFeature.RemoveTicketsFromViewer(existingDuel.Defender, existingDuel.Amount);
+            var removedTicketsFromDefender = await _ticketsFeature.RemoveTicketsFromViewerByUsername(existingDuel.Defender, existingDuel.Amount);
             if (removedTicketsFromDefender == false)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
-                await _ticketsFeature.GiveTicketsToViewer(existingDuel.Attacker, existingDuel.Amount); //refund for attack since we removed them already
+                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Attacker, existingDuel.Amount); //refund for attack since we removed them already
                 return;
             }
 
             var winner = Tools.Next(0, 100);
             if (winner < 50)
             {
-                await _ticketsFeature.GiveTicketsToViewer(existingDuel.Attacker, existingDuel.Amount * 2);
+                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Attacker, existingDuel.Amount * 2);
                 await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan");
             }
             else
             {
-                await _ticketsFeature.GiveTicketsToViewer(existingDuel.Defender, existingDuel.Amount * 2);
+                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Defender, existingDuel.Amount * 2);
                 await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} tickets FeelsGoodMan");
             }
         }
