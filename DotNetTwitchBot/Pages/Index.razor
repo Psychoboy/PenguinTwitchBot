@@ -9,6 +9,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
+@inject DotNetTwitchBot.Bot.Core.IChatHistory ChatHistory
 @inject ISnackbar Snackbar
 @inject ILogger<Index> logger
 @implements IAsyncDisposable
@@ -21,6 +22,7 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
@@ -144,6 +146,11 @@
     private async Task UpdateSongs()
     {
         await Admin.UpdateSongs();
+    }
+
+    private Task CleanupChat()
+    {
+        return ChatHistory.CleanOldLogs();
     }
 
     public async ValueTask DisposeAsync()

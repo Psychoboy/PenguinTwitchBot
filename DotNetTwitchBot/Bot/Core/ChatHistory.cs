@@ -72,5 +72,16 @@ namespace DotNetTwitchBot.Bot.Core
             _serviceBackbone.CommandEvent -= OnCommandMessage;
             return Task.CompletedTask;
         }
+
+        public async Task CleanOldLogs()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var logs = db.ViewerChatHistories.Find(x => x.CreatedAt < DateTime.Now.AddMonths(-6));
+            db.ViewerChatHistories.RemoveRange(logs);
+            var result = await db.SaveChangesAsync();
+            _logger.LogInformation("Removed {amount} chat histories", result);
+
+        }
     }
 }
