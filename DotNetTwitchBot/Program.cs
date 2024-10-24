@@ -79,14 +79,12 @@ internal class Program
 
 
 
-        //Backup Jobs:
-        builder.Services.AddSingleton<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>();
-
         builder.Services.AddQuartz(q =>
         {
             var backupDbJobKey = new JobKey("BackupDbJob");
             var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
             var UpdatePostedScheduleKey = new JobKey("UpdatePostedSchedule");
+            var cleanupChatLogs = new JobKey("CleanUpChatLogs");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
                 .ForJob(backupDbJobKey)
@@ -107,6 +105,15 @@ internal class Program
                 .WithIdentity("UpdateDiscordSchedule-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 9, 0))
                 );
+
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.CleanupChatLogJob>(opts => opts.WithIdentity(cleanupChatLogs));
+            q.AddTrigger(opts => opts
+                .ForJob(cleanupChatLogs)
+                .WithIdentity("CleanUpChatLogs-Trigger")
+                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(13, 00)) //Every day at 1PM
+            );
+
+
 
         });
         builder.Services.AddQuartzServer(
