@@ -78,10 +78,6 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 var data = await ReadStringAsync(webSocket, CancellationToken.None);
                 if (data == null) continue;
-                if (data.Equals("pong"))
-                {
-                    _logger.LogDebug("Received Pong");
-                }
             }
         }
 

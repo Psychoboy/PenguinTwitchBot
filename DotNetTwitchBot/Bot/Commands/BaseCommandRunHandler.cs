@@ -6,6 +6,7 @@ namespace DotNetTwitchBot.Bot.Commands
     public class BaseCommandRunHandler(ICommandHandler commandHandler, ILogger<BaseCommandRunHandler> logger) : INotificationHandler<RunCommandNotification>
     {
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private string lastCommand = string.Empty;
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             var eventArgs = notification.EventArgs;
@@ -17,8 +18,9 @@ namespace DotNetTwitchBot.Bot.Commands
                 {
                     if (await _semaphoreSlim.WaitAsync(500, cancellationToken) == false)
                     {
-                        logger.LogWarning("BaseCommand Lock expired while waiting...");
+                        logger.LogWarning("BaseCommand Lock expired while waiting... Last Locked Command: {lastCommand}", lastCommand);
                     }
+                    lastCommand = eventArgs.Command;
                 }
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckToRunBroadcasterOnly(eventArgs, commandService.CommandProperties))
