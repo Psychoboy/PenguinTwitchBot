@@ -280,11 +280,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsBroadcaster = e.IsBroadcaster,
                     };
                     await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response, false);
-                    if (Commands[keyword.Keyword.CommandName].GlobalCooldown > 0)
+
+                    if (keyword.Keyword.GlobalCooldown > 0)
                     {
                         CommandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
                     }
-                    if (Commands[keyword.Keyword.CommandName].UserCooldown > 0)
+                    if (keyword.Keyword.UserCooldown > 0)
                     {
                         CommandHandler.AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
                     }
