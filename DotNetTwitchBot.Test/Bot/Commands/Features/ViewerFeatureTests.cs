@@ -93,23 +93,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         }
 
         [Fact]
-        public async Task OnFollow_ShouldAddFollow()
-        {
-            //Arrange
-            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(emptyViewerQueryable);
-            var followerQueryable = new List<Follower>().AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
-
-            //Act
-            serviceBackbone.FollowEvent += Raise.Event<AsyncEventHandler<FollowEventArgs>>(this, new FollowEventArgs { Username = "test" });
-
-            //Assert
-            await dbContext.Followers.Received(1).AddAsync(Arg.Any<Follower>());
-            await dbContext.Received(1).SaveChangesAsync();
-            Assert.Contains("test", viewerFeature.GetCurrentViewers());
-        }
-
-        [Fact]
         public async Task GetDisplayName_ShouldReturn()
         {
             //Arrange
@@ -293,27 +276,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").Returns(testFollower);
-
-            //Act
-            var result = await viewerFeature.GetFollowerAsync("test");
-
-            //Assert
-            await dbContext.Followers.Received(1).AddAsync(Arg.Any<Follower>());
-            await dbContext.Received(1).SaveChangesAsync();
-            Assert.Equal(testFollower, result);
-        }
-
-        [Fact]
-        public async Task GetFollowerAsync_ShouldReturnFollowerFromCache()
-        {
-            //Arrange
-            var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> { testFollower }.AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
-            twitchService.GetUserFollow("test").ReturnsNull();
 
             //Act
             var result = await viewerFeature.GetFollowerAsync("test");
@@ -327,8 +290,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").ReturnsNull();
 
             //Act
@@ -343,12 +304,10 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
             twitchService.GetUserFollow("test").ReturnsNull();
 
             //Act
-            var result = await viewerFeature.IsFollower("test");
+            var result = await viewerFeature.IsFollowerByUsername("test");
 
             //Assert
             Assert.False(result);
@@ -359,12 +318,10 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             //Arrange
             var testFollower = new Follower { Username = "testfollower", DisplayName = "TestFollowerDisplay", FollowDate = DateTime.Now };
-            var followerQueryable = new List<Follower> { testFollower }.AsQueryable().BuildMockDbSet();
-            dbContext.Followers.Find(x => true).ReturnsForAnyArgs(followerQueryable);
-            twitchService.GetUserFollow("test").ReturnsNull();
+            twitchService.GetUserFollow("test").Returns(testFollower);
 
             //Act
-            var result = await viewerFeature.IsFollower("test");
+            var result = await viewerFeature.IsFollowerByUsername("test");
 
             //Assert
             Assert.True(result);

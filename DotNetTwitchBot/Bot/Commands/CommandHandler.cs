@@ -289,7 +289,7 @@ namespace DotNetTwitchBot.Bot.Commands
                     using (var scope = scopeFactory.CreateAsyncScope())
                     {
                         var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-                        return await viewerService.IsFollower(eventArgs.Name);
+                        return await viewerService.IsFollowerByUsername(eventArgs.Name);
                     }
                 case Rank.Subscriber:
                     return eventArgs.IsSubOrHigher();

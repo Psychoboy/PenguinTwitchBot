@@ -189,7 +189,7 @@ namespace DotNetTwitchBot.Tests
 
             commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
 
-            viewerFeature.IsFollower(Arg.Any<string>()).Returns(false);
+            viewerFeature.IsFollowerByUsername(Arg.Any<string>()).Returns(false);
 
             // Act
 

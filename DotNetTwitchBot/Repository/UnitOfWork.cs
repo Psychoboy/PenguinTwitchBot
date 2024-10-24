@@ -16,7 +16,6 @@ namespace DotNetTwitchBot.Repository
             ViewerTickets = new TicketRepository(_context);
             ViewerTicketsWithRank = new TicketsWithRankRepository(_context);
             Viewers = new ViewersRepository(_context);
-            Followers = new FollowerRepository(_context);
             Aliases = new AliasRepository(_context);
             Settings = new SettingsRepository(_context);
             GiveawayEntries = new GiveawayEntriesRepository(_context);
@@ -67,7 +66,6 @@ namespace DotNetTwitchBot.Repository
         public ITicketsRepository ViewerTickets { get; private set; }
         public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
         public IViewersRepository Viewers { get; private set; }
-        public IFollowerRepository Followers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
         public ISettingsRepository Settings { get; private set; }
         public IGiveawayEntriesRepository GiveawayEntries { get; private set; }

@@ -108,14 +108,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {
-                            await _ticketsFeature.GiveTicketsToViewer(e.Name, amountToBet);
+                            await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToBet);
                             var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
                             string.Format(WinMessage, e.DisplayName, amountToBet, totalPoints, value, TotalGambled[e.Name], MaxAmount));
                         }
                         else
                         {
-                            await _ticketsFeature.RemoveTicketsFromViewer(e.Name, amountToBet);
+                            await _ticketsFeature.RemoveTicketsFromViewerByUserId(e.UserId, amountToBet);
                             var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
                             string.Format(LoseMessage, e.DisplayName, amountToBet, totalPoints, value, TotalGambled[e.Name], MaxAmount));

@@ -178,7 +178,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
             dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
-            viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
+            viewerFeature.IsFollowerByUsername(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
@@ -223,9 +223,9 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
-            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
+            var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user", UserId = "123" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
 
             // Act
@@ -250,7 +250,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -274,7 +274,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -298,7 +298,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -321,7 +321,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -343,7 +343,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(false);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(false);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { "10" }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -366,7 +366,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(1000000);
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("");
-            ticketsFeature.RemoveTicketsFromViewer("user", 10).Returns(true);
+            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -384,7 +384,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
             dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
-            viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
+            viewerFeature.IsFollowerByUsername(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
@@ -410,7 +410,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(prizeQueryable);
             dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
-            viewerFeature.IsFollower(Arg.Any<string>()).Returns(true);
+            viewerFeature.IsFollowerByUsername(Arg.Any<string>()).Returns(true);
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 

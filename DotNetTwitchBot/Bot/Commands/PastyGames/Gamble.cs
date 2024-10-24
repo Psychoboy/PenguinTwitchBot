@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.Name, e.Args.First(), 5);
+            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 5);
             long amount = 0;
             switch (maxBet.Result)
             {
@@ -111,13 +111,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await UpdateJackpot(jackpot, true);
                 await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
                 await LaunchFireworks();
-                await _loyaltyFeature.AddPointsToViewer(e.Name, winnings + jackpotWinnings);
+                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, winnings + jackpotWinnings);
             }
             else if (value > WinRange)
             {
                 var winnings = amount * 2;
                 await ServiceBackbone.SendChatMessage(string.Format("{0} rolled {1} and won the {2} pasties!", e.DisplayName, value, winnings.ToString("N0")));
-                await _loyaltyFeature.AddPointsToViewer(e.Name, winnings);
+                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, winnings);
             }
             else
             {

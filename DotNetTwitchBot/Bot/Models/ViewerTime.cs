@@ -1,5 +1,6 @@
 namespace DotNetTwitchBot.Bot.Models
 {
+    [Index(nameof(UserId))]
     public class ViewerTime
     {
         [Key]

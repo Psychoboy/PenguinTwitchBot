@@ -86,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
                 var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
-                await _loyaltyFeature.AddPointsToViewer(e.Name, prizes[dice1 - 1]);
+                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizes[dice1 - 1]);
             }
             else
             {

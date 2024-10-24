@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -89,40 +90,50 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 long bonus = 0;
                 var viewerData = await _viewerFeature.GetViewerByUserName(viewer);
-                if (viewerData != null)
+                if (viewerData != null && !string.IsNullOrWhiteSpace(viewerData.UserId))
                 {
                     bonus = viewerData.isSub ? subBonusAmount : 0; // Sub Bonus
+                    await GiveTicketsToViewerByUserId(viewerData.UserId, amount + bonus);
                 }
-                await GiveTicketsToViewer(viewer, amount + bonus);
+                
             }
         }
-
-        public async Task<long> GiveTicketsToViewer(string viewer, long amount)
+        public async Task<long> GiveTicketsToViewerByUsername(string username, long amount)
         {
-            if (ServiceBackbone.IsKnownBot(viewer)) return 0;
-            ViewerTicket? viewerPoints;
-            var viewerRec = await _viewerFeature.GetViewerByUserName(viewer);
-            if (viewerRec == null)
+            var viewerData = await _viewerFeature.GetViewerByUserName(username);
+            if (viewerData == null || string.IsNullOrWhiteSpace(viewerData.UserId))
             {
-                _logger.LogWarning("Couldn't give tickets to viewer, they don't exist {viewer}", viewer);
                 return 0;
             }
+            return await GiveTicketsToViewerByUserId(viewerData.UserId, amount);
+        }
+
+        public async Task<long> GiveTicketsToViewerByUserId(string userid, long amount)
+        {
+            var viewer = await _viewerFeature.GetViewerByUserId(userid);
+            if(viewer == null)
+            {
+                _logger.LogWarning("Viewer for userid {userid} was null.", userid);
+                return 0;
+            }
+            if (ServiceBackbone.IsKnownBot(viewer.Username)) return 0;
+            ViewerTicket? viewerPoints;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerPoints = await db.ViewerTickets.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
+                viewerPoints = await db.ViewerTickets.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
             }
             viewerPoints ??= new ViewerTicket
             {
-                UserId = viewerRec.UserId,
+                UserId = userid,
                 Points = 0
             };
-            viewerPoints.Username = viewer;
+            viewerPoints.Username = viewer.Username;
             viewerPoints.Points += amount;
             if (viewerPoints.Points < 0)
             {
                 //Should NEVER hit this
-                _logger.LogCritical("Points for {name} would have gone negative, points to remove {points}", viewer.Replace(Environment.NewLine, ""), amount);
+                _logger.LogCritical("Points for {name} would have gone negative, points to remove {points}", viewer.Username, amount);
                 throw new Exception("Points would have went negative. ABORTING");
             }
 
@@ -134,7 +145,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             if (amount > 0)
             {
-                NumberOfTicketsGained.WithLabels(viewer).Inc(amount);
+                NumberOfTicketsGained.WithLabels(viewer.Username).Inc(amount);
             }
 
             return viewerPoints.Points;
@@ -163,11 +174,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerTickets;
         }
 
-        public async Task<bool> RemoveTicketsFromViewer(string viewer, long amount)
+        public async Task<bool> RemoveTicketsFromViewerByUsername(string username, long amount)
+        {
+            var viewerData = await _viewerFeature.GetViewerByUserName(username);
+            if (viewerData == null || string.IsNullOrWhiteSpace(viewerData.UserId))
+            {
+                return false;
+            }
+            return await RemoveTicketsFromViewerByUserId(viewerData.UserId, amount);
+        }
+
+        public async Task<bool> RemoveTicketsFromViewerByUserId(string userId, long amount)
         {
             try
             {
-                await GiveTicketsToViewer(viewer, -amount);
+                await GiveTicketsToViewerByUserId(userId, -amount);
                 return true;
             }
             catch (Exception)
@@ -225,7 +246,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
-                            var totalPoints = await GiveTicketsToViewer(e.TargetUser, amount);
+                            var userId = await _viewerFeature.GetViewerId(e.TargetUser);
+                            if (userId == null) return;
+                            var totalPoints = await GiveTicketsToViewerByUserId(userId, amount);
                             await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayNameByUsername(e.TargetUser), amount, totalPoints));
                         }
                         break;

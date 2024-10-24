@@ -1,6 +1,7 @@
 namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(Username))]
+    [Index(nameof(UserId))]
     public class ViewerTicket
     {
         [Key]

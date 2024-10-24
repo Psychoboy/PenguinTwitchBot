@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             CurrentClaims++;
             _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
-            await _ticketsFeature.GiveTicketsToViewer(sender, awardPoints);
+            await _ticketsFeature.GiveTicketsToViewerByUsername(sender, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }
 

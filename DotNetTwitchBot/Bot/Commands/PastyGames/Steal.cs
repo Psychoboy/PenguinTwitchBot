@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var userPasties = await _loyaltyFeature.GetUserPasties(e.Name);
+            var userPasties = await _loyaltyFeature.GetUserPastiesByUserId(e.UserId);
             if (userPasties.Points < StealMax)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task StealFromUser(CommandEventArgs e)
         {
-            var targetPasties = await _loyaltyFeature.GetUserPasties(e.TargetUser);
+            var targetPasties = await _loyaltyFeature.GetUserPastiesByUsername(e.TargetUser);
             var targetDisplayName = await _viewerFeature.GetNameWithTitle(e.TargetUser);
             var amount = Tools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
@@ -89,8 +89,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task MovePoints(string from, string to, int amount)
         {
-            await _loyaltyFeature.RemovePointsFromUser(from, amount);
-            await _loyaltyFeature.AddPointsToViewer(to, amount);
+            await _loyaltyFeature.RemovePointsFromUserByUserName(from, amount);
+            await _loyaltyFeature.AddPointsToViewerByUsername(to, amount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

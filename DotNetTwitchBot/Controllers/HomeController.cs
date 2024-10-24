@@ -197,7 +197,7 @@ namespace DotNetTwitchBot.Controllers
                 };
 
 
-                if (await viewerFeature.IsFollower(user.Login))
+                if (await viewerFeature.IsFollowerByUsername(user.Login))
                 {
                     claims.Add(new Claim(ClaimTypes.Role, "Follower"));
                 }

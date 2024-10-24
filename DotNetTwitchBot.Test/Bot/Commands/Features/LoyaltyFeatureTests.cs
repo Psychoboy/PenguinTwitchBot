@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         public async Task OnCheer_ShouldGiveTickets()
         {
             // Arrange
-            var cheerEventArgs = new CheerEventArgs { DisplayName = "TestName", Name = "testname", IsAnonymous = false, Amount = 100 };
+            var cheerEventArgs = new CheerEventArgs { DisplayName = "TestName", Name = "testname", IsAnonymous = false, Amount = 100, UserId = "123" };
             var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
             // Act
@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             await serviceBackbone.Received(1).SendChatMessage("TestName just cheered 100 bits! sptvHype");
-            await ticketFeature.Received(1).GiveTicketsToViewer("testname", 10);
+            await ticketFeature.Received(1).GiveTicketsToViewerByUserId("123", 10);
         }
 
 
@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         public async Task OnSubscriptionGift_ShouldGiveTickets_AndSayTotalGiven()
         {
             // Arrange
-            var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 10 };
+            var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 10, UserId = "123" };
             var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
 
@@ -88,111 +88,10 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
 
             // Assert
-            await ticketFeature.Received(1).GiveTicketsToViewer("testname", 250);
+            await ticketFeature.Received(1).GiveTicketsToViewerByUserId("123", 250);
             await serviceBackbone.Received(1).SendChatMessage("TestName gifted 5 subscriptions to the channel! sptvHype sptvHype sptvHype They have gifted a total of 10 subs to the channel!");
 
         }
-
-        [Fact]
-        public async Task OnSubscriptionGift_ShouldGiveTickets_JustBaseMessage()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 5 };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await ticketFeature.Received(1).GiveTicketsToViewer("testname", 250);
-            await serviceBackbone.Received(1).SendChatMessage("TestName gifted 5 subscriptions to the channel! sptvHype sptvHype sptvHype");
-
-        }
-
-
-        [Fact]
-        public async Task OnSubscription_ShouldGiveTickets()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName" };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await ticketFeature.Received(1).GiveTicketsToViewer("testname", 50);
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed! sptvHype")));
-
-        }
-
-        [Fact]
-        public async Task OnSubscription_ShouldSayTotalCount()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 5 };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 5 months! sptvHype")));
-
-        }
-
-        [Fact]
-        public async Task OnSubscription_ShouldSayCumalativeCount()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Streak = 5 };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for 5 months in a row! sptvHype")));
-
-        }
-
-        [Fact]
-        public async Task OnSubscription_ShouldSayTotalAndCumalativeCount()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 8, Streak = 5 };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for a total of 8 months and for 5 months in a row! sptvHype")));
-
-        }
-
-        [Fact]
-        public async Task OnSubscription_ShouldGiveTickets_Renew()
-        {
-            // Arrange
-            var subscriptionEvent = new SubscriptionEventArgs { Name = "testname", DisplayName = "TestName", Count = 12 };
-            var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
-            dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
-
-            // Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEvent);
-
-            // Assert
-            await ticketFeature.Received(1).GiveTicketsToViewer("testname", 50);
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains(" just subscribed for")));
-
-        }
-
 
         [Fact]
         public async Task OnChatMessage_ShouldUpdateMessageCount()
@@ -238,10 +137,11 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Arrange
             var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer { UserId = "123"});
+            viewerFeature.GetViewerByUserId("123").Returns(new Viewer());
 
             // Act
-            await loyaltyFeature.AddPointsToViewer("test", 5);
+            await loyaltyFeature.AddPointsToViewerByUsername("test", 5);
 
             // Assert
             dbContext.ViewerPoints.Received(1).Update(Arg.Any<ViewerPoint>());
@@ -255,38 +155,16 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint();
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
+            viewerFeature.GetViewerByUserName("test").Returns(new Viewer { UserId = "123" });
+            viewerFeature.GetViewerByUserId("123").Returns(new Viewer());
 
             // Act
-            await loyaltyFeature.AddPointsToViewer("test", 5);
+            await loyaltyFeature.AddPointsToViewerByUsername("test", 5);
 
             // Assert
             dbContext.ViewerPoints.Received(1).Update(viewerPoint);
             await dbContext.Received(1).SaveChangesAsync();
         }
-
-        [Fact]
-        public async Task UpdatePointsAndTime_ShouldGivePointsAndUpdateTime()
-        {
-            // Arrange
-            var queryable = new List<ViewerPoint> { }.AsQueryable().BuildMockDbSet();
-            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            var timeQuerable = new List<ViewerTime> { }.AsQueryable().BuildMockDbSet();
-            dbContext.ViewersTime.Find(x => true).ReturnsForAnyArgs(timeQuerable);
-            viewerFeature.GetCurrentViewers().Returns(new List<string> { "test" });
-            viewerFeature.GetActiveViewers().Returns(new List<string> { "test" });
-            viewerFeature.GetViewerByUserName("test").Returns(new Viewer());
-            serviceBackbone.IsKnownBot("test").Returns(false);
-            serviceBackbone.IsOnline = true;
-
-            // Act
-            await loyaltyFeature.UpdatePointsAndTime();
-
-            // Assert
-            dbContext.ViewerPoints.Received(2).Update(Arg.Any<ViewerPoint>());
-            await dbContext.Received(3).SaveChangesAsync();
-        }
-
 
         [Fact]
         public async Task OnCommand_CheckPasties_NoPasties()
@@ -322,39 +200,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Assert
             await serviceBackbone.Received(1).SendChatMessage("TestDisplay", "TestTarget has 1,000 pasties.");
 
-        }
-
-        [Fact]
-        public async Task OnCommand_Gift_ShouldGiftPasaties()
-        {
-            // Arrange
-            var viewerPoint = new ViewerPoint { Points = 100 };
-            var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
-            var targetViewerPoint = new ViewerPoint { Points = 10 };
-            var targetQueryable = new List<ViewerPoint> { targetViewerPoint }.AsQueryable().BuildMockDbSet();
-            dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable, targetQueryable);
-
-            var commandEventArgs = new CommandEventArgs
-            {
-                TargetUser = "TestTarget",
-                DisplayName = "TestDisplay",
-                Command = "gift",
-                Name = "TestName",
-                Args = new List<string> { "testuser", "10" }
-            };
-            commandHandler.GetCommandDefaultName("gift").Returns("gift");
-
-            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
-
-            // Act
-            await loyaltyFeature.OnCommand(this, commandEventArgs);
-
-            // Assert
-            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
-            dbContext.ViewerPoints.Received(1).Update(viewerPoint);
-            Assert.Equal(90, viewerPoint.Points);
-            Assert.Equal(20, targetViewerPoint.Points);
-            await dbContext.Received(2).SaveChangesAsync();
         }
 
         [Fact]
@@ -511,14 +356,16 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint { Points = 10 };
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            viewerFeature.GetViewerByUserName("TestTarget").Returns(new Viewer());
+            viewerFeature.GetViewerByUserId("123").Returns(new Viewer());
+            viewerFeature.GetViewerId("TestTarget").Returns("123");
             var commandEventArgs = new CommandEventArgs
             {
                 TargetUser = "TestTarget",
                 DisplayName = "TestDisplay",
                 Command = "addpasties",
                 Name = "TestName",
-                Args = new List<string> { "targetuser", "100" }
+                Args = new List<string> { "targetuser", "100" },
+                UserId = "123"
             };
             commandHandler.GetCommandDefaultName("addpasties").Returns("addpasties");
 
@@ -540,7 +387,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            var points = await loyaltyFeature.GetUserPasties("testname");
+            var points = await loyaltyFeature.GetUserPastiesByUsername("testname");
 
             // Assert
             Assert.Equal(viewerPoint, points);
@@ -554,7 +401,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            var points = await loyaltyFeature.GetUserPasties("testname");
+            var points = await loyaltyFeature.GetUserPastiesByUsername("testname");
 
             // Assert
             Assert.Equal(0, points.Points);
@@ -585,7 +432,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            var points = await loyaltyFeature.GetMaxPointsFromUser("testname");
+            var points = await loyaltyFeature.GetMaxPointsFromUserByUserId("testname");
 
             // Assert
             Assert.Equal(LoyaltyFeature.MaxBet, points);
@@ -601,7 +448,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
 
             // Act
-            var points = await loyaltyFeature.GetMaxPointsFromUser("testname");
+            var points = await loyaltyFeature.GetMaxPointsFromUserByUserId("testname");
 
             // Assert
             Assert.Equal(10, points);

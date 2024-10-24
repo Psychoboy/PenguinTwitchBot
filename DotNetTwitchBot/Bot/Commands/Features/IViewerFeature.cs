@@ -13,8 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task<Viewer?> GetViewerById(int id);
         Task<Viewer?> GetViewerByUserName(string username);
         Task<Viewer?> GetViewerByUserId(string userId);
+        Task<string?> GetViewerId(string username);
         Task<Viewer?> GetViewerByUserIdOrName(string userId, string username);
-        Task<bool> IsFollower(string username);
+        Task<bool> IsFollowerByUsername(string username);
         Task<bool> IsModerator(string username);
         Task<bool> IsSubscriber(string username);
         Task OnChatMessage(ChatMessageEventArgs e);

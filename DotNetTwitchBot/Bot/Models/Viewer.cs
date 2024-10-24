@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(Username))]
+    [Index(nameof(UserId))]
     public class Viewer
     {
         [Key]

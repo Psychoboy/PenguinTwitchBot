@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
-                amount = await _loyaltyFeature.GetMaxPointsFromUser(e.Name);
+                amount = await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId);
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await _loyaltyFeature.RemovePointsFromUser(e.Name, amount)))
+            if (!(await _loyaltyFeature.RemovePointsFromUserByUserId(e.UserId, amount)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
                 throw new SkipCooldownException();
@@ -184,7 +184,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 foreach (var participant in Survivors)
                 {
                     var pay = Convert.ToInt64(participant.Bet * 1.5);
-                    await _loyaltyFeature.AddPointsToViewer(participant.Name, participant.Bet + pay);
+                    await _loyaltyFeature.AddPointsToViewerByUsername(participant.Name, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                     maxlength += formattedName.Length;
                     payouts.Add(formattedName);
