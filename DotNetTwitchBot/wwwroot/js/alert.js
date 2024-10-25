@@ -355,7 +355,7 @@ function getAudioFile(name, path) {
 
 function handleAudioHook(json) {
     // Make sure we can allow audio hooks.
-    let audioFile = getAudioFile(json.audio_panel_hook),
+    let audioFile = getAudioFile(json.audio_panel_hook, json.path),
         audio;
 
     if (audioFile.length === 0) {
@@ -381,6 +381,8 @@ function handleAudioHook(json) {
     // Play the audio.
     audio.play().catch(function (err) {
         console.log(err);
+    }).then(() => {
+        socket.send("TTSComplete: " + json.audio_panel_hook)
     });
 }
 

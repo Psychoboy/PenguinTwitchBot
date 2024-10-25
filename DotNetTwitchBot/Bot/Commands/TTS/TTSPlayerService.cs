@@ -9,33 +9,24 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
     public class TTSPlayerService(ILogger<TTSPlayerService> logger) : ITTSPlayerService
     {
         private string LastFileName = string.Empty;
-        public async Task PlayRequest(TTSRequest request)
+        public async Task<string> CreateTTSFile(TTSRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Message)) return;
+            if (string.IsNullOrWhiteSpace(request.Message)) return string.Empty;
+            if (Directory.Exists("wwwroot/tts/") == false)
+            {
+                Directory.CreateDirectory("wwwroot/tts/");
+            }
             switch (request.RegisteredVoice.Type)
             {
-                case RegisteredVoice.VoiceType.Windows:
-                    PlayWindows(request);
-                    break;
                 case RegisteredVoice.VoiceType.Google:
-                    await PlayGoogle(request);
-                    break;
-            }
-            if (File.Exists(LastFileName))
-            {
-                try
-                {
-                    File.Delete(LastFileName);
-
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to delete file {filename}", LastFileName);
-                }
+                    return await PlayGoogle(request);
+                default:
+                    logger.LogWarning("Invalid VoiceType: {voiceType}", request.RegisteredVoice.Type);
+                    return string.Empty;
             }
         }
 
-        private async Task PlayGoogle(TTSRequest request)
+        private async Task<string> PlayGoogle(TTSRequest request)
         {
             try
             {
@@ -50,49 +41,17 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                     new VoiceSelectionParams { LanguageCode = request.RegisteredVoice.LanguageCode, Name = request.RegisteredVoice.Name },
                     new AudioConfig { AudioEncoding = AudioEncoding.Mp3 }
                     );
-                var fileName = Guid.NewGuid().ToString() + ".mp3";
-                LastFileName = fileName;
-                using (var output = File.Create(fileName))
+                var fileName = Guid.NewGuid().ToString();
+                using (var output = File.Create("wwwroot/tts/" + fileName + ".mp3"))
                 {
                     result.AudioContent.WriteTo(output);
                 }
-
-                using var mp3File = File.OpenRead(fileName);
-                using var waveOut = new WaveOutEvent();
-                using var mp3Reader = new Mp3FileReader(mp3File);
-                {
-                    waveOut.Init(mp3Reader);
-                    waveOut.Play();
-                    while (waveOut.PlaybackState == PlaybackState.Playing)
-                    {
-                        Thread.Sleep(500);
-                    }
-                }
-
+                return fileName;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to play google message.");
-            }
-        }
-
-        private void PlayWindows(TTSRequest request)
-        {
-            try
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    var synthesizer = new SpeechSynthesizer();
-                    var builder = new PromptBuilder();
-                    builder.StartVoice(request.RegisteredVoice.Name);
-                    builder.AppendText(request.Message);
-                    builder.EndVoice();
-                    synthesizer.Speak(builder);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to play windows message.");
+                logger.LogError(ex, "Failed to create google message.");
+                return string.Empty;
             }
         }
     }
