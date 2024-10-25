@@ -1,22 +1,25 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
 using MediatR;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
     public class BaseCommandRunHandler(ICommandHandler commandHandler, ILogger<BaseCommandRunHandler> logger) : INotificationHandler<RunCommandNotification>
     {
-        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new ConcurrentDictionary<string, SemaphoreSlim>();
         private string lastCommand = string.Empty;
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             var eventArgs = notification.EventArgs;
+            SemaphoreSlim? lockInstance = null;
             try
             {
-                if (eventArgs == null) throw new ArgumentNullException(nameof(eventArgs));
+                if (eventArgs == null) throw new ArgumentNullException("eventArgs");
 
                 if (eventArgs.SkipLock == false)
                 {
-                    if (await _semaphoreSlim.WaitAsync(500, cancellationToken) == false)
+                    lockInstance = CommandLock.GetOrAdd(eventArgs.Command, x => new SemaphoreSlim(1));
+                    if (await lockInstance.WaitAsync(10000, cancellationToken) == false)
                     {
                         logger.LogWarning("BaseCommand Lock expired while waiting... Last Locked Command: {lastCommand}", lastCommand);
                     }
@@ -65,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands
             finally
             {
                 if (eventArgs?.SkipLock == false)
-                    _semaphoreSlim.Release();
+                    lockInstance?.Release();
             }
         }
     }
