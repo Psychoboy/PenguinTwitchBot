@@ -1,12 +1,13 @@
-﻿using DotNetTwitchBot.BackgroundWorkers;
+﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
-using System.Runtime.InteropServices;
-using System.Speech.Synthesis;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TTS
 {
@@ -16,7 +17,8 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
         ITTSPlayerService ttsPlayerService,
-        IBackgroundTaskQueue backgroundTaskQueue
+        IBackgroundTaskQueue backgroundTaskQueue,
+        IMediator mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService"), IHostedService, ITTSService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -53,7 +55,14 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
             };
             backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
             {
-                await ttsPlayerService.PlayRequest(request);
+                var fileName = await ttsPlayerService.CreateTTSFile(request);
+                if(string.IsNullOrEmpty(fileName)) return;
+                var audioAlert = new AlertSound
+                {
+                    Path = "tts",
+                    AudioHook = fileName
+                };
+                await mediator.Publish(new QueueAlert(audioAlert.Generate()), token);
             });
         }
 
@@ -78,19 +87,6 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         public async Task<List<RegisteredVoice>> GetAllVoices()
         {
             List<RegisteredVoice> voiceList = [];
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                var synthesizer = new SpeechSynthesizer();
-                var voices = synthesizer.GetInstalledVoices().ToList();
-#pragma warning disable CA1416 // Validate platform compatibility
-                voiceList.AddRange(voices.Select(x => new RegisteredVoice
-                {
-                    Type = RegisteredVoice.VoiceType.Windows,
-                    Name = x.VoiceInfo.Name,
-                    Sex = (RegisteredVoice.SexType)x.VoiceInfo.Gender
-                }));
-#pragma warning restore CA1416 // Validate platform compatibility
-            }
             var credentials = GoogleCredential.FromFile("gtts.json");
             var builder = new TextToSpeechClientBuilder
             {
