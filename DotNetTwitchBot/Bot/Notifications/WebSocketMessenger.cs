@@ -79,17 +79,17 @@ namespace DotNetTwitchBot.Bot.Notifications
                 var data = await ReadStringAsync(webSocket, CancellationToken.None);
                 if (data == null) continue;
 
-                if (data.Length > 0 && data.StartsWith("TTSComplete: "))
-                {
+                //if (data.Length > 0 && data.StartsWith("TTSComplete: "))
+                //{
 
-                    var fileParts = data.Split(":");
-                    if (fileParts.Length > 1)
-                    {
-                        var fileName = fileParts[1];
-                        if(File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
-                            File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
-                    }
-                }
+                //    var fileParts = data.Split(":");
+                //    if (fileParts.Length > 1)
+                //    {
+                //        var fileName = fileParts[1];
+                //        if(File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
+                //            File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
+                //    }
+                //}
             }
         }
 

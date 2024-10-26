@@ -85,6 +85,7 @@ internal class Program
             var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
             var UpdatePostedScheduleKey = new JobKey("UpdatePostedSchedule");
             var cleanupChatLogs = new JobKey("CleanUpChatLogs");
+            var hourlyCLeanup = new JobKey("HourlyCleanup");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
                 .ForJob(backupDbJobKey)
@@ -112,9 +113,12 @@ internal class Program
                 .WithIdentity("CleanUpChatLogs-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(13, 00)) //Every day at 1PM
             );
-
-
-
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.HourlyCleanupJob>(opts => opts.WithIdentity(hourlyCLeanup));
+            q.AddTrigger(opts => opts
+                .ForJob(hourlyCLeanup)
+                .WithIdentity("HourlyCleanup-Trigger")
+                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever().Build()) //Every Hour
+            );
         });
         builder.Services.AddQuartzServer(
             q => q.WaitForJobsToComplete = true
