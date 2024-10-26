@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var viewerPoints = await db.ViewerPoints.Find(x => x.UserId.Equals(viewer.UserId)).FirstOrDefaultAsync();
+                    var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
                     if (viewerPoints == null) continue;
                     if (viewerPoints.Points <= 25000) continue;
                     var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
