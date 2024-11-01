@@ -36,6 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                     Credential = credentials
                 };
                 var tts = await builder.BuildAsync();
+                logger.LogInformation("Starting to compile Google Voice: {voiceName}", request.RegisteredVoice.Name);
                 var result = await tts.SynthesizeSpeechAsync(
                     new SynthesisInput { Text = request.Message },
                     new VoiceSelectionParams { LanguageCode = request.RegisteredVoice.LanguageCode, Name = request.RegisteredVoice.Name },
@@ -46,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 {
                     result.AudioContent.WriteTo(output);
                 }
+                logger.LogInformation("Saved TTS file: {filename}", fileName);
                 return fileName;
             }
             catch (Exception ex)
