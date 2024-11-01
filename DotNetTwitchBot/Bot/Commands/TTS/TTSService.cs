@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
 
         public void SayMessage(RegisteredVoice voice, string message)
         {
-
+            logger.LogInformation("Queueing TTS for with voice {voice} {type} with message: {message}", voice.Name, voice.Type, message);
             var request = new TTSRequest
             {
                 Message = message,
