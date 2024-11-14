@@ -82,6 +82,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
             services.AddHostedApiService<Bot.Commands.ChannelPoints.IChannelPointRedeem, Bot.Commands.ChannelPoints.ChannelPointRedeem>();
             services.AddHostedApiService<Bot.Commands.TwitchEvents.ITwitchEventsService, Bot.Commands.TwitchEvents.TwitchEventsService>();
+            services.AddHostedApiService<DotNetTwitchBot.Bot.Core.IDiscordService, DotNetTwitchBot.Bot.Core.DiscordService>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
             services.AddHostedApiService<IClipService, ClipService>();
