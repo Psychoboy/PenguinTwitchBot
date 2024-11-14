@@ -8,9 +8,9 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class DiscordService : IDiscordService
+    public class DiscordService : IDiscordService, IHostedService
     {
-        private readonly DiscordSocketClient _client;
+        private DiscordSocketClient _client;
         private readonly ILogger<DiscordService> _logger;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly CustomCommand _customCommands;
@@ -33,23 +33,10 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
-            var config = new DiscordSocketConfig
-            {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
-                AlwaysDownloadUsers = true
-            };
-            _client = new DiscordSocketClient(config);
-
-            _client.Connected += Connected;
-            _client.Ready += OnReady;
-            _client.SlashCommandExecuted += SlashCommandHandler;
-            _client.PresenceUpdated += PresenceUpdated;
-            _client.MessageReceived += MessageReceived;
-            _client.Disconnected += Disconnected;
-
+            
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
-            Initialize(settings.DiscordToken).Wait();
+            
         }
 
         public ConnectionState ServiceStatus()
@@ -184,8 +171,6 @@ namespace DotNetTwitchBot.Bot.Core
         public async Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams)
         {
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            //1033836361653964851 - Schedule
-            //679541861861425153 - Audit
             var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             var embed = GenerateScheduleEmbed(scheduledStreams);
             var msg = await channel.SendMessageAsync("", embed: embed);
@@ -426,6 +411,35 @@ namespace DotNetTwitchBot.Bot.Core
             };
             _logger.Log(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
             await Task.CompletedTask;
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            var config = new DiscordSocketConfig
+            {
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
+                AlwaysDownloadUsers = true
+            };
+            _client = new DiscordSocketClient(config);
+
+            _client.Connected += Connected;
+            _client.Ready += OnReady;
+            _client.SlashCommandExecuted += SlashCommandHandler;
+            _client.PresenceUpdated += PresenceUpdated;
+            _client.MessageReceived += MessageReceived;
+            _client.Disconnected += Disconnected;
+            await Initialize(_settings.DiscordToken);
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _client.Connected -= Connected;
+            _client.Ready -= OnReady;
+            _client.SlashCommandExecuted -= SlashCommandHandler;
+            _client.PresenceUpdated -= PresenceUpdated;
+            _client.MessageReceived -= MessageReceived;
+            _client.Disconnected -= Disconnected;
+            return Task.CompletedTask;
         }
     }
 }

@@ -34,7 +34,7 @@
     <PackageReference Include="BlazorTime" Version="1.0.3" />
     <PackageReference Include="Discord.Net" Version="3.16.0" />
     <PackageReference Include="EFCore.BulkExtensions" Version="8.1.1" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3582" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3596" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.9.0" />
     <PackageReference Include="iluvadev.ConsoleProgressBar" Version="1.1.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
@@ -51,23 +51,23 @@
 	  </PackageReference>
 	  <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.1.2" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.2.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
     <PackageReference Include="MySqlBackup.NET.MySqlConnector" Version="2.3.8" />
     <PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
     <PackageReference Include="prometheus-net.DotNetRuntime" Version="4.4.1" />
-    <PackageReference Include="Quartz" Version="3.13.0" />
-    <PackageReference Include="Quartz.AspNetCore" Version="3.13.0" />
+    <PackageReference Include="Quartz" Version="3.13.1" />
+    <PackageReference Include="Quartz.AspNetCore" Version="3.13.1" />
     <PackageReference Include="Serilog" Version="4.1.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.4" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.0" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
-    <PackageReference Include="MudBlazor" Version="7.14.0" />
+    <PackageReference Include="MudBlazor" Version="7.15.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="YoutubeDLSharp" Version="1.1.1" />
   </ItemGroup>

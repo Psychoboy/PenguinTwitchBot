@@ -46,7 +46,7 @@ internal class Program
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ILanguage, Language>();
-        builder.Services.AddSingleton<IDiscordService, DiscordService>();
+        //builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie();
@@ -174,7 +174,7 @@ internal class Program
         }
 
         //Loads all the command stuff into memory
-        app.Services.GetRequiredService<IDiscordService>();
+        //app.Services.GetRequiredService<IDiscordService>();
 
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
