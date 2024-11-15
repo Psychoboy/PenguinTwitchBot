@@ -376,13 +376,12 @@ function handleAudioHook(json) {
     $(audio).on('ended', function () {
         audio.currentTime = 0;
         isPlaying = false;
+        socket.send("TTSComplete: " + json.audio_panel_hook)
     });
     playingAudioFiles.push(audio);
     // Play the audio.
     audio.play().catch(function (err) {
         console.log(err);
-    }).then(() => {
-        socket.send("TTSComplete: " + json.audio_panel_hook)
     });
 }
 
