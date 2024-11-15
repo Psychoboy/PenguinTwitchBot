@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
+using DotNetTwitchBot.BackgroundWorkers;
 using DotNetTwitchBot.Extensions;
 
 namespace DotNetTwitchBot.Bot.Notifications
@@ -10,12 +11,14 @@ namespace DotNetTwitchBot.Bot.Notifications
         private readonly BlockingCollection<string> _queue = [];
         private List<SocketConnection> websocketConnections = [];
         readonly ILogger<WebSocketMessenger> _logger;
+        private readonly IBackgroundTaskQueue _backgroundTaskQueue;
         private bool Paused = false;
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
-        public WebSocketMessenger(ILogger<WebSocketMessenger> logger)
+        public WebSocketMessenger(IBackgroundTaskQueue backgroundTaskQueue ,ILogger<WebSocketMessenger> logger)
         {
             _logger = logger;
+            _backgroundTaskQueue = backgroundTaskQueue;
             SetupCleanUpTask();
         }
 
@@ -78,6 +81,24 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 var data = await ReadStringAsync(webSocket, CancellationToken.None);
                 if (data == null) continue;
+
+                if(data.Length >0 && data.StartsWith("TTSComplete: "))
+                {
+                    _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+                    {
+                        var fileParts = data.Split(":");
+                        if (fileParts.Length > 1)
+                        {
+                            var fileName = fileParts[1];
+                            if(File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
+                            {
+                                _logger.LogInformation("Deleting TTS File {filename}", fileName);
+                                File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
+                            }
+                        }
+                        await Task.CompletedTask;
+                    });
+                }
 
                 //if (data.Length > 0 && data.StartsWith("TTSComplete: "))
                 //{
