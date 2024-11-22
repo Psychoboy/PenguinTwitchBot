@@ -6,10 +6,10 @@
 
 @if (raidHistory != null)
 {
-    <MudTable Items="@raidHistory">
+    <MudTable Items="@(GetFilteredContent())">
         <HeaderContent>
             <MudTh>Name</MudTh>
-            <MudTh>Online?</MudTh>
+            <MudTh><MudCheckBox @bind-Value="OnlineOnly">Online?</MudCheckBox></MudTh>
             <MudTh>Game</MudTh>
             <MudTh>Incoming Raids</MudTh>
             <MudTh>Avg. Per</MudTh>
@@ -45,10 +45,20 @@
 
 @code {
     private List<RaidHistoryEntry>? raidHistory;
+    private bool OnlineOnly { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
         raidHistory = await RaidTracker.GetHistory();
+    }
+
+    private List<RaidHistoryEntry>? GetFilteredContent()
+    {
+        if(OnlineOnly)
+        {
+            return raidHistory?.Where(x => x.IsOnline).ToList();
+        }
+        return raidHistory;
     }
 
     private async Task Raid(RaidHistoryEntry item)
