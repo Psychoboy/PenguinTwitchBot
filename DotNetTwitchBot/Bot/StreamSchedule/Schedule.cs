@@ -84,6 +84,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
 
             foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
             {
+                if(shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var scheduledEvent = db.DiscordTwitchEventMap.Find(x => x.DiscordEventId == shouldDeleteEvent.Id);
