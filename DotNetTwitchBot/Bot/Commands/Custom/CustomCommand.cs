@@ -796,14 +796,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private Task<CustomCommandResult> Args(CommandEventArgs args, string arg2)
         {
-            return Task.FromResult(new CustomCommandResult(args.Arg));
+            return Task.FromResult(new CustomCommandResult(args.Arg.Replace("(", "").Replace(")", "")));
         }
 
         private async Task<CustomCommandResult> TTSAndPrint(CommandEventArgs args, string arg2)
         {
             var voice = await _ttsService.GetRandomVoice(args.Name);
             _ttsService.SayMessage(voice, arg2);
-            return new CustomCommandResult(arg2);
+            return new CustomCommandResult(arg2.Replace("(", "").Replace(")",""));
         }
 
         private async Task<CustomCommandResult> OnlineOnly(CommandEventArgs eventArgs, string args)
