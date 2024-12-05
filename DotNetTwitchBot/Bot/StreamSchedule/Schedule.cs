@@ -84,7 +84,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             var connectedId = discordService.GetConnectedAsId();
             if (connectedId != 0)
             {
-                shouldBeDeletedEvents = discordEvents.Where(x => x.Creator.Id == connectedId).ToList();
+                shouldBeDeletedEvents = shouldBeDeletedEvents.Where(x => x.Creator.Id == connectedId).ToList();
                 foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
                 {
                     if (shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
