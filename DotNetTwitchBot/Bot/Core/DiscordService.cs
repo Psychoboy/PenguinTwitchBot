@@ -115,6 +115,11 @@ namespace DotNetTwitchBot.Bot.Core
             return guild.GetEventAsync(id);
         }
 
+        public ulong GetConnectedAsId()
+        {
+            return _client.CurrentUser.Id;
+        }
+
         public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)
         {
             await evt.ModifyAsync(x =>

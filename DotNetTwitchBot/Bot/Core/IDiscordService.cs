@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Core
         Task<ulong> CreateScheduledEvent(ScheduledStream scheduledStream);
         Task DeleteEvent(IGuildScheduledEvent evt);
         Task DeletePostedScheduled(ulong id);
+        ulong GetConnectedAsId();
         Task<IGuildScheduledEvent> GetEvent(ulong id);
         Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents();
         Task LogAsync(LogMessage message);

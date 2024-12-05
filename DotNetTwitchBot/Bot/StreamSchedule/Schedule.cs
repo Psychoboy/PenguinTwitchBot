@@ -81,17 +81,21 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
 
             var discordEvents = await discordService.GetEvents();
             var shouldBeDeletedEvents = discordEvents.Where(x => foundEvents.Contains(x.Id) == false).ToList();
-
-            foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
+            var connectedId = discordService.GetConnectedAsId();
+            if (connectedId != 0)
             {
-                if(shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var scheduledEvent = db.DiscordTwitchEventMap.Find(x => x.DiscordEventId == shouldDeleteEvent.Id);
-                if (scheduledEvent != null)
+                shouldBeDeletedEvents = discordEvents.Where(x => x.Creator.Id == connectedId).ToList();
+                foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
                 {
-                    await discordService.DeleteEvent(shouldDeleteEvent);
-                    anyUpdates = true;
+                    if (shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var scheduledEvent = db.DiscordTwitchEventMap.Find(x => x.DiscordEventId == shouldDeleteEvent.Id);
+                    if (scheduledEvent != null)
+                    {
+                        await discordService.DeleteEvent(shouldDeleteEvent);
+                        anyUpdates = true;
+                    }
                 }
             }
 
