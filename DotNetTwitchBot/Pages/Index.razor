@@ -10,6 +10,7 @@
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject DotNetTwitchBot.Bot.Commands.Metrics.SongRequests SongRequestMetrics
 @inject DotNetTwitchBot.Bot.Core.IChatHistory ChatHistory
+@inject DotNetTwitchBot.Bot.StreamSchedule.ISchedule Schedule
 @inject ISnackbar Snackbar
 @inject ILogger<Index> logger
 @implements IAsyncDisposable
@@ -23,6 +24,7 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
@@ -151,6 +153,11 @@
     private Task CleanupChat()
     {
         return ChatHistory.CleanOldLogs();
+    }
+
+    private async Task UpdateSchedule()
+    {
+        await Schedule.UpdateEvents();
     }
 
     public async ValueTask DisposeAsync()
