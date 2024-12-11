@@ -16,19 +16,7 @@
 @implements IAsyncDisposable
 
 <CascadingAuthenticationState>  
-    <AuthorizeView Roles="Streamer">
-        <Authorized>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
-        </Authorized>
-        <NotAuthorized>
-        </NotAuthorized>
-    </AuthorizeView>
+    <DotNetTwitchBot.Pages.Components.QuickTools />
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>
             <MudItem sm="6">
@@ -44,30 +32,6 @@
             
             <MudItem sm="6">
                 <TopRequestedSongs IsPreview="true" Title="Top 5 Requested Songs" />
-                @* <MudPaper Class="pa-4" Elevation="0">
-                    <MudPaper Class="align-start d-flex">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Top 5 Requested Songs</MudText>
-                        <MudSpacer />
-                            <MudLink Href="songRequests">Details</MudLink>
-                    </MudPaper>
-                    <MudTable Items="@topSongRequests" Elevation="0">
-                        <HeaderContent>
-                            <MudTh>Rank</MudTh>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Length</MudTh>
-                            <MudTh>Times Requested</MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
-                            <MudTd DataLabel="Name">@context.Title</MudTd>
-                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
-                            <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">Video</MudLink></MudTd>
-
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper> *@
             </MudItem>
         </MudGrid>
     </MudContainer>
