@@ -425,6 +425,7 @@ namespace DotNetTwitchBot.Bot.Core
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
                 AlwaysDownloadUsers = true
             };
+            _logger.LogInformation("Starting Discord Service.");
             _client = new DiscordSocketClient(config);
 
             _client.Connected += Connected;
@@ -433,11 +434,13 @@ namespace DotNetTwitchBot.Bot.Core
             _client.PresenceUpdated += PresenceUpdated;
             _client.MessageReceived += MessageReceived;
             _client.Disconnected += Disconnected;
+            _client.Log += LogAsync;
             await Initialize(_settings.DiscordToken);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
             _client.Ready -= OnReady;
             _client.SlashCommandExecuted -= SlashCommandHandler;
