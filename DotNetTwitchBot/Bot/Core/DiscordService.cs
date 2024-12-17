@@ -433,7 +433,23 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogWarning("Guild was null when got UserUpdated.");
                 return;
             }
-            await SendMessageToLogAndAudit(guild, string.Format("{0} changed their name to {1}", olderUserName, newUserName));
+            _logger.LogInformation("{oldName} changed their name to {newName}", olderUserName, newUserName);
+
+            var embed = new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithThumbnailUrl(newUserInfo.GetDisplayAvatarUrl())
+                .WithTitle(newUserInfo.GlobalName)
+                .WithDescription(newUserInfo.Mention + " edited message")
+                .AddField("Old Name", olderUserName, true)
+                .AddField("New Name", newUserName, true)
+                .WithCurrentTimestamp()
+                .WithFooter(newUserInfo.Id.ToString())
+                .Build();
+            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (channel != null)
+            {
+                await channel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+            }
         }
 
 
@@ -447,38 +463,86 @@ namespace DotNetTwitchBot.Bot.Core
 
             if (string.IsNullOrWhiteSpace(newSocketMessage.Content.Trim())) return;
 
-            var message = string.IsNullOrWhiteSpace(oldMessage) ?
-                string.Format("User {0} updated message: {1}", newSocketMessage.Author.Username, newSocketMessage.Content) :
-                string.Format("User {0} updated old Message: {1} new message: {2}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
+            if (string.IsNullOrWhiteSpace(oldMessage)) {
+                _logger.LogInformation("User {username} updated message: {newMessage}", newSocketMessage.Author.Username, newSocketMessage.Content);
+            } else {
+                _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
+            }
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
             {
                 _logger.LogWarning("Guild was null when got MessageUpdated.");
                 return;
             }
-            await SendMessageToLogAndAudit(guild, message);
-        }
-
-        private async Task SendMessageToLogAndAudit(SocketGuild guild, string message)
-        {
-            if (message == null) return;
-            _logger.LogInformation(message);
-            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (channel != null)
+            var embed = new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithThumbnailUrl(newSocketMessage.Author.GetDisplayAvatarUrl())
+                .WithTitle(newSocketMessage.Author.GlobalName)
+                .WithDescription(newSocketMessage.Author.Mention + " edited message")
+                .AddField("Old Message", oldMessage)
+                .AddField("New NewMessage", newSocketMessage.Content)
+                .WithCurrentTimestamp()
+                .WithFooter(newSocketMessage.Author.Id.ToString())
+                .Build();
+            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (auditChannel != null)
             {
-                await channel.SendMessageAsync(message);
+                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
             }
         }
 
+        //private async Task SendMessageToLogAndAudit(SocketGuild guild, string message)
+        //{
+        //    if (message == null) return;
+        //    _logger.LogInformation(message);
+        //    var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
+        //    if (channel != null)
+        //    {
+        //        await channel.SendMessageAsync(message);
+        //    }
+        //}
+
         private async Task UserLeft(SocketGuild guild, SocketUser user)
         {
-            await SendMessageToLogAndAudit(guild, string.Format("{0} {1} left the discord server", user.Username, user.Id));
+            _logger.LogInformation("{username} {id} left the discord server", user.Username, user.Id);
+            var embed = new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithThumbnailUrl(user.GetDisplayAvatarUrl())
+                .WithTitle(user.GlobalName)
+                .WithDescription(user.Mention+ " left the server")
+                .WithCurrentTimestamp()
+                .WithFooter(user.Id.ToString())
+                .Build();
+            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (auditChannel != null)
+            {
+                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+            }
         }
 
-        private Task UserJoined(SocketGuildUser guildUser)
+        private async Task UserJoined(SocketGuildUser guildUser)
         {
             _logger.LogInformation("{username} {id} joined the discord server", guildUser.Username, guildUser.Id);
-            return Task.CompletedTask;
+            var embed = new EmbedBuilder()
+               .WithColor(Color.Green)
+               .WithThumbnailUrl(guildUser.GetDisplayAvatarUrl())
+               .WithTitle(guildUser.GlobalName)
+               .WithDescription(guildUser.Mention + " joined the server")
+               .AddField("Account Creation", guildUser.CreatedAt)
+               .WithCurrentTimestamp()
+               .WithFooter(guildUser.Id.ToString())
+               .Build();
+            var guild = _client.Guilds.FirstOrDefault();
+            if (guild == null)
+            {
+                _logger.LogWarning("Guild was null when got UserJoined.");
+                return;
+            }
+            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (auditChannel != null)
+            {
+                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+            }
         }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
