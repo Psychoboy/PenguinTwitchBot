@@ -238,8 +238,15 @@ internal class Program
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
-        await YoutubeDLSharp.Utils.DownloadYtDlp();
-        await YoutubeDLSharp.Utils.DownloadFFmpeg();
+        try
+        {
+            if (!File.Exists("yt-dlp.exe"))
+            {
+                await YoutubeDLSharp.Utils.DownloadYtDlp();
+                await YoutubeDLSharp.Utils.DownloadFFmpeg();
+            }
+        }
+        catch (Exception _) { }
         await app.RunAsync(); //Start in future to read input
 
     }
