@@ -474,16 +474,22 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogWarning("Guild was null when got MessageUpdated.");
                 return;
             }
-            var embed = new EmbedBuilder()
+            var embedBuilder = new EmbedBuilder()
                 .WithColor(Color.Orange)
                 .WithThumbnailUrl(newSocketMessage.Author.GetDisplayAvatarUrl())
                 .WithTitle(newSocketMessage.Author.GlobalName)
                 .WithDescription(newSocketMessage.Author.Mention + " edited message")
-                .AddField("Old Message", oldMessage)
-                .AddField("New NewMessage", newSocketMessage.Content)
+                //.AddField("Old Message", oldMessage)
+                //.AddField("New NewMessage", newSocketMessage.Content)
                 .WithCurrentTimestamp()
-                .WithFooter(newSocketMessage.Author.Id.ToString())
-                .Build();
+                .WithFooter(newSocketMessage.Author.Id.ToString());
+
+            if(!string.IsNullOrEmpty(oldMessage))
+            {
+                embedBuilder.AddField("Old Message", oldMessage);
+            }
+            var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
+
             var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
             if (auditChannel != null)
             {
@@ -550,7 +556,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
                 AlwaysDownloadUsers = true,
-                MessageCacheSize = 100
+                MessageCacheSize = 1024
             };
             _logger.LogInformation("Starting Discord Service.");
             _client = new DiscordSocketClient(config);
