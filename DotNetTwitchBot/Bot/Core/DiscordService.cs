@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
+using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -418,6 +419,62 @@ namespace DotNetTwitchBot.Bot.Core
             await Task.CompletedTask;
         }
 
+        
+
+        private async Task UserUpdated(SocketUser oldUserInfo, SocketUser newUserInfo)
+        {
+            var olderUserName = oldUserInfo.Username;
+            var newUserName = newUserInfo.Username;
+            if (!olderUserName.Equals(newUserName)) return;
+            var guild = _client.Guilds.FirstOrDefault();
+            if (guild == null)
+            {
+                _logger.LogWarning("Guild was null when got UserUpdated.");
+                return;
+            }
+            await SendMessageToLogAndAudit(guild, string.Format("{0} changed their name to {1}", olderUserName, newUserName));
+        }
+
+
+        private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
+        {
+            string oldMessage = "";
+            if (oldMessageCache.HasValue && oldMessageCache.Value != null)
+            {
+                oldMessage = oldMessageCache.Value.Content;
+            }
+            var newMessage = newSocketMessage.Content;
+            var message = string.Format("User {0} updated message: New: {1} Old: {2}", newSocketMessage.Author.Username, oldMessage, newMessage);
+            var guild = _client.Guilds.FirstOrDefault();
+            if (guild == null)
+            {
+                _logger.LogWarning("Guild was null when got MessageUpdated.");
+                return;
+            }
+            await SendMessageToLogAndAudit(guild, message);
+        }
+
+        private async Task SendMessageToLogAndAudit(SocketGuild guild, string message)
+        {
+            if (message == null) return;
+            _logger.LogInformation(message);
+            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (channel != null)
+            {
+                await channel.SendMessageAsync(message);
+            }
+        }
+
+        private async Task UserLeft(SocketGuild guild, SocketUser user)
+        {
+            await SendMessageToLogAndAudit(guild, string.Format("{0} {1} left the discord server", user.Username, user.Id));
+        }
+
+        private Task UserJoined(SocketGuildUser guildUser)
+        {
+            _logger.LogInformation("{username} {id} joined the discord server", guildUser.Username, guildUser.Id);
+            return Task.CompletedTask;
+        }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             var config = new DiscordSocketConfig
@@ -437,24 +494,9 @@ namespace DotNetTwitchBot.Bot.Core
             _client.Log += LogAsync;
             _client.UserJoined += UserJoined;
             _client.UserLeft += UserLeft;
+            _client.UserUpdated += UserUpdated;
+            _client.MessageUpdated += MessageUpdated;
             await Initialize(_settings.DiscordToken);
-        }
-
-        private Task UserLeft(SocketGuild guild, SocketUser user)
-        {
-            _logger.LogInformation("{username} {id} left the discord server", user.Username, user.Id);
-            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (channel != null)
-            {
-                channel.SendMessageAsync(string.Format("{0} {1} left the discord server", user.Username, user.Id));
-            }
-            return Task.CompletedTask;
-        }
-
-        private Task UserJoined(SocketGuildUser guildUser)
-        {
-            _logger.LogInformation("{username} {id} joined the discord server", guildUser.Username, guildUser.Id);
-            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
