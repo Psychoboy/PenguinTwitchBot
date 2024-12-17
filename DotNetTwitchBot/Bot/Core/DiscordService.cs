@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using DotNetTwitchBot.BackgroundWorkers;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
@@ -18,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly CustomCommand _customCommands;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IBackgroundTaskQueue _backgroundTaskQueue;
         private readonly DiscordSettings _settings;
         private bool isReady = false;
 
@@ -27,6 +29,7 @@ namespace DotNetTwitchBot.Bot.Core
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
+            IBackgroundTaskQueue backgroundTaskQueue,
             IConfiguration configuration)
         {
             _logger = logger;
@@ -35,7 +38,8 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
-            
+            _backgroundTaskQueue = backgroundTaskQueue;
+
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
             
@@ -379,23 +383,25 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
             {
-                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-                await guild.DownloadUsersAsync(); //Load all users
-                var users = await guild.GetUsersAsync();
-                foreach (var user in users)
+                _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
                 {
-                    var activities = user.Activities;
-                    if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                    IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                    await guild.DownloadUsersAsync(); //Load all users
+                    var users = await guild.GetUsersAsync();
+                    foreach (var user in users)
                     {
-                        await UserStreaming(user, true);
+                        var activities = user.Activities;
+                        if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                        {
+                            await UserStreaming(user, true);
+                        }
+                        else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
+                        {
+                            await UserStreaming(user, false);
+                        }
                     }
-                    else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
-                    {
-                        await UserStreaming(user, false);
-                        _logger.LogInformation("Removed live streaming role from user on reconnect.");
-                    }
-                }
-                await CacheLastMessages(guild);
+                    await CacheLastMessages(guild);
+                });
             }
         }
 
