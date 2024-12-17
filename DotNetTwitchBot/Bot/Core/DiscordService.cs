@@ -445,13 +445,42 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithCurrentTimestamp()
                 .WithFooter(newUserInfo.Id.ToString())
                 .Build();
-            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (channel != null)
+            await SendEmbedToAuditChannel(guild, embed);
+        }
+
+
+        private async Task MessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel)
+        {
+            if(message.HasValue)
             {
-                await channel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+                var embed = new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithThumbnailUrl(message.Value.Author.GetDisplayAvatarUrl())
+                .WithTitle(message.Value.Author.GlobalName)
+                .WithDescription(message.Value.Author.Mention + " deleted message")
+                .AddField("Deleted Message", message.Value.Content)
+                .WithCurrentTimestamp()
+                .WithFooter(message.Id.ToString())
+                .Build();
+                var guild = _client.Guilds.FirstOrDefault();
+                if (guild == null)
+                {
+                    _logger.LogWarning("Guild was null when got MessageUpdated.");
+                    return;
+                }
+
+                await SendEmbedToAuditChannel(guild, embed);
             }
         }
 
+        private static async Task SendEmbedToAuditChannel(SocketGuild guild, Embed embed)
+        {
+            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (auditChannel != null)
+            {
+                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+            }
+        }
 
         private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
         {
@@ -479,8 +508,6 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithThumbnailUrl(newSocketMessage.Author.GetDisplayAvatarUrl())
                 .WithTitle(newSocketMessage.Author.GlobalName)
                 .WithDescription(newSocketMessage.Author.Mention + " edited message")
-                //.AddField("Old Message", oldMessage)
-                //.AddField("New NewMessage", newSocketMessage.Content)
                 .WithCurrentTimestamp()
                 .WithFooter(newSocketMessage.Author.Id.ToString());
 
@@ -490,23 +517,8 @@ namespace DotNetTwitchBot.Bot.Core
             }
             var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
 
-            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (auditChannel != null)
-            {
-                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
-            }
+            await SendEmbedToAuditChannel(guild, embed);
         }
-
-        //private async Task SendMessageToLogAndAudit(SocketGuild guild, string message)
-        //{
-        //    if (message == null) return;
-        //    _logger.LogInformation(message);
-        //    var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
-        //    if (channel != null)
-        //    {
-        //        await channel.SendMessageAsync(message);
-        //    }
-        //}
 
         private async Task UserLeft(SocketGuild guild, SocketUser user)
         {
@@ -519,11 +531,7 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithCurrentTimestamp()
                 .WithFooter(user.Id.ToString())
                 .Build();
-            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (auditChannel != null)
-            {
-                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
-            }
+            await SendEmbedToAuditChannel(guild, embed);
         }
 
         private async Task UserJoined(SocketGuildUser guildUser)
@@ -544,11 +552,7 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogWarning("Guild was null when got UserJoined.");
                 return;
             }
-            var auditChannel = (IMessageChannel)guild.GetChannel(679541861861425153);
-            if (auditChannel != null)
-            {
-                await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
-            }
+            await SendEmbedToAuditChannel(guild, embed);
         }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -572,8 +576,10 @@ namespace DotNetTwitchBot.Bot.Core
             _client.UserLeft += UserLeft;
             _client.UserUpdated += UserUpdated;
             _client.MessageUpdated += MessageUpdated;
+            _client.MessageDeleted += MessageDeleted;
             await Initialize(_settings.DiscordToken);
         }
+
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
