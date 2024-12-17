@@ -435,7 +435,26 @@ namespace DotNetTwitchBot.Bot.Core
             _client.MessageReceived += MessageReceived;
             _client.Disconnected += Disconnected;
             _client.Log += LogAsync;
+            _client.UserJoined += UserJoined;
+            _client.UserLeft += UserLeft;
             await Initialize(_settings.DiscordToken);
+        }
+
+        private Task UserLeft(SocketGuild guild, SocketUser user)
+        {
+            _logger.LogInformation("{username} {id} left the discord server", user.Username, user.Id);
+            var channel = (IMessageChannel)guild.GetChannel(679541861861425153);
+            if (channel != null)
+            {
+                channel.SendMessageAsync(string.Format("{0} {1} left the discord server", user.Username, user.Id));
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task UserJoined(SocketGuildUser guildUser)
+        {
+            _logger.LogInformation("{username} {id} joined the discord server", guildUser.Username, guildUser.Id);
+            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
