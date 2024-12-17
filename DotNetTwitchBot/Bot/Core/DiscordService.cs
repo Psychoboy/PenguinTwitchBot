@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Runtime.CompilerServices;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -205,14 +206,14 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task MessageReceived(SocketMessage arg)
+        private Task MessageReceived(SocketMessage arg)
         {
-            if (arg.Type != MessageType.Default && arg.Type != MessageType.Reply) return;
-            if (arg.Author is IGuildUser == false) return;
+            if (arg.Type != MessageType.Default && arg.Type != MessageType.Reply) return Task.CompletedTask;
+            if (arg.Author is IGuildUser == false) return Task.CompletedTask;
             var user = arg.Author as IGuildUser;
-            var message = await arg.Channel.GetMessageAsync(arg.Id);
-            if (string.IsNullOrWhiteSpace(message.Content.Trim())) return;
-            _logger.LogInformation("[DISCORD] [#{MessageChannelName}] {UserDisplayName}: {MessageContent}", message.Channel.Name, user?.DisplayName, message.Content);
+            if (string.IsNullOrWhiteSpace(arg.Content.Trim())) return Task.CompletedTask;
+            _logger.LogInformation("[DISCORD] [#{MessageChannelName}] {UserDisplayName}: {MessageContent}", arg.Channel.Name, user?.DisplayName, arg.Content);
+            return Task.CompletedTask;
         }
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
@@ -438,10 +439,17 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
         {
-            var newMessage = await channel.GetMessageAsync(newSocketMessage.Id);
-            if (string.IsNullOrWhiteSpace(newMessage.Content.Trim())) return;
+            var oldMessage = "";
+            if(oldMessageCache.HasValue && oldMessageCache.Value != null && !string.IsNullOrEmpty(oldMessageCache.Value.Content.Trim()))
+            {
+                oldMessage = oldMessageCache.Value.Content.Trim();
+            }
 
-            var message = string.Format("User {0} updated message: {1}", newSocketMessage.Author.Username, newMessage);
+            if (string.IsNullOrWhiteSpace(newSocketMessage.Content.Trim())) return;
+
+            var message = string.IsNullOrWhiteSpace(oldMessage) ?
+                string.Format("User {0} updated message: {1}", newSocketMessage.Author.Username, newSocketMessage.Content) :
+                string.Format("User {0} updated old Message: {1} new message: {2}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
             {
@@ -476,9 +484,9 @@ namespace DotNetTwitchBot.Bot.Core
         {
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
                 AlwaysDownloadUsers = true,
-                MessageCacheSize = 1024
+                MessageCacheSize = 100
             };
             _logger.LogInformation("Starting Discord Service.");
             _client = new DiscordSocketClient(config);
