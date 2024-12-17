@@ -395,6 +395,7 @@ namespace DotNetTwitchBot.Bot.Core
                         _logger.LogInformation("Removed live streaming role from user on reconnect.");
                     }
                 }
+                await CacheLastMessages(guild);
             }
         }
 
@@ -479,6 +480,20 @@ namespace DotNetTwitchBot.Bot.Core
             if (auditChannel != null)
             {
                 await auditChannel.SendMessageAsync(embed: embed, allowedMentions: AllowedMentions.None);
+            }
+        }
+
+        private static async Task CacheLastMessages(IGuild guild)
+        {
+            var channels = await guild.GetChannelsAsync();
+            foreach (var channel in channels)
+            {
+                if(channel.GetChannelType() == ChannelType.Text)
+                {
+                    var textChannel = (IMessageChannel)channel;
+                    var messages = textChannel.GetMessagesAsync();
+                    await messages.FlattenAsync();
+                }
             }
         }
 
@@ -590,6 +605,12 @@ namespace DotNetTwitchBot.Bot.Core
             _client.PresenceUpdated -= PresenceUpdated;
             _client.MessageReceived -= MessageReceived;
             _client.Disconnected -= Disconnected;
+            _client.Log -= LogAsync;
+            _client.UserJoined -= UserJoined;
+            _client.UserLeft -= UserLeft;
+            _client.UserUpdated -= UserUpdated;
+            _client.MessageUpdated -= MessageUpdated;
+            _client.MessageDeleted -= MessageDeleted;
             return Task.CompletedTask;
         }
     }
