@@ -480,7 +480,8 @@ namespace DotNetTwitchBot.Bot.Core
             var config = new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers,
-                AlwaysDownloadUsers = true
+                AlwaysDownloadUsers = true,
+                MessageCacheSize = 1024
             };
             _logger.LogInformation("Starting Discord Service.");
             _client = new DiscordSocketClient(config);
