@@ -438,13 +438,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
         {
-            string oldMessage = "";
-            if (oldMessageCache.HasValue && oldMessageCache.Value != null)
-            {
-                oldMessage = oldMessageCache.Value.Content;
-            }
-            var newMessage = newSocketMessage.Content;
-            var message = string.Format("User {0} updated message: New: {1} Old: {2}", newSocketMessage.Author.Username, oldMessage, newMessage);
+            var newMessage = await channel.GetMessageAsync(newSocketMessage.Id);
+            if (string.IsNullOrWhiteSpace(newMessage.Content.Trim())) return;
+
+            var message = string.Format("User {0} updated message: {1}", newSocketMessage.Author.Username, newMessage);
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
             {
