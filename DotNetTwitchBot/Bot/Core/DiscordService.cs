@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
+using RTools_NTS.Util;
 using System.Runtime.CompilerServices;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
@@ -299,63 +300,66 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task OnReady()
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            await guild.DownloadUsersAsync(); //Load all users
-            var users = await guild.GetUsersAsync();
-            foreach (var user in users)
+            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
             {
-                var activities = user.Activities;
-                if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                await guild.DownloadUsersAsync(); //Load all users
+                var users = await guild.GetUsersAsync();
+                foreach (var user in users)
                 {
-                    await UserStreaming(user, true);
+                    var activities = user.Activities;
+                    if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                    {
+                        await UserStreaming(user, true);
+                    }
+                    else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
+                    {
+                        await UserStreaming(user, false);
+                    }
                 }
-                else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
                 {
-                    await UserStreaming(user, false);
+                    var guildCommand = new SlashCommandBuilder();
+                    guildCommand.WithName("gib");
+                    guildCommand.WithDescription("Gib Stuff");
+                    try
+                    {
+                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                    }
+                    catch (HttpException exception)
+                    {
+                        _logger.LogError(exception, "Error creating command");
+                    }
                 }
-            }
-            {
-                var guildCommand = new SlashCommandBuilder();
-                guildCommand.WithName("gib");
-                guildCommand.WithDescription("Gib Stuff");
-                try
                 {
-                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                    var guildCommand = new SlashCommandBuilder();
+                    guildCommand.WithName("dadjoke");
+                    guildCommand.WithDescription("Get a dad joke");
+                    try
+                    {
+                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                    }
+                    catch (HttpException exception)
+                    {
+                        _logger.LogError(exception, "Error creating command");
+                    }
                 }
-                catch (HttpException exception)
                 {
-                    _logger.LogError(exception, "Error creating command");
+                    var guildCommand = new SlashCommandBuilder();
+                    guildCommand.WithName("weather");
+                    guildCommand.WithDescription("Get current weather");
+                    guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
+                    try
+                    {
+                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                    }
+                    catch (HttpException exception)
+                    {
+                        _logger.LogError(exception, "Error creating command");
+                    }
                 }
-            }
-            {
-                var guildCommand = new SlashCommandBuilder();
-                guildCommand.WithName("dadjoke");
-                guildCommand.WithDescription("Get a dad joke");
-                try
-                {
-                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                }
-                catch (HttpException exception)
-                {
-                    _logger.LogError(exception, "Error creating command");
-                }
-            }
-            {
-                var guildCommand = new SlashCommandBuilder();
-                guildCommand.WithName("weather");
-                guildCommand.WithDescription("Get current weather");
-                guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
-                try
-                {
-                    await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                }
-                catch (HttpException exception)
-                {
-                    _logger.LogError(exception, "Error creating command");
-                }
-            }
-            isReady = true;
-            _logger.LogInformation("Discord Bot is ready.");
+                isReady = true;
+                _logger.LogInformation("Discord Bot is ready.");
+            });
         }
 
         private async Task UserStreaming(IGuildUser user, bool isStreaming)
@@ -378,7 +382,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task Connected()
+        private Task Connected()
         {
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
@@ -403,6 +407,7 @@ namespace DotNetTwitchBot.Bot.Core
                     await CacheLastMessages(guild);
                 });
             }
+            return Task.CompletedTask;
         }
 
         private async Task Initialize(string? discordToken)
