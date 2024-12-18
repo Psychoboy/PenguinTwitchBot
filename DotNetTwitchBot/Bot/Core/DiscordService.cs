@@ -298,7 +298,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task OnReady()
+        private Task OnReady()
         {
             _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
             {
@@ -366,6 +366,7 @@ namespace DotNetTwitchBot.Bot.Core
                     _logger.LogError(ex, "Error in onReady");
                 }
             });
+            return Task.CompletedTask;
         }
 
         private async Task UserStreaming(IGuildUser user, bool isStreaming)
