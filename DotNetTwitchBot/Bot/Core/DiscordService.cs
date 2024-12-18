@@ -302,63 +302,69 @@ namespace DotNetTwitchBot.Bot.Core
         {
             _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
             {
-                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-                await guild.DownloadUsersAsync(); //Load all users
-                var users = await guild.GetUsersAsync();
-                foreach (var user in users)
+                try
                 {
-                    var activities = user.Activities;
-                    if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                    IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                    await guild.DownloadUsersAsync(); //Load all users
+                    var users = await guild.GetUsersAsync();
+                    foreach (var user in users)
                     {
-                        await UserStreaming(user, true);
+                        var activities = user.Activities;
+                        if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
+                        {
+                            await UserStreaming(user, true);
+                        }
+                        else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
+                        {
+                            await UserStreaming(user, false);
+                        }
                     }
-                    else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
                     {
-                        await UserStreaming(user, false);
+                        var guildCommand = new SlashCommandBuilder();
+                        guildCommand.WithName("gib");
+                        guildCommand.WithDescription("Gib Stuff");
+                        try
+                        {
+                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                        }
+                        catch (HttpException exception)
+                        {
+                            _logger.LogError(exception, "Error creating command");
+                        }
                     }
-                }
+                    {
+                        var guildCommand = new SlashCommandBuilder();
+                        guildCommand.WithName("dadjoke");
+                        guildCommand.WithDescription("Get a dad joke");
+                        try
+                        {
+                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                        }
+                        catch (HttpException exception)
+                        {
+                            _logger.LogError(exception, "Error creating command");
+                        }
+                    }
+                    {
+                        var guildCommand = new SlashCommandBuilder();
+                        guildCommand.WithName("weather");
+                        guildCommand.WithDescription("Get current weather");
+                        guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
+                        try
+                        {
+                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
+                        }
+                        catch (HttpException exception)
+                        {
+                            _logger.LogError(exception, "Error creating command");
+                        }
+                    }
+                    isReady = true;
+                    _logger.LogInformation("Discord Bot is ready.");
+                } catch (Exception ex)
                 {
-                    var guildCommand = new SlashCommandBuilder();
-                    guildCommand.WithName("gib");
-                    guildCommand.WithDescription("Gib Stuff");
-                    try
-                    {
-                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                    }
-                    catch (HttpException exception)
-                    {
-                        _logger.LogError(exception, "Error creating command");
-                    }
+                    _logger.LogError(ex, "Error in onReady");
                 }
-                {
-                    var guildCommand = new SlashCommandBuilder();
-                    guildCommand.WithName("dadjoke");
-                    guildCommand.WithDescription("Get a dad joke");
-                    try
-                    {
-                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                    }
-                    catch (HttpException exception)
-                    {
-                        _logger.LogError(exception, "Error creating command");
-                    }
-                }
-                {
-                    var guildCommand = new SlashCommandBuilder();
-                    guildCommand.WithName("weather");
-                    guildCommand.WithDescription("Get current weather");
-                    guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
-                    try
-                    {
-                        await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                    }
-                    catch (HttpException exception)
-                    {
-                        _logger.LogError(exception, "Error creating command");
-                    }
-                }
-                isReady = true;
-                _logger.LogInformation("Discord Bot is ready.");
             });
         }
 
