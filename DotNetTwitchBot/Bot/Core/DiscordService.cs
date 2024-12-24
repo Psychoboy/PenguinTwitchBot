@@ -629,7 +629,8 @@ namespace DotNetTwitchBot.Bot.Core
             _client.UserUpdated -= UserUpdated;
             _client.MessageUpdated -= MessageUpdated;
             _client.MessageDeleted -= MessageDeleted;
-            return Task.CompletedTask;
+            return _client.StopAsync();
+            // return Task.CompletedTask;
         }
     }
 }
