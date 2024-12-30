@@ -6,9 +6,6 @@ using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
-using RTools_NTS.Util;
-using System.Runtime.CompilerServices;
-using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -152,9 +149,15 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task DeletePostedScheduled(ulong id)
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
-            await channel.DeleteMessageAsync(id);
+            try
+            {
+                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
+                await channel.DeleteMessageAsync(id);
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting posted schedule");
+            }
         }
 
         public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
@@ -452,6 +455,7 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogWarning("Guild was null when got UserUpdated.");
                 return;
             }
+            if(olderUserName == newUserName) return;
             _logger.LogInformation("{oldName} changed their name to {newName}", olderUserName, newUserName);
 
             var embed = new EmbedBuilder()
@@ -477,7 +481,7 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithThumbnailUrl(message.Value.Author.GetDisplayAvatarUrl())
                 .WithTitle(message.Value.Author.GlobalName)
                 .WithDescription(message.Value.Author.Mention + " deleted message")
-                .AddField("Deleted Message", message.Value.Content)
+                .AddField("Deleted Message", message.Value.Content != null ? message.Value.Content : "No Message")
                 .WithCurrentTimestamp()
                 .WithFooter(message.Id.ToString())
                 .Build();
@@ -546,6 +550,7 @@ namespace DotNetTwitchBot.Bot.Core
 
             if(!string.IsNullOrEmpty(oldMessage))
             {
+                if(oldMessage == newSocketMessage.Content) return;
                 embedBuilder.AddField("Old Message", oldMessage);
             }
             var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
