@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
                 var lastSchedule = await db.Settings.Find(x => x.Name.Equals("LastPostedSchedule")).FirstOrDefaultAsync();
                 if (lastSchedule == null) return;
                 var endDate = new DateTime(lastSchedule.LongSetting);
-                var nextStreams = (await GetNextStreams()).Where(x => x.Start < endDate).ToList();
+                var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
                 var lastScheduleId = ulong.Parse(lastSchedule.StringSetting);
                 await discordService.UpdatePostedSchedule(lastScheduleId, nextStreams);
             }
