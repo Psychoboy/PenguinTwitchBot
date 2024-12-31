@@ -132,7 +132,9 @@ internal class Program
                     maxRetryCount: 5,
                     maxRetryDelay: System.TimeSpan.FromSeconds(15),
                     errorNumbersToAdd: null
-                ).TranslateParameterizedCollectionsToConstants());
+                )
+                .TranslateParameterizedCollectionsToConstants()
+                .EnablePrimitiveCollectionsSupport());
             });
 
         builder.Services.AddSignalR();
