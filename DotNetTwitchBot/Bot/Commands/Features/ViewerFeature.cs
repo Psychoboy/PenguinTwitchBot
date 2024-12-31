@@ -1,14 +1,10 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using iluvadev.ConsoleProgressBar;
-using NetTopologySuite.Algorithm.Construct;
 using System.Collections.Concurrent;
 using System.Timers;
-using TwitchLib.Api.Helix.Models.Teams;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features

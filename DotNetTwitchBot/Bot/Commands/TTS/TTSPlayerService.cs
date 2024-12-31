@@ -1,8 +1,5 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
-using NAudio.Wave;
-using System.Runtime.InteropServices;
-using System.Speech.Synthesis;
 
 namespace DotNetTwitchBot.Bot.Commands.TTS
 {
