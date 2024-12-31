@@ -31,7 +31,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public UpdateCustomRewardRequest Reward { get; set; } = new()!;
     [Parameter] public string RewardId { get; set; } = string.Empty;
 
