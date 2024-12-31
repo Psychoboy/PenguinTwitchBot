@@ -13,7 +13,7 @@
                 <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
                     Label="Months" Value="@numberOfMonths">
                     <MudSelectItem Value=1>1 Month</MudSelectItem>
-                    <MudSelectItem Value=3>2 Months</MudSelectItem>
+                    <MudSelectItem Value=3>3 Months</MudSelectItem>
                     <MudSelectItem Value=6>6 Months</MudSelectItem>
                     <MudSelectItem Value=12>12 Months</MudSelectItem>
                     <MudSelectItem Value=0>All</MudSelectItem>
@@ -54,7 +54,7 @@
 
 @code {
     private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
-    private int numberOfMonths = 1;
+    private int numberOfMonths = 3;
 
     [Parameter]
     public bool IsPreview { get; set; } = false;
