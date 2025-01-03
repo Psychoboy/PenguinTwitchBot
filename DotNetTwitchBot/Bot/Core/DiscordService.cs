@@ -162,12 +162,19 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-            var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
-            await channel.ModifyMessageAsync(id, x =>
+            try
             {
-                x.Embed = GenerateScheduleEmbed(scheduledStreams);
-            });
+                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
+                await channel.ModifyMessageAsync(id, x =>
+                {
+                    x.Embed = GenerateScheduleEmbed(scheduledStreams);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating posted schedule");
+            }
         }
 
         private static Embed GenerateScheduleEmbed(List<ScheduledStream> scheduledStreams)
