@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using TwitchLib.Api.Helix.Models.Schedule;
@@ -60,7 +60,6 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
                             await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime);
                             anyUpdates = true;
                         }
-
                     }
                 }
                 else
@@ -115,7 +114,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             {
                 logger.LogError("Last posted schedule not found.");
                 return;
-            };
+            }
             var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
             var lastScheduleId = ulong.Parse(lastSchedule.StringSetting);
             await discordService.UpdatePostedSchedule(lastScheduleId, nextStreams);
