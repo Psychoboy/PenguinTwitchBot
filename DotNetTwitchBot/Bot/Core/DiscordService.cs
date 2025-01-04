@@ -126,12 +126,19 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)
         {
-            await evt.ModifyAsync(x =>
+            try
             {
-                x.StartTime = (DateTimeOffset)DateTime.SpecifyKind(startTime, DateTimeKind.Utc);
-                x.EndTime = (DateTimeOffset)DateTime.SpecifyKind(endTime, DateTimeKind.Utc);
-                x.Name = title;
-            });
+                await evt.ModifyAsync(x =>
+                {
+                    x.StartTime = (DateTimeOffset)DateTime.SpecifyKind(startTime, DateTimeKind.Utc);
+                    x.EndTime = (DateTimeOffset)DateTime.SpecifyKind(endTime, DateTimeKind.Utc);
+                    x.Name = title;
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating event");
+            }
         }
 
         public async Task DeleteEvent(IGuildScheduledEvent evt)

@@ -11,11 +11,20 @@ namespace DotNetTwitchBot.Circuit
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await db.IpLogs.AddAsync(new IpLogEntry
+            var existingEntry = await db.IpLogs.Find(x => x.Username.Equals(username) && x.Ip.Equals(ipAddress)).FirstOrDefaultAsync();
+            if (existingEntry != null)
             {
-                Username = username,
-                Ip = ipAddress
-            });
+                existingEntry.ConnectedDate = DateTime.Now;
+                db.IpLogs.Update(existingEntry);
+            }
+            else
+            {
+                await db.IpLogs.AddAsync(new IpLogEntry
+                {
+                    Username = username,
+                    Ip = ipAddress
+                });
+            }
             await db.SaveChangesAsync();
         }
     }
