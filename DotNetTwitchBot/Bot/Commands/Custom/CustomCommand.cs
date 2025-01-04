@@ -248,7 +248,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (CommandHandler.IsCoolDownExpired(e.Name, keyword.Keyword.CommandName) == false) continue;
+                if (CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -283,11 +283,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                     if (keyword.Keyword.GlobalCooldown > 0)
                     {
-                        CommandHandler.AddGlobalCooldown(keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].GlobalCooldown);
+                        CommandHandler.AddGlobalCooldown("keyword " + keyword.Keyword.CommandName, keyword.Keyword.GlobalCooldown);
                     }
                     if (keyword.Keyword.UserCooldown > 0)
                     {
-                        CommandHandler.AddCoolDown(e.Name, keyword.Keyword.CommandName, Commands[keyword.Keyword.CommandName].UserCooldown);
+                        CommandHandler.AddCoolDown(e.Name, "keyword " + keyword.Keyword.CommandName, keyword.Keyword.UserCooldown);
                     }
                     break;
                 }
