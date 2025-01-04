@@ -6,5 +6,6 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
         Task<List<ScheduledStream>> GetNextStreams();
         Task PostSchedule();
         Task UpdateEvents();
+        Task UpdatePostedSchedule();
     }
 }

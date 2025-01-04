@@ -82,9 +82,10 @@ internal class Program
         {
             var backupDbJobKey = new JobKey("BackupDbJob");
             var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
-            var UpdatePostedScheduleKey = new JobKey("UpdatePostedSchedule");
+            var postScheduleKey = new JobKey("PostSchedule");
             var cleanupChatLogs = new JobKey("CleanUpChatLogs");
             var hourlyCLeanup = new JobKey("HourlyCleanup");
+            var updatePostedSchedulekey = new JobKey("UpdatePostedSchedule");
             q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
             q.AddTrigger(opts => opts
                 .ForJob(backupDbJobKey)
@@ -99,9 +100,9 @@ internal class Program
                 .WithCronSchedule(CronScheduleBuilder.CronSchedule("0 0/5 * * * ?"))
             );
 
-            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(UpdatePostedScheduleKey));
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.PostSchedule>(opts => opts.WithIdentity(postScheduleKey));
             q.AddTrigger(opts => opts
-                .ForJob(UpdatePostedScheduleKey)
+                .ForJob(postScheduleKey)
                 .WithIdentity("UpdateDiscordSchedule-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 9, 0))
                 );
@@ -117,6 +118,12 @@ internal class Program
                 .ForJob(hourlyCLeanup)
                 .WithIdentity("HourlyCleanup-Trigger")
                 .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever().Build()) //Every Hour
+            );
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey));
+            q.AddTrigger(opts => opts
+                .ForJob(updatePostedSchedulekey)
+                .WithIdentity("UpdatePostedSchedule-Trigger")
+                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 00)) //Every day at 10AM
             );
         });
         builder.Services.AddQuartzServer(

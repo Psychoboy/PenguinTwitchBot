@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using TwitchLib.Api.Helix.Models.Schedule;
@@ -60,7 +60,6 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
                             await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime);
                             anyUpdates = true;
                         }
-
                     }
                 }
                 else
@@ -101,16 +100,24 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
 
             if (anyUpdates)
             {
-                logger.LogInformation("Updating posted schedule.");
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var lastSchedule = await db.Settings.Find(x => x.Name.Equals("LastPostedSchedule")).FirstOrDefaultAsync();
-                if (lastSchedule == null) return;
-                var endDate = new DateTime(lastSchedule.LongSetting);
-                var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
-                var lastScheduleId = ulong.Parse(lastSchedule.StringSetting);
-                await discordService.UpdatePostedSchedule(lastScheduleId, nextStreams);
+               await UpdatePostedSchedule();
             }
+        }
+
+        public async Task UpdatePostedSchedule()
+        {
+            logger.LogInformation("Updating posted schedule.");
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var lastSchedule = await db.Settings.Find(x => x.Name.Equals("LastPostedSchedule")).FirstOrDefaultAsync();
+            if (lastSchedule == null)
+            {
+                logger.LogError("Last posted schedule not found.");
+                return;
+            }
+            var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
+            var lastScheduleId = ulong.Parse(lastSchedule.StringSetting);
+            await discordService.UpdatePostedSchedule(lastScheduleId, nextStreams);
         }
 
         public async Task PostSchedule()
