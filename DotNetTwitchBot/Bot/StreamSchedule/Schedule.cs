@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             {
                 if (stream.CanceledUntil.HasValue) continue;
                 if(vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
-                streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
+                streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
             }
             return streams;
         }
@@ -162,7 +162,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             if (stream.IsRecurring == false)
             {
                 //Create one off
-                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
+                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
             }
             else if (stream.StartTime > DateTime.UtcNow.AddDays(7))
             {
@@ -170,7 +170,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             }
             else
             {
-                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title });
+                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
             }
         }
     }

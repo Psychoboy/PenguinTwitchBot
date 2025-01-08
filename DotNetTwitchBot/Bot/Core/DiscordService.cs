@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -151,7 +152,22 @@ namespace DotNetTwitchBot.Bot.Core
             //1033836361653964851
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
             var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: "https://twitch.tv/superpenguintv");
+            scheduledStream.DiscordEventId = evt.Id;
             return evt.Id;
+        }
+
+        private async Task<string> GetInviteLinkForSchedule()
+        {
+            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            var channel = (ITextChannel)await guild.GetChannelAsync(1033836361653964851);
+            var invites = await channel.GetInvitesAsync();
+            var existingInvite = invites.Where(x => x.ExpiresAt== null).FirstOrDefault();
+            if (existingInvite != null)
+            {
+                return existingInvite.Url;
+            }
+            var invite = await channel.CreateInviteAsync(maxAge: null);
+            return invite.Url;
         }
 
         public async Task DeletePostedScheduled(ulong id)
@@ -173,9 +189,9 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 IGuild guild = _client.GetGuild(_settings.DiscordServerId);
                 var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
-                await channel.ModifyMessageAsync(id, x =>
+                await channel.ModifyMessageAsync(id, async x =>
                 {
-                    x.Embed = GenerateScheduleEmbed(scheduledStreams);
+                    x.Embed = await GenerateScheduleEmbed(scheduledStreams);
                 });
             }
             catch (Exception ex)
@@ -184,7 +200,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private static Embed GenerateScheduleEmbed(List<ScheduledStream> scheduledStreams)
+        private async Task<Embed> GenerateScheduleEmbed(List<ScheduledStream> scheduledStreams)
         {
             var embed = new EmbedBuilder().WithColor(100, 65, 164)
                .WithTitle("Stream Schedule");
@@ -192,7 +208,16 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 var scheduledTime = new TimestampTag(schedule.Start, TimestampTagStyles.LongDateTime);
                 var scheduleTimeRemaining = new TimestampTag(schedule.Start, TimestampTagStyles.Relative);
-                embed.AddField(schedule.Title, $"{scheduledTime} {scheduleTimeRemaining}");
+                var twitchEventId = await GetDiscordEventIdFromTwitchEventId(schedule.TwitchEventId);
+                var inviteUrl = await GetInviteLinkForSchedule();
+                if (twitchEventId != 0)
+                {
+                    embed.AddField(schedule.Title, $"{scheduledTime} {scheduleTimeRemaining} [Join]({inviteUrl}?event={twitchEventId})");
+                }
+                else
+                {
+                    embed.AddField(schedule.Title, $"{scheduledTime} {scheduleTimeRemaining}");
+                }
             }
             return embed.Build();
         }
@@ -201,9 +226,21 @@ namespace DotNetTwitchBot.Bot.Core
         {
             IGuild guild = _client.GetGuild(_settings.DiscordServerId);
             var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
-            var embed = GenerateScheduleEmbed(scheduledStreams);
+            var embed = await GenerateScheduleEmbed(scheduledStreams);
             var msg = await channel.SendMessageAsync("", embed: embed);
             return msg.Id;
+        }
+
+        private async Task<ulong> GetDiscordEventIdFromTwitchEventId(string twitchEventId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var twitchDiscordEvent = await db.DiscordTwitchEventMap.Find(x => x.TwitchEventId.Equals(twitchEventId)).FirstOrDefaultAsync();
+            if (twitchDiscordEvent == null)
+            {
+                return 0;
+            }
+            return twitchDiscordEvent.DiscordEventId;
         }
 
         private async Task PresenceUpdated(SocketUser arg1, SocketPresence before, SocketPresence after)
