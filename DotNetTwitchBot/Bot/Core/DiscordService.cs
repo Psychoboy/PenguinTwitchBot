@@ -189,9 +189,10 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 IGuild guild = _client.GetGuild(_settings.DiscordServerId);
                 var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
-                await channel.ModifyMessageAsync(id, async x =>
+                var embed = await GenerateScheduleEmbed(scheduledStreams);
+                await channel.ModifyMessageAsync(id, x =>
                 {
-                    x.Embed = await GenerateScheduleEmbed(scheduledStreams);
+                    x.Embed = embed;
                 });
             }
             catch (Exception ex)
