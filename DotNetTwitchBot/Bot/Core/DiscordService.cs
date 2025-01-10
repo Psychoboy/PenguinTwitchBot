@@ -650,10 +650,8 @@ namespace DotNetTwitchBot.Bot.Core
         }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            
             _logger.LogInformation("Starting Discord Service.");
             
-
             _client.Connected += Connected;
             _client.Ready += OnReady;
             _client.SlashCommandExecuted += SlashCommandHandler;
