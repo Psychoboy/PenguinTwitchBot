@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.CustomMiddleware
                 return new BackgroundTaskQueue(100);
             });
             services.AddSingleton<ChatMessageIdTracker>();
-            services.AddHostedService<BackgroundTaskService>();
+            services.AddHostedApiService<BackgroundTaskService>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
 

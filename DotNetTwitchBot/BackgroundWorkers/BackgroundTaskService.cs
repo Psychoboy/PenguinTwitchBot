@@ -15,21 +15,28 @@
 
         private async Task BackgroundProcessing(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                var workItem =
-                    await TaskQueue.DequeueAsync(stoppingToken);
-
-                try
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    await workItem(stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        "Error occurred executing {WorkItem}.", nameof(workItem));
+                    try
+                    {
+                        var workItem =
+                        await TaskQueue.DequeueAsync(stoppingToken);
+                        await workItem(stoppingToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex,
+                            "Error occurred executing Task.");
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error occurred background task.");
+            }
+            logger.LogWarning("Background task is stopping.");
         }
 
         public override async Task StopAsync(CancellationToken stoppingToken)
