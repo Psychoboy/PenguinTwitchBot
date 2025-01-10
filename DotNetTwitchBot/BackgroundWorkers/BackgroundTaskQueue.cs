@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.BackgroundWorkers
 {
-    public class BackgroundTaskQueue : IBackgroundTaskQueue
+    public class BackgroundTaskQueue(ILogger<BackgroundTaskQueue> logger) : IBackgroundTaskQueue
     {
         private readonly ConcurrentQueue<Func<CancellationToken, ValueTask>> _workItems = new();
         private readonly SemaphoreSlim _signal = new(0);
@@ -20,7 +20,10 @@ namespace DotNetTwitchBot.BackgroundWorkers
 
         public async Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken)
         {
-            await _signal.WaitAsync(cancellationToken);
+            if (await _signal.WaitAsync(60000, cancellationToken) == false)
+            { 
+                logger.LogWarning("BackgroundTaskQueue timed out waiting for work item.");
+            }
             _workItems.TryDequeue(out var workItem);
 
             return workItem!;
