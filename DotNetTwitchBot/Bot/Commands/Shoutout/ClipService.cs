@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         IBackgroundTaskQueue backgroundTaskQueue
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
     {
-        public HttpClient Client { get; private set; }
+        public HttpClient Client { get; private set; } = new HttpClient();
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -165,7 +165,6 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            Client = new HttpClient();
             await Register();
         }
 
