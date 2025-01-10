@@ -254,7 +254,7 @@ internal class Program
                 await YoutubeDLSharp.Utils.DownloadFFmpeg();
             }
         }
-        catch (Exception _) { }
+        catch (Exception) { }
         await app.RunAsync(); //Start in future to read input
 
     }

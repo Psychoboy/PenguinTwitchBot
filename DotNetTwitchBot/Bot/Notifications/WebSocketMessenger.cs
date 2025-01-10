@@ -53,7 +53,14 @@ namespace DotNetTwitchBot.Bot.Notifications
                 _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
             await pushTask;
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+            try
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
+            }
             _logger.LogInformation("Websocket closed: {id}", id.ToString());
         }
 
@@ -84,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
                 if(data.Length >0 && data.StartsWith("TTSComplete: "))
                 {
-                    _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+                    await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
                     {
                         var fileParts = data.Split(":");
                         if (fileParts.Length > 1)
@@ -99,18 +106,6 @@ namespace DotNetTwitchBot.Bot.Notifications
                         await Task.CompletedTask;
                     });
                 }
-
-                //if (data.Length > 0 && data.StartsWith("TTSComplete: "))
-                //{
-
-                //    var fileParts = data.Split(":");
-                //    if (fileParts.Length > 1)
-                //    {
-                //        var fileName = fileParts[1];
-                //        if(File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
-                //            File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
-                //    }
-                //}
             }
         }
 

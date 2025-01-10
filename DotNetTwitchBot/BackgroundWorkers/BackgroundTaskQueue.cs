@@ -1,32 +1,36 @@
 ﻿
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 namespace DotNetTwitchBot.BackgroundWorkers
 {
-    public class BackgroundTaskQueue(ILogger<BackgroundTaskQueue> logger) : IBackgroundTaskQueue
+    public class BackgroundTaskQueue : IBackgroundTaskQueue
     {
-        private readonly ConcurrentQueue<Func<CancellationToken, ValueTask>> _workItems = new();
-        private readonly SemaphoreSlim _signal = new(0);
+        private readonly Channel<Func<CancellationToken, ValueTask>> _queue;
 
-        public void QueueBackgroundWorkItem(Func<CancellationToken, ValueTask> workItem)
+        public BackgroundTaskQueue(int capacity)
         {
-            if (workItem == null)
+            var options = new BoundedChannelOptions(capacity)
             {
-                throw new ArgumentNullException(nameof(workItem));
-            }
-            _workItems.Enqueue(workItem);
-            _signal.Release();
+                FullMode = BoundedChannelFullMode.Wait
+            };
+            _queue = Channel.CreateBounded<Func<CancellationToken, ValueTask>>(options);
         }
 
-        public async Task<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken cancellationToken)
+        public async ValueTask QueueBackgroundWorkItemAsync(
+            Func<CancellationToken, ValueTask> workItem)
         {
-            if (await _signal.WaitAsync(60000, cancellationToken) == false)
-            { 
-                logger.LogWarning("BackgroundTaskQueue timed out waiting for work item.");
-            }
-            _workItems.TryDequeue(out var workItem);
+            ArgumentNullException.ThrowIfNull(workItem);
 
-            return workItem!;
+            await _queue.Writer.WriteAsync(workItem);
+        }
+
+        public async ValueTask<Func<CancellationToken, ValueTask>> DequeueAsync(
+            CancellationToken cancellationToken)
+        {
+            var workItem = await _queue.Reader.ReadAsync(cancellationToken);
+
+            return workItem;
         }
 
     }

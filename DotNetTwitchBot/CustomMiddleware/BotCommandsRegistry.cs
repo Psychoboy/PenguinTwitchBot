@@ -91,7 +91,10 @@ namespace DotNetTwitchBot.CustomMiddleware
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
-            services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+            services.AddSingleton<IBackgroundTaskQueue>(ctx =>
+            {
+                return new BackgroundTaskQueue(100);
+            });
             services.AddSingleton<ChatMessageIdTracker>();
             services.AddHostedService<BackgroundTaskService>();
 
