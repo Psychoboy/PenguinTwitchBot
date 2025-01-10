@@ -99,11 +99,16 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                         {
                             logger.LogInformation("Downloading clip: {clipUrl}", clip.Url);
                             var ytdl = new YoutubeDLSharp.YoutubeDL();
-                            var options = new OptionSet() {
+                            var options = new OptionSet()
+                            {
                                 Output = "wwwroot/clips/" + clip.Id + ".mp4"
                             };
                             var res = await ytdl.RunVideoDownload(clip.Url, overrideOptions: options);
                             logger.LogInformation("Downloaded clip: {clipUrl}, Path: {path}", clip.Url, res.Data);
+                        }
+                        else
+                        {
+                            logger.LogInformation("Clip already exists: {clipUrl}", clip.Url);
                         }
 
                         var playClip = new ClipAlert
