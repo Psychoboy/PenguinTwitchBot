@@ -42,10 +42,10 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
             }
 
             var voice = voices.RandomElementOrDefault();
-            SayMessage(voice, e.Name + " says " + e.Arg);
+            await SayMessage(voice, e.Name + " says " + e.Arg);
         }
 
-        public void SayMessage(RegisteredVoice voice, string message)
+        public async Task SayMessage(RegisteredVoice voice, string message)
         {
             logger.LogInformation("Queueing TTS for with voice {voice} {type} with message: {message}", voice.Name, voice.Type, message);
             var request = new TTSRequest
@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 Message = message,
                 RegisteredVoice = voice
             };
-            backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+            await backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
             {
                 try
                 {

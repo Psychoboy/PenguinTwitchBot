@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                 }
 
                 //Queue it to allow processing of other commands 
-                backgroundTaskQueue.QueueBackgroundWorkItem(async token => 
+                await backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token => 
                 {
                     try
                     {

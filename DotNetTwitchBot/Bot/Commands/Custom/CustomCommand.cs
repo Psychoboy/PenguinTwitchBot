@@ -790,7 +790,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private async Task<CustomCommandResult> TTS(CommandEventArgs args, string arg2)
         {
             var voice = await _ttsService.GetRandomVoice(args.Name);
-            _ttsService.SayMessage(voice, arg2);
+            await _ttsService.SayMessage(voice, arg2);
             return new CustomCommandResult();
         }
 
@@ -802,7 +802,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private async Task<CustomCommandResult> TTSAndPrint(CommandEventArgs args, string arg2)
         {
             var voice = await _ttsService.GetRandomVoice(args.Name);
-            _ttsService.SayMessage(voice, arg2);
+            await _ttsService.SayMessage(voice, arg2);
             return new CustomCommandResult(arg2.Replace("(", "").Replace(")",""));
         }
 

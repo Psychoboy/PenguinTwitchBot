@@ -41,7 +41,13 @@ namespace DotNetTwitchBot.Bot.Core
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
-            
+            var config = new DiscordSocketConfig
+            {
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
+                AlwaysDownloadUsers = true,
+                MessageCacheSize = 1024
+            };
+            _client = new DiscordSocketClient(config);
         }
 
         public ConnectionState ServiceStatus()
@@ -353,9 +359,9 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private Task OnReady()
+        private async Task OnReady()
         {
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+            await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
             {
                 try
                 {
@@ -421,7 +427,6 @@ namespace DotNetTwitchBot.Bot.Core
                     _logger.LogError(ex, "Error in onReady");
                 }
             });
-            return Task.CompletedTask;
         }
 
         private async Task UserStreaming(IGuildUser user, bool isStreaming)
@@ -444,12 +449,12 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private Task Connected()
+        private async Task Connected()
         {
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
             {
-                _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+                await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
                 {
                     IGuild guild = _client.GetGuild(_settings.DiscordServerId);
                     await guild.DownloadUsersAsync(); //Load all users
@@ -469,7 +474,6 @@ namespace DotNetTwitchBot.Bot.Core
                     await CacheLastMessages(guild);
                 });
             }
-            return Task.CompletedTask;
         }
 
         private async Task Initialize(string? discordToken)
@@ -646,14 +650,9 @@ namespace DotNetTwitchBot.Bot.Core
         }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var config = new DiscordSocketConfig
-            {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
-                AlwaysDownloadUsers = true,
-                MessageCacheSize = 1024
-            };
+            
             _logger.LogInformation("Starting Discord Service.");
-            _client = new DiscordSocketClient(config);
+            
 
             _client.Connected += Connected;
             _client.Ready += OnReady;

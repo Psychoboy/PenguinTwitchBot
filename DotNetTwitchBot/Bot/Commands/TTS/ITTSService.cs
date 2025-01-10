@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         Task RegisterUserVoice(UserRegisteredVoice voice);
         Task<List<UserRegisteredVoice>> GetUserRegisteredVoices(string username);
         Task<List<UserRegisteredVoice>> GetUserRegisteredVoices();
-        void SayMessage(RegisteredVoice voice, string message);
+        Task SayMessage(RegisteredVoice voice, string message);
         Task<RegisteredVoice> GetRandomVoice();
         Task<RegisteredVoice> GetRandomVoice(string name);
     }

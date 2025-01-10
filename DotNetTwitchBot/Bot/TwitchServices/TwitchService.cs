@@ -350,7 +350,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 UserCache[user] = userObj;
                 return userObj;
             }
-            catch (TooManyRequestsException ex)
+            catch (TooManyRequestsException)
             {
                 return null;
             }
@@ -370,7 +370,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 var userObj = users.Users.FirstOrDefault();
                 return userObj;
             }
-            catch (TooManyRequestsException ex)
+            catch (TooManyRequestsException)
             {
                 return null;
             }
@@ -394,7 +394,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 }
                 return [.. users.Users];
             }
-            catch (TooManyRequestsException ex)
+            catch (TooManyRequestsException)
             {
                 return null;
             }
