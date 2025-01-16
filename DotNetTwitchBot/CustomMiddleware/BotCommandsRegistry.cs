@@ -1,5 +1,4 @@
-﻿using DotNetTwitchBot.BackgroundWorkers;
-using DotNetTwitchBot.Bot.Admin;
+﻿using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -91,12 +90,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
-            services.AddSingleton<IBackgroundTaskQueue>(ctx =>
-            {
-                return new BackgroundTaskQueue(100);
-            });
             services.AddSingleton<ChatMessageIdTracker>();
-            services.AddHostedApiService<BackgroundTaskService>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
 

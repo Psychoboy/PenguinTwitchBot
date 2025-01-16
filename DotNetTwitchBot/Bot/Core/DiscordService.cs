@@ -1,12 +1,13 @@
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
-using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Application.Discord;
 using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -18,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly CustomCommand _customCommands;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IBackgroundTaskQueue _backgroundTaskQueue;
+        private readonly IMediator _mediator;
         private readonly DiscordSettings _settings;
         private bool isReady = false;
 
@@ -28,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Core
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
-            IBackgroundTaskQueue backgroundTaskQueue,
+            IMediator mediator,
             IConfiguration configuration)
         {
             _logger = logger;
@@ -37,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
-            _backgroundTaskQueue = backgroundTaskQueue;
+            _mediator = mediator;
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
@@ -53,6 +54,11 @@ namespace DotNetTwitchBot.Bot.Core
         public ConnectionState ServiceStatus()
         {
             return _client.ConnectionState;
+        }
+
+        public void SetReady(bool ready)
+        {
+            isReady = ready;
         }
 
         private Task Disconnected(Exception exception)
@@ -359,77 +365,12 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task OnReady()
+        private Task OnReady()
         {
-            await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
-            {
-                try
-                {
-                    IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-                    await guild.DownloadUsersAsync(); //Load all users
-                    var users = await guild.GetUsersAsync();
-                    foreach (var user in users)
-                    {
-                        var activities = user.Activities;
-                        if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
-                        {
-                            await UserStreaming(user, true);
-                        }
-                        else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
-                        {
-                            await UserStreaming(user, false);
-                        }
-                    }
-                    {
-                        var guildCommand = new SlashCommandBuilder();
-                        guildCommand.WithName("gib");
-                        guildCommand.WithDescription("Gib Stuff");
-                        try
-                        {
-                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                        }
-                        catch (HttpException exception)
-                        {
-                            _logger.LogError(exception, "Error creating command");
-                        }
-                    }
-                    {
-                        var guildCommand = new SlashCommandBuilder();
-                        guildCommand.WithName("dadjoke");
-                        guildCommand.WithDescription("Get a dad joke");
-                        try
-                        {
-                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                        }
-                        catch (HttpException exception)
-                        {
-                            _logger.LogError(exception, "Error creating command");
-                        }
-                    }
-                    {
-                        var guildCommand = new SlashCommandBuilder();
-                        guildCommand.WithName("weather");
-                        guildCommand.WithDescription("Get current weather");
-                        guildCommand.AddOption("location", ApplicationCommandOptionType.String, "Location you would like to get weather for. Can be City, State, Zip, etc...");
-                        try
-                        {
-                            await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                        }
-                        catch (HttpException exception)
-                        {
-                            _logger.LogError(exception, "Error creating command");
-                        }
-                    }
-                    isReady = true;
-                    _logger.LogInformation("Discord Bot is ready.");
-                } catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error in onReady");
-                }
-            });
+            return _mediator.Publish(new DiscordReadyNotification(_client));
         }
 
-        private async Task UserStreaming(IGuildUser user, bool isStreaming)
+        public async Task UserStreaming(IGuildUser user, bool isStreaming)
         {
             if (isStreaming)
             {
@@ -449,31 +390,14 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private async Task Connected()
+        private Task Connected()
         {
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
             {
-                await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
-                {
-                    IGuild guild = _client.GetGuild(_settings.DiscordServerId);
-                    await guild.DownloadUsersAsync(); //Load all users
-                    var users = await guild.GetUsersAsync();
-                    foreach (var user in users)
-                    {
-                        var activities = user.Activities;
-                        if (activities.Where(x => x.Type == ActivityType.Streaming && x.Name.Equals("Twitch")).Any())
-                        {
-                            await UserStreaming(user, true);
-                        }
-                        else if (user.RoleIds.Where(x => x == 679556411067465735).Any())
-                        {
-                            await UserStreaming(user, false);
-                        }
-                    }
-                    await CacheLastMessages(guild);
-                });
+               return _mediator.Publish(new DiscordConnectedNotification(_client));
             }
+            return Task.CompletedTask;
         }
 
         private async Task Initialize(string? discordToken)
@@ -561,7 +485,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        private static async Task CacheLastMessages(IGuild guild)
+        public static async Task CacheLastMessages(IGuild guild)
         {
             var channels = await guild.GetChannelsAsync();
             foreach (var channel in channels)

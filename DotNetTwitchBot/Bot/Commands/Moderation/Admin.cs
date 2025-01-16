@@ -1,4 +1,3 @@
-using DotNetTwitchBot.BackgroundWorkers;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Metrics;
@@ -51,14 +50,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                     break;
             }
 
-        }
-
-        public async Task RestartBackgroundTaskQueue()
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var backgroundTaskService = scope.ServiceProvider.GetRequiredService<BackgroundTaskService>();
-            await backgroundTaskService.StopAsync(CancellationToken.None);
-            await backgroundTaskService.StartAsync(CancellationToken.None);
         }
 
         public async Task ResumeAlerts()

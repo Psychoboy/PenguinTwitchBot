@@ -14,17 +14,12 @@
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdatePostedSchedule">Update Schedule</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="RestartBackgroundService">Restart Background Service</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
     </AuthorizeView>
 </CascadingAuthenticationState>
 @code {
-    private async Task RestartBackgroundService()
-    {
-        await Admin.RestartBackgroundTaskQueue();
-    }
     private async Task UpdatePostedSchedule()
     {
         await Schedule.PostSchedule();

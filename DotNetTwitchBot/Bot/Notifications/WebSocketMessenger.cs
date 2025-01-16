@@ -1,8 +1,9 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
-using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Extensions;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Notifications
 {
@@ -11,15 +12,15 @@ namespace DotNetTwitchBot.Bot.Notifications
         private readonly BlockingCollection<string> _queue = [];
         private List<SocketConnection> websocketConnections = [];
         readonly ILogger<WebSocketMessenger> _logger;
-        private readonly IBackgroundTaskQueue _backgroundTaskQueue;
         private bool Paused = false;
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private readonly IMediator _mediator;
 
-        public WebSocketMessenger(IBackgroundTaskQueue backgroundTaskQueue ,ILogger<WebSocketMessenger> logger)
+        public WebSocketMessenger(ILogger<WebSocketMessenger> logger, IMediator mediator)
         {
             _logger = logger;
-            _backgroundTaskQueue = backgroundTaskQueue;
             SetupCleanUpTask();
+            _mediator = mediator;
         }
 
         public void AddToQueue(string message)
@@ -91,20 +92,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 
                 if(data.Length >0 && data.StartsWith("TTSComplete: "))
                 {
-                    await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
-                    {
-                        var fileParts = data.Split(":");
-                        if (fileParts.Length > 1)
-                        {
-                            var fileName = fileParts[1];
-                            if(File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
-                            {
-                                _logger.LogInformation("Deleting TTS File {filename}", fileName);
-                                File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
-                            }
-                        }
-                        await Task.CompletedTask;
-                    });
+                    await _mediator.Publish(new TTSDeleteNotification(data));
                 }
             }
         }

@@ -14,7 +14,9 @@ namespace DotNetTwitchBot.Bot.Core
         Task LogAsync(LogMessage message);
         Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams);
         ConnectionState ServiceStatus();
+        void SetReady(bool ready);
         Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime);
         Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams);
+        Task UserStreaming(IGuildUser user, bool isStreaming);
     }
 }
