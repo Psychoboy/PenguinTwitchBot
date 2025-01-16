@@ -1,5 +1,5 @@
 ﻿using DotNetTwitchBot.Application.Alert.Notification;
-using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -16,8 +16,6 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         ICommandHandler commandHandler,
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
-        ITTSPlayerService ttsPlayerService,
-        IBackgroundTaskQueue backgroundTaskQueue,
         IMediator mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService"), IHostedService, ITTSService
     {
@@ -53,26 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 Message = message,
                 RegisteredVoice = voice
             };
-            await backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token =>
-            {
-                try
-                {
-                    logger.LogInformation("Creating TTS file for {voice} {type} with message: {message}", voice.Name, voice.Type, message);
-                    var fileName = await ttsPlayerService.CreateTTSFile(request);
-                    if (string.IsNullOrEmpty(fileName)) return;
-                    var audioAlert = new AlertSound
-                    {
-                        Path = "tts",
-                        AudioHook = fileName
-                    };
-                    logger.LogInformation("Queueing TTS file for {voice} {type} with message: {message}", voice.Name, voice.Type, message);
-                    await mediator.Publish(new QueueAlert(audioAlert.Generate()), token);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error creating TTS file for {voice} {type} with message: {message}", voice.Name, voice.Type, message);
-                }
-            });
+            await mediator.Publish(new TTSCreateNotification(request));
         }
 
         public async Task<RegisteredVoice> GetRandomVoice()

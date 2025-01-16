@@ -1,17 +1,13 @@
 ﻿using DotNetTwitchBot.Application.Alert.Notification;
-using DotNetTwitchBot.BackgroundWorkers;
+using DotNetTwitchBot.Application.Clips;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
-using YoutubeDLSharp.Options;
 
 namespace DotNetTwitchBot.Bot.Commands.Shoutout
 {
@@ -20,8 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
         ITwitchService twitchService,
-        IMediator mediator,
-        IBackgroundTaskQueue backgroundTaskQueue
+        IMediator mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; } = new HttpClient();
@@ -90,44 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                     gameUrl = gameUrl.Replace("{width}", "200").Replace("{height}", "200");
                 }
 
-                //Queue it to allow processing of other commands 
-                await backgroundTaskQueue.QueueBackgroundWorkItemAsync(async token => 
-                {
-                    try
-                    {
-                        if (!File.Exists("wwwroot/clips/" + clip.Id + ".mp4"))
-                        {
-                            logger.LogInformation("Downloading clip: {clipUrl}", clip.Url);
-                            var ytdl = new YoutubeDLSharp.YoutubeDL();
-                            var options = new OptionSet()
-                            {
-                                Output = "wwwroot/clips/" + clip.Id + ".mp4"
-                            };
-                            var res = await ytdl.RunVideoDownload(clip.Url, overrideOptions: options);
-                            logger.LogInformation("Downloaded clip: {clipUrl}, Path: {path}", clip.Url, res.Data);
-                        }
-                        else
-                        {
-                            logger.LogInformation("Clip already exists: {clipUrl}", clip.Url);
-                        }
-
-                        var playClip = new ClipAlert
-                        {
-                            ClipFile = clip.Id + ".mp4",
-                            Duration = clip.Duration,
-                            StreamerName = user.DisplayName,
-                            StreamerAvatarUrl = user.ProfileImageUrl,
-                            GameImageUrl = gameUrl
-                        };
-                        File.SetLastWriteTime("wwwroot/clips/" + clip.Id + ".mp4", DateTime.Now);
-                        await mediator.Publish(new QueueAlert(playClip.Generate()), token);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Error downloading clip.");
-                    }
-                });
-                
+                await mediator.Publish(new ClipNotification(clip, user, gameUrl));
             }
             catch (Exception ex)
             {
