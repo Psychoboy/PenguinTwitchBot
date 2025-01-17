@@ -367,7 +367,8 @@ namespace DotNetTwitchBot.Bot.Core
 
         private Task OnReady()
         {
-            return _mediator.Publish(new DiscordReadyNotification(_client));
+            var _ = _mediator.Publish(new DiscordReadyNotification(_client));
+            return Task.CompletedTask;
         }
 
         public async Task UserStreaming(IGuildUser user, bool isStreaming)
@@ -395,7 +396,7 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
             {
-               return _mediator.Publish(new DiscordConnectedNotification(_client));
+               var _ = _mediator.Publish(new DiscordConnectedNotification(_client));
             }
             return Task.CompletedTask;
         }
