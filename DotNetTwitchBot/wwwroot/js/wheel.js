@@ -59,9 +59,10 @@ function showWheel(event) {
         console.log('Wheel stopped at item: ' + item.currentIndex);
         socket.send(JSON.stringify({ wheel: 'stop', item: item.currentIndex }));
     }
-    window.wheel.onCurrentIndexChange = function (event) {
-        audio.play();
-    }
+    //window.wheel.onCurrentIndexChange = function (event) {
+    //    audio.play();
+    //}
+    window.wheel.onCurrentIndexChange = playtick;
 }
 
 function hideWheel(event) {
@@ -102,31 +103,16 @@ socket.onmessage = function (event) {
 
         let message = JSON.parse(rawMessage);
         queue.push(message);
-    } catch (ex) { 
+    } catch (ex) {
         console.log('Failed to parse socket message [' + event.data + ']: ' + event.stack)
     }
 };
 let audio = new Audio("./sfx/wheel.ogg")
+let createJs = window.createjs;
+createJs.Sound.registerSound({ src: "./sfx/wheel.ogg", id: "wheel" });
+var playtick = function () {
+    createjs.Sound.volume = 1.0;
+    createjs.Sound.play("wheel");
+};
 setInterval(handleQueue, 500);
-
-//window.onload = () => {
-
-//    const props = {
-//        items: [
-//            {
-//                label: 'one',
-//            },
-//            {
-//                label: 'two',
-//            },
-//            {
-//                label: 'three',
-//            },
-//        ]
-//    };
-
-//    const container = document.querySelector('.wheel-container');
-
-//    window.wheel = new spinWheel.Wheel(container, props);
-//}
 
