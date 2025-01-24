@@ -68,6 +68,14 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             await db.SaveChangesAsync();
         }
 
+        public async Task DeleteProperties(List<WheelProperty> properties)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.WheelProperties.RemoveRange(properties);
+            await db.SaveChangesAsync();
+        }
+
         public async Task DeleteWheel(Wheel wheel)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
