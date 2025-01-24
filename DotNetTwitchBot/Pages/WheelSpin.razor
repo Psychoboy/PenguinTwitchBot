@@ -52,6 +52,7 @@
                 <EditForm Model="@newWheel" OnValidSubmit="SaveWheel">
                     <DataAnnotationsValidator />
                     <MudTextField Label="Name" Required="true" RequiredError="Name is required" @bind-Value="newWheel.Name" />
+                    <MudTextField Label="Winning Message" Required="true" RequiredError="Message Required" @bind-Value="newWheel.WinningMessage" />
                     <MudTextField Label="Add Property" @bind-Value="propertyName" />
                     <MudTextField Label="Weight" @bind-Value="weight" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddProperty()">Add Property</MudButton>
