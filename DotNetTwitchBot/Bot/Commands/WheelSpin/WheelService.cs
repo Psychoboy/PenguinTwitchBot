@@ -24,7 +24,8 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         public void ShowWheel(Wheel wheel)
         {
             var showWheel = new ShowWheel();
-            showWheel.Items.AddRange(wheel.Properties);
+            var props = wheel.Properties;
+            showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
             webSocketMessenger.AddToQueue(json);
         }
@@ -49,11 +50,20 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Wheels.GetAsync(includeProperties: "Properties");
+            var wheels = await db.Wheels.GetAsync(includeProperties: "Properties");
+            foreach (var wheel in wheels)
+            {
+                wheel.Properties = wheel.Properties.OrderBy(p => p.Order).ToList();
+            }
+            return wheels;
         }
 
         public async Task AddWheel(Wheel wheel)
         {
+            for (var i = 0; i < wheel.Properties.Count; i++)
+            {
+                wheel.Properties[i].Order = i;
+            }
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.Wheels.AddAsync(wheel);
@@ -62,6 +72,10 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
         public async Task SaveWheel(Wheel wheel)
         {
+            for (var i = 0; i < wheel.Properties.Count; i++)
+            {
+                wheel.Properties[i].Order = i;
+            }
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.Wheels.Update(wheel);

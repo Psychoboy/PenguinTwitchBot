@@ -1,4 +1,5 @@
 ﻿@page "/wheelspin"
+@using DotNetTwitchBot.Bot
 @using DotNetTwitchBot.Bot.Models.Wheel
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.WheelSpin.IWheelService WheelService
@@ -65,6 +66,8 @@
                                @onclick="() => SpinWheel(newWheel)">Spin</MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary"
                                @onclick="() => HideWheel()">Hide</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                               @onclick="() => ShuffleWheel()">Shuffle</MudButton>
                 </EditForm>
                 <MudTable Items="@newWheel.Properties">
                     <HeaderContent>
@@ -97,6 +100,13 @@
     protected override async Task OnInitializedAsync()
     {
         Wheels = await WheelService.GetWheels();
+    }
+
+    private void ShuffleWheel()
+    {
+        var props = newWheel.Properties;
+        props.Shuffle();
+        newWheel.Properties = props;
     }
 
     private void RemoveProperty(WheelProperty property)
