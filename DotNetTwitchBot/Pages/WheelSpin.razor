@@ -1,0 +1,148 @@
+﻿@page "/wheelspin"
+@using DotNetTwitchBot.Bot.Models.Wheel
+@attribute [Authorize(Roles = "Streamer")]
+@inject DotNetTwitchBot.Bot.Commands.WheelSpin.IWheelService WheelService
+
+<PageTitle>SPTV Twitch Bot - Wheel Spins</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="9">
+            <MudPaper>
+                <MudTable Items="@Wheels">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Number of Items</MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTh>@context.Name</MudTh>
+                        <MudTh>@context.Properties.Count</MudTh>
+                        <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary"
+                        @onclick="() => ShowWheel(context)">Show</MudButton></MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                       @onclick="() => SpinWheel(context)">Spin</MudButton>
+                        </MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                       @onclick="() => HideWheel()">Hide</MudButton>
+                        </MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                       @onclick="() => DeleteWheel(context)">Delete</MudButton>
+                        </MudTh>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="3">
+            <MudPaper>
+                <EditForm Model="@newWheel" OnValidSubmit="AddWheel">
+                    <DataAnnotationsValidator />
+                    <MudTextField Label="Name" Required="true" RequiredError="Name is required" @bind-Value="newWheel.Name" />
+                    <MudTextField Label="Add Property" @bind-Value="propertyName" />
+                    <MudTextField Label="Weight" @bind-Value="weight" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddProperty()">Add Property</MudButton>
+                    <MudTextField Label="Bulk Add Properties" Lines="8" @bind-Value="bulkPropertyNames" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddProperties()">Add Properties</MudButton>
+                    <MudDivider class="mb-2" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save Wheel</MudButton>
+                    <MudDivider class="mb-2" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               @onclick="() => ShowWheel(newWheel)">Show</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success"
+                               @onclick="() => SpinWheel(newWheel)">Spin</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                               @onclick="() => HideWheel()">Hide</MudButton>
+                </EditForm>
+                <MudTable Items="@newWheel.Properties">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Weight</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Label</MudTd>
+                        <MudTd>@context.Weight</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+@code {
+    private List<Wheel>? Wheels { get; set; } = new();
+    private string propertyName { get; set; } = string.Empty;
+    private string bulkPropertyNames { get; set; } = string.Empty;
+    private float weight { get; set; } = 1;
+    private Wheel newWheel { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Wheels = await WheelService.GetWheels();
+    }
+
+    private void AddProperties()
+    {
+        var names = bulkPropertyNames.Split("\n");
+        foreach (var name in names)
+        {
+            var trimmedName = name.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedName))
+            {
+                continue;
+            }
+            newWheel.Properties.Add(new WheelProperty { Label = trimmedName, Weight = 1 });
+        }
+        bulkPropertyNames = string.Empty;
+        weight = 1;
+    }
+
+    private void AddProperty()
+    {
+        newWheel.Properties.Add(new WheelProperty { Label = propertyName, Weight = weight });
+        propertyName = string.Empty;
+        weight = 1;
+    }
+
+    public async void AddWheel()
+    {
+        await WheelService.AddWheel(newWheel);
+        newWheel = new Wheel();
+        Wheels = await WheelService.GetWheels();
+        StateHasChanged();
+    }
+
+    private void ShowWheel(Wheel wheel)
+    {
+        WheelService.ShowWheel(wheel);
+    }
+
+    private void HideWheel()
+    {
+        WheelService.HideWheel();
+    }
+
+    private void SpinWheel(Wheel wheel)
+    {
+        WheelService.SpinWheel(wheel);
+    }
+
+    private async Task DeleteWheel(Wheel wheel)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await WheelService.DeleteWheel(wheel);
+            Wheels = await WheelService.GetWheels();
+        }
+    }
+}

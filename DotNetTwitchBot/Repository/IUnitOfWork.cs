@@ -47,6 +47,8 @@
         ITwitchEventsRepository TwitchEvents { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
         IIpLogRepository IpLogs { get; }
+        IWheelRepository Wheels { get; }
+        IWheelPropertiesRepository WheelProperties { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

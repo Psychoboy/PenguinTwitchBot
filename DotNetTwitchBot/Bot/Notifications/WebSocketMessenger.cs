@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using DotNetTwitchBot.Application.TTS;
+using DotNetTwitchBot.Application.WheelSpinNotifications;
 using DotNetTwitchBot.Extensions;
 using MediatR;
 
@@ -89,10 +91,18 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 var data = await ReadStringAsync(webSocket, CancellationToken.None);
                 if (data == null) continue;
-
-                if(data.Length >0 && data.StartsWith("TTSComplete: "))
+                if(data.Length > 0 && data.Equals("pong"))
+                {
+                    continue;
+                } else if (data.Length >0 && data.StartsWith("TTSComplete: "))
                 {
                     await _mediator.Publish(new TTSDeleteNotification(data));
+                } else if(data.Length > 0 && data.StartsWith("{\"wheel\":"))
+                {
+                    var wheelSpinComplete = JsonSerializer.Deserialize<WheelSpinComplete>(data);
+                    if (wheelSpinComplete != null)
+                        await _mediator.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
+                    //await _mediator.Publish(new TTSNotification(data));
                 }
             }
         }

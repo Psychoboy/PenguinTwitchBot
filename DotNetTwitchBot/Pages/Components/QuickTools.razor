@@ -14,12 +14,30 @@
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdatePostedSchedule">Update Schedule</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ShowWheel">Show Wheel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="HideWheel">Hide Wheel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="SpinWheel">Spin Wheel</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
     </AuthorizeView>
 </CascadingAuthenticationState>
 @code {
+    private void ShowWheel()
+    {
+        Admin.ShowWheel();
+    }
+
+    private void HideWheel()
+    {
+        Admin.HideWheel();
+    }
+
+    private void SpinWheel()
+    {
+        Admin.SpinWheel();
+    }
+
     private async Task UpdatePostedSchedule()
     {
         await Schedule.PostSchedule();
