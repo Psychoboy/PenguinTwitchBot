@@ -9,5 +9,6 @@
         public string? BackgroundColor { get; set; }
         public int Value { get; set; }
         public float Weight { get; set; } = 1;
+        public float Order { get; set; } = 1;
     }
 }
