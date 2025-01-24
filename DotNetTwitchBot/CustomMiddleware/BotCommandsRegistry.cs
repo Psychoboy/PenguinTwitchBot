@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Commands.Shoutout;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
+using DotNetTwitchBot.Bot.Commands.WheelSpin;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -85,7 +86,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddHostedApiService<ITTSService, TTSService>();
             services.AddHostedApiService<IClipService, ClipService>();
-
+            services.AddHostedApiService<IWheelService, WheelService>();
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();

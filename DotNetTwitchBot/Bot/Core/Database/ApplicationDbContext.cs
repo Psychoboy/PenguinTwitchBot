@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Timers;
+using DotNetTwitchBot.Bot.Models.Wheel;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
@@ -51,6 +52,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<TwitchEvent> TwitchEvents { get; set; } = null!;
         public DbSet<DiscordEventMap> DiscordEvents { get; set; }
         public DbSet<IpLogEntry> IpLogEntrys { get; set; }
+        public DbSet<Wheel> Wheels { get; set; }
+        public DbSet<WheelProperty> WheelProperties { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
