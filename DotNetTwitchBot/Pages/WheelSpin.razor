@@ -12,6 +12,7 @@
             <MudPaper>
                 <MudTable Items="@Wheels">
                     <HeaderContent>
+                        <MudTh>Id</MudTh>
                         <MudTh>Name</MudTh>
                         <MudTh>Number of Items</MudTh>
                         <MudTh></MudTh>
@@ -21,6 +22,7 @@
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
+                        <MudTd>@context.Id</MudTd>
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Properties.Count</MudTd>
                         <MudTd>

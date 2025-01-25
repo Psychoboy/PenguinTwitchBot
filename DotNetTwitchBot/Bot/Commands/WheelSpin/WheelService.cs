@@ -119,15 +119,51 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             }
         }
 
-        public override Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            return Task.CompletedTask;
+            var command = CommandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            switch (command.CommandProperties.CommandName)
+            {
+                case "showwheel":
+                    { 
+                        var wheel = await GetWheelFromCommand(e);
+                        if (wheel == null) return;
+                        ShowWheel(wheel);
+                    }
+                    break;
+                case "hidewheel":
+                    HideWheel();
+                    break;
+                case "spinwheel":
+                    {
+                        var wheel = await GetWheelFromCommand(e);
+                        if (wheel == null) return;
+                        SpinWheel(wheel);
+                    }
+                    break;
+            }
         }
 
-        public override Task Register()
+        private async Task<Wheel?> GetWheelFromCommand(CommandEventArgs e)
         {
+            if(!int.TryParse(e.Arg, out var id))
+            {
+                logger.LogError("Invalid wheel id {id}", e.Arg);
+                return null;
+            }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var wheels = await db.Wheels.GetAsync(includeProperties: "Properties");
+            return wheels.FirstOrDefault(x => x.Id == id);
+        }
+
+        public override async Task Register()
+        {
+            await RegisterDefaultCommand("showwheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("hidewheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("spinwheel", this, ModuleName, Rank.Streamer);
             logger.LogInformation("Registered commands for {moduleName}", ModuleName);
-            return Task.CompletedTask;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
