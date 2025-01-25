@@ -114,6 +114,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                 var winningMessage = CurrentWheel?.WinningMessage.Replace("{label}", CurrentWheel.Properties[index].Label);
                 if (winningMessage != null)
                 {
+                    Thread.Sleep(4000);
                     await ServiceBackbone.SendChatMessage(winningMessage);
                 }
             }
