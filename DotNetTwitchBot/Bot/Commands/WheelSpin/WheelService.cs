@@ -40,7 +40,17 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         public void SpinWheel(Wheel wheel)
         {
             CurrentWheel = wheel;
-            WinningIndex = RandomNumberGenerator.GetInt32(0, wheel.Properties.Count);
+            List<WheelSpinIndex> spots = new();
+            for(var index = 0; index < wheel.Properties.Count; index++)
+            {
+                var prop = wheel.Properties[index];
+                var totalWeight = prop.Weight * 100;
+                for (var i = 0; i < totalWeight; i++)
+                {
+                    spots.Add(new WheelSpinIndex { Index = index });
+                }
+            }
+            WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
             var spinWheel = new SpinWheel(WinningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
             webSocketMessenger.AddToQueue(json);
