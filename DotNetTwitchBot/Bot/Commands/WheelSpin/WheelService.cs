@@ -194,7 +194,6 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                                 nameWheel.Properties.Add(new WheelProperty { Label = e.Name });
                                 ShowWheel(nameWheel);
                             }
-                            
                         }
                     }
                     break;
