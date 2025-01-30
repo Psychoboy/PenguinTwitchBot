@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
+using Quartz.Core;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -21,10 +22,50 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         private readonly JsonSerializerOptions jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         private int WinningIndex { get; set; }
         private Wheel? CurrentWheel { get; set; } = null;
+        private readonly List<string> nameEntries = [];
+        private Wheel? nameWheel = null;
+        private bool nameWheelActive = false;
+        private bool nameWheelShown = false;
+
+        public void OpenNameWheel()
+        {
+            nameWheelActive = true;
+            nameEntries.Clear();
+            nameWheel = null;
+            ServiceBackbone.SendChatMessage("The viewer wheel is now open! Type !join to enter the wheel.");
+        }
+
+        public void ShowNameWheel()
+        {
+            nameWheelShown = true;
+            nameWheel = new()
+            {
+                WinningMessage = "Congratulations {label}!"
+            };
+            foreach (var name in nameEntries)
+            {
+                nameWheel.Properties.Add(new WheelProperty { Label = name });
+            }
+            ShowWheel(nameWheel);
+        }
+
+        public void CloseNameWheel()
+        {
+            nameWheelShown = false;
+            nameWheelActive = false;
+        }
+
+        public void SpinNameWheel()
+        {
+            if(nameWheel == null) return;
+            SpinWheel(nameWheel);
+        }
+
         public void ShowWheel(Wheel wheel)
         {
             var showWheel = new ShowWheel();
             var props = wheel.Properties;
+            props.Sort((a, b) => a.Order.CompareTo(b.Order));
             showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
             webSocketMessenger.AddToQueue(json);
@@ -40,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         public void SpinWheel(Wheel wheel)
         {
             CurrentWheel = wheel;
-            List<WheelSpinIndex> spots = new();
+            List<WheelSpinIndex> spots = [];
             for(var index = 0; index < wheel.Properties.Count; index++)
             {
                 var prop = wheel.Properties[index];
@@ -63,7 +104,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             var wheels = await db.Wheels.GetAsync(includeProperties: "Properties");
             foreach (var wheel in wheels)
             {
-                wheel.Properties = wheel.Properties.OrderBy(p => p.Order).ToList();
+                wheel.Properties = [.. wheel.Properties.OrderBy(p => p.Order)];
             }
             return wheels;
         }
@@ -143,6 +184,20 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                         SpinWheel(wheel);
                     }
                     break;
+                case "join":
+                    {
+                        if (nameWheelActive && nameEntries.Contains(e.Name) == false)
+                        {
+                            nameEntries.Add(e.Name);
+                            if (nameWheel != null && nameWheelShown)
+                            {
+                                nameWheel.Properties.Add(new WheelProperty { Label = e.Name });
+                                ShowWheel(nameWheel);
+                            }
+                            
+                        }
+                    }
+                    break;
             }
         }
 
@@ -164,6 +219,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             await RegisterDefaultCommand("showwheel", this, ModuleName, Rank.Streamer);
             await RegisterDefaultCommand("hidewheel", this, ModuleName, Rank.Streamer);
             await RegisterDefaultCommand("spinwheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("join", this, ModuleName, Rank.Viewer);
             logger.LogInformation("Registered commands for {moduleName}", ModuleName);
         }
 
