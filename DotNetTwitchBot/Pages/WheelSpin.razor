@@ -7,6 +7,11 @@
 <PageTitle>SPTV Twitch Bot - Wheel Spins</PageTitle>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => OpenViewerWheel()">Open Viewer Wheel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="() => ShowViewerWheel()">Show Viewer Wheel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Warning" @onclick="() => CloseViewersWheel()">Close Viewer Wheel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Tertiary" @onclick="() => SpinViewersWheel()">Spin Viewer Wheel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="() => HideWheel()">Hide Wheel</MudButton>
     <MudGrid>
         <MudItem xs="9">
             <MudPaper>
@@ -103,6 +108,26 @@
     protected override async Task OnInitializedAsync()
     {
         Wheels = await WheelService.GetWheels();
+    }
+
+    private void OpenViewerWheel()
+    {
+        WheelService.OpenNameWheel();
+    }
+
+    private void ShowViewerWheel()
+    {
+        WheelService.ShowNameWheel();
+    }
+
+    private void SpinViewersWheel()
+    {
+        WheelService.SpinNameWheel();
+    }
+
+    private void CloseViewersWheel()
+    {
+        WheelService.CloseNameWheel();
     }
 
     private void ShuffleWheel()
