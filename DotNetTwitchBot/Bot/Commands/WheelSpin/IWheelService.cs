@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         void OpenNameWheel();
         void ShowNameWheel();
         void ShowWheel(Wheel wheel);
-        void SpinWheel(Wheel wheel);
+        void SpinWheel();
         Task ValidateAndProcessWinner(int index);
         void SpinNameWheel();
         void CloseNameWheel();
