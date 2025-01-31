@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         public void SpinNameWheel()
         {
             if(nameWheel == null) return;
-            SpinWheel(nameWheel);
+            SpinWheel();
         }
 
         public void ShowWheel(Wheel wheel)
@@ -66,6 +66,9 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             var showWheel = new ShowWheel();
             var props = wheel.Properties;
             props.Sort((a, b) => a.Order.CompareTo(b.Order));
+            wheel.Properties = props;
+            CurrentWheel = wheel;
+
             showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
             webSocketMessenger.AddToQueue(json);
@@ -78,13 +81,12 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             webSocketMessenger.AddToQueue(json);
         }
 
-        public void SpinWheel(Wheel wheel)
+        public void SpinWheel()
         {
-            CurrentWheel = wheel;
             List<WheelSpinIndex> spots = [];
-            for(var index = 0; index < wheel.Properties.Count; index++)
+            for(var index = 0; index < CurrentWheel?.Properties.Count; index++)
             {
-                var prop = wheel.Properties[index];
+                var prop = CurrentWheel.Properties[index];
                 var totalWeight = prop.Weight * 100;
                 for (var i = 0; i < totalWeight; i++)
                 {
@@ -179,9 +181,8 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                     break;
                 case "spinwheel":
                     {
-                        var wheel = await GetWheelFromCommand(e);
-                        if (wheel == null) return;
-                        SpinWheel(wheel);
+                        if(CurrentWheel != null)
+                            SpinWheel();
                     }
                     break;
                 case "join":
@@ -196,6 +197,18 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                             }
                         }
                     }
+                    break;
+                case "opennamewheel":
+                    OpenNameWheel();
+                    break;
+                case "shownamewheel":
+                    ShowNameWheel();
+                    break;
+                case "closenamewheel":
+                    CloseNameWheel();
+                    break;
+                case "spinnamewheel":
+                    SpinNameWheel();
                     break;
             }
         }
