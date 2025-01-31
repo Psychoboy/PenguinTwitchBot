@@ -232,6 +232,10 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             await RegisterDefaultCommand("hidewheel", this, ModuleName, Rank.Streamer);
             await RegisterDefaultCommand("spinwheel", this, ModuleName, Rank.Streamer);
             await RegisterDefaultCommand("join", this, ModuleName, Rank.Viewer);
+            await RegisterDefaultCommand("opennamewheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("shownamewheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("closenamewheel", this, ModuleName, Rank.Streamer);
+            await RegisterDefaultCommand("spinnamewheel", this, ModuleName, Rank.Streamer);
             logger.LogInformation("Registered commands for {moduleName}", ModuleName);
         }
 
