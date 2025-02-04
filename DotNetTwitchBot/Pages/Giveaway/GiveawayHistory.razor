@@ -25,16 +25,25 @@
                     <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Prize)">Prize</MudTableSortLabel></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.WinningDate)">Date</MudTableSortLabel></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.PrizeTier)">Tier</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Email)">Email</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.ClaimedBy)">Claimed By</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Email)">Email</MudTableSortLabel><MudIconButton Icon=@inputIcon OnClick="HiddenClick" /></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.ClaimedBy)">Claimed By</MudTableSortLabel><MudIconButton Icon=@inputIcon OnClick="HiddenClick" /></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">@context.Username</MudTd>
                     <MudTd DataLabel="Prize">@context.Prize</MudTd>
                     <MudTd DataLabel="Date">@context.WinningDate.ToShortDateString()</MudTd>
                     <MudTd DataLabel="Tier">@context.PrizeTier</MudTd>
-                    <MudTd DataLabel="Email">@context.Email</MudTd>
-                    <MudTd DataLabel="ClaimedBy">@context.ClaimedBy</MudTd>
+                    @if (isVisible)
+                    {
+                        <MudTd DataLabel="Email">@context.Email</MudTd>
+                        <MudTd DataLabel="ClaimedBy">@context.ClaimedBy</MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Email">@hidden.Value</MudTd>
+                        <MudTd DataLabel="ClaimedBy">@hidden.Value</MudTd>
+                    }
+                    
                 </RowTemplate>
                 <RowEditingTemplate>
                     <MudTd DataLabel="Name">@context.Username</MudTd>
@@ -54,6 +63,18 @@
     private List<Bot.Models.Giveaway.GiveawayWinner>? pastWinners;
     [Inject]
     private DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature giveawayFeature { get; set; } = default!;
+
+    bool isVisible = false;
+    InputType inputType = InputType.Password;
+    string inputIcon = Icons.Material.Filled.VisibilityOff;
+    MarkupString hidden = new MarkupString("<Hidden>");
+
+    private void HiddenClick()
+    {
+        isVisible = !isVisible;
+        inputIcon = isVisible ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+        inputType = isVisible ? InputType.Text : InputType.Password;
+    }
     protected override async Task OnInitializedAsync()
     {
         pastWinners = await giveawayFeature.PastWinners();
