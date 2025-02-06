@@ -10,5 +10,9 @@ namespace DotNetTwitchBot.Bot.Models.Timers
         public int? Id { get; set; }
         public string Message {get;set;} = null!;
         public bool Enabled {get;set;} = true;
+
+        public int TimerGroupId { get; set; }
+        [JsonIgnore]
+        public TimerGroup TimerGroup { get; set; } = null!;
     }
 }

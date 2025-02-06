@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             return [.. Directory.GetFiles(backupDirectory, "*.zip").Order()];
         }
 
-        private static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
         {
             var records = await context.Set<T>().ToListAsync();
             var json = JsonSerializer.Serialize(records);
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             logger?.LogDebug($"Backed up {records.Count} records to {typeof(T).Name}");
         }
 
-        private static async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public static async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
         {
             var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
             if (!File.Exists(fileName)) return;
@@ -36,15 +36,9 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             logger?.LogDebug($"Restored {records.Count} records from {typeof(T).Name}");
         }
 
-        private static async Task ClearTable<T>(DbContext context, ILogger? logger = null) where T : class
+        public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
         {
-            var records = await context.Set<T>().ToListAsync();
-            context.Set<T>().RemoveRange(records);
-        }
-
-        public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger? logger = null)
-        {
-            logger?.LogInformation("Backing up database");
+            logger.LogInformation("Backing up database");
             var tempDirectory = Path.Combine(backupDirectory, "temp");
             if (!Directory.Exists(backupDirectory))
             {
@@ -120,16 +114,11 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             await RestoreTable<KeywordType>(context, backupDirectory, logger);
             await RestoreTable<Setting>(context, backupDirectory, logger);
             await RestoreTable<SongRequestViewItem>(context, backupDirectory, logger);
-
-            await ClearTable<Song>(context, logger);
             await RestoreTable<MusicPlaylist>(context, backupDirectory, logger);
             await RestoreTable<QuoteType>(context, backupDirectory, logger);
             await RestoreTable<RaidHistoryEntry>(context, backupDirectory, logger);
             await RestoreTable<AutoShoutout>(context, backupDirectory, logger);
-
-            await ClearTable<TimerMessage>(context, logger);
             await RestoreTable<TimerGroup>(context, backupDirectory, logger);
-            
             await RestoreTable<WordFilter>(context, backupDirectory, logger);
             await RestoreTable<SubscriptionHistory>(context, backupDirectory, logger);
             await RestoreTable<AliasModel>(context, backupDirectory, logger);
@@ -145,8 +134,6 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             await RestoreTable<TwitchEvent>(context, backupDirectory, logger);
             await RestoreTable<DiscordEventMap>(context, backupDirectory, logger);
             await RestoreTable<IpLogEntry>(context, backupDirectory, logger);
-            
-            await ClearTable<WheelProperty>(context, logger);
             await RestoreTable<Wheel>(context, backupDirectory, logger);
             await context.SaveChangesAsync();
             logger?.LogInformation("Database restored");

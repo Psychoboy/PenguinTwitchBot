@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250206231718_AddWheelid")]
+    partial class AddWheelid
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -901,7 +904,7 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<TimeSpan>("Duration")
                         .HasColumnType("time(6)");
 
-                    b.Property<int>("MusicPlaylistId")
+                    b.Property<int?>("MusicPlaylistId")
                         .HasColumnType("int");
 
                     b.Property<string>("RequestedBy")
@@ -1030,7 +1033,7 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int>("TimerGroupId")
+                    b.Property<int?>("TimerGroupId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -1459,24 +1462,16 @@ namespace DotNetTwitchBot.Migrations
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Song", b =>
                 {
-                    b.HasOne("DotNetTwitchBot.Bot.Models.MusicPlaylist", "MusicPlaylist")
+                    b.HasOne("DotNetTwitchBot.Bot.Models.MusicPlaylist", null)
                         .WithMany("Songs")
-                        .HasForeignKey("MusicPlaylistId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MusicPlaylist");
+                        .HasForeignKey("MusicPlaylistId");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerMessage", b =>
                 {
-                    b.HasOne("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", "TimerGroup")
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", null)
                         .WithMany("Messages")
-                        .HasForeignKey("TimerGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TimerGroup");
+                        .HasForeignKey("TimerGroupId");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.WheelProperty", b =>
