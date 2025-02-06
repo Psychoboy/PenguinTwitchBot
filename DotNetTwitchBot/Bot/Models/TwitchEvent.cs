@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands.TwitchEvents;
+using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models
 {
@@ -6,6 +7,7 @@ namespace DotNetTwitchBot.Bot.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public TwitchEventType EventType { get; set; }
         public string Command { get; set; } = string.Empty;

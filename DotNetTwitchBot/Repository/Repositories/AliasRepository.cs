@@ -1,4 +1,7 @@
-﻿namespace DotNetTwitchBot.Repository.Repositories
+﻿
+using DotNetTwitchBot.Bot.DatabaseTools;
+
+namespace DotNetTwitchBot.Repository.Repositories
 {
     public class AliasRepository : GenericRepository<AliasModel>, IAliasRepository
     {

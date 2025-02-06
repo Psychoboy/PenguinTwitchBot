@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+
 namespace DotNetTwitchBot.Bot.Models.Giveaway
 {
     [Index(nameof(Username), IsUnique = true)]
@@ -5,6 +7,7 @@ namespace DotNetTwitchBot.Bot.Models.Giveaway
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public Int64? Id { get; set; }
         public string Username { get; set; } = "";
         public string UserId { get; set; } = string.Empty;

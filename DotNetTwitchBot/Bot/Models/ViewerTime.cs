@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(UserId))]
@@ -5,6 +7,7 @@ namespace DotNetTwitchBot.Bot.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string Username { get; set; } = "";

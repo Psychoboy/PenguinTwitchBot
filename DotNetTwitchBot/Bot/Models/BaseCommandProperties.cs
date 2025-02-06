@@ -1,9 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace DotNetTwitchBot.Bot.Models
 {
     public class BaseCommandProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public string CommandName { get; set; } = null!;
         public int UserCooldown { get; set; } = 0;

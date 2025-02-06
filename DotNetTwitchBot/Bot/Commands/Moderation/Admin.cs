@@ -1,10 +1,13 @@
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Metrics;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using System.CodeDom;
+using System.IO.Compression;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
@@ -28,6 +31,34 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             _logger = logger;
             _scopeFactory = scopeFactory;
             _serviceBackbone = serviceBackbone;
+        }
+
+        public async Task BackupDatabase()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await BackupTools.BackupDatabase(db, BackupTools.BACKUP_DIRECTORY, _logger);
+            var files = Directory.GetFiles(BackupTools.BACKUP_DIRECTORY);
+            _logger.LogInformation("Deleting old backups > 30 days");
+            foreach (var file in files)
+            {
+                FileInfo fi = new(file);
+                if (fi.CreationTime < DateTime.Now.AddDays(-30))
+                {
+                    _logger.LogInformation("Deleting backup: {name}", fi.Name);
+                    fi.Delete();
+                }
+            }
+        }
+
+        public async Task RestoreDatabase(string fileName)
+        {
+            var backupDirectory = Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString());
+            ZipFile.ExtractToDirectory(fileName, backupDirectory);
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await BackupTools.RestoreDatabase(db, backupDirectory, _logger);
+            Directory.Delete(backupDirectory, true);
         }
 
         public override async Task Register()
