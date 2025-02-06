@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             await BackupTools.BackupDatabase(db, BackupTools.BACKUP_DIRECTORY, _logger);
             var files = Directory.GetFiles(BackupTools.BACKUP_DIRECTORY);
-            _logger.LogInformation("Deleting old RAW backups > 30 days");
+            _logger.LogInformation("Deleting old backups > 30 days");
             foreach (var file in files)
             {
                 FileInfo fi = new(file);
