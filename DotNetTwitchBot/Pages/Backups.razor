@@ -1,0 +1,59 @@
+﻿@page "/backups"
+@inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
+@using DotNetTwitchBot.Bot.DatabaseTools
+@attribute [Authorize(Roles = "Streamer")]
+
+<PageTitle>SPTV Twitch Bot - Backups</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="BackupDatabase">Backup Database</MudButton>
+    <MudTable Items="@DatabaseBackups">
+        <HeaderContent>
+            <MudTh>File Name</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" 
+                @onclick="() => RestoreBackup(context)">Restore Backup</MudButton></MudTd>
+        </RowTemplate>
+     </MudTable>
+</MudContainer>
+
+@code {
+
+    private List<string> DatabaseBackups = [];
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY);
+    }
+
+    private async Task BackupDatabase()
+    {
+        await Admin.BackupDatabase();
+        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY);
+    }
+
+    private async Task RestoreBackup(string fileName)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Warning",
+        "Are you sure you want to restore this database? Doing so will wipe current data!",
+        yesText: "Restore!", cancelText: "Cancel");
+        if (result != null)
+        {
+            try
+            {
+                await Admin.RestoreDatabase(fileName);
+                await DialogService.ShowMessageBox("Success", "Database restored successfully!");
+            }
+            catch (Exception e)
+            {
+                await DialogService.ShowMessageBox("Error", e.Message);
+            }
+        }
+    }
+}

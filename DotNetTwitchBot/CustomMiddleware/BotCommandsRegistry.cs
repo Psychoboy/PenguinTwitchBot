@@ -97,6 +97,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
+
             return services;
         }
 

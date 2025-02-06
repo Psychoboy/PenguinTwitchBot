@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Bot.Models
+﻿using System.Text.Json.Serialization;
+
+namespace DotNetTwitchBot.Bot.Models
 {
     public class RegisteredVoice
     {
@@ -18,6 +20,7 @@
 
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public VoiceType Type { get; set; }
         public string Name { get; set; } = "";

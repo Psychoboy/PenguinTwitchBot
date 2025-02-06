@@ -9,12 +9,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Backups\**" />
+    <Compile Remove="Logs\**" />
     <Compile Remove="Twitch\**" />
     <Compile Remove="wwwroot\tts\**" />
+    <Content Remove="Backups\**" />
+    <Content Remove="Logs\**" />
     <Content Remove="Twitch\**" />
     <Content Remove="wwwroot\tts\**" />
+    <EmbeddedResource Remove="Backups\**" />
+    <EmbeddedResource Remove="Logs\**" />
     <EmbeddedResource Remove="Twitch\**" />
     <EmbeddedResource Remove="wwwroot\tts\**" />
+    <None Remove="Backups\**" />
+    <None Remove="Logs\**" />
     <None Remove="Twitch\**" />
     <None Remove="wwwroot\tts\**" />
   </ItemGroup>

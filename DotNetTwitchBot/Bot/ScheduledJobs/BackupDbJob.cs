@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
     [DisallowConcurrentExecution]
     public class BackupDbJob(IDatabaseTools databaseTools, ILogger<BackupDbJob> logger) : IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public async Task Execute(IJobExecutionContext context)
         {
             var files = Directory.GetFiles("wwwroot/clips/");
             foreach (var file in files)
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
                     fileInfo.Delete();
                 }
             }
-            return databaseTools.Backup();
+            await databaseTools.Backup();
         }
     }
 }

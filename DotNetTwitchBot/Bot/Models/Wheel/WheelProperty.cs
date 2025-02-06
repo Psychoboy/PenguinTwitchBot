@@ -1,9 +1,12 @@
-﻿namespace DotNetTwitchBot.Bot.Models.Wheel
+﻿using System.Text.Json.Serialization;
+
+namespace DotNetTwitchBot.Bot.Models.Wheel
 {
     public class WheelProperty
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public string Label { get; set; } = "";
         public string? BackgroundColor { get; set; }

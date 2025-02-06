@@ -1,9 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace DotNetTwitchBot.Bot.Models
 {
     public class Song
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public string SongId { get; set; } = null!;
         public string Title { get; set; } = null!;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace DotNetTwitchBot.Bot.Models
@@ -9,6 +10,7 @@ namespace DotNetTwitchBot.Bot.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int? Id { get; set; }
         public int TimeOutLength { get; set; } = 300;
         public bool IsRegex { get; set; } = false;
