@@ -98,6 +98,24 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<TimerGroup>().Navigation(t => t.Messages).AutoInclude();
             modelBuilder.Entity<MusicPlaylist>().Navigation(t => t.Songs).AutoInclude();
             modelBuilder.Entity<Wheel>().Navigation(t => t.Properties).AutoInclude();
+
+            modelBuilder.Entity<Wheel>()
+                .HasMany(t => t.Properties)
+                .WithOne(t => t.Wheel)
+                .HasForeignKey(t => t.WheelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MusicPlaylist>()
+                .HasMany(t => t.Songs)
+                .WithOne(t => t.MusicPlaylist)
+                .HasForeignKey(t => t.MusicPlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TimerGroup>()
+                .HasMany(t => t.Messages)
+                .WithOne(t => t.TimerGroup)
+                .HasForeignKey(t => t.TimerGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
