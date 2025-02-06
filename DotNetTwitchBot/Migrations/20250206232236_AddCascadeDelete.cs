@@ -10,13 +10,13 @@ namespace DotNetTwitchBot.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Songs_Playlists_MusicPlaylistId",
-                table: "Songs");
+            //migrationBuilder.DropForeignKey(
+            //    name: "FK_Songs_Playlists_MusicPlaylistId",
+            //    table: "Songs");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_TimerMessages_TimerGroups_TimerGroupId",
-                table: "TimerMessages");
+            //migrationBuilder.DropForeignKey(
+            //    name: "FK_TimerMessages_TimerGroups_TimerGroupId",
+            //    table: "TimerMessages");
 
             migrationBuilder.AlterColumn<int>(
                 name: "TimerGroupId",

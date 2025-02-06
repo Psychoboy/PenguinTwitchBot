@@ -1,5 +1,4 @@
-﻿using DotNetTwitchBot.Bot.DatabaseTools.TablesBackup;
-using DotNetTwitchBot.Bot.Models.Giveaway;
+﻿using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
