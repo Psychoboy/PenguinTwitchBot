@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 
 namespace DotNetTwitchBot.Repository
 {
-    public interface IGenericRepository<T> where T : class
+    public interface IGenericRepository<T>: IBackupDb where T : class
     {
         T? GetById(int? id);
         Task<T?> GetByIdAsync(int id);
