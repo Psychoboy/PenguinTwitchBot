@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿using DotNetTwitchBot.Bot.DatabaseTools;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
 namespace DotNetTwitchBot.Repository.Repositories
@@ -155,6 +156,16 @@ namespace DotNetTwitchBot.Repository.Repositories
         public Task<int> CountAsync()
         {
             return _context.Set<T>().CountAsync();
+        }
+
+        public virtual Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            return BackupTools.BackupTable<T>(context, backupDirectory, logger);
+        }
+
+        public virtual Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            return BackupTools.RestoreTable<T>(context, backupDirectory, logger);
         }
     }
 }

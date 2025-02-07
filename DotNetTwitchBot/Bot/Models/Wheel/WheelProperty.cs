@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Models.Wheel
         public float Weight { get; set; } = 1;
         public float Order { get; set; } = 1;
 
+        [JsonIgnore]
         public int WheelId { get; set; }
         [JsonIgnore]
         public Wheel Wheel { get; set; } = null!;
