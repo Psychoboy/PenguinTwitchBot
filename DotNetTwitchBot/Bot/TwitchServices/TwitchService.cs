@@ -764,23 +764,29 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task ShoutoutStreamer(string userId)
+        public async Task<ShoutoutResponseEnum> ShoutoutStreamer(string userId)
         {
             var broadcasterId = await GetBroadcasterUserId() ?? throw new Exception("Error getting broadcaster id.");
             try
             {
                 await _twitchApi.Helix.Chat.SendShoutoutAsync(broadcasterId, userId, broadcasterId, _configuration["twitchAccessToken"]);
+                return ShoutoutResponseEnum.Success;
             }
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
                 _logger.LogError("Error doing shoutout: {error}", error);
+                if (ex.HttpResponse.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    return ShoutoutResponseEnum.TooManyRequests;
+                }
             }
             catch (Exception ex)
             {
                 var error = ex.Message;
                 _logger.LogError("Error doing ShoutoutStreamer(string): {error}", error);
             }
+            return ShoutoutResponseEnum.Failure;
         }
 
         public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetClips(string user)
