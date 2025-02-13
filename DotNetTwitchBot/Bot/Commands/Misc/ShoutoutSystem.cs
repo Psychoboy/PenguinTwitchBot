@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ShoutoutSystem> _logger;
         private readonly IClipService _clipService;
-        private readonly DateTime LastShoutOut = DateTime.Now;
+        private DateTime LastShoutOut = DateTime.Now;
         private readonly Dictionary<string, DateTime> UserLastShoutout = [];
 
         public ShoutoutSystem(
@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             if (autoShoutout != null)
             {
-                await Shoutout(name, false);
+                await Shoutout(name, autoShoutout.AutoPlayClip);
             }
         }
 
@@ -117,9 +117,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 {
                     if (value.AddMinutes(60) > DateTime.Now) return;
                 }
-                UserLastShoutout[userId] = DateTime.Now;
                 if (ServiceBackbone.IsOnline == false) return;
-                await _twitchService.ShoutoutStreamer(userId);
+                var result = await _twitchService.ShoutoutStreamer(userId);
+                if (result == ShoutoutResponseEnum.Success)
+                {
+                    LastShoutOut = DateTime.Now;
+                    UserLastShoutout[userId] = DateTime.Now;
+                }
             }
         }
 

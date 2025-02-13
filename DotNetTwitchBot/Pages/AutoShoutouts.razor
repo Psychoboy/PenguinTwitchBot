@@ -18,6 +18,7 @@
                             <MudTh>Name</MudTh>
                             <MudTh>Response</MudTh>
                             <MudTh>Last Shoutout</MudTh>
+                            <MudTh>Auto Clip</MudTh>
                             <MudTh></MudTh>
                             <MudTh></MudTh>
                         </HeaderContent>
@@ -25,8 +26,9 @@
                             <MudTd DataLabel="Name">@context.Name</MudTd>
                             <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
                             <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
+                            <MudTd DataLabel="Auto Clip">@context.AutoPlayClip</MudTd>
                             <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context.Id)">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
                                     Edit
                                 </MudButton>
                             </MudTd>
@@ -49,11 +51,14 @@
                                 <MudCardContent>
                                     <MudTextField Label="Name" Required="true" RequiredError="Name is required"
                                     @bind-Value="autoShoutout.Name" />
-                                    <MudTextField Label="Message" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                                    <MudTextField Label="Message" Lines="3" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                                    <MudSwitch Label="Auto Play Clip" @bind-Value="autoShoutout.AutoPlayClip" />
                                     <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                                         Class="ml-auto">
                                         Submit
                                     </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => autoShoutout = new()">
+                                        Reset</MudButton>
                                 </MudCardContent>
                             </EditForm>
                         </MudPaper>
@@ -79,11 +84,6 @@
         StateHasChanged();
     }
 
-    private void AddShoutout()
-    {
-        navigationManager.NavigateTo($"/autoshoutouts/create");
-    }
-
     public async void OnSubmit()
     {
         if (autoShoutout == null) return;
@@ -104,8 +104,9 @@
         }
     }
 
-    private void Edit(int? id)
+    private void Edit(DotNetTwitchBot.Bot.Models.AutoShoutout shoutout)
     {
-        navigationManager.NavigateTo($"/autoshoutouts/{id}");
+        // navigationManager.NavigateTo($"/autoshoutouts/{id}");
+        autoShoutout = shoutout;
     }
 }

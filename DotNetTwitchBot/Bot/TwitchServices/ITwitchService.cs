@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<bool> IsUserMod(string user);
         Task<bool> IsUserSub(string user);
         Task RaidStreamer(string userId);
-        Task ShoutoutStreamer(string userId);
+        Task<ShoutoutResponseEnum> ShoutoutStreamer(string userId);
         Task<DateTime> StreamStartedAt();
         Task SubscribeToAllTheStuffs(string sessionId);
         Task TimeoutUser(string name, int length, string reason);

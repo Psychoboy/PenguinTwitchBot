@@ -1,3 +1,4 @@
+using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Models
         public string Name {get;set;} = null!;
         public string? CustomMessage {get;set;}
         public DateTime LastShoutout {get;set;} = DateTime.MinValue;
+        public bool AutoPlayClip { get; set; } = false;
 
     }
 }
