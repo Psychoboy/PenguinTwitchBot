@@ -52,6 +52,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         {
             // Arrange
             var cheerEventArgs = new CheerEventArgs { IsAnonymous = true, Amount = 100 };
+            await loyaltyFeature.StartAsync(default);
 
             // Act
             serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
@@ -67,6 +68,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var cheerEventArgs = new CheerEventArgs { DisplayName = "TestName", Name = "testname", IsAnonymous = false, Amount = 100, UserId = "123" };
             var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
+            await loyaltyFeature.StartAsync(default);
             // Act
             serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
@@ -83,6 +85,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var subscriptionEvent = new SubscriptionGiftEventArgs { Name = "testname", DisplayName = "TestName", GiftAmount = 5, TotalGifted = 10, UserId = "123" };
             var queryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
             dbContext.Settings.Find(x => true).ReturnsForAnyArgs(queryable);
+            await loyaltyFeature.StartAsync(default);
 
             // Act
             serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionEvent);
