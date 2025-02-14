@@ -472,6 +472,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Starting {moduledname}", ModuleName);
             await UpdateSubscribers();
             await UpdateChatters();
             await Register();

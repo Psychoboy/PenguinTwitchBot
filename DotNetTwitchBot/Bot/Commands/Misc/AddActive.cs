@@ -81,6 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 

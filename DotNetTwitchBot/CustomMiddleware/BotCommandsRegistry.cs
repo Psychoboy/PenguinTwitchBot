@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Commands.WheelSpin;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.ServiceTools;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 
@@ -92,6 +93,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
             services.AddSingleton<ChatMessageIdTracker>();
+            services.AddSingleton<IServiceMaintenance, ServiceMaintenance>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
 

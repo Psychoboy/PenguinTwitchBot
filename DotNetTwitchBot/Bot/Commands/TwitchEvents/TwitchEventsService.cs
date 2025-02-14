@@ -23,9 +23,11 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("{module} has started.", ModuleName);
             ServiceBackbone.AdBreakStartEvent += AdBreak;
             ServiceBackbone.StreamStarted += StreamStarted;
             ServiceBackbone.StreamEnded += StreamEnded;
+
             return Register();
         }
 
@@ -122,6 +124,8 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
         public Task StopAsync(CancellationToken cancellationToken)
         {
             ServiceBackbone.AdBreakStartEvent -= AdBreak;
+            ServiceBackbone.StreamStarted -= StreamStarted;
+            ServiceBackbone.StreamEnded -= StreamEnded;
             logger.LogInformation("{module} has stopped.", ModuleName);
             return Task.CompletedTask;
         }

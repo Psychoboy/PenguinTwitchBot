@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.Alias
     public class Alias(
         IMediator mediator,
         IServiceBackbone serviceBackbone,
+        ILogger<Alias> logger,
         ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias"), IAlias, IHostedService
     {
         public async Task<List<AliasModel>> GetAliasesAsync()
@@ -79,11 +80,13 @@ namespace DotNetTwitchBot.Bot.Commands.Alias
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting Alias Service");
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopping Alias Service");
             return Task.CompletedTask;
         }
     }

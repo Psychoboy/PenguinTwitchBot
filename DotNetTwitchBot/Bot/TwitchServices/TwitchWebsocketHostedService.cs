@@ -428,6 +428,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task ForceReconnect()
         {
+            if (cts.IsCancellationRequested) return;
             if (Reconnecting) return;
             try
             {
@@ -529,6 +530,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting Twitch Websocket");
             eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
             eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
             eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
@@ -551,6 +553,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage += ChannelSuspiciousUserMessage;
+            eventService.IsOnline = await twitchService.IsStreamOnline();
             await Reconnect();
         }
 
@@ -558,6 +561,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopping Twitch Websocket");
+            cts.Cancel();
+            await eventSubWebsocketClient.DisconnectAsync();
             eventSubWebsocketClient.WebsocketConnected -= OnWebsocketConnected;
             eventSubWebsocketClient.WebsocketDisconnected -= OnWebsocketDisconnected;
             eventSubWebsocketClient.WebsocketReconnected -= OnWebsocketReconnected;
@@ -579,8 +585,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             eventSubWebsocketClient.ChannelAdBreakBegin -= ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
-            await eventSubWebsocketClient.DisconnectAsync();
-            cts.Cancel();
+            
         }
     }
 }

@@ -161,11 +161,13 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {module}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopped {module}", ModuleName);
             return Task.CompletedTask;
         }
     }

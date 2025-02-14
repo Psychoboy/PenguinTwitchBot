@@ -1,13 +1,8 @@
 ﻿
 namespace DotNetTwitchBot.CustomMiddleware
 {
-    public class BackgroundServiceStarter<T> : IHostedService where T : IHostedService
+    public class BackgroundServiceStarter<T>(T backgroundService) : IHostedService where T : IHostedService
     {
-        readonly T backgroundService;
-        public BackgroundServiceStarter(T backgroundService)
-        {
-            this.backgroundService = backgroundService;
-        }
         public Task StartAsync(CancellationToken cancellationToken)
         {
             return backgroundService.StartAsync(cancellationToken);

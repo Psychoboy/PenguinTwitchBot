@@ -230,6 +230,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 

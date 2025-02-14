@@ -8,41 +8,19 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class LoyaltyFeature : BaseCommandService, ILoyaltyFeature, IHostedService
+    public class LoyaltyFeature(
+        ILogger<LoyaltyFeature> logger,
+        IViewerFeature viewerFeature,
+        IServiceScopeFactory scopeFactory,
+        IServiceBackbone serviceBackbone,
+        ITicketsFeature ticketsFeature,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature"), ILoyaltyFeature, IHostedService
     {
-        private readonly IViewerFeature _viewerFeature;
-        private readonly ITicketsFeature _ticketsFeature;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly Timer _intervalTimer;
-        private readonly ILogger<LoyaltyFeature> _logger;
+        private readonly Timer _intervalTimer = new Timer(60000);
         private static readonly Prometheus.Gauge NumberOfPastiesEarned = Prometheus.Metrics.CreateGauge("number_of_pasties_earned", "Number of Pasties earned since stream start", labelNames: new[] { "viewer" });
         private static readonly Prometheus.Gauge NumberOfPastiesLost = Prometheus.Metrics.CreateGauge("number_of_pasties_lost", "Number of Pasties lost since stream start", labelNames: new[] { "viewer" });
         private static readonly Prometheus.Gauge NumberOfPastiesDiff = Prometheus.Metrics.CreateGauge("number_of_pasties_diff", "Number of Pasties diff since stream start", labelNames: new[] { "viewer" });
-
-        public LoyaltyFeature(
-            ILogger<LoyaltyFeature> logger,
-            IViewerFeature viewerFeature,
-            IServiceScopeFactory scopeFactory,
-            IServiceBackbone serviceBackbone,
-            ITicketsFeature ticketsFeature,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "LoyaltyFeature")
-        {
-            _viewerFeature = viewerFeature;
-            _ticketsFeature = ticketsFeature;
-            _scopeFactory = scopeFactory;
-            _intervalTimer = new Timer(60000);
-            _intervalTimer.Elapsed += ElapseTimer;
-            _intervalTimer.Start();
-
-            //Loyalty Stuff
-            ServiceBackbone.SubscriptionEvent += OnSubscription;
-            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
-            ServiceBackbone.CheerEvent += OnCheer;
-            ServiceBackbone.StreamStarted += StreamStarted;
-
-            _logger = logger;
-        }
 
         private Task StreamStarted(object? sender, EventArgs _)
         {
@@ -87,13 +65,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     var ticketsToAward = (int)Math.Floor((double)e.Amount / bitsPerTicket);
                     if (ticketsToAward < 1) return;
-                    await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, ticketsToAward);
-                    _logger.LogInformation("Awarded {name} {tickets} tickets for {amount} of bits", e.Name, ticketsToAward, e.Amount);
+                    await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, ticketsToAward);
+                    logger.LogInformation("Awarded {name} {tickets} tickets for {amount} of bits", e.Name, ticketsToAward, e.Amount);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error OnCheer");
+                logger.LogError(ex, "Error OnCheer");
             }
         }
 
@@ -103,8 +81,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 var amountToGift = await GetTicketsPerSub() * e.GiftAmount;
-                await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToGift);
-                _logger.LogInformation("Gave {name} {amountToGift} tickets for gifting {GiftAmount} subs", e.Name, amountToGift, e.GiftAmount);
+                await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToGift);
+                logger.LogInformation("Gave {name} {amountToGift} tickets for gifting {GiftAmount} subs", e.Name, amountToGift, e.GiftAmount);
                 var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
                 if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
                 {
@@ -114,7 +92,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error when processing gift subscription for {user}", e.Name);
+                logger.LogError(ex, "Error when processing gift subscription for {user}", e.Name);
             }
         }
 
@@ -125,8 +103,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 var subTickets = await GetTicketsPerSub();
-                await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, subTickets);
-                _logger.LogInformation("Gave {name} {tickets} tickets for subscribing.", e.Name, subTickets);
+                await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, subTickets);
+                logger.LogInformation("Gave {name} {tickets} tickets for subscribing.", e.Name, subTickets);
                 var message = $"{e.DisplayName} just subscribed";
                 if (e.Count != null && e.Count > 0)
                 {
@@ -145,7 +123,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error when processing subscription for {user}", e.Name);
+                logger.LogError(ex, "Error when processing subscription for {user}", e.Name);
             }
         }
 
@@ -158,7 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to update timer");
+                logger.LogError(ex, "Failed to update timer");
             }
         }
 
@@ -168,7 +146,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (!ServiceBackbone.IsOnline) return;
             if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewer = await db.ViewerMessageCounts.Find(x => x.UserId.Equals(e.UserId)).FirstOrDefaultAsync();
             viewer ??= new ViewerMessageCount
@@ -185,12 +163,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (!ServiceBackbone.IsOnline) return;
 
-            var currentViewers = _viewerFeature.GetCurrentViewers();
+            var currentViewers = viewerFeature.GetCurrentViewers();
 
             foreach (var viewerName in currentViewers)
             {
                 if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await _viewerFeature.GetViewerId(viewerName);
+                var userId = await viewerFeature.GetViewerId(viewerName);
                 if(userId == null) continue;
                 try
                 {
@@ -198,7 +176,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Couldn't add points");
+                    logger.LogError(ex, "Couldn't add points");
                 }
 
                 try
@@ -207,14 +185,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Couldn't add time");
+                    logger.LogError(ex, "Couldn't add time");
                 }
             }
-            var activeViewers = _viewerFeature.GetActiveViewers();
+            var activeViewers = viewerFeature.GetActiveViewers();
             foreach (var viewerName in activeViewers)
             {
                 if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await _viewerFeature.GetViewerId(viewerName);
+                var userId = await viewerFeature.GetViewerId(viewerName);
                 if (userId == null) continue;
                 await AddTimeToViewerByUserId(userId, 10);
             }
@@ -228,7 +206,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("give", this, moduleName);
             await RegisterDefaultCommand("check", this, moduleName);
             await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -252,7 +230,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     if (long.TryParse(e.Args[1], out var points))
                     {
                         if (points <= 0) return;
-                        var userId = await _viewerFeature.GetViewerId(e.TargetUser);
+                        var userId = await viewerFeature.GetViewerId(e.TargetUser);
                         if (userId == null) return;
                         await AddPointsToViewerByUserId(userId, points);
                         var totalPasties = await GetUserPastiesByUserId(userId);
@@ -290,7 +268,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 throw new SkipCooldownException();
             }
 
-            var target = await _viewerFeature.GetViewerByUserName(e.TargetUser);
+            var target = await viewerFeature.GetViewerByUserName(e.TargetUser);
             if (target == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
@@ -304,7 +282,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
 
             await AddPointsToViewerByUserId(target.UserId, amount);
-            await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await _viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
+            await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
         }
 
         public async Task<long> GetMaxPointsFromUserByUserId(string userId)
@@ -329,7 +307,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<bool> RemovePointsFromUserByUserName(string username, long points)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
             if (viewerPoint == null) return false;
@@ -338,7 +316,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewerPoint.Points < 0)
             {
                 viewerPoint.Points = 0;
-                _logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
+                logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
             }
             db.ViewerPoints.Update(viewerPoint);
             await db.SaveChangesAsync();
@@ -353,7 +331,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<bool> RemovePointsFromUserByUserId(string userid, long points)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
             if (viewerPoint == null) return false;
@@ -362,7 +340,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewerPoint.Points < 0)
             {
                 viewerPoint.Points = 0;
-                _logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
+                logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
             }
             db.ViewerPoints.Update(viewerPoint);
             await db.SaveChangesAsync();
@@ -376,10 +354,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task AddPointsToViewerByUsername(string username, long points)
         {
-            var target = await _viewerFeature.GetViewerByUserName(username);
+            var target = await viewerFeature.GetViewerByUserName(username);
             if (target == null || string.IsNullOrWhiteSpace(target.UserId))
             {
-                _logger.LogWarning("Failed to get user: {target}", target);
+                logger.LogWarning("Failed to get user: {target}", target);
                 return;
             }
             await AddPointsToViewerByUserId(target.UserId, points);
@@ -389,13 +367,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             try
             {
-                var viewer = await _viewerFeature.GetViewerByUserId(userId);
+                var viewer = await viewerFeature.GetViewerByUserId(userId);
                 if(viewer == null)
                 {
-                    _logger.LogInformation("No viewer record for {target}", userId);
+                    logger.LogInformation("No viewer record for {target}", userId);
                     return;
                 }
-                await using var scope = _scopeFactory.CreateAsyncScope();
+                await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
                 viewerPoint ??= new ViewerPoint
@@ -415,7 +393,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding points to viewer");
+                logger.LogError(ex, "Error adding points to viewer");
             }
 
         }
@@ -428,12 +406,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task AddTimeToViewerByUserId(string userId, int timeToAdd)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             try
             {
                 
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var viewer = await _viewerFeature.GetViewerByUserId(userId);
+                var viewer = await viewerFeature.GetViewerByUserId(userId);
                 if (viewer == null) return;
                 var viewerTime = await db.ViewersTime.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
                 viewerTime ??= new ViewerTime
@@ -447,7 +425,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding timer to viewer");
+                logger.LogError(ex, "Error adding timer to viewer");
             }
 
         }
@@ -457,13 +435,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var pasties = await GetUserPastiesAndRank(e.Name);
             var time = await GetUserTimeAndRank(e.Name);
             var messages = await GetUserMessagesAndRank(e.Name);
-            await ServiceBackbone.SendChatMessage($"{await _viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
+            await ServiceBackbone.SendChatMessage($"{await viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
         }
 
         public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
         {
             ViewerMessageCountWithRank? viewerMessage;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 viewerMessage = await db.ViewerMessageCountsWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
@@ -474,7 +452,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<List<ViewerMessageCountWithRank>> GetTopNLoudest(int topN)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.ViewerMessageCountsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
@@ -482,7 +460,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<ViewerPoint> GetUserPastiesByUsername(string username)
         {
             ViewerPoint? viewerPoint;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
@@ -494,7 +472,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<ViewerPoint> GetUserPastiesByUserId(string userId)
         {
             ViewerPoint? viewerPoint;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
@@ -506,7 +484,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
         {
             ViewerPointWithRank? viewerPoints;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 viewerPoints = await db.ViewerPointWithRanks.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
@@ -518,7 +496,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
         {
             ViewerTimeWithRank? viewerTime;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
@@ -528,7 +506,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task SetBitsPerTicket(int numberOfBitsPerTicket)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bitsPerTicket = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.bitsperticket"))).FirstOrDefault();
             bitsPerTicket ??= new()
@@ -542,7 +520,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<int> GetBitsPerTicket()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bitsPerTicket = db.Settings.Find(x => x.Name.Equals("loyalty.bitsperticket")).FirstOrDefault();
             if (bitsPerTicket == null) { return 10; }
@@ -551,7 +529,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task SetTicketsPerSub(int numberOfTicketsPerSub)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
             ticketsPersub ??= new()
@@ -565,7 +543,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<int> GetTicketsPerSub()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
             if (ticketsPersub == null) { return 50; }
@@ -574,12 +552,28 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
+            _intervalTimer.Elapsed += ElapseTimer;
+            _intervalTimer.Start();
+
+            //Loyalty Stuff
+            ServiceBackbone.SubscriptionEvent += OnSubscription;
+            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
+            ServiceBackbone.CheerEvent += OnCheer;
+            ServiceBackbone.StreamStarted += StreamStarted;
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
+            _intervalTimer.Stop();
+            _intervalTimer.Elapsed -= ElapseTimer;
+            ServiceBackbone.SubscriptionEvent -= OnSubscription;
+            ServiceBackbone.SubscriptionGiftEvent -= OnSubScriptionGift;
+            ServiceBackbone.CheerEvent -= OnCheer;
+            ServiceBackbone.StreamStarted -= StreamStarted;
+
             return Task.CompletedTask;
         }
     }

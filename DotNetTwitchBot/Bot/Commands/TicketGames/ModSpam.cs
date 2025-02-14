@@ -75,6 +75,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
 
