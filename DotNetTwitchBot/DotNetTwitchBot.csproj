@@ -39,7 +39,7 @@
 
   <ItemGroup>
     <PackageReference Include="BlazorTime" Version="1.0.3" />
-    <PackageReference Include="Discord.Net" Version="3.17.0" />
+    <PackageReference Include="Discord.Net" Version="3.17.1" />
     <PackageReference Include="EFCore.BulkExtensions" Version="9.0.0-rc.1" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.69.0.3674" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.9.0" />
