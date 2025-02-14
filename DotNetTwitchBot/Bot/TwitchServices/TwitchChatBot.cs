@@ -106,6 +106,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting Twitch Chat Bot");
             HealthStatusTimer.Interval = 30000;
             HealthStatusTimer.Elapsed += HealthStatusTimer_Elapsed;
 
@@ -124,6 +125,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopping Twitch Chat Bot");
             HealthStatusTimer.Stop();
             HealthStatusTimer.Elapsed -= HealthStatusTimer_Elapsed;
             return Task.CompletedTask;

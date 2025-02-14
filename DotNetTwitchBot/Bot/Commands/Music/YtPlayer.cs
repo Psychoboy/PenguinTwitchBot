@@ -897,6 +897,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
 

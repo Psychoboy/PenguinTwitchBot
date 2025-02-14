@@ -106,6 +106,14 @@
         hubConnection.On<bool>("StreamChanged", (status) =>
         {
             StreamOnline = status;
+            if (status)
+            {
+                Snackbar.Add("Stream is now online.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Stream is now offline.", Severity.Error);
+            }
             InvokeAsync(StateHasChanged);
         });
         try

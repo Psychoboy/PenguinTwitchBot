@@ -7,26 +7,19 @@ using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
-    public class Blacklist : BaseCommandService, IHostedService
+    public class Blacklist(
+        IServiceScopeFactory scopeFactory,
+        ITwitchService twitchService,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        ILogger<Blacklist> logger
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Blacklist"), IHostedService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ITwitchService _twitchService;
         private readonly ConcurrentBag<WordFilter> _blackList = new();
-
-        public Blacklist(
-            IServiceScopeFactory scopeFactory,
-            ITwitchService twitchService,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "Blacklist")
-        {
-            _scopeFactory = scopeFactory;
-            _twitchService = twitchService;
-        }
 
         public async Task AddBlacklist(WordFilter wordFilter)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 await db.WordFilters.AddAsync(wordFilter);
@@ -37,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task UpdateBlacklist(WordFilter wordFilter)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.WordFilters.Update(wordFilter);
@@ -48,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task DeleteBlacklist(WordFilter wordFilter)
         {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.WordFilters.Remove(wordFilter);
@@ -59,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task<WordFilter?> GetWordFilter(int id)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.WordFilters.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
@@ -87,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
                 if (match)
                 {
-                    await _twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
+                    await twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
                     await ServiceBackbone.SendChatMessage(wordFilter.Message);
                     break;
                 }
@@ -96,7 +89,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public async Task LoadBlacklist()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             _blackList.Clear();
             _blackList.AddRange(await db.WordFilters.GetAsync(orderBy: x => x.OrderBy(y => y.Id)));
@@ -114,11 +107,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

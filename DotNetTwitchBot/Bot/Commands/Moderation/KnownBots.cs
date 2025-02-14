@@ -5,7 +5,8 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 {
     public class KnownBots(
          IConfiguration configuration,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        ILogger<KnownBots> logger
             ) : IKnownBots, IHostedService
     {
         private readonly ConcurrentBag<KnownBot> _knownBots = [];
@@ -79,11 +80,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", "KnownBots");
             return LoadKnownBots();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopped {moduledname}", "KnownBots");
             return Task.CompletedTask;
         }
     }

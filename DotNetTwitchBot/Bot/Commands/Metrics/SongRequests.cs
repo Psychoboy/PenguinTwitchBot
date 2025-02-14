@@ -7,7 +7,8 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
     public class SongRequests(
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        ICommandHandler commandHandler
+        ICommandHandler commandHandler,
+        ILogger<SongRequests> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "SongRequestsMeetrics"), IHostedService
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
@@ -69,11 +70,13 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {module}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopped {module}", ModuleName);
             return Task.CompletedTask;
         }
     }

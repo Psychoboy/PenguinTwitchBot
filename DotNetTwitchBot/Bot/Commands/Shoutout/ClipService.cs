@@ -128,11 +128,13 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

@@ -63,12 +63,14 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Starting Chat History");
             _serviceBackbone.CommandEvent += OnCommandMessage;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Stopping Chat History");
             _serviceBackbone.CommandEvent -= OnCommandMessage;
             return Task.CompletedTask;
         }

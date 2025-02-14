@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {module}", ModuleName);
             ServiceBackbone.ChannelPointRedeemEvent += OnChannelPointRedeem;
             return Register();
         }
@@ -103,6 +104,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopping {module}", ModuleName);
             return Task.CompletedTask;
         }
     }

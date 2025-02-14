@@ -241,11 +241,13 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {module}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Stopping {module}", ModuleName);
             return Task.CompletedTask;
         }
     }

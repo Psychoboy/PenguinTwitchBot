@@ -403,8 +403,15 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task Initialize(string? discordToken)
         {
-            await _client.LoginAsync(TokenType.Bot, discordToken);
-            await _client.StartAsync();
+            try
+            {
+                await _client.LoginAsync(TokenType.Bot, discordToken);
+                await _client.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error starting discord bot");
+            }
         }
 
         public async Task LogAsync(LogMessage message)
@@ -593,7 +600,7 @@ namespace DotNetTwitchBot.Bot.Core
         }
 
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
@@ -608,7 +615,7 @@ namespace DotNetTwitchBot.Bot.Core
             _client.UserUpdated -= UserUpdated;
             _client.MessageUpdated -= MessageUpdated;
             _client.MessageDeleted -= MessageDeleted;
-            return _client.StopAsync();
+            await _client.StopAsync();
             // return Task.CompletedTask;
         }
     }

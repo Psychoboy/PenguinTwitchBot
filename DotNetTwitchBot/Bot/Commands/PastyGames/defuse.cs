@@ -75,6 +75,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
 

@@ -9,14 +9,17 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
 {
-    public class GiveawayFeature : BaseCommandService, IHostedService
+    public class GiveawayFeature(
+        ILogger<GiveawayFeature> logger,
+        IServiceBackbone serviceBackbone,
+        ITicketsFeature ticketsFeature,
+        IViewerFeature viewerFeature,
+        IHubContext<MainHub> hubContext,
+        IServiceScopeFactory scopeFactory,
+        ICommandHandler commandHandler,
+        ILanguage language
+            ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature"), IHostedService
     {
-        private readonly ILogger<GiveawayFeature> _logger;
-        private readonly ITicketsFeature _ticketsFeature;
-        private readonly IViewerFeature _viewerFeature;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IHubContext<MainHub> _hubContext;
-        private readonly ILanguage lang;
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
         private readonly string PrizeSettingName = "GiveawayPrize";
@@ -25,29 +28,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
-        private readonly IServiceBackbone _serviceBackBone;
-
-        public GiveawayFeature(
-            ILogger<GiveawayFeature> logger,
-            IServiceBackbone serviceBackbone,
-            ITicketsFeature ticketsFeature,
-            IViewerFeature viewerFeature,
-            IHubContext<MainHub> hubContext,
-            IServiceScopeFactory scopeFactory,
-            ICommandHandler commandHandler,
-            ILanguage language
-            ) : base(serviceBackbone, commandHandler, "GiveawayFeature")
-        {
-            _logger = logger;
-            _ticketsFeature = ticketsFeature;
-            _viewerFeature = viewerFeature;
-            _scopeFactory = scopeFactory;
-            _hubContext = hubContext;
-            lang = language;
-            _serviceBackBone = serviceBackbone;
-            _timer.Elapsed += SendCurrentEntriesToAll;
-            _serviceBackBone.StreamStarted += StreamStarted;
-        }
 
         private Task StreamStarted(object? sender, EventArgs _)
         {
@@ -70,7 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
             _timer.Start();
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -82,7 +62,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (e.Args.Count == 0)
                         {
-                            await ServiceBackbone.SendChatMessage(e.Name, lang.Get("giveawayfeature.help.enter"));
+                            await ServiceBackbone.SendChatMessage(e.Name, language.Get("giveawayfeature.help.enter"));
                             throw new SkipCooldownException();
                         }
                         await Enter(e.Name, e.Args.First());
@@ -137,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<IEnumerable<GiveawayExclusion>> GetAllExclusions()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.GiveawayExclusions.GetAllAsync();
         }
@@ -145,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task AddExclusion(GiveawayExclusion exclusion)
         {
             if (exclusion == null) return;
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.GiveawayExclusions.AddAsync(exclusion);
             await db.SaveChangesAsync();
@@ -153,7 +133,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task DeleteExclusion(GiveawayExclusion exclusion)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.GiveawayExclusions.Remove(exclusion);
             await db.SaveChangesAsync();
@@ -161,26 +141,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void SendCurrentEntriesToAll(object? sender, System.Timers.ElapsedEventArgs e)
         {
-            await _hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
+            await hubContext.Clients.All.SendAsync("UpdateTickets", await GetEntriesCount(), await GetEntrantsCount());
         }
 
         private async Task<IEnumerable<GiveawayEntry>> GetEntries()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.GiveawayEntries.GetAllAsync();
         }
 
         private async Task<IEnumerable<GiveawayExclusion>> GetExclusions()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.GiveawayExclusions.Find(x => x.ExpireDateTime == null || x.ExpireDateTime > DateTime.Now).ToListAsync();
         }
 
         public async Task<string> GetImageUrl()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(ImageSettingName)).FirstOrDefaultAsync();
             return prize != null ? prize.StringSetting : "";
@@ -188,14 +168,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task<Setting?> GetCurrentPrize()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(PrizeSettingName)).FirstOrDefaultAsync();
             return prize;
         }
         private async Task<Setting?> GetCurrentPrizeImage()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(ImageSettingName)).FirstOrDefaultAsync();
             return prize;
@@ -203,7 +183,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task<Setting?> GetCurrentPrizeTier()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(PrizeTierName)).FirstOrDefaultAsync();
             return prize;
@@ -211,7 +191,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<string> GetPrizeTier()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(PrizeTierName)).FirstOrDefaultAsync();
             return prize != null ? prize.StringSetting : "";
@@ -237,7 +217,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             };
             prize.StringSetting = arg;
             await AddOrUpdatePrize(prize);
-            await _hubContext.Clients.All.SendAsync("Prize", arg);
+            await hubContext.Clients.All.SendAsync("Prize", arg);
         }
 
         public async Task SetImageUrl(string? arg)
@@ -249,12 +229,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             };
             prize.StringSetting = arg ?? "";
             await AddOrUpdatePrize(prize);
-            await _hubContext.Clients.All.SendAsync("PrizeImage", arg);
+            await hubContext.Clients.All.SendAsync("PrizeImage", arg);
         }
 
         private async Task AddOrUpdatePrize(Setting prize)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             if (prize.Id == null)
             {
@@ -285,7 +265,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task Reset()
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await db.GiveawayEntries.ExecuteDeleteAllAsync();
             await db.SaveChangesAsync();
@@ -300,11 +280,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             try
             {
-                var winningTicket = Tickets.RandomElementOrDefault(_logger);
-                var viewer = await _viewerFeature.GetViewerByUserName(winningTicket);
-                var isFollower = await _viewerFeature.IsFollowerByUsername(winningTicket);
+                var winningTicket = Tickets.RandomElementOrDefault(logger);
+                var viewer = await viewerFeature.GetViewerByUserName(winningTicket);
+                var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);
                 var prize = await GetPrize();
-                var message = lang.Get("giveawayfeature.draw.winner")
+                var message = language.Get("giveawayfeature.draw.winner")
                     .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.CurrentCultureIgnoreCase)
                     .Replace("(prize)", prize, StringComparison.CurrentCultureIgnoreCase)
                     .Replace("(isFollowingCheck)", isFollower ? "is" : "is not", StringComparison.CurrentCultureIgnoreCase)
@@ -314,7 +294,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error drawing a ticket.");
+                logger.LogError(ex, "Error drawing a ticket.");
             }
         }
 
@@ -322,14 +302,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
+                await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var winners = await db.GiveawayWinners.GetAllAsync();
                 return winners.OrderByDescending(x => x.WinningDate).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting past winners");
+                logger.LogError(ex, "Error getting past winners");
                 return new List<GiveawayWinner> { };
             }
         }
@@ -340,7 +320,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
             var prize = await GetPrize();
             var prizeTier = await GetPrizeTier();
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var winner = new GiveawayWinner()
@@ -354,12 +334,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await db.GiveawayWinners.AddAsync(winner);
                 await db.SaveChangesAsync();
             }
-            await _hubContext.Clients.All.SendAsync("Winners", Winners);
+            await hubContext.Clients.All.SendAsync("Winners", Winners);
         }
 
         public async Task UpdateWinner(GiveawayWinner winner)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.GiveawayWinners.Update(winner);
             await db.SaveChangesAsync();
@@ -377,25 +357,25 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 if (await _semaphoreSlim.WaitAsync(500) == false)
                 {
-                    _logger.LogWarning("Lock expired while waiting...");
+                    logger.LogWarning("Lock expired while waiting...");
                 }
                 amount = amount.ToLower();
-                var viewerPoints = await _ticketsFeature.GetViewerTickets(sender);
+                var viewerPoints = await ticketsFeature.GetViewerTickets(sender);
                 if (amount == "max" || amount == "all")
                 {
-                    amount = (await _ticketsFeature.GetViewerTickets(sender)).ToString();
+                    amount = (await ticketsFeature.GetViewerTickets(sender)).ToString();
                 }
-                var displayName = await _viewerFeature.GetDisplayNameByUsername(sender);
+                var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
                 {
-                    var message = lang.Get("giveawayfeature.enter.notvalid");
+                    var message = language.Get("giveawayfeature.enter.notvalid");
                     if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                     throw new SkipCooldownException(message);
                 }
                 if (points == 0 || points > viewerPoints)
                 {
-                    var message = lang.Get("giveawayfeature.enter.notenough");
+                    var message = language.Get("giveawayfeature.enter.notenough");
                     if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                     throw new SkipCooldownException(message);
@@ -403,7 +383,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
                 if (points < 0)
                 {
-                    var message = lang.Get("giveawayfeature.enter.minus");
+                    var message = language.Get("giveawayfeature.enter.minus");
                     await ServiceBackbone.SendChatMessage(displayName, message);
                     throw new SkipCooldownException(message);
                 }
@@ -412,7 +392,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if (points + enteredTickets > 1000000)
                 {
                     points = 1000000 - points;
-                    var message = lang.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
+                    var message = language.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
                     if (!fromUi)
                     {
                         await ServiceBackbone.SendChatMessage(displayName, message);
@@ -424,9 +404,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                 }
 
-                if (!(await _ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
+                if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
                 {
-                    var message = lang.Get("giveawayfeature.enter.failure");
+                    var message = language.Get("giveawayfeature.enter.failure");
                     if (!fromUi)
                     {
                         await ServiceBackbone.SendChatMessage(displayName, message);
@@ -435,7 +415,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     throw new SkipCooldownException(message);
                 }
 
-                using (var scope = _scopeFactory.CreateAsyncScope())
+                using (var scope = scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
@@ -449,7 +429,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 NumberOfTicketsEntered.WithLabels(sender).Inc(points);
                 {
-                    var message = lang.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
+                    var message = language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
                     if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
                     return message;
                 }
@@ -461,7 +441,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
         public async Task<long> GetEntriesCount(string sender)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
             giveawayEntries ??= new GiveawayEntry
@@ -473,12 +453,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
+            _timer.Elapsed += SendCurrentEntriesToAll;
+            ServiceBackbone.StreamStarted += StreamStarted;
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
+            _timer.Elapsed -= SendCurrentEntriesToAll;
+            ServiceBackbone.StreamStarted -= StreamStarted;
             return Task.CompletedTask;
         }
     }

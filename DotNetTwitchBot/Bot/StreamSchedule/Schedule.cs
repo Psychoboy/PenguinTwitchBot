@@ -27,80 +27,87 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
 
         public async Task UpdateEvents()
         {
-            var result = await twitchService.GetStreamSchedule();
-            if (result == null) return;
-            var anyUpdates = false;
-            var foundEvents = new List<ulong>();
-            var vacation = result.Vacation;
-            foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7) || x.IsRecurring == false))
+            try
             {
-                if (stream.CanceledUntil != null) continue;
-                if (vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var twitchDiscordEvent = await db.DiscordTwitchEventMap.Find(x => x.TwitchEventId.Equals(stream.Id)).FirstOrDefaultAsync();
-
-                if (twitchDiscordEvent != null)
+                var result = await twitchService.GetStreamSchedule();
+                if (result == null) return;
+                var anyUpdates = false;
+                var foundEvents = new List<ulong>();
+                var vacation = result.Vacation;
+                foreach (var stream in result.Segments.Where(x => x.StartTime < DateTime.UtcNow.AddDays(7) || x.IsRecurring == false))
                 {
-                    var discordEvent = await discordService.GetEvent(twitchDiscordEvent.DiscordEventId);
-                    if (discordEvent == null)
-                    {
-                        db.DiscordTwitchEventMap.Remove(twitchDiscordEvent);
+                    if (stream.CanceledUntil != null) continue;
+                    if (vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var twitchDiscordEvent = await db.DiscordTwitchEventMap.Find(x => x.TwitchEventId.Equals(stream.Id)).FirstOrDefaultAsync();
 
-                        await db.SaveChangesAsync();
-                        logger.LogInformation("Discord event didn't exist so removing mapping to get on next cycle.");
+                    if (twitchDiscordEvent != null)
+                    {
+                        var discordEvent = await discordService.GetEvent(twitchDiscordEvent.DiscordEventId);
+                        if (discordEvent == null)
+                        {
+                            db.DiscordTwitchEventMap.Remove(twitchDiscordEvent);
+
+                            await db.SaveChangesAsync();
+                            logger.LogInformation("Discord event didn't exist so removing mapping to get on next cycle.");
+                        }
+                        else
+                        {
+                            foundEvents.Add(discordEvent.Id);
+                            if (discordEvent.Name.Equals(stream.Title) == false ||
+                                discordEvent.StartTime.ToUniversalTime().Equals(stream.StartTime) == false)
+                            {
+                                logger.LogInformation("Updating discord event {title}", stream.Title);
+                                await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime);
+                                anyUpdates = true;
+                            }
+                        }
                     }
                     else
                     {
-                        foundEvents.Add(discordEvent.Id);
-                        if (discordEvent.Name.Equals(stream.Title) == false ||
-                            discordEvent.StartTime.ToUniversalTime().Equals(stream.StartTime) == false)
+                        ulong discordEventId = await CreateEvent(stream);
+                        if (discordEventId == 0) continue;
+                        logger.LogInformation("Added discord event {title}", stream.Title);
+                        await db.DiscordTwitchEventMap.AddAsync(new DiscordEventMap
                         {
-                            logger.LogInformation("Updating discord event {title}", stream.Title);
-                            await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime);
+                            DiscordEventId = discordEventId,
+                            TwitchEventId = stream.Id
+                        });
+                        foundEvents.Add(discordEventId);
+                        await db.SaveChangesAsync();
+                        anyUpdates = true;
+                    }
+                }
+
+                var discordEvents = await discordService.GetEvents();
+                var shouldBeDeletedEvents = discordEvents.Where(x => foundEvents.Contains(x.Id) == false).ToList();
+                var connectedId = discordService.GetConnectedAsId();
+                if (connectedId != 0)
+                {
+                    shouldBeDeletedEvents = shouldBeDeletedEvents.Where(x => x.Creator.Id == connectedId).ToList();
+                    foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
+                    {
+                        if (shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
+                        await using var scope = scopeFactory.CreateAsyncScope();
+                        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var scheduledEvent = db.DiscordTwitchEventMap.Find(x => x.DiscordEventId == shouldDeleteEvent.Id);
+                        if (scheduledEvent != null)
+                        {
+                            await discordService.DeleteEvent(shouldDeleteEvent);
                             anyUpdates = true;
                         }
                     }
                 }
-                else
+
+                if (anyUpdates)
                 {
-                    ulong discordEventId = await CreateEvent(stream);
-                    if (discordEventId == 0) continue;
-                    logger.LogInformation("Added discord event {title}", stream.Title);
-                    await db.DiscordTwitchEventMap.AddAsync(new DiscordEventMap
-                    {
-                        DiscordEventId = discordEventId,
-                        TwitchEventId = stream.Id
-                    });
-                    foundEvents.Add(discordEventId);
-                    await db.SaveChangesAsync();
-                    anyUpdates = true;
+                    await UpdatePostedSchedule();
                 }
             }
-
-            var discordEvents = await discordService.GetEvents();
-            var shouldBeDeletedEvents = discordEvents.Where(x => foundEvents.Contains(x.Id) == false).ToList();
-            var connectedId = discordService.GetConnectedAsId();
-            if (connectedId != 0)
+            catch (Exception e)
             {
-                shouldBeDeletedEvents = shouldBeDeletedEvents.Where(x => x.Creator.Id == connectedId).ToList();
-                foreach (var shouldDeleteEvent in shouldBeDeletedEvents)
-                {
-                    if (shouldDeleteEvent.StartTime.ToUniversalTime() < DateTime.UtcNow) continue;
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var scheduledEvent = db.DiscordTwitchEventMap.Find(x => x.DiscordEventId == shouldDeleteEvent.Id);
-                    if (scheduledEvent != null)
-                    {
-                        await discordService.DeleteEvent(shouldDeleteEvent);
-                        anyUpdates = true;
-                    }
-                }
-            }
-
-            if (anyUpdates)
-            {
-               await UpdatePostedSchedule();
+                logger.LogError(e, "Error updating events.");
             }
         }
 
