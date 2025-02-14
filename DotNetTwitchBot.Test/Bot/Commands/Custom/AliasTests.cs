@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
@@ -28,7 +29,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
             aliasQueryable = new List<AliasModel> { testAlias };
             emptyAliasQueryable = new List<AliasModel>();
 
-            alias = new Alias(mediator, serviceBackbone, commandHandler);
+            alias = new Alias(mediator, serviceBackbone, Substitute.For<ILogger<Alias>>(), commandHandler);
 
         }
 
