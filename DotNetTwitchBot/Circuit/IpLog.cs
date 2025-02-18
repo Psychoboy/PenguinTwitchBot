@@ -15,6 +15,7 @@ namespace DotNetTwitchBot.Circuit
             if (existingEntry != null)
             {
                 existingEntry.ConnectedDate = DateTime.Now;
+                existingEntry.Count++;
                 db.IpLogs.Update(existingEntry);
             }
             else

@@ -510,8 +510,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<bool> IsStreamOnline()
         {
-            var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
-            return await IsStreamOnline(userId);
+            try
+            {
+                var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
+                return await IsStreamOnline(userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error doing IsStreamOnline()");
+            }
+            return false;
         }
 
         public async Task<bool> IsStreamOnline(string userId)
