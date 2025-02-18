@@ -7,25 +7,13 @@ namespace DotNetTwitchBot.Repository.Repositories
 {
     public class IpLogRepository(ApplicationDbContext context) : GenericRepository<IpLogEntry>(context), IIpLogRepository
     {
-        public async Task<List<IpLogsForUser>> GetDuplicateIpsForUser(string username, int? limit = null, int? offset = null)
+        public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, int? limit = null, int? offset = null)
         {
             var baseQuery = _context.IpLogEntrys
                 .Where(x => x.Username.Equals(username)).Select(y => y.Ip).Distinct();
 
             var query = _context.IpLogEntrys
-                .Where(x => baseQuery.Contains(x.Ip) && x.Username.Equals(username) == false)
-                .GroupBy(g => new
-                {
-                    g.Username,
-                    g.Ip
-                })
-                .Select(x => new IpLogsForUser
-                {
-                    Username = x.Key.Username,
-                    Ip = x.Key.Ip,
-                    Count = x.Count(),
-                    LastUsed = x.Max(x => x.ConnectedDate).ToUniversalTime(),
-                });
+                .Where(x => baseQuery.Contains(x.Ip) && x.Username.Equals(username) == false);
 
             if (offset != null)
             {
@@ -79,18 +67,10 @@ namespace DotNetTwitchBot.Repository.Repositories
             return query;
         }
 
-        public async Task<List<IpLogsForUser>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null)
+        public async Task<List<IpLogEntry>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null)
         {
             var query = _context.IpLogEntrys
-                .Where(x => x.Username == username)
-                .GroupBy(x => new { x.Username, x.Ip })
-                .Select(g => new IpLogsForUser
-                {
-                    Username = g.Key.Username,
-                    Ip = g.Key.Ip,
-                    Count = g.Count(),
-                    LastUsed = g.Max(z => z.ConnectedDate).ToUniversalTime()
-                });
+                .Where(x => x.Username == username);
 
             if (offset != null)
             {
