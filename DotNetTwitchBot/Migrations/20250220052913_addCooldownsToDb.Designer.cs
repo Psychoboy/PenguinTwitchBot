@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250220052913_addCooldownsToDb")]
+    partial class addCooldownsToDb
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -187,13 +190,10 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("IsGlobal")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime>("NextGlobalCooldownTime")
+                    b.Property<DateTime?>("NextGlobalCooldownTime")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("NextUserCooldownTime")
+                    b.Property<DateTime?>("NextUserCooldownTime")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("UserName")

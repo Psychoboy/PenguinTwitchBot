@@ -84,8 +84,8 @@
 </MudContainer>
 
 @code {
-    private List<DotNetTwitchBot.Bot.Models.ExternalCommands>? commands;
-    private DotNetTwitchBot.Bot.Models.ExternalCommands externalCommand { get; set; } = new();
+    private List<Bot.Models.Commands.ExternalCommands>? commands;
+    private Bot.Models.Commands.ExternalCommands externalCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -107,7 +107,7 @@
         StateHasChanged();
     }
 
-    private async Task Delete(DotNetTwitchBot.Bot.Models.ExternalCommands item)
+    private async Task Delete(Bot.Models.Commands.ExternalCommands item)
     {
         bool? result = await DialogService.ShowMessageBox(
         "Warning",
@@ -120,7 +120,7 @@
         }
     }
 
-    private void Edit(DotNetTwitchBot.Bot.Models.ExternalCommands item)
+    private void Edit(Bot.Models.Commands.ExternalCommands item)
     {
         externalCommand = item;
     }

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models.Commands
 {
     public class BaseCommandProperties
     {

@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
         ILanguage language,
         ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks"), IHostedService
     {
-        readonly ConcurrentDictionary<string, Models.AudioCommand> Commands = [];
+        readonly ConcurrentDictionary<string, Models.Commands.AudioCommand> Commands = [];
 
         private async Task LoadAudioCommands()
         {
@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             logger.LogInformation("Finished loading Audio Hooks: {count}", count);
         }
 
-        public async Task AddAudioCommand(Models.AudioCommand audioCommand)
+        public async Task AddAudioCommand(Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             await LoadAudioCommands();
         }
 
-        public async Task SaveAudioCommand(Models.AudioCommand audioCommand)
+        public async Task SaveAudioCommand(Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -65,7 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             await LoadAudioCommands();
         }
 
-        public async Task DeleteAudioCommand(Models.AudioCommand audioCommand)
+        public async Task DeleteAudioCommand(Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -83,12 +83,12 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             return await db.AudioCommands.Find(x => x.CommandName == command).AnyAsync();
         }
 
-        public Dictionary<string, Models.AudioCommand> GetAudioCommands()
+        public Dictionary<string, Models.Commands.AudioCommand> GetAudioCommands()
         {
             return Commands.ToDictionary();
         }
 
-        public async Task<Models.AudioCommand?> GetAudioCommand(int id)
+        public async Task<Models.Commands.AudioCommand?> GetAudioCommand(int id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
                 return;
             }
 
-            RunCommand(Commands[e.Command], e);
+            await RunCommand(Commands[e.Command], e);
         }
 
         public override async Task Register()
@@ -164,26 +164,26 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 
         }
 
-        private void RunCommand(Models.AudioCommand audioCommand, CommandEventArgs e)
+        private async Task RunCommand(Models.Commands.AudioCommand audioCommand, CommandEventArgs e)
         {
             var alertSound = new AlertSound
             {
                 AudioHook = audioCommand.AudioFile
             };
-            mediator.Publish(new QueueAlert(alertSound.Generate()));
+            await mediator.Publish(new QueueAlert(alertSound.Generate()));
             if (Commands[e.Command].GlobalCooldown > 0)
             {
-                CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                await CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
             }
             if (Commands[e.Command].UserCooldown > 0)
             {
-                CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                await CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
             }
         }
 
         private async Task ToggleAudioCommandDisable(CommandEventArgs e, bool disabled)
         {
-            if (!Commands.TryGetValue(e.Arg, out Models.AudioCommand? value)) return;
+            if (!Commands.TryGetValue(e.Arg, out Models.Commands.AudioCommand? value)) return;
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -210,7 +210,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
         {
             try
             {
-                var newAudioCommand = JsonSerializer.Deserialize<Models.AudioCommand>(e.Arg);
+                var newAudioCommand = JsonSerializer.Deserialize<Models.Commands.AudioCommand>(e.Arg);
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);

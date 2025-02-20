@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 await _loyaltyFeature.AddPointsToViewerByUsername(Entered[0], Cost);
                 await ServiceBackbone.SendChatMessage("Not enough viewers joined the FFA, returning the fees.");
-                CleanUp();
+                await CleanUp();
                 return;
             }
 
@@ -63,15 +63,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var winnings = Entered.Count * Cost;
             await ServiceBackbone.SendChatMessage(string.Format("The dust finally settled and the last one standing is {0}", await _viewFeature.GetNameWithTitle(winner)));
             await _loyaltyFeature.AddPointsToViewerByUsername(winner, winnings);
-            CleanUp();
+            await CleanUp();
         }
 
-        private void CleanUp()
+        private async Task CleanUp()
         {
             Entered.Clear();
             GameState = State.NotRunning;
             _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
+            await CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
         }
 
         public override async Task Register()

@@ -49,6 +49,7 @@
         IIpLogRepository IpLogs { get; }
         IWheelRepository Wheels { get; }
         IWheelPropertiesRepository WheelProperties { get; }
+        ICooldownsRepository Cooldowns { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

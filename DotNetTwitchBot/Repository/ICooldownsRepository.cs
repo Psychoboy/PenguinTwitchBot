@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Repository
 {
-    public interface ICustomCommandsRepository : IGenericRepository<CustomCommands>
+    public interface ICooldownsRepository : IGenericRepository<CurrentCooldowns>
     {
     }
 }
