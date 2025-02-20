@@ -81,6 +81,14 @@
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }
                         </MudSelect>
+                        <MudTextField Label="Specific User Only" @bind-Value="audioCommand.SpecificUserOnly" />
+                        <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDivider />
 
                         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                             Class="ml-auto">
@@ -98,6 +106,7 @@
     private List<string>? audioFiles;
     private AudioCommand? audioCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
+    IEnumerable<Rank> ranks = new HashSet<Rank>();
     protected override Task OnInitializedAsync()
     {
         audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
@@ -125,6 +134,8 @@
                 return;
             }
         }
+        audioCommand.SpecificRanks = ranks.ToList();
+        ranks = new HashSet<Rank>();
         await AudioCommand.SaveAudioCommand(audioCommand);
         audioCommand = new();
         ReloadCommands();

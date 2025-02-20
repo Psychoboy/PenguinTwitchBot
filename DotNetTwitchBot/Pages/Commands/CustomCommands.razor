@@ -77,6 +77,13 @@
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }
                         </MudSelect>
+                        <MudTextField Label="Specific User Only" @bind-Value="customCommand.SpecificUserOnly" />
+                        <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
                         <MudDivider />
                         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                             Class="ml-auto">
@@ -93,6 +100,7 @@
     private Dictionary<string, Bot.Models.Commands.CustomCommands>? commands;
     private Bot.Models.Commands.CustomCommands customCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
+    IEnumerable<Rank> ranks = new HashSet<Rank>();
     protected override Task OnInitializedAsync()
     {
         commands = CustomCommand.GetCustomCommands().OrderBy(x => x.Key).ToDictionary();
@@ -113,6 +121,8 @@
                 return;
             }
         }
+        customCommand.SpecificRanks = ranks.ToList();
+        ranks = new HashSet<Rank>();
         await CustomCommand.AddCommand(customCommand);
         customCommand = new();
         ReloadCommands();

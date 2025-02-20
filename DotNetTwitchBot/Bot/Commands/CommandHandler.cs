@@ -331,28 +331,79 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs)
         {
+            var passed = false;
             switch (commandProperties.MinimumRank)
             {
                 case Rank.Viewer:
                 case Rank.Regular:
-                    return true;
+                    passed = true;
+                    break;
                 case Rank.Follower:
                     using (var scope = scopeFactory.CreateAsyncScope())
                     {
                         var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-                        return await viewerService.IsFollowerByUsername(eventArgs.Name);
+                        passed = await viewerService.IsFollowerByUsername(eventArgs.Name);
+                        break;
                     }
                 case Rank.Subscriber:
-                    return eventArgs.IsSubOrHigher();
+                    passed = eventArgs.IsSubOrHigher();
+                    break;
                 case Rank.Vip:
-                    return eventArgs.IsVipOrHigher();
+                    passed = eventArgs.IsVipOrHigher();
+                    break;
                 case Rank.Moderator:
-                    return eventArgs.IsModOrHigher();
+                    passed = eventArgs.IsModOrHigher();
+                    break;
                 case Rank.Streamer:
-                    return eventArgs.IsBroadcaster || knownBots.IsStreamerOrBot(eventArgs.Name);
+                    passed = eventArgs.IsBroadcaster || knownBots.IsStreamerOrBot(eventArgs.Name);
+                    break;
                 default:
-                    return false;
+                    passed = false;
+                    break;
             }
+            if(passed && string.IsNullOrEmpty(commandProperties.SpecificUserOnly) == false)
+            {
+                if (eventArgs.Name.Equals(commandProperties.SpecificUserOnly, StringComparison.CurrentCultureIgnoreCase) == false)
+                {
+                    passed = false;
+                }
+            }
+            if (passed && commandProperties.SpecificUsersOnly.Count > 0)
+            {
+                if (commandProperties.SpecificUsersOnly.Contains(eventArgs.Name, StringComparer.CurrentCultureIgnoreCase) == false)
+                {
+                    passed = false;
+                }
+            }
+            if (passed && commandProperties.SpecificRanks.Count > 0)
+            {
+                if (commandProperties.SpecificRanks.Contains(ConvertCommandEventArgsToRank(eventArgs)) == false)
+                {
+                    passed = false;
+                }
+            }
+            return passed;
+        }
+
+        private Rank ConvertCommandEventArgsToRank(CommandEventArgs eventArgs)
+        {
+            if (eventArgs.IsBroadcaster || knownBots.IsStreamerOrBot(eventArgs.Name))
+            {
+                return Rank.Streamer;
+            }
+            if (eventArgs.IsMod)
+            {
+                return Rank.Moderator;
+            }
+            if (eventArgs.IsVip)
+            {
+                return Rank.Vip;
+            }
+            if (eventArgs.IsSub)
+            {
+                return Rank.Subscriber;
+            }
+            return Rank.Viewer;
         }
 
         public async Task ResetCooldown(CurrentCooldowns cooldown)
