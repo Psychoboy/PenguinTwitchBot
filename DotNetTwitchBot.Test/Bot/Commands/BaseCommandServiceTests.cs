@@ -1,7 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.Models.Commands;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
