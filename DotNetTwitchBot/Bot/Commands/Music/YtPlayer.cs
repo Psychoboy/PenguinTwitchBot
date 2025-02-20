@@ -112,7 +112,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (UnplayedSongs.TryDequeue(out var randomSong) == false) return "";
             SongsInBackupQueueMetric.DecTo(UnplayedSongs.Count);
-            randomSong.RequestedBy = "DJ Waffle";
+            randomSong.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
             LastSong = CurrentSong?.CreateDeepCopy();
             CurrentSong = randomSong.CreateDeepCopy();
             NextSong = null;
@@ -248,7 +248,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task SongError(object errorCode)
         {
             _logger.LogWarning("Error with song {errorCode}", errorCode);
-            if (CurrentSong != null)
+            if (CurrentSong != null && !CurrentSong.RequestedBy.Equals(ServiceBackbone.BotName ?? "TheBot"))
             {
                 await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
             }
@@ -417,8 +417,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage("Song is already in the list.");
                 return;
             }
-            CurrentSong.Id = null;
-            BackupPlaylist.Songs.Add(CurrentSong);
+            var songToSteel = CurrentSong.CreateDeepCopy();
+            songToSteel.Id = null;
+            songToSteel.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
+            BackupPlaylist.Songs.Add(songToSteel);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -619,6 +621,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     {
                         continue;
                     }
+                    song.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
                     playList.Songs.Add(song);
                 }
 
