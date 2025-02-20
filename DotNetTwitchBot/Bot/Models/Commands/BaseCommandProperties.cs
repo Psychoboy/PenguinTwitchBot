@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models.Commands
 {
+    [Index(nameof(CommandName))]
     public class BaseCommandProperties
     {
         [Key]
