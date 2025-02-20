@@ -23,7 +23,7 @@
         <RowTemplate>
             <MudTd DataLabel="Name">@context.DisplayName</MudTd>
             <MudTd DataLabel="Is Online">@context.IsOnline</MudTd>
-            <MudTd DateLabel="Game">@context.LastGame</MudTd>
+            <MudTd DataLabel="Game">@context.LastGame</MudTd>
             <MudTd DataLabel="Incoming">@context.TotalIncomingRaids</MudTd>
             <MudTd DataLabel="Avg. Incoming"> @(context.TotalIncomingRaids > 0 ? context.TotalIncomingRaidViewers /
             context.TotalIncomingRaids : 0) </MudTd>

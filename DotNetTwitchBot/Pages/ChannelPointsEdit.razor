@@ -15,7 +15,7 @@
         <MudCheckBox Label="Is Paused" @bind-Value="Reward.IsPaused" />
         <MudCheckBox Label="User input required?" @bind-Value="Reward.IsUserInputRequired" />
         <MudTextField Label="Prompt" @bind-Value="Reward.Prompt" MaxLength="200" />
-        <MudColorPicker Label="Background Color" @bind-Text="Reward.BackgroundColor" Required="true" Style="@($"mix-blend-mode: normal;background-color: {Reward.BackgroundColor};")" DisableAlpha="true" />
+        <MudColorPicker Label="Background Color" @bind-Text="Reward.BackgroundColor" Required="true" Style="@($"mix-blend-mode: normal;background-color: {Reward.BackgroundColor};")" ShowAlpha="false" ColorPickerMode="ColorPickerMode.RGB" />
         <MudCheckBox Label="Skips Queue" @bind-Value="Reward.ShouldRedemptionsSkipRequestQueue" />
         <MudCheckBox Label="Max per Stream?" @bind-Value="Reward.IsMaxPerStreamEnabled" />
         <MudNumericField Label="Max Per Stream" @bind-Value="Reward.MaxPerStream" />
