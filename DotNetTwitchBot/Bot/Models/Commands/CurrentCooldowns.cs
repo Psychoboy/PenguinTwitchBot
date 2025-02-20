@@ -2,6 +2,8 @@
 
 namespace DotNetTwitchBot.Bot.Models.Commands
 {
+    [Index(nameof(CommandName), nameof(UserName))]
+    [Index(nameof(CommandName), nameof(IsGlobal))]
     public class CurrentCooldowns
     {
         [Key]

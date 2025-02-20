@@ -2,6 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Models
 {
+    [Index(nameof(Username))]
     public class BannedViewer
     {
         [Key]

@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250220225419_AddIndexes")]
+    partial class AddIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,11 +89,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<string>("Username")
                         .IsRequired()
                         .IsUnicode(true)
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Username");
 
                     b.ToTable("BannedViewers");
                 });
@@ -308,7 +309,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("CommandName")
                         .IsRequired()
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Cost")
                         .HasColumnType("int");
@@ -362,8 +363,6 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CommandName");
-
                     b.ToTable("DefaultCommands");
                 });
 
@@ -381,7 +380,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("CommandName")
                         .IsRequired()
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Cost")
                         .HasColumnType("int");
@@ -427,8 +426,6 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CommandName");
-
                     b.ToTable("ExternalCommands");
                 });
 
@@ -446,7 +443,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("CommandName")
                         .IsRequired()
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Cost")
                         .HasColumnType("int");
@@ -501,8 +498,6 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CommandName");
 
                     b.ToTable("Keywords");
                 });
@@ -1313,7 +1308,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("banned")
                         .HasColumnType("tinyint(1)");
@@ -1321,8 +1316,6 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("Username");
 
                     b.ToTable("ViewerPoints");
                 });
