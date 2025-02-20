@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models.Commands
 {
     public class KeywordType : BaseCommandProperties
     {

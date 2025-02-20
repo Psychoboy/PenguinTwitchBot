@@ -1,4 +1,5 @@
 @page "/defaultcommands"
+@using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -32,13 +33,13 @@ else
 }
 
 @code {
-    private List<DotNetTwitchBot.Bot.Models.DefaultCommand>? defaultCommands;
+    private List<DefaultCommand>? defaultCommands;
     protected override async Task OnInitializedAsync()
     {
         defaultCommands = (await CommandHandler.GetDefaultCommandsFromDb()).OrderBy(x => x.CustomCommandName).ToList();
     }
 
-    private void Edit(DotNetTwitchBot.Bot.Models.DefaultCommand item)
+    private void Edit(DefaultCommand item)
     {
         navigationManager.NavigateTo($"/defaultcommands/{item.Id}");
     }

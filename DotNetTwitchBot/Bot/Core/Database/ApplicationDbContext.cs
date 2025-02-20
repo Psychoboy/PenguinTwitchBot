@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Timers;
@@ -47,6 +48,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<IpLogEntry> IpLogEntrys { get; set; }
         public DbSet<Wheel> Wheels { get; set; }
         public DbSet<WheelProperty> WheelProperties { get; set; }
+        public DbSet<CurrentCooldowns> Cooldowns { get; set; }
 
         //Virtual tables
         public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;
@@ -56,6 +58,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<ViewerTicketWithRanks> ViewerTicketWithRanks { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
+        
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

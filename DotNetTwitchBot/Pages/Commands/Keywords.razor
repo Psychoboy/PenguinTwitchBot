@@ -1,4 +1,5 @@
 @page "/keywords"
+@using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -84,8 +85,8 @@
     </MudGrid>
 </MudContainer>
 @code {
-    private IEnumerable<DotNetTwitchBot.Bot.Models.KeywordType>? keywords;
-    private DotNetTwitchBot.Bot.Models.KeywordType keyword { get; set; } = new KeywordType();
+    private IEnumerable<KeywordType>? keywords;
+    private KeywordType keyword { get; set; } = new KeywordType();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
@@ -102,7 +103,7 @@
         StateHasChanged();
     }
 
-    private async Task Delete(DotNetTwitchBot.Bot.Models.KeywordType keyword)
+    private async Task Delete(KeywordType keyword)
     {
         bool? result = await DialogService.ShowMessageBox(
         "Warning",
@@ -116,7 +117,7 @@
         }
     }
 
-    private void Edit(DotNetTwitchBot.Bot.Models.KeywordType item)
+    private void Edit(KeywordType item)
     {
         navigationManager.NavigateTo($"/keywords/{item.Id}");
     }

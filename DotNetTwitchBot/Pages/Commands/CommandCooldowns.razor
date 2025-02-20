@@ -1,0 +1,51 @@
+﻿@page "/command-cooldowns"
+@using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Bot.Models.Commands
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudContainer>
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudTable Items="@cooldowns">
+            <HeaderContent>
+                <MudTh>Command</MudTh>
+                <MudTh>Global/User</MudTh>
+                <MudTh>Cooldown Ends</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Command">@context.CommandName</MudTd>
+                <MudTd DataLabel="User">
+                    @(context.NextUserCooldownTime == DateTime.MinValue ?
+                        "<Global>" :
+                        context.UserName)
+                </MudTd>
+                <MudTd DataLabel="Cooldown">
+                    @(context.NextUserCooldownTime == DateTime.MinValue ?
+                        context.NextGlobalCooldownTime :
+                        context.NextUserCooldownTime)
+                </MudTd>
+                <MudTd DataLabel="Edit">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                    @onclick="() => ResetCooldown(context)">
+                        Reset
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
+@code {
+    private List<CurrentCooldowns> cooldowns = [];
+    [Inject]
+    public ICommandHandler CommandHandler { get; set; } = null!;
+    protected override async Task OnInitializedAsync()
+    {
+        cooldowns = await CommandHandler.GetCurrentCooldowns();
+    }
+
+    private async Task ResetCooldown(CurrentCooldowns cooldown)
+    {
+        await CommandHandler.ResetCooldown(cooldown);
+        cooldowns = await CommandHandler.GetCurrentCooldowns();
+    }
+}

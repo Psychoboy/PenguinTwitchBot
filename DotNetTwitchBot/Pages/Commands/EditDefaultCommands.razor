@@ -1,4 +1,5 @@
 @page "/defaultcommands/{id:int}"
+@using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
@@ -67,7 +68,7 @@ else
 {
     [Parameter]
     public int id { get; set; }
-    private DotNetTwitchBot.Bot.Models.DefaultCommand? defaultCommand;
+    private DefaultCommand? defaultCommand;
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()

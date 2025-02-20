@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Commands;
 
 namespace DotNetTwitchBot.Bot.Commands
 {

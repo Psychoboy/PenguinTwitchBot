@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using MediatR;
@@ -29,9 +30,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private static partial Regex CounterRegex();
 
         readonly Dictionary<string, Func<CommandEventArgs, string, Task<CustomCommandResult>>> CommandTags = [];
-        readonly Dictionary<string, Models.CustomCommands> Commands = [];
+        readonly Dictionary<string, CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
-        List<Models.KeywordWithRegex> Keywords = [];
+        List<KeywordWithRegex> Keywords = [];
         private readonly IMediator _mediator;
         private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -248,7 +249,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
+                if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -283,11 +284,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                     if (keyword.Keyword.GlobalCooldown > 0)
                     {
-                        CommandHandler.AddGlobalCooldown("keyword " + keyword.Keyword.CommandName, keyword.Keyword.GlobalCooldown);
+                        await CommandHandler.AddGlobalCooldown("keyword " + keyword.Keyword.CommandName, keyword.Keyword.GlobalCooldown);
                     }
                     if (keyword.Keyword.UserCooldown > 0)
                     {
-                        CommandHandler.AddCoolDown(e.Name, "keyword " + keyword.Keyword.CommandName, keyword.Keyword.UserCooldown);
+                        await CommandHandler.AddCoolDown(e.Name, "keyword " + keyword.Keyword.CommandName, keyword.Keyword.UserCooldown);
                     }
                     break;
                 }
@@ -340,11 +341,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
                 if (Commands[e.Command].GlobalCooldown > 0)
                 {
-                    CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                    await CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
                 }
                 if (Commands[e.Command].UserCooldown > 0)
                 {
-                    CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                    await CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
                 }
             }
             finally

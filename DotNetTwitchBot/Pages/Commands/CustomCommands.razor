@@ -90,8 +90,8 @@
 </MudContainer>
 
 @code {
-    private Dictionary<string, DotNetTwitchBot.Bot.Models.CustomCommands>? commands;
-    private DotNetTwitchBot.Bot.Models.CustomCommands customCommand { get; set; } = new();
+    private Dictionary<string, Bot.Models.Commands.CustomCommands>? commands;
+    private Bot.Models.Commands.CustomCommands customCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
@@ -124,7 +124,7 @@
         StateHasChanged();
     }
 
-    private async Task Delete(DotNetTwitchBot.Bot.Models.CustomCommands item)
+    private async Task Delete(Bot.Models.Commands.CustomCommands item)
     {
         bool? result = await DialogService.ShowMessageBox(
         "Warning",
@@ -137,7 +137,7 @@
         }
     }
 
-    private void Edit(DotNetTwitchBot.Bot.Models.CustomCommands item)
+    private void Edit(Bot.Models.Commands.CustomCommands item)
     {
         navigationManager.NavigateTo($"/customcommands/{item.Id}");
     }

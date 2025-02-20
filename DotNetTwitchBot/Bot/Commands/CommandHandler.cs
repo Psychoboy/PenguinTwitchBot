@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Commands.Moderation;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
@@ -12,8 +13,6 @@ namespace DotNetTwitchBot.Bot.Commands
         IKnownBots knownBots) : ICommandHandler
     {
         readonly ConcurrentDictionary<string, Command> Commands = new();
-        readonly Dictionary<string, Dictionary<string, DateTime>> _coolDowns = [];
-        readonly Dictionary<string, DateTime> _globalCooldowns = [];
 
         public Command? GetCommand(string commandName)
         {
@@ -160,33 +159,51 @@ namespace DotNetTwitchBot.Bot.Commands
             await db.SaveChangesAsync();
         }
 
-        public bool IsCoolDownExpired(string user, string command)
+        public async Task<bool> IsCoolDownExpired(string user, string command)
         {
-            if (
-                _globalCooldowns.TryGetValue(command, out DateTime value) && value > DateTime.Now)
+            if(await GetGlobalCooldown(command) > DateTime.Now)
             {
                 return false;
             }
-            if (_coolDowns.ContainsKey(user.ToLower()))
+
+            if (await GetUserCooldown(user, command) > DateTime.Now)
             {
-                if (_coolDowns[user.ToLower()].TryGetValue(command, out DateTime commandCooldown))
-                {
-                    if (commandCooldown > DateTime.Now)
-                    {
-                        return false;
-                    }
-                }
+                return false;
             }
             return true;
         }
 
+        private async Task<DateTime> GetUserCooldown(string user, string command)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var userCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.UserName.Equals(user)).FirstOrDefaultAsync();
+            if (userCooldown == null)
+            {
+                return DateTime.MinValue;
+            }
+            return userCooldown.NextUserCooldownTime;
+        }
+
+        private async Task<DateTime> GetGlobalCooldown(string command)
+        {
+           await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var globalCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.IsGlobal == true).FirstOrDefaultAsync();
+            if (globalCooldown == null)
+            {
+                return DateTime.MinValue;
+            }
+            return globalCooldown.NextGlobalCooldownTime;
+        }
+
         public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
         {
-            if (!IsCoolDownExpired(user, command))
+            if (!await IsCoolDownExpired(user, command))
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
-                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command)));
+                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command)));
 
                 return false;
             }
@@ -195,17 +212,17 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, BaseCommandProperties command)
         {
-            if (!IsCoolDownExpired(user, command.CommandName))
+            if (!await IsCoolDownExpired(user, command.CommandName))
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 if (command is DefaultCommand commandProperties)
                 {
-                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, CooldownLeft(user, command.CommandName)));
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, await CooldownLeft(user, command.CommandName)));
                 }
                 else
                 {
-                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, CooldownLeft(user, command.CommandName)));
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command.CommandName)));
                 }
 
                 return false;
@@ -213,21 +230,20 @@ namespace DotNetTwitchBot.Bot.Commands
             return true;
         }
 
-        private string CooldownLeft(string user, string command)
+        private async Task<string> CooldownLeft(string user, string command)
         {
 
             var globalCooldown = DateTime.MinValue;
             var userCooldown = DateTime.MinValue;
-            if (_globalCooldowns.TryGetValue(command, out DateTime value) && value > DateTime.Now)
+            var dbGlobalCooldown = await GetGlobalCooldown(command);
+            if(dbGlobalCooldown > DateTime.Now)
             {
-                globalCooldown = value;
+                globalCooldown = dbGlobalCooldown;
             }
-            if (_coolDowns.ContainsKey(user.ToLower()))
+            var dbUserCooldown = await GetUserCooldown(user, command);
+            if (dbUserCooldown > DateTime.Now)
             {
-                if (_coolDowns[user.ToLower()].TryGetValue(command, out var newCooldown))
-                {
-                    userCooldown = newCooldown;
-                }
+                userCooldown = dbUserCooldown;
             }
 
             if (globalCooldown == DateTime.MinValue && userCooldown == DateTime.MinValue)
@@ -248,29 +264,64 @@ namespace DotNetTwitchBot.Bot.Commands
             return "";
         }
 
-        public void AddCoolDown(string user, string command, int cooldown)
+        public async Task AddCoolDown(string user, string command, int cooldown)
         {
-            AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
-        }
-
-        public void AddCoolDown(string user, string command, DateTime cooldown)
-        {
-            if (!_coolDowns.ContainsKey(user.ToLower()))
+            if (cooldown <= 0)
             {
-                _coolDowns[user.ToLower()] = [];
+                return;
             }
-
-            _coolDowns[user.ToLower()][command] = cooldown;
+            await AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
         }
 
-        public void AddGlobalCooldown(string command, int cooldown)
+        public async Task AddCoolDown(string user, string command, DateTime cooldown)
         {
-            AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
+            if (cooldown <= DateTime.Now)
+            {
+                return;
+            }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var userCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.UserName.Equals(user)).FirstOrDefaultAsync();
+            if(userCooldown == null)
+            {
+                await db.Cooldowns.AddAsync(new CurrentCooldowns { CommandName = command, UserName = user, NextUserCooldownTime = cooldown });
+            }
+            else
+            {
+                userCooldown.NextUserCooldownTime = cooldown;
+                db.Cooldowns.Update(userCooldown);
+            }
+            await db.SaveChangesAsync();
         }
 
-        public void AddGlobalCooldown(string command, DateTime cooldown)
+        public async Task AddGlobalCooldown(string command, int cooldown)
         {
-            _globalCooldowns[command] = cooldown;
+            if(cooldown <= 0)
+            {
+                return;
+            }
+            await AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
+        }
+
+        public async Task AddGlobalCooldown(string command, DateTime cooldown)
+        {
+            if(cooldown <= DateTime.Now)
+            {
+                return;
+            }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var globalCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.IsGlobal == true).FirstOrDefaultAsync();
+            if (globalCooldown == null)
+            {
+                await db.Cooldowns.AddAsync(new CurrentCooldowns { CommandName = command, IsGlobal = true, NextGlobalCooldownTime = cooldown });
+            }
+            else
+            {
+                globalCooldown.NextGlobalCooldownTime = cooldown;
+                db.Cooldowns.Update(globalCooldown);
+            }
+            await db.SaveChangesAsync();
         }
 
         public bool CommandExists(string command)
@@ -302,6 +353,21 @@ namespace DotNetTwitchBot.Bot.Commands
                 default:
                     return false;
             }
+        }
+
+        public async Task ResetCooldown(CurrentCooldowns cooldown)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.Cooldowns.Remove(cooldown);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<List<CurrentCooldowns>> GetCurrentCooldowns()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Cooldowns.Find(x => x.NextUserCooldownTime > DateTime.Now || x.NextGlobalCooldownTime > DateTime.Now).ToListAsync();
         }
     }
 }

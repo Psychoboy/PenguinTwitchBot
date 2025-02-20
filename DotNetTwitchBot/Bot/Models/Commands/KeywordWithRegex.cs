@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models.Commands
 {
     public class KeywordWithRegex
     {
         public KeywordWithRegex(KeywordType keyword)
         {
-            this.Keyword = keyword;
+            Keyword = keyword;
         }
         public KeywordType Keyword { get; set; }
         public Regex Regex { get; set; } = null!;

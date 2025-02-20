@@ -58,7 +58,7 @@ else
     [Parameter]
     public int id { get; set; }
 
-    private DotNetTwitchBot.Bot.Models.CustomCommands? customCommand { get; set; }
+    private Bot.Models.Commands.CustomCommands? customCommand { get; set; }
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()

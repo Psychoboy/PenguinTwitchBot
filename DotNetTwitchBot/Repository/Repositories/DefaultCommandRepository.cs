@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Repository.Repositories
+﻿using DotNetTwitchBot.Bot.Models.Commands;
+
+namespace DotNetTwitchBot.Repository.Repositories
 {
     public class DefaultCommandRepository : GenericRepository<DefaultCommand>, IDefaultCommandRepository
     {

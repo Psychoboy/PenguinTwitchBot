@@ -40,6 +40,8 @@ namespace DotNetTwitchBot.Bot.ServiceTools
                 await wsService.ForceReconnect();
                 return;
             }
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var method = service.GetType().GetMethod("StopAsync");
             if (method != null)
             {
@@ -55,6 +57,9 @@ namespace DotNetTwitchBot.Bot.ServiceTools
             {
                 await (Task)method.Invoke(service, new object[] { token });
             }
+
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         }
     }
 }

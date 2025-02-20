@@ -56,6 +56,7 @@ namespace DotNetTwitchBot.Repository
             IpLogs = new IpLogRepository(_context);
             Wheels = new WheelRepository(_context);
             WheelProperties = new WheelPropertiesRepository(_context);
+            Cooldowns = new CooldownsRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -105,6 +106,7 @@ namespace DotNetTwitchBot.Repository
         public IIpLogRepository IpLogs { get; private set; }
         public IWheelRepository Wheels { get; private set; }
         public IWheelPropertiesRepository WheelProperties { get; private set; }
+        public ICooldownsRepository Cooldowns { get; private set; }
 
         public void Dispose()
         {

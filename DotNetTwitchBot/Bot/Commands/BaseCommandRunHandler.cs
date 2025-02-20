@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands
                         }
                         else
                         {
-                            if (commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
+                            if (await commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
                         }
                         //This will throw a SkipCooldownException if the command fails to by pass setting cooldown
                         await commandService.CommandService.OnCommand(this, eventArgs);
@@ -48,12 +48,12 @@ namespace DotNetTwitchBot.Bot.Commands
 
                     if (commandService.CommandProperties.GlobalCooldown > 0)
                     {
-                        commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
+                        await commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
                     }
 
                     if (commandService.CommandProperties.UserCooldown > 0)
                     {
-                        commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
+                        await commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
                     }
                 }
             }

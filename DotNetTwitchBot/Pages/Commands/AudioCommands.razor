@@ -1,4 +1,5 @@
 @page "/audiocommands"
+@using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -93,9 +94,9 @@
 </MudContainer>
 
 @code {
-    private Dictionary<string, DotNetTwitchBot.Bot.Models.AudioCommand>? audioCommands;
+    private Dictionary<string, AudioCommand>? audioCommands;
     private List<string>? audioFiles;
-    private DotNetTwitchBot.Bot.Models.AudioCommand? audioCommand { get; set; } = new();
+    private AudioCommand? audioCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override Task OnInitializedAsync()
     {
@@ -129,12 +130,12 @@
         ReloadCommands();
     }
 
-    private void Edit(DotNetTwitchBot.Bot.Models.AudioCommand item)
+    private void Edit(AudioCommand item)
     {
         navigationManager.NavigateTo($"/audiocommands/{item.Id}");
     }
 
-    private async void Delete(DotNetTwitchBot.Bot.Models.AudioCommand item)
+    private async void Delete(AudioCommand item)
     {
         bool? result = await DialogService.ShowMessageBox(
        "Warning",

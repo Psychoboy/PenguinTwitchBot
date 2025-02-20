@@ -202,16 +202,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     await ServiceBackbone.SendChatMessage(string.Format("The heist ended! Survivors are: {0}.", string.Join(", ", payouts)));
                 }
-                CleanUp();
+                await CleanUp();
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "Failed Ending heist");
-                CleanUp();
+                await CleanUp();
             }
         }
 
-        private void CleanUp()
+        private async Task CleanUp()
         {
             try
             {
@@ -220,7 +220,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 Caught.Clear();
                 GameState = State.NotRunning;
                 CurrentStoryPart = 0;
-                CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
+                await CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
             }
             catch (Exception e)
             {

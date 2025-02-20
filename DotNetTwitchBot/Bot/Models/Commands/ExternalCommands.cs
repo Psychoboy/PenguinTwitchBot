@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models
+﻿namespace DotNetTwitchBot.Bot.Models.Commands
 {
     public class ExternalCommands : BaseCommandProperties
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetTwitchBot.Bot.Commands;
 
-namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models.Commands
 {
     public class Command
     {
