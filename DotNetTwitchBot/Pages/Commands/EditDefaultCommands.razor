@@ -55,7 +55,14 @@ else
                         <MudSelectItem Value="@item">@item</MudSelectItem>
                     }
                 </MudSelect>
-
+                <MudTextField Label="Specific User Only" @bind-Value="defaultCommand.SpecificUserOnly" />
+                <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDivider />
                 <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
                     Submit
                 </MudButton>
@@ -70,10 +77,11 @@ else
     public int id { get; set; }
     private DefaultCommand? defaultCommand;
     [Inject] private IDialogService DialogService { get; set; } = default!;
-
+    IEnumerable<Rank> ranks = new HashSet<Rank>();
     protected override async void OnParametersSet()
     {
         defaultCommand = await CommandHandler.GetDefaultCommandById(id);
+        ranks = defaultCommand != null ? defaultCommand.SpecificRanks : new HashSet<Rank>();
         StateHasChanged();
     }
 
@@ -98,6 +106,8 @@ else
                 }
             }
         }
+        defaultCommand.SpecificRanks = ranks.ToList();
+        ranks = new HashSet<Rank>();
         await CommandHandler.UpdateDefaultCommand(defaultCommand);
         navigationManager.NavigateTo($"/defaultcommands");
     }
