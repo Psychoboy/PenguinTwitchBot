@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Models
         public int? Id { get; set; }
         public string SongId { get; set; } = null!;
         public string Title { get; set; } = null!;
-        public string RequestedBy { get; set; } = "DJ Waffle";
+        public string RequestedBy { get; set; } = "";
         public TimeSpan Duration { get; set; }
     }
 }
