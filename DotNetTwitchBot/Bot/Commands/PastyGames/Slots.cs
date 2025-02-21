@@ -4,35 +4,33 @@ using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Slots : BaseCommandService, IHostedService
+    public class Slots(
+        ILogger<Slots> logger,
+        ILoyaltyFeature loyaltyService,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        MaxBetCalculator maxBetCalculator,
+        IGameSettingsService gameSettingsService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        private readonly ILoyaltyFeature _loyaltyFeature;
-        private readonly ILogger<Slots> _logger;
-        private readonly MaxBetCalculator _maxBetCalculator;
-        private readonly List<string> Emotes = LoadEmotes();
+        private List<string> Emotes = [];
         private readonly List<Int64> Prizes = LoadPrizes();
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LoseMessages = LoadLoseMessages();
 
-        public Slots(
-            ILogger<Slots> logger,
-            ILoyaltyFeature loyaltyService,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler,
-            MaxBetCalculator maxBetCalculator
-            ) : base(serviceBackbone, commandHandler, "Slots")
-        {
-            _loyaltyFeature = loyaltyService;
-            _logger = logger;
-            _maxBetCalculator = maxBetCalculator;
-        }
+        public const string GAMESETTING_3_OF_A_KIND = "3 of a kind";
+        public const string GAMESETTING_2_OF_A_KIND = "2 of a kind";
+        public const string GAMESETTING_FIRST_2_MULTIPLIER = "First 2 multiplier";
+        public const string GAMESETTING_LAST_2_MULTIPLIER = "Last 2 multiplier";
+        public const string GAMESETTING_EMOTES = "Emotes";
+        public const string GAMENAME = "Slots";
 
         public override async Task Register()
         {
             var moduleName = "Slots";
             await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer, userCooldown: 600);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -48,8 +46,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-
-
         private async Task CalculateResult(CommandEventArgs e)
         {
             var amount = await CheckBetAmount(e);
@@ -59,12 +55,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var e3 = GetEmoteKey();
             var message = string.Format("{0}: [ {1} {2} {3} ] ", e.DisplayName, Emotes[e1], Emotes[e2], Emotes[e3]);
 
-            if (e1 == e2 && e2 == e3)
+            if (e1 == e2 && e2 == e3) // 3 of a kind
             {
                 var prizeWinnings = Prizes[e1];
                 if (amount > 0)
                 {
-                    prizeWinnings = Convert.ToInt64(amount * 3);
+                    prizeWinnings = Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_3_OF_A_KIND, 3.5));
                 }
 
                 message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
@@ -72,15 +68,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
+                await loyaltyService.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
                 return;
             }
-            else if (e1 == e2 || e2 == e3 || e3 == e1)
+            else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
             {
-                var prizeWinnings = e1 == e2 ? Convert.ToInt64(Prizes[e1] * 0.3) : Convert.ToInt64(Prizes[e3] * 0.3);
+                var twoOfAKindMultiplier = await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_2_OF_A_KIND, 0.3);
+                var prizeWinnings = e1 == e2 ? Convert.ToInt64(Prizes[e1] * twoOfAKindMultiplier) : Convert.ToInt64(Prizes[e3] * twoOfAKindMultiplier);
                 if (amount > 0)
                 {
-                    prizeWinnings = e1 == e2 ? Convert.ToInt64(amount * 2.5) : Convert.ToInt64(amount * 1.5);
+                    prizeWinnings = e1 == e2 ? 
+                        Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_FIRST_2_MULTIPLIER, 2.5)) : 
+                        Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_LAST_2_MULTIPLIER, 1.5));
                 }
 
                 message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
@@ -88,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
+                await loyaltyService.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
@@ -104,7 +103,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return 0;
             }
 
-            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 25);
+            var maxBet = await maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 25);
             switch (maxBet.Result)
             {
                 case MaxBet.ParseResult.Success:
@@ -146,40 +145,31 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return prizes;
         }
 
-        private static List<string> LoadEmotes()
+        public async Task LoadEmotes()
         {
-            return new List<string>{
-                "sptvLove",
+            Emotes = await gameSettingsService.GetStringListSetting(ModuleName, GAMESETTING_EMOTES, GetDefaultEmotes());
+        }
+
+        public static List<string> GetDefaultEmotes()
+        {
+            return [
+                //"sptvLove",
                 "sptvDrink",
                 "sptvBacon",
                 "sptvWaffle",
                 "sptvPancake",
                 "sptvLights",
-                "sptvSalute",
-                "sptvHype",
-                "sptvHello",
-                "sptv30k",
-                "sptvHi"
-            };
+                //"sptvSalute",
+                //"sptvHype",
+                //"sptvHello",
+                //"sptv30k",
+                //"sptvHi"
+            ];
         }
 
-        private static int GetEmoteKey()
+        private int GetEmoteKey()
         {
-            var key = Tools.Next(1, 6);
-            //return key switch
-            //{
-            //    //<= 100 => 9,
-            //    //> 201 and <= 300 => 8,
-            //    //> 301 and <= 400 => 7,
-            //    //> 401 and <= 500 => 6,
-            //    //> 501 and <= 600 => 5,
-            //    //> 601 and <= 700 => 4,
-            //    //> 701 and <= 800 => 3,
-            //    //> 801 and <= 900 => 2,
-            //    //> 901 and <= 1000 => 1,
-            //    //_ => 0,
-
-            //};
+            var key = Tools.Next(0, Emotes.Count);
             return key;
         }
 
@@ -278,15 +268,16 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             };
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
-            return Register();
+            logger.LogInformation("Starting {moduledname}", ModuleName);
+            await Register();
+            await LoadEmotes();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

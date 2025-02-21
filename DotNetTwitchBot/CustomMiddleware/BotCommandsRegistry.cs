@@ -99,6 +99,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
+            services.AddSingleton<Bot.Commands.PastyGames.IGameSettingsService, Bot.Commands.PastyGames.GameSettingsService>();
 
             return services;
         }

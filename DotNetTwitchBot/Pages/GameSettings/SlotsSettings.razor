@@ -1,0 +1,46 @@
+﻿@attribute [Authorize(Roles = "Streamer")]
+@using DotNetTwitchBot.Bot.Commands.PastyGames
+<MudPaper>
+    <MudText Typo="Typo.h5">Slots Settings</MudText>
+    <MudDivider />
+    <MudText>Settings for the Slots game.</MudText>
+    <MudTextField Label="3 of a kind multiplier (With Bet)" @bind-Value="threeInARowMultiplier" />
+    <MudTextField Label="2 of a kind multiplier (No Bet, from prize pool)" @bind-Value="twoInARowMultiplier" />
+    <MudTextField Label="First 2 multiplier (With Bet)" @bind-Value="firstTwoMultiplier" />
+    <MudTextField Label="Last 2 multiplier (With Bet)" @bind-Value="lastTwoMultiplier" />
+    <MudTextField Label="Emotes (Comma separated, Max 12)" @bind-Value="Emotes" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private Slots slots { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+    private double threeInARowMultiplier { get; set; }
+    private double twoInARowMultiplier { get; set; }
+    private double firstTwoMultiplier { get; set; }
+    private double lastTwoMultiplier { get; set; }
+    private string Emotes { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        threeInARowMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_3_OF_A_KIND, 3.5);
+        twoInARowMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_2_OF_A_KIND, 0.3);
+        firstTwoMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_FIRST_2_MULTIPLIER, 2.5);
+        lastTwoMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_LAST_2_MULTIPLIER, 1.5);
+        Emotes = await gameSettingsService.GetStringSetting(Slots.GAMENAME, Slots.GAMESETTING_EMOTES, string.Join(",", Slots.GetDefaultEmotes()));
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_3_OF_A_KIND, threeInARowMultiplier);
+        await gameSettingsService.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_2_OF_A_KIND, twoInARowMultiplier);
+        await gameSettingsService.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_FIRST_2_MULTIPLIER, firstTwoMultiplier);
+        await gameSettingsService.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_LAST_2_MULTIPLIER, lastTwoMultiplier);
+        await gameSettingsService.SetStringSetting(Slots.GAMENAME, Slots.GAMESETTING_EMOTES, Emotes);
+        Snackbar.Add("Slot settings saved.", Severity.Success);
+    }
+}
