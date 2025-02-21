@@ -49,6 +49,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Wheel> Wheels { get; set; }
         public DbSet<WheelProperty> WheelProperties { get; set; }
         public DbSet<CurrentCooldowns> Cooldowns { get; set; }
+        public DbSet<Models.Games.GameSetting> GameSettings { get; set; }
 
         //Virtual tables
         public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;

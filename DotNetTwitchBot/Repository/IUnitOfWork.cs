@@ -50,6 +50,7 @@
         IWheelRepository Wheels { get; }
         IWheelPropertiesRepository WheelProperties { get; }
         ICooldownsRepository Cooldowns { get; }
+        IGameSettingsRepository GameSettings { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

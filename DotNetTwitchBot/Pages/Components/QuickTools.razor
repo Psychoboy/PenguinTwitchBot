@@ -1,4 +1,5 @@
-﻿@inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
+﻿@attribute [Authorize(Roles = "Streamer")]
+@inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Core.IChatHistory ChatHistory
 @inject DotNetTwitchBot.Bot.StreamSchedule.ISchedule Schedule

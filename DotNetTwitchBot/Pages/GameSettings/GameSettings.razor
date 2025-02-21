@@ -1,0 +1,21 @@
+﻿@page "/gamesettings"
+@attribute [Authorize(Roles = "Streamer")]
+<PageTitle>SPTV Twitch Bot - Game Settings</PageTitle>
+<CascadingAuthenticationState>
+    <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+        <MudGrid>
+            <MudItem sm="6">
+                <SlotsSettings />
+            </MudItem>
+            <MudItem sm="6">
+            </MudItem>
+            <MudItem sm="6">
+            </MudItem>
+            <MudItem sm="6">
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+</CascadingAuthenticationState>
+@code {
+
+}
