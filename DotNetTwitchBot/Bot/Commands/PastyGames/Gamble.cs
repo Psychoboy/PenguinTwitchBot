@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (e.Args.Count == 0)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName,
-                "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
+                "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet. You can also do it by percentage like !gamble 50%");
                 throw new SkipCooldownException();
             }
 
@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
                 case MaxBet.ParseResult.InvalidValue:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
-                    "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet");
+                    "To gamble, do !gamble amount to specify amount or do !gamble max or all to do the max bet. You can also do it by percentage like !gamble 50%");
                     throw new SkipCooldownException();
 
                 case MaxBet.ParseResult.ToMuch:
