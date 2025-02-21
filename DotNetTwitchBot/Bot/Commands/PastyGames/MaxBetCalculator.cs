@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
+using System.Linq.Expressions;
 using static DotNetTwitchBot.Bot.Commands.PastyGames.MaxBet;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
@@ -12,6 +13,28 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                betAmount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
                 amount = await loyaltyFeature.GetMaxPointsFromUserByUserId(userId);
+            }
+            else if(betAmount.Contains('%'))
+            {
+                try
+                {
+                    var result = new Percentage(betAmount);
+                    if (result.Value <= 0 || result.Value > 100)
+                    {
+                        return new MaxBet
+                        {
+                            Result = ParseResult.InvalidValue
+                        };
+                    }
+                    amount = (long)(await loyaltyFeature.GetMaxPointsFromUserByUserId(userId) * result.Value);
+                }
+                catch
+                {
+                    return new MaxBet
+                    {
+                        Result = ParseResult.InvalidValue
+                    };
+                }
             }
             else if (!Int64.TryParse(betAmount, out amount))
             {
