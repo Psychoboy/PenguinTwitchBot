@@ -110,7 +110,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     return maxBet.Amount;
                 case MaxBet.ParseResult.InvalidValue:
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
-                        "To use !slots, either just run !slots or do !slots max or all or amount");
+                        "To use !slots, either just run !slots or do !slots max or all or amount or % (ie. 50%)");
                     throw new SkipCooldownException();
                 case MaxBet.ParseResult.ToMuch:
                 case MaxBet.ParseResult.ToLow:

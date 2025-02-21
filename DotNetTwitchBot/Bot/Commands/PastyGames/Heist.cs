@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             if (e.Args.Count == 0)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "To Enter/Start a heist do !heist AMOUNT/ALL/MAX");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "To Enter/Start a heist do !heist AMOUNT/ALL/MAX/%");
                 throw new SkipCooldownException();
             }
 
@@ -83,10 +83,30 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 amount = await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId);
             }
+            else if (amountStr.Contains('%'))
+            {
+                try
+                {
+                    var result = new Percentage(amountStr);
+                    if (result.Value <= 0 || result.Value > 100)
+                    {
+                        await ServiceBackbone.SendChatMessage(e.DisplayName,
+                        "To join the heist, enter !heist AMOUNT or ALL or MAX or a % (ie. 50%)");
+                        throw new SkipCooldownException();
+                    }
+                    amount = (long)(await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId) * result.Value);
+                }
+                catch
+                {
+                    await ServiceBackbone.SendChatMessage(e.DisplayName,
+                    "To join the heist, enter !heist AMOUNT or ALL or MAXor a % (ie. 50%)");
+                    throw new SkipCooldownException();
+                }
+            }
             else if (!Int64.TryParse(amountStr, out amount))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName,
-                "To join the heist, enter !heist AMOUNT or ALL or MAX");
+                "To join the heist, enter !heist AMOUNT or ALL or MAX or a % (ie. 50%)");
                 throw new SkipCooldownException();
             }
 

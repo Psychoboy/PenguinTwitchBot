@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         DateTime _startTime = DateTime.Now;
         readonly Timer _intervalTimer;
         protected readonly ILogger _logger;
-        readonly int _runTime = 75;
+        readonly int _runTime = 90;
         enum State
         {
             NotRunning,
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 return; //Raffle Ended
             }
             //await SendJoinedMessage();
-            if (RemainingTimeSent == false && (int)elapsedTime.TotalSeconds <= _runTime / 2)
+            if (RemainingTimeSent == false && (int)elapsedTime.TotalSeconds >= _runTime / 2)
                 await SendTimeLeft((int)elapsedTime.TotalSeconds);
         }
 
