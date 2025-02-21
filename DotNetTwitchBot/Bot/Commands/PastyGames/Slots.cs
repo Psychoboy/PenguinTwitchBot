@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var prizeWinnings = Prizes[e1];
                 if (amount > 0)
                 {
-                    prizeWinnings = Convert.ToInt64(amount * 5);
+                    prizeWinnings = Convert.ToInt64(amount * 3);
                 }
 
                 message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
@@ -165,20 +165,22 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private static int GetEmoteKey()
         {
-            var key = Tools.Next(1, 1000);
-            return key switch
-            {
-                <= 100 => 9,
-                > 201 and <= 300 => 8,
-                > 301 and <= 400 => 7,
-                > 401 and <= 500 => 6,
-                > 501 and <= 600 => 5,
-                > 601 and <= 700 => 4,
-                > 701 and <= 800 => 3,
-                > 801 and <= 900 => 2,
-                > 901 and <= 1000 => 1,
-                _ => 0,
-            };
+            var key = Tools.Next(1, 6);
+            //return key switch
+            //{
+            //    //<= 100 => 9,
+            //    //> 201 and <= 300 => 8,
+            //    //> 301 and <= 400 => 7,
+            //    //> 401 and <= 500 => 6,
+            //    //> 501 and <= 600 => 5,
+            //    //> 601 and <= 700 => 4,
+            //    //> 701 and <= 800 => 3,
+            //    //> 801 and <= 900 => 2,
+            //    //> 901 and <= 1000 => 1,
+            //    //_ => 0,
+
+            //};
+            return key;
         }
 
         private static List<string> LoadWinMessages()
