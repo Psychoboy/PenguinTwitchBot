@@ -105,6 +105,7 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
         public Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Stopping {module}", ModuleName);
+            ServiceBackbone.ChannelPointRedeemEvent -= OnChannelPointRedeem;
             return Task.CompletedTask;
         }
     }
