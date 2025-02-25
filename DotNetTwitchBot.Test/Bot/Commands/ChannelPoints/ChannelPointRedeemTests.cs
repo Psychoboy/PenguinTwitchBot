@@ -112,13 +112,13 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             var redeem = new DotNetTwitchBot.Bot.Models.ChannelPointRedeem
             {
                 Name = "TestRedeem",
-                Command = "TestCommand",
+                Command = "TestCommand (input)",
                 ElevatedPermission = Rank.Viewer
             };
 
             var redeems = new List<DotNetTwitchBot.Bot.Models.ChannelPointRedeem> { redeem };
             var queryable = redeems.AsQueryable().BuildMockDbSet();
-            _unitOfWork.ChannelPointRedeems.Find(x => true).ReturnsForAnyArgs(queryable);
+            _unitOfWork.ChannelPointRedeems.Find(x => x.Name == "TestRedeem").ReturnsForAnyArgs(queryable);
 
             var eventArgs = new ChannelPointRedeemEventArgs
             {
@@ -133,7 +133,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             _serviceBackbone.ChannelPointRedeemEvent += Raise.Event<AsyncEventHandler<ChannelPointRedeemEventArgs>>(this, eventArgs);
 
             // Assert
-            await _serviceBackbone.Received(1).RunCommand(Arg.Any<CommandEventArgs>());
+            await _serviceBackbone.Received(1).RunCommand(Arg.Is<CommandEventArgs>(cmdArgs =>
+                cmdArgs.Command == "TestCommand" &&
+                cmdArgs.Arg == "TestInput" &&
+                cmdArgs.Name == "TestUser"
+            ));
         }
 
         [Fact]
