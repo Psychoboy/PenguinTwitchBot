@@ -134,6 +134,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
 
             // Assert
             await _serviceBackbone.Received(1).RunCommand(Arg.Is<CommandEventArgs>(cmdArgs =>
+                cmdArgs.UserId == "123" &&
                 cmdArgs.Command == "TestCommand" &&
                 cmdArgs.Arg == "TestInput" &&
                 cmdArgs.Name == "TestUser"
