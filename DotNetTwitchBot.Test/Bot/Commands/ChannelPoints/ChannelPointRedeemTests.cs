@@ -27,6 +27,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
         private readonly DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem _channelPointRedeem;
+        private readonly IUnitOfWork _unitOfWork;
 
         public ChannelPointRedeemTests()
         {
@@ -37,9 +38,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
+            _unitOfWork = Substitute.For<IUnitOfWork>();
 
-            _scopeFactory.CreateAsyncScope().Returns(scope);
+            _scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
             _channelPointRedeem = new DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem(_logger, _scopeFactory, _serviceBackbone, _commandHandler);
         }
@@ -55,20 +58,12 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
                 ElevatedPermission = Rank.Viewer
             };
 
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var scope = Substitute.For<IServiceScope>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-
-            _scopeFactory.CreateAsyncScope().Returns(scope);
-            scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService<IUnitOfWork>().Returns(unitOfWork);
-
             // Act
             await _channelPointRedeem.AddRedeem(redeem);
 
             // Assert
-            await unitOfWork.ChannelPointRedeems.Received(1).AddAsync(redeem);
-            await unitOfWork.Received(1).SaveChangesAsync();
+            await _unitOfWork.ChannelPointRedeems.Received(1).AddAsync(redeem);
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -82,20 +77,12 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
                 ElevatedPermission = Rank.Viewer
             };
 
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var scope = Substitute.For<IServiceScope>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-
-            _scopeFactory.CreateAsyncScope().Returns(scope);
-            scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService<IUnitOfWork>().Returns(unitOfWork);
-
             // Act
             await _channelPointRedeem.DeleteRedeem(redeem);
 
             // Assert
-            unitOfWork.ChannelPointRedeems.Received(1).Remove(redeem);
-            await unitOfWork.Received(1).SaveChangesAsync();
+            _unitOfWork.ChannelPointRedeems.Received(1).Remove(redeem);
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -103,19 +90,11 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
         {
             // Arrange
             var redeems = new List<DotNetTwitchBot.Bot.Models.ChannelPointRedeem>
-        {
-            new DotNetTwitchBot.Bot.Models.ChannelPointRedeem { Name = "TestRedeem1", Command = "TestCommand1", ElevatedPermission = Rank.Viewer },
-            new DotNetTwitchBot.Bot.Models.ChannelPointRedeem { Name = "TestRedeem2", Command = "TestCommand2", ElevatedPermission = Rank.Moderator }
-        };
-
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var scope = Substitute.For<IServiceScope>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-
-            _scopeFactory.CreateAsyncScope().Returns(scope);
-            scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService<IUnitOfWork>().Returns(unitOfWork);
-            unitOfWork.ChannelPointRedeems.GetAllAsync().Returns(redeems);
+            {
+                new DotNetTwitchBot.Bot.Models.ChannelPointRedeem { Name = "TestRedeem1", Command = "TestCommand1", ElevatedPermission = Rank.Viewer },
+                new DotNetTwitchBot.Bot.Models.ChannelPointRedeem { Name = "TestRedeem2", Command = "TestCommand2", ElevatedPermission = Rank.Moderator }
+            };
+            _unitOfWork.ChannelPointRedeems.GetAllAsync().Returns(redeems);
 
             // Act
             var result = await _channelPointRedeem.GetRedeems();
@@ -139,14 +118,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
 
             var redeems = new List<DotNetTwitchBot.Bot.Models.ChannelPointRedeem> { redeem };
             var queryable = redeems.AsQueryable().BuildMockDbSet();
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var scope = Substitute.For<IServiceScope>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-
-            _scopeFactory.CreateScope().Returns(scope);
-            scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(unitOfWork);
-            unitOfWork.ChannelPointRedeems.Find(x => true).ReturnsForAnyArgs(queryable);
+            _unitOfWork.ChannelPointRedeems.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var eventArgs = new ChannelPointRedeemEventArgs
             {
