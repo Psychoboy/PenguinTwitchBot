@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Commands.Shoutout;
@@ -88,6 +89,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<ITTSService, TTSService>();
             services.AddHostedApiService<IClipService, ClipService>();
             services.AddHostedApiService<IWheelService, WheelService>();
+            services.AddHostedApiService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>();
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
@@ -99,7 +101,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
-            services.AddSingleton<Bot.Commands.PastyGames.IGameSettingsService, Bot.Commands.PastyGames.GameSettingsService>();
+            services.AddSingleton<IGameSettingsService, GameSettingsService>();
 
             return services;
         }

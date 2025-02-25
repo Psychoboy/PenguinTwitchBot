@@ -1,9 +1,12 @@
-﻿using DotNetTwitchBot.Bot.Models.Games;
+﻿using DotNetTwitchBot.Bot.Core.Points;
+using DotNetTwitchBot.Bot.Models.Games;
+using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
 
-namespace DotNetTwitchBot.Bot.Commands.PastyGames
+namespace DotNetTwitchBot.Bot.Commands.Games
 {
     public class GameSettingsService(
+        ILogger<GameSettingsService> logger,
         IServiceScopeFactory scopeFactory
         ) : IGameSettingsService
     {
@@ -66,11 +69,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var setting = await GetSetting(gameName, settingName);
             setting ??= new GameSetting
-                {
-                    GameName = gameName,
-                    SettingName = settingName,
-                    SettingStringValue = value
-                };
+            {
+                GameName = gameName,
+                SettingName = settingName,
+                SettingStringValue = value
+            };
             await SaveSetting(setting);
         }
 
@@ -78,11 +81,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var setting = await GetSetting(gameName, settingName);
             setting ??= new GameSetting
-                {
-                    GameName = gameName,
-                    SettingName = settingName,
-                    SettingIntValue = value
-                };
+            {
+                GameName = gameName,
+                SettingName = settingName,
+                SettingIntValue = value
+            };
             await SaveSetting(setting);
         }
 
@@ -90,11 +93,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var setting = await GetSetting(gameName, settingName);
             setting ??= new GameSetting
-                {
-                    GameName = gameName,
-                    SettingName = settingName,
-                    SettingBoolValue = value
-                };
+            {
+                GameName = gameName,
+                SettingName = settingName,
+                SettingBoolValue = value
+            };
             await SaveSetting(setting);
         }
 
@@ -102,11 +105,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var setting = await GetSetting(gameName, settingName);
             setting ??= new GameSetting
-                {
-                    GameName = gameName,
-                    SettingName = settingName,
-                    SettingDoubleValue = value
-                };
+            {
+                GameName = gameName,
+                SettingName = settingName,
+                SettingDoubleValue = value
+            };
             await SaveSetting(setting);
         }
 
@@ -124,6 +127,41 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
+        }
+
+        public async Task<PointType> GetPointTypeForGame(string gameName)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals("PointTypeId"))).FirstOrDefault();
+            if(setting != null)
+            {
+                var pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
+                if(pointType != null)
+                    return pointType;
+            }
+            logger.LogWarning("PointType not found for game {gameName}, using default.", gameName);
+            return PointsSystem.GetDefaultPointType();
+        }
+
+        public async Task SetPointTypeForGame(string gameName, int pointTypeId)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals("PointTypeId"))).FirstOrDefault();
+            if (setting != null)
+            {
+                setting.SettingIntValue = pointTypeId;
+            }
+            else
+            {
+                setting = new GameSetting
+                {
+                    GameName = gameName,
+                    SettingName = "PointTypeId",
+                    SettingIntValue = pointTypeId
+                };
+            }
         }
     }
 }

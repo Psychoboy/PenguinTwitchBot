@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
+using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
 
@@ -50,6 +51,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<WheelProperty> WheelProperties { get; set; }
         public DbSet<CurrentCooldowns> Cooldowns { get; set; }
         public DbSet<Models.Games.GameSetting> GameSettings { get; set; }
+        public DbSet<Models.Points.PointType> PointTypes { get; set; }
+        public DbSet<Models.Points.UserPoints> UserPoints { get; set; }
 
         //Virtual tables
         public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;

@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 

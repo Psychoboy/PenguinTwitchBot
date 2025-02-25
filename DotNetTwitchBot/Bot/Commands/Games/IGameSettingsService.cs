@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Models.Games;
+﻿using DotNetTwitchBot.Bot.Models.Points;
 
-namespace DotNetTwitchBot.Bot.Commands.PastyGames
+namespace DotNetTwitchBot.Bot.Commands.Games
 {
     public interface IGameSettingsService
     {
@@ -13,5 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         Task SetDoubleSetting(string gameName, string settingName, double value);
         Task SetIntSetting(string gameName, string settingName, int value);
         Task SetStringSetting(string gameName, string settingName, string value);
+        Task<PointType> GetPointTypeForGame(string gameName);
+        Task SetPointTypeForGame(string gameName, int pointTypeId);
     }
 }

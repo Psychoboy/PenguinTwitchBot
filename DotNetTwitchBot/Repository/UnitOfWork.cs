@@ -58,6 +58,8 @@ namespace DotNetTwitchBot.Repository
             WheelProperties = new WheelPropertiesRepository(_context);
             Cooldowns = new CooldownsRepository(_context);
             GameSettings = new GameSettingsRepository(_context);
+            PointTypes = new PointTypesRepository(_context);
+            UserPoints = new UserPointsRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -109,6 +111,8 @@ namespace DotNetTwitchBot.Repository
         public IWheelPropertiesRepository WheelProperties { get; private set; }
         public ICooldownsRepository Cooldowns { get; private set; }
         public IGameSettingsRepository GameSettings { get; private set; }
+        public IPointTypesRepository PointTypes { get; private set; }
+        public IUserPointsRepository UserPoints { get; private set; }
 
         public void Dispose()
         {

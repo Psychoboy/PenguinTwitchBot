@@ -1,0 +1,68 @@
+﻿@page "/pointsettings"
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
+@attribute [Authorize(Roles = "Streamer")]
+
+<PageTitle>SPTV Twitch Bot - Point Settings</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="9">
+            <MudPaper>
+                <MudTable Items="@PointTypes">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh>Add Cmd</MudTh>
+                        <MudTh>Remove Cmd</MudTh>
+                        <MudTh>Get Cmd</MudTh>
+                        <MudTh>Set Cmd</MudTh>
+                        <MudTh>Add Active Cmd</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Description</MudTd>
+                        <MudTd>@context.AddCommand</MudTd>
+                        <MudTd>@context.RemoveCommand</MudTd>
+                        <MudTd>@context.GetCommand</MudTd>
+                        <MudTd>@context.SetCommand</MudTd>
+                        <MudTd>@context.AddActiveCommand</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="3">
+            <MudPaper>
+                <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
+                    <DataAnnotationsValidator />
+                    <MudTextField Label="Name" @bind-Value="newPointType.Name" />
+                    <MudTextField Label="Description" @bind-Value="newPointType.Description" />
+                    <MudTextField Label="Add Command" @bind-Value="newPointType.AddCommand" />
+                    <MudTextField Label="Remove Command" @bind-Value="newPointType.RemoveCommand" />
+                    <MudTextField Label="Get Command" @bind-Value="newPointType.GetCommand" />
+                    <MudTextField Label="Set Command" @bind-Value="newPointType.SetCommand" />
+                    <MudTextField Label="Add Active Command" @bind-Value="newPointType.AddActiveCommand" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save</MudButton>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private PointType newPointType = new();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PointTypes = await pointSystem.GetPointTypes();
+    }
+
+    private async Task SavePointType()
+    {
+        await pointSystem.UpdatePointType(newPointType);
+        newPointType = new();
+        PointTypes = await pointSystem.GetPointTypes();
+    }
+}

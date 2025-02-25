@@ -51,6 +51,8 @@
         IWheelPropertiesRepository WheelProperties { get; }
         ICooldownsRepository Cooldowns { get; }
         IGameSettingsRepository GameSettings { get; }
+        IPointTypesRepository PointTypes { get; }
+        IUserPointsRepository UserPoints { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
