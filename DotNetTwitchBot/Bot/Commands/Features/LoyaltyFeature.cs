@@ -243,7 +243,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task CheckUsersPasties(CommandEventArgs e)
         {
-            var pasties = await GetUserPastiesByUserId(e.UserId);
+            if (e.Args.Count < 1)
+            {
+                await ServiceBackbone.SendChatMessage(e.DisplayName, "to check Pasties the command is !check USERNAME");
+                throw new SkipCooldownException();
+            }
+
+            var pasties = await GetUserPastiesByUsername(e.TargetUser);
             if (pasties.Points == 0)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has no pasties or doesn't exist.");

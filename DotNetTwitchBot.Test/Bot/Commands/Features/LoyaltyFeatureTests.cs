@@ -176,7 +176,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint();
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            var commandEventArgs = new CommandEventArgs { TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
+            var commandEventArgs = new CommandEventArgs { Args = new List<string> { "TestTarget" }, TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
             commandHandler.GetCommandDefaultName("check").Returns("check");
 
             // Act
@@ -194,7 +194,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewerPoint = new ViewerPoint { Points = 1000 };
             var queryable = new List<ViewerPoint> { viewerPoint }.AsQueryable().BuildMockDbSet();
             dbContext.ViewerPoints.Find(x => true).ReturnsForAnyArgs(queryable);
-            var commandEventArgs = new CommandEventArgs { TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
+            var commandEventArgs = new CommandEventArgs { Args = new List<string> { "TestTarget" }, TargetUser = "TestTarget", DisplayName = "TestDisplay", Command = "check" };
             commandHandler.GetCommandDefaultName("check").Returns("check");
 
             // Act
@@ -203,6 +203,23 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             // Assert
             await serviceBackbone.Received(1).SendChatMessage("TestDisplay", "TestTarget has 1,000 pasties.");
 
+        }
+
+        [Fact]
+        public async Task CheckUsersPasties_ShouldThrowSkipCooldownException_WhenArgsCountIsLessThan2()
+        {
+            // Arrange
+            var commandEventArgs = new CommandEventArgs
+            {
+                Command = "check",
+                Args = [],
+                DisplayName = "testDisplayName"
+            };
+            commandHandler.GetCommandDefaultName("check").Returns("check");
+
+            // Act & Act
+            await Assert.ThrowsAsync<SkipCooldownException>(() =>  loyaltyFeature.OnCommand(new object(), commandEventArgs));
+            await serviceBackbone.Received(1).SendChatMessage("testDisplayName", "to check Pasties the command is !check USERNAME");
         }
 
         [Fact]
