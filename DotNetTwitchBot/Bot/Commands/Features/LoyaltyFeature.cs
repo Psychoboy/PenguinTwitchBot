@@ -243,7 +243,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task CheckUsersPasties(CommandEventArgs e)
         {
-            if (e.Args.Count < 1)
+            if (string.IsNullOrWhiteSpace(e.TargetUser))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "to check Pasties the command is !check USERNAME");
                 throw new SkipCooldownException();
