@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Models;
+using DotNetTwitchBot.Bot.Models.Points;
 
 namespace DotNetTwitchBot.Bot.Core
 {

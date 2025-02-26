@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
+using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Core.Points
@@ -429,9 +430,27 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
-        private Task SendPointsMessage(CommandEventArgs e, int v)
+        private async Task SendPointsMessage(CommandEventArgs e, int pointType)
         {
-            return Task.CompletedTask;
+            var userId = e.UserId;
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+            var userPointType = await db.PointTypes.GetByIdAsync(pointType);
+            if (userPoints != null)
+            {
+                await SendChatMessage(e.Name, $"You have #{userPoints.Ranking} {userPoints.Points} {userPointType?.Name}");
+            }
+        }
+
+        public Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, PointType pointType)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<LeaderPosition> GetLeaderPosition(string userId, PointType pointType)
+        {
+            throw new NotImplementedException();
         }
     }
 }

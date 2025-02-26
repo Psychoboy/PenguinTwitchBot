@@ -129,6 +129,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 db.ViewerMessageCounts.Update(viewerMessages);
             }
 
+            var userPoints = await db.UserPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (userPoints != null)
+            {
+                userPoints.Banned = false;
+                db.UserPoints.Update(userPoints);
+            }
+
             await db.SaveChangesAsync();
         }
 
@@ -170,6 +177,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             {
                 viewerMessages.banned = true;
                 db.ViewerMessageCounts.Update(viewerMessages);
+            }
+
+            var userPoints = await db.UserPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
+            if (userPoints != null)
+            {
+                userPoints.Banned = true;
+                db.UserPoints.Update(userPoints);
             }
 
             await db.SaveChangesAsync();

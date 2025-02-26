@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Metrics;
+using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -31,6 +32,27 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             _logger = logger;
             _scopeFactory = scopeFactory;
             _serviceBackbone = serviceBackbone;
+        }
+
+        public async Task UpgradePoints()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var points = await db.ViewerPoints.GetAllAsync();
+            //var pointType = await db.PointTypes.GetByIdAsync(1);
+            foreach (var point in points)
+            {
+                var userPoint = new UserPoints
+                {
+                    UserId = point.UserId,
+                    Username = point.Username,
+                    Points = point.Points,
+                    PointTypeId = 1,
+                    Banned = point.banned
+                };
+                await db.UserPoints.AddAsync(userPoint);
+            }
+            await db.SaveChangesAsync();
         }
 
         public async Task BackupDatabase()

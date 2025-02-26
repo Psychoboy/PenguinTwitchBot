@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
+using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -32,5 +33,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<PointType> GetPointTypeForGame(string gameName);
         Task SetPointTypeForGame(string gameName, int pointTypeId);
         Task RunCommand(CommandEventArgs e, PointCommand pointCommand);
+        Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, PointType pointType);
+        Task<LeaderPosition> GetLeaderPosition(string userId, PointType pointType);
     }
 }

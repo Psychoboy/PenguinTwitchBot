@@ -441,13 +441,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         }
 
-        private async Task SayLoyalty(CommandEventArgs e)
-        {
-            var pasties = await GetUserPastiesAndRank(e.Name);
-            var time = await GetUserTimeAndRank(e.Name);
-            var messages = await GetUserMessagesAndRank(e.Name);
-            await ServiceBackbone.SendChatMessage($"{await viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
-        }
+        //private async Task SayLoyalty(CommandEventArgs e)
+        //{
+        //    var pasties = await GetUserPastiesAndRank(e.Name);
+        //    var time = await GetUserTimeAndRank(e.Name);
+        //    var messages = await GetUserMessagesAndRank(e.Name);
+        //    await ServiceBackbone.SendChatMessage($"{await viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
+        //}
 
         public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
         {
@@ -492,17 +492,17 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         //    return viewerPoint ?? new ViewerPoint();
         //}
 
-        public async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
-        {
-            ViewerPointWithRank? viewerPoints;
-            await using (var scope = scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerPoints = await db.ViewerPointWithRanks.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
-            }
+        //public async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
+        //{
+        //    ViewerPointWithRank? viewerPoints;
+        //    await using (var scope = scopeFactory.CreateAsyncScope())
+        //    {
+        //        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        //        viewerPoints = await db.ViewerPointWithRanks.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+        //    }
 
-            return viewerPoints ?? new ViewerPointWithRank() { Ranking = int.MaxValue };
-        }
+        //    return viewerPoints ?? new ViewerPointWithRank() { Ranking = int.MaxValue };
+        //}
 
         public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
         {
