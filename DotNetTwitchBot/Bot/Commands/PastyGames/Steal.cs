@@ -21,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var moduleName = "Steal";
             await RegisterDefaultCommand("steal", this, moduleName, userCooldown: 300);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -41,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var userPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.UserId, "steal");
+            var userPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.UserId, ModuleName);
             if (userPasties.Points < StealMax)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
@@ -53,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task StealFromUser(CommandEventArgs e)
         {
-            var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, "steal");
+            var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, ModuleName);
             var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
             var amount = Tools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
@@ -81,8 +82,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task MovePoints(string from, string to, int amount)
         {
-            await pointsSystem.RemovePointsFromUserByUsernameAndGame(from, "steal", amount);
-            await pointsSystem.RemovePointsFromUserByUsernameAndGame(to, "steal", amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(from, ModuleName, amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(to, ModuleName, amount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

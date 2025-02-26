@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Defuse(
         //ILoyaltyFeature loyaltyFeature,
-        IPointsSystem pointSystem,
+        IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
         IViewerFeature viewerFeature,
         IMediator mediator,
@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var moduleName = "Defuse";
             await RegisterDefaultCommand("defuse", this, moduleName, userCooldown: 10);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -44,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await pointSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, "defuse", Cost)))
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, Cost)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
                 throw new SkipCooldownException();
@@ -63,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var min = Cost * multiplier - Cost / multiplier;
                 var max = Cost * multiplier + Cost / multiplier;
                 var value = Tools.Next(min, max + 1);
-                await pointSystem.AddPointsByUserIdAndGame(e.UserId, "defuse", value);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, value);
                 await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
 
                 await mediator.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));

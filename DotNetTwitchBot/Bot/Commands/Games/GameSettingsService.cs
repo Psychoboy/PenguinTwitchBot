@@ -145,6 +145,43 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             return PointsSystem.GetDefaultPointType();
         }
 
+        public async Task<List<PointGamePair>> GetAllPointTypes()
+        {
+            using var scope = scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var settings = await dbContext.GameSettings.Find(x => x.SettingName.Equals("PointTypeId")).ToListAsync();
+            var defaultPointType = await dbContext.PointTypes.Find(x => x.Id == 1).FirstAsync();
+            List<PointGamePair> result = [];
+            foreach (var setting in settings)
+            {
+                var pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
+                if(pointType == null)
+                {
+                    await RegisterDefaultPointForGame(setting.GameName);
+                    result.Add(new PointGamePair
+                    {
+                        Setting = setting,
+                        PointType = defaultPointType
+                    });
+                } else
+                {
+                    result.Add(new PointGamePair { Setting = setting, PointType = pointType });
+                }
+            }
+            return result;
+        }
+
+        public async Task RegisterDefaultPointForGame(string gameName)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals("PointTypeId"))).FirstOrDefault();
+            if (setting == null)
+            {
+                await SetPointTypeForGame(gameName, 1);
+            }
+        }
+
         public async Task SetPointTypeForGame(string gameName, int pointTypeId)
         {
             using var scope = scopeFactory.CreateScope();

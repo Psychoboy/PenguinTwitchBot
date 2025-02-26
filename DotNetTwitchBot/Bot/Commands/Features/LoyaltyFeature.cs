@@ -174,8 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if(userId == null) continue;
                 try
                 {
-                    //TODO: Add points based on rank and pointtype
-                    await pointsSystem.AddPointsByUserIdAndGame(userId, "loyalty", 5);
+                    await pointsSystem.AddPointsByUserIdAndGame(userId, ModuleName, 5);
                 }
                 catch (Exception ex)
                 {
@@ -205,7 +204,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             var moduleName = "LoyaltyFeature";
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
-            return Task.CompletedTask;
+            return pointsSystem.RegisterDefaultPointForGame(ModuleName);
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

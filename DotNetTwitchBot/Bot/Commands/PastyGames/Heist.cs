@@ -53,6 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var moduleName = "Heist";
             await RegisterDefaultCommand("heist", this, moduleName);
+            await _pointSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -86,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
                 //amount = await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId);
-                amount = await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, "heist", PointsSystem.MaxBet);
+                amount = await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet);
             }
             else if (amountStr.Contains('%'))
             {
@@ -99,7 +100,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         "To join the heist, enter !heist AMOUNT or ALL or MAX or a % (ie. 50%)");
                         throw new SkipCooldownException();
                     }
-                    amount = (long)(await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, "heist", PointsSystem.MaxBet) * result.Value);
+                    amount = (long)(await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet) * result.Value);
                 }
                 catch
                 {
@@ -121,7 +122,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await _pointSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, "heist", amount)))
+            if (!(await _pointSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, amount)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
                 throw new SkipCooldownException();
@@ -209,7 +210,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 foreach (var participant in Survivors)
                 {
                     var pay = Convert.ToInt64(participant.Bet * 1.5);
-                    await _pointSystem.AddPointsByUsernameAndGame(participant.Name, "heist", participant.Bet + pay);
+                    await _pointSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                     maxlength += formattedName.Length;
                     payouts.Add(formattedName);

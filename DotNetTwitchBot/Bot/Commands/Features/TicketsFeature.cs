@@ -202,6 +202,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("tickets", this, moduleName);
             await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 

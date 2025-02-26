@@ -30,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public async Task RedeemBonus(string username)
         {
+            await pointSystem.RegisterDefaultPointForGame("Bonus");
             await _semaphoreSlim.WaitAsync();
             try
             {

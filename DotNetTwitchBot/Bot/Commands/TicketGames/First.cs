@@ -30,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "First";
             await RegisterDefaultCommand("first", this, moduleName);
             await RegisterDefaultCommand("resetfirst", this, moduleName, Rank.Streamer);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 

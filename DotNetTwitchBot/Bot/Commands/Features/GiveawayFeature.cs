@@ -50,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _timer.Start();
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }

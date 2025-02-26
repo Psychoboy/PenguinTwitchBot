@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 
@@ -33,11 +34,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task DeletePointType(int pointTypeId);
         Task<PointType> GetPointTypeForGame(string gameName);
         Task SetPointTypeForGame(string gameName, int pointTypeId);
+        Task RegisterDefaultPointForGame(string gameName);
         Task RunCommand(CommandEventArgs e, PointCommand pointCommand);
         Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType);
         Task<ViewerTimeWithRank> GetUserTimeAndRank(string name);
         Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name);
         Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType);
         Task<UserPointsWithRank> GetPointsWithRankByUsername(string username, int pointType);
+        public Task<List<PointGamePair>> GetAllPointTypes();
     }
 }

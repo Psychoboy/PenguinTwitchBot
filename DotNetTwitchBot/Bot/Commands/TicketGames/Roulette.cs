@@ -37,6 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             var moduleName = "Roulette";
             await RegisterDefaultCommand("roulette", this, moduleName, Rank.Viewer, userCooldown: 1200);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 

@@ -1,64 +1,37 @@
 ﻿@attribute [Authorize(Roles = "Streamer")]
 @using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Games
 @using DotNetTwitchBot.Bot.Models.Points
 @using DotNetTwitchBot.Bot.Commands.Games
 
 <MudPaper>
-    <MudText Typo="Typo.h5">Game Point Settings</MudText>
-    <MudDivider />
-    <MudText>Settings for the game points system.</MudText>
-    <MudText>If doing 2 currencies (1 for giveaways and another for fun, first half recommend fun, 2nd for giveaway</MudText>
-    <MudSelect Label="Slots" @bind-Value="slotsPointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType"/>
-        }
-    </MudSelect>
-    <MudSelect Label="Defuse" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="ffaPointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="roulettePointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="heistPointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="gamblePointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="rollPointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudSelect Label="stealPointType" @bind-Value="defusePointType" ToStringFunc="@convertFunc">
-        @foreach (var pointType in PointTypes)
-        {
-            <MudSelectItem Value="@pointType" />
-        }
-    </MudSelect>
-    <MudDivider />
-    <MudText>See above note, this is recommended for giveaways</MudText>
-
+    <MudTable Items="@PointSettings" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Settings for the game points system.</MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Point Type</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
+            <MudTd DataLabel="PointType">@context.PointType.Name</MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
+            <MudTd DataLabel="PointType">
+                <MudSelect Label="Point Type" @bind-Value="context.PointType" ToStringFunc="@convertFunc">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
+            </MudTd>
+        </RowEditingTemplate>
+        <EditButtonContent Context="button">
+            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" />
+        </EditButtonContent>
+    </MudTable>
 </MudPaper>
 
 @code {
@@ -66,24 +39,17 @@
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     [Inject] IGameSettingsService gameSettingsService { get; set; } = null!;
     private Func<PointType, string> convertFunc = ci => ci?.Name;
-
-    private PointType slotsPointType { get; set; } = default!;
-    private PointType defusePointType { get; set; } = default!;
-    private PointType ffaPointType { get; set; } = default!;
-    private PointType duelPointType { get; set; } = default!;
-    private PointType roulettePointType { get; set; } = default!;
-    private PointType heistPointType { get; set; } = default!;
-    private PointType gamblePointType { get; set; } = default!;
-    private PointType rollPointType { get; set; } = default!;
-    private PointType stealPointType { get; set; } = default!;
-
-    private PointType giveawayFeature { get; set; } = default!;
+    private List<PointGamePair> PointSettings { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
+        PointSettings = await pointSystem.GetAllPointTypes();
         PointTypes = await pointSystem.GetPointTypes();
-        slotsPointType = await gameSettingsService.GetPointTypeForGame("slots");
-        defusePointType = await gameSettingsService.GetPointTypeForGame("defuse");
+    }
 
+    private async void ItemHasBeenCommitted(object element)
+    {
+        var pointSettings = (PointGamePair)element;
+        await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.GetId());
     }
 }

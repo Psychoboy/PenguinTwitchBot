@@ -33,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             var moduleName = "AddActive";
             await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
             _pointsToActiveCommandTimer.Start();
         }

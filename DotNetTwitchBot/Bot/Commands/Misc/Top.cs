@@ -24,6 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await RegisterDefaultCommand("toptickets", this, moduleName);
             //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
             await RegisterDefaultCommand("loudest", this, moduleName);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -71,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             //var top = await db.ViewerPointWithRanks.GetAsync(filter: x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), orderBy: y => y.OrderBy(z => z.Ranking), limit: topN);
             //var rank = 1;
             //var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
-            var pointType = await pointsSystem.GetPointTypeForGame("top");
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             var top = await db.UserPoints.GetRankedPoints(pointType.Id.GetValueOrDefault(), limit: topN).ToListAsync();
             var names = string.Join(", ", top.Select(x => x.Ranking + ". " + x.Username + " " + x.Points.ToString("N0")));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in {1}: {2}", topN, pointType.Name, names));

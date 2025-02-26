@@ -33,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Slots";
             await RegisterDefaultCommand("slot", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("slots", this, moduleName, Rank.Viewer, userCooldown: 600);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -71,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "slots", prizeWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
@@ -90,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "slots", prizeWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];

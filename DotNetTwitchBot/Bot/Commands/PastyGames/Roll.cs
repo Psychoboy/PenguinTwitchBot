@@ -27,6 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Roll";
             await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
             await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -80,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
                 var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "roll", prizes[dice1 - 1]);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizes[dice1 - 1]);
             }
             else
             {

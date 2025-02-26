@@ -39,6 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "BaconRaffle";
             await RegisterDefaultCommand("raffle", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("bacon", this, moduleName, Rank.Viewer);
+            await _pointSystem.RegisterDefaultPointForGame("raffle");
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 

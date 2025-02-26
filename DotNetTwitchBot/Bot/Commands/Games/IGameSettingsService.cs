@@ -1,4 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Models.Points;
+﻿using DotNetTwitchBot.Bot.Core.Points;
+using DotNetTwitchBot.Bot.Models.Games;
+using DotNetTwitchBot.Bot.Models.Points;
 
 namespace DotNetTwitchBot.Bot.Commands.Games
 {
@@ -15,5 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         Task SetStringSetting(string gameName, string settingName, string value);
         Task<PointType> GetPointTypeForGame(string gameName);
         Task SetPointTypeForGame(string gameName, int pointTypeId);
+        Task RegisterDefaultPointForGame(string gameName);
+        Task<List<PointGamePair>> GetAllPointTypes();
     }
 }

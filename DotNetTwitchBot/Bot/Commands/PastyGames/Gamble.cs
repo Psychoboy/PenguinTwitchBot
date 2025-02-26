@@ -28,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Gamble";
             await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer, userCooldown: 180);
             await RegisterDefaultCommand("jackpot", this, moduleName, Rank.Viewer);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -96,13 +97,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await UpdateJackpot(jackpot, true);
                 await twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
                 await LaunchFireworks();
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "gamble", amount);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, amount);
             }
             else if (value > WinRange)
             {
                 var winnings = amount * 2;
                 await ServiceBackbone.SendChatMessage(string.Format("{0} rolled {1} and won the {2} pasties!", e.DisplayName, value, winnings.ToString("N0")));
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "gamble", winnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
             }
             else
             {

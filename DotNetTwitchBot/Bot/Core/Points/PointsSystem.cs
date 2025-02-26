@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
@@ -262,6 +263,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return gameSettingsService.GetPointTypeForGame(gameName);
         }
 
+        public Task RegisterDefaultPointForGame(string gameName)
+        {
+            return gameSettingsService.RegisterDefaultPointForGame(gameName);
+        }
+
         public Task SetPointTypeForGame(string gameName, int pointTypeId)
         {
             return gameSettingsService.SetPointTypeForGame(gameName, pointTypeId);
@@ -407,6 +413,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             await RegisterDefaultCommand("loyalty", this, ModuleName);
             logger.LogInformation("Registered commands for {module}", ModuleName);
+        }
+
+        public Task<List<PointGamePair>> GetAllPointTypes()
+        {
+            return gameSettingsService.GetAllPointTypes();
         }
 
         public async Task RunCommand(CommandEventArgs e, PointCommand pointCommand)

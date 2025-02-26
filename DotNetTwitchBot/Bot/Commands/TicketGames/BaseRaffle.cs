@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected string _emote;
         protected string _command;
         protected string _name;
-        private readonly IPointsSystem _pointSystem;
+        protected readonly IPointsSystem _pointSystem;
 
         protected int WinAmount { get; set; } = 0;
 
