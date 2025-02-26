@@ -205,7 +205,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("gift", this, moduleName);
             await RegisterDefaultCommand("give", this, moduleName);
             await RegisterDefaultCommand("check", this, moduleName);
-            await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
+            //await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -224,19 +224,19 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 case "check":
                     await CheckUsersPasties(e);
                     break;
-                case "addpasties":
-                    if (e.Args.Count < 2) return;
-                    if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
-                    if (long.TryParse(e.Args[1], out var points))
-                    {
-                        if (points <= 0) return;
-                        var userId = await viewerFeature.GetViewerId(e.TargetUser);
-                        if (userId == null) return;
-                        await AddPointsToViewerByUserId(userId, points);
-                        var totalPasties = await GetUserPastiesByUserId(userId);
-                        await ServiceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
-                    }
-                    break;
+                //case "addpasties":
+                //    if (e.Args.Count < 2) return;
+                //    if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
+                //    if (long.TryParse(e.Args[1], out var points))
+                //    {
+                //        if (points <= 0) return;
+                //        var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                //        if (userId == null) return;
+                //        await AddPointsToViewerByUserId(userId, points);
+                //        var totalPasties = await GetUserPastiesByUserId(userId);
+                //        await ServiceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
+                //    }
+                //    break;
 
             }
         }

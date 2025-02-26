@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var maxBet = await maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 5);
+            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, "gamble", e.Args.First(), 5);
             long amount = 0;
             switch (maxBet.Result)
             {

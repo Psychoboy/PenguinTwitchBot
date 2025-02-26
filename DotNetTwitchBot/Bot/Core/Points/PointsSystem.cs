@@ -12,6 +12,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IGameSettingsService gameSettingsService
         ) : IPointsSystem, IHostedService
     {
+        public static Int64 MaxBet { get; } = 200000069;
         public async Task AddPointsByUserId(string userId, int pointType, long points)
         {
             try
