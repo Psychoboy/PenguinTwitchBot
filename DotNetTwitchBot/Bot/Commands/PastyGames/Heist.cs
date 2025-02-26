@@ -1,18 +1,20 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Heist : BaseCommandService, IHostedService
     {
-        private readonly ILoyaltyFeature _loyaltyFeature;
+        //private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 300;
         private readonly int MinBet = 10;
         private readonly List<Participant> Entered = new();
         private readonly List<Participant> Survivors = new();
         private readonly List<Participant> Caught = new();
+        private readonly IPointsSystem _pointSystem;
         private readonly Timer JoinTimer;
         private readonly ILogger<Heist> _logger;
         private State GameState = State.NotRunning;
@@ -34,13 +36,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         }
 
         public Heist(
-            ILoyaltyFeature loyaltyFeature,
+            //ILoyaltyFeature loyaltyFeature,
+            IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "Heist")
         {
-            _loyaltyFeature = loyaltyFeature;
+            //_loyaltyFeature = loyaltyFeature;
+            _pointSystem = pointsSystem;
             JoinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _logger = logger;
         }
@@ -81,7 +85,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
             {
-                amount = await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId);
+                //amount = await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId);
+                amount = await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, "heist", PointsSystem.MaxBet);
             }
             else if (amountStr.Contains('%'))
             {
@@ -94,7 +99,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         "To join the heist, enter !heist AMOUNT or ALL or MAX or a % (ie. 50%)");
                         throw new SkipCooldownException();
                     }
-                    amount = (long)(await _loyaltyFeature.GetMaxPointsFromUserByUserId(e.UserId) * result.Value);
+                    amount = (long)(await _pointSystem.GetMaxPointsByUserIdAndGame(e.UserId, "heist", PointsSystem.MaxBet) * result.Value);
                 }
                 catch
                 {
@@ -116,7 +121,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await _loyaltyFeature.RemovePointsFromUserByUserId(e.UserId, amount)))
+            if (!(await _pointSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, "heist", amount)))
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "sorry you don't have that amount to enter the heist.");
                 throw new SkipCooldownException();
@@ -204,7 +209,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 foreach (var participant in Survivors)
                 {
                     var pay = Convert.ToInt64(participant.Bet * 1.5);
-                    await _loyaltyFeature.AddPointsToViewerByUsername(participant.Name, participant.Bet + pay);
+                    await _pointSystem.AddPointsByUsernameAndGame(participant.Name, "heist", participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                     maxlength += formattedName.Length;
                     payouts.Add(formattedName);

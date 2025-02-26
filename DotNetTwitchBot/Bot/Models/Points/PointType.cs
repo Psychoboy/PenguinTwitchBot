@@ -18,5 +18,6 @@ namespace DotNetTwitchBot.Bot.Models.Points
         public string GetCommand { get; set; } = null!;
         public string SetCommand { get; set; } = null!;
         public string AddActiveCommand { get; set; } = null!;
+        public int GetId() { return Id ?? 0; }
     }
 }

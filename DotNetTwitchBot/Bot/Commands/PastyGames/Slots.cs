@@ -1,13 +1,15 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Slots(
         ILogger<Slots> logger,
-        ILoyaltyFeature loyaltyService,
+        //ILoyaltyFeature loyaltyService,
+        IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         MaxBetCalculator maxBetCalculator,
@@ -69,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await loyaltyService.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "slots", prizeWinnings);
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
@@ -88,7 +90,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
-                await loyaltyService.AddPointsToViewerByUserId(e.UserId, prizeWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, "slots", prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
@@ -104,7 +106,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return 0;
             }
 
-            var maxBet = await maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 25);
+            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, "slots", e.Args.First(), 25);
             switch (maxBet.Result)
             {
                 case MaxBet.ParseResult.Success:

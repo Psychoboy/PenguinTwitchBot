@@ -1,35 +1,27 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Steal : BaseCommandService, IHostedService
+    public class Steal(
+        ILogger<Steal> logger,
+        //ILoyaltyFeature loyaltyFeature,
+        IPointsSystem pointsSystem,
+        IViewerFeature viewerFeature,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Steal"), IHostedService
     {
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;
-        private readonly ILoyaltyFeature _loyaltyFeature;
-        private readonly IViewerFeature _viewerFeature;
-        private readonly ILogger<Steal> _logger;
-
-        public Steal(
-            ILogger<Steal> logger,
-            ILoyaltyFeature loyaltyFeature,
-            IViewerFeature viewerFeature,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "Steal")
-        {
-            _loyaltyFeature = loyaltyFeature;
-            _viewerFeature = viewerFeature;
-            _logger = logger;
-        }
 
         public override async Task Register()
         {
             var moduleName = "Steal";
             await RegisterDefaultCommand("steal", this, moduleName, userCooldown: 300);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -49,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var userPasties = await _loyaltyFeature.GetUserPastiesByUserId(e.UserId);
+            var userPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.UserId, "steal");
             if (userPasties.Points < StealMax)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
@@ -61,8 +53,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task StealFromUser(CommandEventArgs e)
         {
-            var targetPasties = await _loyaltyFeature.GetUserPastiesByUsername(e.TargetUser);
-            var targetDisplayName = await _viewerFeature.GetNameWithTitle(e.TargetUser);
+            var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, "steal");
+            var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
             var amount = Tools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
@@ -89,19 +81,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task MovePoints(string from, string to, int amount)
         {
-            await _loyaltyFeature.RemovePointsFromUserByUserName(from, amount);
-            await _loyaltyFeature.AddPointsToViewerByUsername(to, amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(from, "steal", amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(to, "steal", amount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Started {moduledname}", ModuleName);
+            logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

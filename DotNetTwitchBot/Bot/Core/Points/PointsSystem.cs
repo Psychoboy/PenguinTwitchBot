@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
 
@@ -7,7 +8,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
     public class PointsSystem(
         IViewerFeature viewerFeature,
         ILogger<PointsSystem> logger,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        IGameSettingsService gameSettingsService
         ) : IPointsSystem, IHostedService
     {
         public async Task AddPointsByUserId(string userId, int pointType, long points)
@@ -186,6 +188,88 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 SetCommand = "setpoints",
                 AddActiveCommand = "addactivepoints"
             };
+        }
+
+        public Task<PointType> GetPointTypeForGame(string gameName)
+        {
+            return gameSettingsService.GetPointTypeForGame(gameName);
+        }
+
+        public Task SetPointTypeForGame(string gameName, int pointTypeId)
+        {
+            return gameSettingsService.SetPointTypeForGame(gameName, pointTypeId);
+        }
+
+        public async Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points)
+        {
+            var userPoints = await GetUserPointsByUserId(userId, pointType);
+            if (userPoints == null)
+            {
+                return false;
+            }
+            if (userPoints.Points < points)
+            {
+                return false;
+            }
+            userPoints.Points -= points;
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.UserPoints.Update(userPoints);
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points)
+        {
+            var viewer = await viewerFeature.GetViewerByUserName(username);
+            if (viewer == null)
+            {
+                logger.LogWarning("Viewer not found for username {username}", username);
+                return false;
+            }
+            return await RemovePointsFromUserByUserId(viewer.UserId, pointType, points);
+        }
+
+        public async Task<UserPoints> GetUserPointsByUserIdAndGame(string userId, string gameName)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            return await GetUserPointsByUserId(userId, pointType.GetId());
+        }
+
+        public async Task<UserPoints> GetUserPointsByUsernameAndGame(string username, string gameName)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            return await GetUserPointsByUsername(username, pointType.GetId());
+        }
+
+        public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            return await RemovePointsFromUserByUserId(userId, pointType.GetId(), points);
+        }
+
+        public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            return await RemovePointsFromUserByUsername(username, pointType.GetId(), points);
+        }
+
+        public async Task AddPointsByUserIdAndGame(string userId, string gameName, long points)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            await AddPointsByUserId(userId, pointType.GetId(), points);
+        }
+
+        public async Task AddPointsByUsernameAndGame(string username, string gameName, long points)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            await AddPointsByUsername(username, pointType.GetId(), points);
+        }
+
+        public async Task<long> GetMaxPointsByUserIdAndGame(string userId, string gameName, long max)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            return await GetMaxPointsByUserId(userId, pointType.GetId(), max);
         }
     }
 }
