@@ -38,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     userPoints = new UserPoints
                     {
                         UserId = userId,
+                        Username = viewer.Username,
                         PointTypeId = pointType,
                         Points = points
                     };
@@ -91,11 +92,18 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
+            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            if (viewer == null)
+            {
+                logger.LogWarning("Viewer not found for user {userId}", userId);
+                return new();
+            }
             if (userPoints == null)
             {
                 userPoints = new UserPoints
                 {
                     UserId = userId,
+                    Username = viewer.Username,
                     PointTypeId = pointType
                 };
                 await db.UserPoints.AddAsync(userPoints);
@@ -354,7 +362,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                         {
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
-                            await AddPointsByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                            await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
                         }
                         break;
                     }
@@ -441,6 +449,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 await SendChatMessage(e.Name, $"You have #{userPoints.Ranking} {userPoints.Points} {userPointType?.Name}");
             }
+            var allUserPoints = db.UserPoints.UserPointsWithRank(pointType);
+            var allUserPointsList = await allUserPoints.Take(10).ToListAsync();
+            var userPointsTest = allUserPoints.FirstOrDefault(x => x.UserId == userId);
         }
 
         public Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, PointType pointType)
