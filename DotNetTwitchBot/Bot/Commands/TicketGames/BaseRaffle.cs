@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 
@@ -26,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         protected string _emote;
         protected string _command;
         protected string _name;
-        private readonly ITicketsFeature _ticketsFeature;
+        private readonly IPointsSystem _pointSystem;
 
         protected int WinAmount { get; set; } = 0;
 
@@ -36,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         protected BaseRaffle(
             IServiceBackbone eventService,
-            ITicketsFeature ticketsFeature,
+            IPointsSystem pointSystem,
             ICommandHandler commandHandler,
             string emote,
             string command,
@@ -47,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _emote = emote;
             _command = command;
             _name = name;
-            _ticketsFeature = ticketsFeature;
+            _pointSystem = pointSystem;
             _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
             _logger = logger;
         }
@@ -136,7 +137,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await ServiceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote));
             foreach (var winner in winners)
             {
-                await _ticketsFeature.GiveTicketsToViewerByUsername(winner, (long)eachWins);
+                await _pointSystem.AddPointsByUsernameAndGame(winner, "raffle", (long)eachWins);
             }
             CurrentState = State.NotRunning;
         }

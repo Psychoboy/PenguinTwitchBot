@@ -13,11 +13,18 @@
                     <HeaderContent>
                         <MudTh>Name</MudTh>
                         <MudTh>Description</MudTh>
-
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Description</MudTd>
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => EditPointType(context)">Edit</MudButton>
+                        </MudTd>
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="() => DeletePointType(context)">Delete</MudButton>
+                        </MudTd>
                     </RowTemplate>
                     <ChildRowContent>
                         <MudTr>
@@ -95,6 +102,17 @@
                     new PointCommand { CommandType = PointCommandType.AddActive }
                 }
             };
+    }
+
+    private void EditPointType(PointType pointType)
+    {
+        newPointType = pointType;
+    }
+
+    private async Task DeletePointType(PointType pointType)
+    {
+        await pointSystem.DeletePointType(pointType.Id.GetValueOrDefault());
+        PointTypes = await pointSystem.GetPointTypes();
     }
 
     private void GenerateCommands()

@@ -1,31 +1,22 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Duel;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class DuelGame : BaseCommandService, IHostedService
+    public class DuelGame(
+        IServiceBackbone serviceBackbone,
+        //ITicketsFeature ticketsFeature,
+        IPointsSystem pointsSystem,
+        IViewerFeature viewerFeature,
+        ICommandHandler commandHandler,
+        ILogger<DuelGame> logger
+            ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame"), IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
-
-        private readonly IViewerFeature _viewerFeature;
-        private readonly ITicketsFeature _ticketsFeature;
-        private readonly ILogger<DuelGame> _logger;
-
-        public DuelGame(
-            IServiceBackbone serviceBackbone,
-            ITicketsFeature ticketsFeature,
-            IViewerFeature viewerFeature,
-            ICommandHandler commandHandler,
-            ILogger<DuelGame> logger
-            ) : base(serviceBackbone, commandHandler, "DuelGame")
-        {
-            _viewerFeature = viewerFeature;
-            _ticketsFeature = ticketsFeature;
-            _logger = logger;
-        }
 
         public override async Task Register()
         {
@@ -33,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await RegisterDefaultCommand("duel", this, moduleName, Rank.Viewer, userCooldown: 600);
             await RegisterDefaultCommand("accept", this, moduleName, Rank.Viewer);
             await RegisterDefaultCommand("deny", this, moduleName, Rank.Viewer);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -116,42 +107,42 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private async Task FightDuel(PendingDuel existingDuel)
         {
 
-            if ((await _ticketsFeature.GetViewerTickets(existingDuel.Attacker)) < existingDuel.Amount)
+            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Attacker, ModuleName)).Points < existingDuel.Amount)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
                 return;
             }
 
-            if ((await _ticketsFeature.GetViewerTickets(existingDuel.Defender)) < existingDuel.Amount)
+            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Defender, ModuleName)).Points < existingDuel.Amount)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
                 return;
             }
 
-            var removedTicketsFromAttacker = await _ticketsFeature.RemoveTicketsFromViewerByUsername(existingDuel.Attacker, existingDuel.Amount);
+            var removedTicketsFromAttacker = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount);
             if (removedTicketsFromAttacker == false)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
                 return;
             }
 
-            var removedTicketsFromDefender = await _ticketsFeature.RemoveTicketsFromViewerByUsername(existingDuel.Defender, existingDuel.Amount);
+            var removedTicketsFromDefender = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount);
             if (removedTicketsFromDefender == false)
             {
                 await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
-                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Attacker, existingDuel.Amount); //refund for attack since we removed them already
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount); //refund for attack since we removed them already
                 return;
             }
 
             var winner = Tools.Next(0, 100);
             if (winner < 50)
             {
-                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Attacker, existingDuel.Amount * 2);
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount * 2);
                 await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan");
             }
             else
             {
-                await _ticketsFeature.GiveTicketsToViewerByUsername(existingDuel.Defender, existingDuel.Amount * 2);
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount * 2);
                 await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} tickets FeelsGoodMan");
             }
         }
@@ -180,8 +171,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "To duel you must choose an amount between 1 and 100");
                 throw new SkipCooldownException();
             }
-            var attackerTickets = await _ticketsFeature.GetViewerTickets(e.Name);
-            if (attackerTickets < amount)
+            var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
+            if (attackerTickets.Points < amount)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have that much.");
                 throw new SkipCooldownException();
@@ -199,7 +190,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 throw new SkipCooldownException();
             }
-            var defender = await _viewerFeature.GetViewerByUserName(e.TargetUser);
+            var defender = await viewerFeature.GetViewerByUserName(e.TargetUser);
             if (defender == null)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "Could not find that viewer");
@@ -212,8 +203,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 throw new SkipCooldownException();
             }
 
-            var defenderTickets = await _ticketsFeature.GetViewerTickets(defender.Username);
-            if (defenderTickets < amount)
+            var defenderTickets = await pointsSystem.GetUserPointsByUsernameAndGame(defender.Username, ModuleName);
+            if (defenderTickets.Points < amount)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, "They don't have that many tickets.");
                 throw new SkipCooldownException();
@@ -290,13 +281,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

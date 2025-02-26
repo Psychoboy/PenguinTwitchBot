@@ -1,4 +1,3 @@
-using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 
@@ -54,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task UpdateOrStopSpam()
         {
-            _addActive.AddActiveTickets(Tools.RandomRange(1, 8));
+            _addActive.AddActivePoints(Tools.RandomRange(1, 8));
             var elapsedTime = DateTime.Now - _startTime;
             if (elapsedTime > _runTime)
             {

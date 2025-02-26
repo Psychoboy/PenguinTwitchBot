@@ -174,7 +174,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if(userId == null) continue;
                 try
                 {
-                    //await AddPointsToViewerByUserId(userId, 5);
+                    //TODO: Add points based on rank and pointtype
                     await pointsSystem.AddPointsByUserIdAndGame(userId, "loyalty", 5);
                 }
                 catch (Exception ex)
@@ -204,11 +204,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public override Task Register()
         {
             var moduleName = "LoyaltyFeature";
-            //await RegisterDefaultCommand("pasties", this, moduleName);
-            //await RegisterDefaultCommand("gift", this, moduleName);
-            //await RegisterDefaultCommand("give", this, moduleName);
-            //await RegisterDefaultCommand("check", this, moduleName);
-            //await RegisterDefaultCommand("addpasties", this, moduleName, Rank.Streamer);
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
             return Task.CompletedTask;
         }

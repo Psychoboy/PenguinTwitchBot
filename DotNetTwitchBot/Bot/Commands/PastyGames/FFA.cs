@@ -14,7 +14,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly Timer _joinTimer;
         private readonly IPointsSystem _pointSystem;
 
-        //private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly IViewerFeature _viewFeature;
         private readonly ILogger<FFA> _logger;
         readonly string CommandName = "ffa";
@@ -29,7 +28,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private State GameState { get; set; }
 
         public FFA(
-            //ILoyaltyFeature loyaltyFeature,
             IPointsSystem pointSystem,
             IServiceBackbone serviceBackbone,
             ILogger<FFA> logger,
@@ -38,7 +36,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ) : base(serviceBackbone, commandHandler, "FFA")
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
-            //_loyaltyFeature = loyaltyFeature;
             _pointSystem = pointSystem;
             _viewFeature = viewerFeature;
             _logger = logger;

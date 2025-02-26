@@ -1,13 +1,14 @@
 ﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using MediatR;
 using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BonusTickets(
-        ITicketsFeature ticketsFeature, 
+        IPointsSystem pointSystem,
         IMediator mediator, 
         IServiceBackbone serviceBackbone, 
         ILogger<BonusTickets> logger) : IBonusTickets
@@ -44,7 +45,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
-                var amount = await ticketsFeature.GiveTicketsToViewerByUsername(username, ticketsWon);
+                //var amount = await ticketsFeature.GiveTicketsToViewerByUsername(username, ticketsWon);
+                var amount = await pointSystem.AddPointsByUserIdAndGame(username, "bonus", ticketsWon);
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",

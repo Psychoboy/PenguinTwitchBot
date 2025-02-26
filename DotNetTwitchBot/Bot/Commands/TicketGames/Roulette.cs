@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using System.Collections.Concurrent;
 
@@ -8,20 +9,20 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     public class Roulette : BaseCommandService, IHostedService
     {
         private readonly int MustBeatValue = 52;
-        private readonly ITicketsFeature _ticketsFeature;
         private readonly ConcurrentDictionary<string, int> TotalGambled = new();
         private readonly int MaxAmount = 1000;
         private readonly int MaxPerBet = 500;
         private readonly ILogger<Roulette> _logger;
+        private readonly IPointsSystem _pointsSystem;
 
         public Roulette(
             IServiceBackbone serviceBackbone,
-            ITicketsFeature ticketsFeature,
+            IPointsSystem pointsSystem,
             ICommandHandler commandHandler,
             ILogger<Roulette> logger
         ) : base(serviceBackbone, commandHandler, "Roulette")
         {
-            _ticketsFeature = ticketsFeature;
+            _pointsSystem = pointsSystem;
             ServiceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
         }
@@ -58,10 +59,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         if (amount.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
                             amount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
                         {
-                            var viewerPoints = await _ticketsFeature.GetViewerTickets(e.Name);
-                            if (viewerPoints > Int32.MaxValue / 2)
+                            var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
+                            if (viewerPoints.Points > Int32.MaxValue / 2)
                             {
-                                viewerPoints = (Int32.MaxValue - 1) / 2;
+                                viewerPoints.Points = (Int32.MaxValue - 1) / 2;
                             }
                             amount = viewerPoints.ToString();
                         }
@@ -78,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             throw new SkipCooldownException();
                         }
 
-                        if (amountToBet > await _ticketsFeature.GetViewerTickets(e.Name))
+                        if (amountToBet > (await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName)).Points)
                         {
                             await SendChatMessage(e.DisplayName, "You don't have that many tickets.");
                             throw new SkipCooldownException();
@@ -108,15 +109,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         var value = Tools.Next(100);
                         if (value > MustBeatValue)
                         {
-                            await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToBet);
-                            var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
+                            //await _ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToBet);
+                            var totalPoints = await _pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, amountToBet);
+                            //var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
                             string.Format(WinMessage, e.DisplayName, amountToBet, totalPoints, value, TotalGambled[e.Name], MaxAmount));
                         }
                         else
                         {
-                            await _ticketsFeature.RemoveTicketsFromViewerByUserId(e.UserId, amountToBet);
-                            var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
+                            //await _ticketsFeature.RemoveTicketsFromViewerByUserId(e.UserId, amountToBet);
+                            var totalPoints = await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, amountToBet);
+                            //var totalPoints = await _ticketsFeature.GetViewerTickets(e.Name);
                             await SendChatMessage(
                             string.Format(LoseMessage, e.DisplayName, amountToBet, totalPoints, value, TotalGambled[e.Name], MaxAmount));
                         }

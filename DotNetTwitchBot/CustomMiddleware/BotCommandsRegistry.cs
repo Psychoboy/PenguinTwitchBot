@@ -56,8 +56,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Roulette>();
             services.AddHostedApiService<DuelGame>();
             services.AddHostedApiService<ModSpam>();
-            services.AddHostedApiService<Bot.Commands.Misc.AddActive>();
-            services.AddHostedApiService<Bot.Commands.Misc.First>();
+            services.AddHostedApiService<AddActive>();
+            services.AddHostedApiService<First>();
             services.AddHostedApiService<Bot.Commands.Misc.DailyCounter>();
             services.AddHostedApiService<Bot.Commands.Misc.DeathCounters>();
             services.AddHostedApiService<Bot.Commands.Misc.LastSeen>();

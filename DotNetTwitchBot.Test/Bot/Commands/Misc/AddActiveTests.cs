@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
-using DotNetTwitchBot.Bot.Commands.Misc;
+using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Core;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             addActive.ExecuteTimesUntilNow = 2;
 
             //Act
-            addActive.AddActiveTickets(10);
+            addActive.AddActivePoints(10);
             await addActive.SendTickets();
             //Assert
 
@@ -47,8 +47,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             addActive.ExecuteTimesUntilNow = 3;
 
             //Act
-            addActive.AddActiveTickets(10);
-            addActive.AddActiveTickets(10);
+            addActive.AddActivePoints(10);
+            addActive.AddActivePoints(10);
             await addActive.SendTickets();
             //Assert
 

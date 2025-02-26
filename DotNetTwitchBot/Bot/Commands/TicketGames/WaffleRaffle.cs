@@ -1,15 +1,16 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class WaffleRaffle(
         IServiceBackbone eventService,
-        ITicketsFeature ticketsFeature,
+        IPointsSystem pointsSystem,
         ICommandHandler commandHandler,
         ILogger<WaffleRaffle> logger
-        ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvWaffle", "!waffle", "waffle", logger)
+        ) : BaseRaffle(eventService, pointsSystem, commandHandler, "sptvWaffle", "!waffle", "waffle", logger)
     {
         public override async Task Register()
         {

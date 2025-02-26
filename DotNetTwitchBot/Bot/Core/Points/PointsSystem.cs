@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
-        public async Task AddPointsByUserId(string userId, int pointType, long points)
+        public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
             try
             {
@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 if (viewer == null)
                 {
                     logger.LogWarning("Viewer not found for user {userId}", userId);
-                    return;
+                    return 0;
                 }
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -51,10 +51,12 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     db.UserPoints.Update(userPoints);
                 }
                 await db.SaveChangesAsync();
+                return userPoints.Points;
             }
             catch(Exception ex)
             {
                 logger.LogError(ex, "Error adding points to user {userId}", userId);
+                return 0;
             }
         }
 

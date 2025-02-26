@@ -6,10 +6,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
 {
     public interface IPointsSystem
     {
-        Task AddPointsByUserId(string userId, int pointType, long points);
-        Task AddPointsByUsername(string username, int pointType, long points);
-        Task AddPointsByUserIdAndGame(string userId, string gameName, long points);
-        Task AddPointsByUsernameAndGame(string username, string gameName, long points);
+        Task<long> AddPointsByUserId(string userId, int pointType, long points);
+        Task<long> AddPointsByUsername(string username, int pointType, long points);
+        Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points);
+        Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points);
         Task AddPointsToActiveUsers(int pointType, long points);
         Task AddPointsToSubbedUsers(int pointType, long points);
         Task AddPointsToAllCurrentUsers(int pointType, long points);
