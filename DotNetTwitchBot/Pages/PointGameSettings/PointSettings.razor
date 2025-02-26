@@ -13,21 +13,35 @@
                     <HeaderContent>
                         <MudTh>Name</MudTh>
                         <MudTh>Description</MudTh>
-                        <MudTh>Add Cmd</MudTh>
-                        <MudTh>Remove Cmd</MudTh>
-                        <MudTh>Get Cmd</MudTh>
-                        <MudTh>Set Cmd</MudTh>
-                        <MudTh>Add Active Cmd</MudTh>
+
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Description</MudTd>
-                        @* <MudTd>@context.AddCommand?.CommandName</MudTd> *@
-                        @* <MudTd>@context.RemoveCommand?.CommandName</MudTd> *@
-                        @* <MudTd>@context.GetCommand?.CommandName</MudTd> *@
-                        @* <MudTd>@context.SetCommand?.CommandName</MudTd> *@
-                        @* <MudTd>@context.AddActiveCommand?.CommandName</MudTd> *@
                     </RowTemplate>
+                    <ChildRowContent>
+                        <MudTr>
+                            <td>
+                                <MudCard>
+                                    <MudCardHeader>
+                                        Commands for <strong>@context.Name</strong>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudTable Items="@context.PointCommands.ToList()" Context="CommandContext">
+                                            <HeaderContent>
+                                                <MudTh>Command</MudTh>
+                                                <MudTh>Command Description</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd>@CommandContext.CommandName</MudTd>
+                                                <MudTd>@CommandContext.CommandType</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    </MudCardContent>
+                                </MudCard>
+                            </td>
+                        </MudTr>
+                    </ChildRowContent>
                 </MudTable>
             </MudPaper>
         </MudItem>
@@ -36,12 +50,13 @@
                 <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
                     <DataAnnotationsValidator />
                     <MudTextField Label="Name" @bind-Value="newPointType.Name" />
-                    @* <MudTextField Label="Description" @bind-Value="newPointType.Description" /> *@
-                    @* <MudTextField Label="Add Command" @bind-Value="newPointType.AddCommand.CommandName" /> *@
-                    @* <MudTextField Label="Remove Command" @bind-Value="newPointType.RemoveCommand.CommandName" /> *@
-                    @* <MudTextField Label="Get Command" @bind-Value="newPointType.GetCommand.CommandName" /> *@
-                    @* <MudTextField Label="Set Command" @bind-Value="newPointType.SetCommand.CommandName" /> *@
-                    @* <MudTextField Label="Add Active Command" @bind-Value="newPointType.AddActiveCommand.CommandName" /> *@
+                    <MudTextField Label="Description" @bind-Value="newPointType.Description" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="GenerateCommands">GenerateCommands</MudButton>
+                    <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" />
+                    <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" />
+                    <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" />
+                    <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" />
+                    <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save</MudButton>
                 </EditForm>
             </MudPaper>
@@ -51,18 +66,43 @@
 
 @code {
     private IEnumerable<PointType> PointTypes { get; set; } = [];
-    private PointType newPointType = new();
+    private PointType newPointType = CreateNewPointType();
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
         PointTypes = await pointSystem.GetPointTypes();
+        newPointType = CreateNewPointType();
     }
 
     private async Task SavePointType()
     {
         await pointSystem.UpdatePointType(newPointType);
-        newPointType = new();
+        newPointType = CreateNewPointType();
         PointTypes = await pointSystem.GetPointTypes();
+    }
+
+    private static PointType CreateNewPointType()
+    {
+        return new PointType
+            {
+                PointCommands = new List<PointCommand>
+                {
+                    new PointCommand { CommandType = PointCommandType.Add },
+                    new PointCommand { CommandType = PointCommandType.Remove },
+                    new PointCommand { CommandType = PointCommandType.Get },
+                    new PointCommand { CommandType = PointCommandType.Set },
+                    new PointCommand { CommandType = PointCommandType.AddActive }
+                }
+            };
+    }
+
+    private void GenerateCommands()
+    {
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName = $"!add{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName = $"!remove{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName = $"!get{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName = $"!set{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName = $"!addactive{newPointType.Name.ToLower()}";
     }
 }

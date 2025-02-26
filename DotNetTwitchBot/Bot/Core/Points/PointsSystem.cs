@@ -162,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.PointTypes.GetAllAsync();
+            return await db.PointTypes.GetAsync(includeProperties: "PointCommands");
         }
 
         public async Task AddPointType(PointType pointType)

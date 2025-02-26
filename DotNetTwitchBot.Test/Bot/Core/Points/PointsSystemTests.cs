@@ -66,6 +66,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 200 };
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetMaxPointsByUserId(userId, pointType, max);
@@ -84,6 +85,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 50 };
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetMaxPointsByUserId(userId, pointType, max);
@@ -101,6 +103,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetUserPointsByUserId(userId, pointType);
@@ -117,6 +120,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             var pointType = 1;
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns((UserPoints)null);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetUserPointsByUserId(userId, pointType);
@@ -137,6 +141,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
             var result = await _pointsSystem.GetUserPointsByUsername(username, pointType);
@@ -200,7 +205,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             // Arrange
             var pointTypes = new List<PointType> { new PointType { Id = 1 }, new PointType { Id = 2 } };
 
-            _unitOfWorkMock.PointTypes.GetAllAsync().Returns(pointTypes);
+            _unitOfWorkMock.PointTypes.GetAsync(includeProperties: "PointCommands").Returns(pointTypes);
 
             // Act
             var result = await _pointsSystem.GetPointTypes();
@@ -264,6 +269,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
 
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.RemovePointsFromUserByUserId(userId, pointType, points);
@@ -321,6 +327,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
             var result = await _pointsSystem.RemovePointsFromUserByUsername(username, pointType, points);
@@ -359,6 +366,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetUserPointsByUserIdAndGame(userId, gameName);
@@ -380,6 +388,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
             var result = await _pointsSystem.GetUserPointsByUsernameAndGame(username, gameName);
@@ -400,6 +409,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.RemovePointsFromUserByUserIdAndGame(userId, gameName, points);
@@ -424,6 +434,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId("user1").Returns(new Viewer { UserId = "user1" });
 
             // Act
             var result = await _pointsSystem.RemovePointsFromUserByUsernameAndGame(username, gameName, points);
@@ -494,6 +505,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, (int)pointType.Id).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
 
             // Act
             var result = await _pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, max);
