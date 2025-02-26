@@ -1,5 +1,7 @@
-﻿using DotNetTwitchBot.Bot.Commands.Features;
+﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
 
@@ -9,10 +11,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IViewerFeature viewerFeature,
         ILogger<PointsSystem> logger,
         IServiceScopeFactory scopeFactory,
-        IGameSettingsService gameSettingsService
-        ) : IPointsSystem, IHostedService
+        IGameSettingsService gameSettingsService,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler
+
+        ) : BaseCommandService(serviceBackbone, commandHandler, "PointsSystem"), IPointsSystem, IHostedService
     {
         public static Int64 MaxBet { get; } = 200000069;
+        public static bool IncludeSubsInActive = true;
         public async Task AddPointsByUserId(string userId, int pointType, long points)
         {
             try
@@ -178,17 +184,64 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         public static PointType GetDefaultPointType()
         {
-            return new PointType
+
+            var defaultPoint = new PointType
             {
                 Id = 1,
                 Name = "Points",
                 Description = "Points earned by viewers",
-                AddCommand = "addpoints",
-                RemoveCommand = "removepoints",
-                GetCommand = "points",
-                SetCommand = "setpoints",
-                AddActiveCommand = "addactivepoints"
             };
+
+            defaultPoint.PointCommands.Add(new PointCommand
+            {
+                CommandName = "addpoints",
+                Description = "Add points to a user",
+                MinimumRank = Rank.Streamer,
+                SayCooldown = false,
+                Category = "Points",
+                CommandType = PointCommandType.Add
+            });
+
+            defaultPoint.PointCommands.Add(new PointCommand
+            {
+                CommandName = "removepoints",
+                Description = "Remove points from a user",
+                MinimumRank = Rank.Streamer,
+                SayCooldown = false,
+                Category = "Points",
+                CommandType = PointCommandType.Remove
+            });
+
+            defaultPoint.PointCommands.Add(new PointCommand
+            {
+                CommandName = "getpoints",
+                Description = "Get points for a user",
+                MinimumRank = Rank.Viewer,
+                SayCooldown = false,
+                Category = "Points",
+                CommandType = PointCommandType.Get
+            });
+
+            defaultPoint.PointCommands.Add(new PointCommand
+            {
+                CommandName = "setpoints",
+                Description = "Set points for a user",
+                MinimumRank = Rank.Streamer,
+                SayCooldown = false,
+                Category = "Points",
+                CommandType = PointCommandType.Set
+            });
+
+            defaultPoint.PointCommands.Add(new PointCommand
+            {
+                CommandName = "addactivepoints",
+                Description = "Add points to active users",
+                MinimumRank = Rank.Streamer,
+                SayCooldown = false,
+                Category = "Points",
+                CommandType = PointCommandType.AddActive
+            });
+            return defaultPoint;
         }
 
         public Task<PointType> GetPointTypeForGame(string gameName)
@@ -271,6 +324,114 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             var pointType = await GetPointTypeForGame(gameName);
             return await GetMaxPointsByUserId(userId, pointType.GetId(), max);
+        }
+
+        public async Task<PointCommand?> GetPointCommand(string pointTypeCommand)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.PointCommands.GetAsync(x => x.CommandName.Equals(pointTypeCommand), includeProperties: "PointType")).FirstOrDefault();
+        }
+
+        public override Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override Task Register()
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task RunCommand(CommandEventArgs e, PointCommand pointCommand)
+        {
+            switch (pointCommand.CommandType)
+            {
+                case PointCommandType.Add:
+                    {
+                        if (Int64.TryParse(e.Args[1], out long amount))
+                        {
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            if (userId == null) return;
+                            await AddPointsByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                        }
+                        break;
+                    }
+                case PointCommandType.Remove:
+                    {
+                        if (Int64.TryParse(e.Args[1], out long amount))
+                        {
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            if (userId == null) return;
+                            await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                        }
+                        break;
+                    }
+                case PointCommandType.Get:
+                    //var userPoints = await GetUserPointsByUsername(e.Username, pointCommand.PointType.GetId());
+                    //if (userPoints != null)
+                    //{
+                    //    await SendChatMessage(e.Username, $"You have {userPoints.Points} {pointCommand.PointType.Name}");
+                    //}
+                    await SendPointsMessage(e, pointCommand.PointType.GetId());
+                    break;
+                case PointCommandType.Set:
+                    break;
+                case PointCommandType.AddActive:
+                    {
+                        if (Int64.TryParse(e.Args[1], out long amount))
+                        {
+                            await AddPointsToActiveUsers(pointCommand.PointType.GetId(), amount);
+                        }
+                        break;
+                    }
+            }
+        }
+
+        public async Task AddPointsToActiveUsers(int pointType, long points)
+        {
+            var activeViewers = viewerFeature.GetActiveViewers();
+            if (IncludeSubsInActive)
+            {
+                var onlineViewers = viewerFeature.GetCurrentViewers();
+                foreach (var viewer in onlineViewers)
+                {
+                    if (!activeViewers.Contains(viewer) && await viewerFeature.IsSubscriber(viewer))
+                    {
+                        activeViewers.Add(viewer);
+                    }
+                }
+            }
+            viewerFeature.GetActiveViewers().Distinct().ToList().ForEach(async viewer =>
+            {
+                await AddPointsByUsername(viewer, pointType, points);
+            });
+        }
+
+        public Task AddPointsToSubbedUsers(int pointType, long points)
+        {
+            viewerFeature.GetCurrentViewers().ForEach(async viewer =>
+            {
+                if (await viewerFeature.IsSubscriber(viewer))
+                {
+                    await AddPointsByUsername(viewer, pointType, points);
+                }
+            });
+            return Task.CompletedTask;
+        }
+
+        public Task AddPointsToAllCurrentUsers(int pointType, long points)
+        {
+            viewerFeature.GetCurrentViewers().ForEach(async viewer =>
+            {
+                await AddPointsByUsername(viewer, pointType, points);
+            });
+            return Task.CompletedTask;
+        }
+
+        private Task SendPointsMessage(CommandEventArgs e, int v)
+        {
+            return Task.CompletedTask;
         }
     }
 }

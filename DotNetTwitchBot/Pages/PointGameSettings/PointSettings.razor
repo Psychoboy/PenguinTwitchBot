@@ -22,11 +22,11 @@
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Description</MudTd>
-                        <MudTd>@context.AddCommand</MudTd>
-                        <MudTd>@context.RemoveCommand</MudTd>
-                        <MudTd>@context.GetCommand</MudTd>
-                        <MudTd>@context.SetCommand</MudTd>
-                        <MudTd>@context.AddActiveCommand</MudTd>
+                        @* <MudTd>@context.AddCommand?.CommandName</MudTd> *@
+                        @* <MudTd>@context.RemoveCommand?.CommandName</MudTd> *@
+                        @* <MudTd>@context.GetCommand?.CommandName</MudTd> *@
+                        @* <MudTd>@context.SetCommand?.CommandName</MudTd> *@
+                        @* <MudTd>@context.AddActiveCommand?.CommandName</MudTd> *@
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -36,12 +36,12 @@
                 <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
                     <DataAnnotationsValidator />
                     <MudTextField Label="Name" @bind-Value="newPointType.Name" />
-                    <MudTextField Label="Description" @bind-Value="newPointType.Description" />
-                    <MudTextField Label="Add Command" @bind-Value="newPointType.AddCommand" />
-                    <MudTextField Label="Remove Command" @bind-Value="newPointType.RemoveCommand" />
-                    <MudTextField Label="Get Command" @bind-Value="newPointType.GetCommand" />
-                    <MudTextField Label="Set Command" @bind-Value="newPointType.SetCommand" />
-                    <MudTextField Label="Add Active Command" @bind-Value="newPointType.AddActiveCommand" />
+                    @* <MudTextField Label="Description" @bind-Value="newPointType.Description" /> *@
+                    @* <MudTextField Label="Add Command" @bind-Value="newPointType.AddCommand.CommandName" /> *@
+                    @* <MudTextField Label="Remove Command" @bind-Value="newPointType.RemoveCommand.CommandName" /> *@
+                    @* <MudTextField Label="Get Command" @bind-Value="newPointType.GetCommand.CommandName" /> *@
+                    @* <MudTextField Label="Set Command" @bind-Value="newPointType.SetCommand.CommandName" /> *@
+                    @* <MudTextField Label="Add Active Command" @bind-Value="newPointType.AddActiveCommand.CommandName" /> *@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save</MudButton>
                 </EditForm>
             </MudPaper>

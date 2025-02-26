@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Models.Points;
 using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models.Commands
@@ -14,6 +15,8 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public int GlobalCooldown { get; set; } = 0;
         public Rank MinimumRank { get; set; } = Rank.Viewer;
         public int Cost { get; set; } = 0;
+        public int? PointTypeId { get; set; }
+        public PointType? PointType { get; set; }
         public bool Disabled { get; set; } = false;
         public bool SayCooldown { get; set; } = true;
         public bool SayRankRequirement { get; set; } = false;

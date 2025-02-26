@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250226041056_AddPointTypeToCommands")]
+    partial class AddPointTypeToCommands
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -900,79 +903,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("Playlists");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointCommand", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("CommandName")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int>("CommandType")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Cost")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("Disabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("ExcludeFromUi")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("GlobalCooldown")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MinimumRank")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PointTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("RunFromBroadcasterOnly")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("SayCooldown")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("SayRankRequirement")
-                        .HasColumnType("tinyint(1)");
-
-                    b.PrimitiveCollection<string>("SpecificRanks")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SpecificUserOnly")
-                        .HasColumnType("longtext");
-
-                    b.PrimitiveCollection<string>("SpecificUsersOnly")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("UserCooldown")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CommandName");
-
-                    b.HasIndex("PointTypeId");
-
-                    b.ToTable("PointCommands");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointType", b =>
                 {
                     b.Property<int>("Id")
@@ -981,13 +911,33 @@ namespace DotNetTwitchBot.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AddActiveCommand")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AddCommand")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("GetCommand")
                         .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+
+                    b.Property<string>("RemoveCommand")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SetCommand")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -1797,17 +1747,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Navigation("PointType");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointCommand", b =>
-                {
-                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
-                        .WithMany("PointCommands")
-                        .HasForeignKey("PointTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PointType");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.UserPoints", b =>
                 {
                     b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
@@ -1859,8 +1798,6 @@ namespace DotNetTwitchBot.Migrations
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointType", b =>
                 {
-                    b.Navigation("PointCommands");
-
                     b.Navigation("UserPoints");
                 });
 

@@ -1,5 +1,7 @@
-﻿using DotNetTwitchBot.Bot.Commands.Features;
+﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Points;
@@ -24,6 +26,8 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         private readonly IServiceScope _scopeMock;
         private readonly IServiceProvider _serviceProviderMock;
         private readonly IUnitOfWork _unitOfWorkMock;
+        private readonly IServiceBackbone _serviceBackbone;
+        private readonly ICommandHandler _commandHandler;
         private readonly PointsSystem _pointsSystem;
 
         public PointsSystemTests()
@@ -35,6 +39,8 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _scopeMock = Substitute.For<IServiceScope>();
             _serviceProviderMock = Substitute.For<IServiceProvider>();
             _unitOfWorkMock = Substitute.For<IUnitOfWork>();
+            _serviceBackbone = Substitute.For<IServiceBackbone>();
+            _commandHandler = Substitute.For<ICommandHandler>();
 
             _scopeFactoryMock.CreateScope().Returns(_scopeMock);
             _scopeMock.ServiceProvider.Returns(_serviceProviderMock);
@@ -44,7 +50,9 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
                 _viewerFeatureMock,
                 _loggerMock,
                 _scopeFactoryMock,
-                _gameSettingsServiceMock
+                _gameSettingsServiceMock,
+                _serviceBackbone,
+                _commandHandler
             );
         }
 

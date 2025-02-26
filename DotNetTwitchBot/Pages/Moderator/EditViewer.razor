@@ -186,7 +186,7 @@ else
             }
             viewer.Tickets = await ticketFeature.GetViewerTicketsWithRank(viewer.Viewer.Username);
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
-            viewer.Pasties = await loyaltyFeature.GetUserPastiesAndRank(viewer.Viewer.Username);
+            //viewer.Pasties = await loyaltyFeature.GetUserPastiesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
             viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
             if(viewer.Time != null)

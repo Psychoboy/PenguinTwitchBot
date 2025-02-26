@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -42,6 +43,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly GiveawayFeature _giveawayFeature;
         private readonly ITTSService _ttsService;
         private readonly AutoTimers _timers;
+        private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
             IMediator mediator,
@@ -50,6 +52,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
             ILoyaltyFeature loyaltyFeature,
+            IPointsSystem pointsSystem,
             GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
             ITTSService ttsService,
@@ -62,6 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _logger = logger;
             _twitchService = twitchService;
             _loyaltyFeature = loyaltyFeature;
+            _PointsSystem = pointsSystem;
             _giveawayFeature = giveawayFeature;
             _ttsService = ttsService;
             _timers = timers;
@@ -141,7 +145,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 Commands.Clear();
-                var commands = await db.CustomCommands.GetAllAsync();
+                var commands = await db.CustomCommands.GetAsync(includeProperties: "PointType");
                 foreach (var command in commands)
                 {
                     Commands[command.CommandName] = command;
@@ -329,11 +333,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
                 if (isCoolDownExpired == false) return;
-                if (Commands[e.Command].Cost > 0)
+                if (Commands[e.Command].Cost > 0 && Commands[e.Command].PointType != null)
                 {
-                    if ((await _loyaltyFeature.RemovePointsFromUserByUserId(e.UserId, Commands[e.Command].Cost)) == false)
+                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, Commands[e.Command].PointTypeId ?? 0, Commands[e.Command].Cost)) == false)
                     {
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough pasties, that command costs {Commands[e.Command].Cost}.");
+                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough {Commands[e.Command].PointType?.Name}, that command costs {Commands[e.Command].Cost}.");
                         return;
                     }
                 }

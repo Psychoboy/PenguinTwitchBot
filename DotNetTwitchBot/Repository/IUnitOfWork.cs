@@ -53,6 +53,7 @@
         IGameSettingsRepository GameSettings { get; }
         IPointTypesRepository PointTypes { get; }
         IUserPointsRepository UserPoints { get; }
+        IPointCommandsRepository PointCommands { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

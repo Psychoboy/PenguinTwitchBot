@@ -53,6 +53,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Games.GameSetting> GameSettings { get; set; }
         public DbSet<Models.Points.PointType> PointTypes { get; set; }
         public DbSet<Models.Points.UserPoints> UserPoints { get; set; }
+        public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
 
         //Virtual tables
         public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;
