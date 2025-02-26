@@ -33,7 +33,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<PointType> GetPointTypeForGame(string gameName);
         Task SetPointTypeForGame(string gameName, int pointTypeId);
         Task RunCommand(CommandEventArgs e, PointCommand pointCommand);
-        Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, PointType pointType);
-        Task<LeaderPosition> GetLeaderPosition(string userId, PointType pointType);
+        Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType);
+        Task<ViewerTimeWithRank> GetUserTimeAndRank(string name);
+        Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name);
     }
 }

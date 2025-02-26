@@ -3,18 +3,19 @@
 @using DotNetTwitchBot.Circuit;
 @using DotNetTwitchBot.Models;
 @inject DotNetTwitchBot.Bot.Core.Leaderboards leaderBoards
+@inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem pointsSystem
 
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
         <MudItem sm="6">
             <MudTable ServerData="PastieReload"
-                      Dense="true" Hover="true" @ref="pastieTable">
+            Dense="true" Hover="true" @ref="pastieTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Pasties</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnPastieSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Rank</MudTh>
@@ -39,12 +40,12 @@
         </MudItem>
         <MudItem sm="6">
             <MudTable ServerData="TicketsReload"
-                      Dense="true" Hover="true" @ref="ticketsTable">
+            Dense="true" Hover="true" @ref="ticketsTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Tickets</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTicketsSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Rank</MudTh>
@@ -69,12 +70,12 @@
         </MudItem>
         <MudItem sm="6">
             <MudTable ServerData="LoudestReload"
-                      Dense="true" Hover="true" @ref="loudestTable">
+            Dense="true" Hover="true" @ref="loudestTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Loudest</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnLoudestSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Rank</MudTh>
@@ -99,12 +100,12 @@
         </MudItem>
         <MudItem sm="6">
             <MudTable ServerData="TimeReload"
-                      Dense="true" Hover="true" @ref="timeTable">
+            Dense="true" Hover="true" @ref="timeTable">
                 <ToolBarContent>
                     <MudText Class="pa-4" Typo="Typo.h6">Watched Time</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTimeSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Rank</MudTh>
@@ -146,7 +147,7 @@
 
     protected override void OnInitialized()
     {
-        
+
     }
 
     private async Task<TableData<LeaderPosition>> PastieReload(TableState state, CancellationToken _)
@@ -158,7 +159,7 @@
         {
             pageFilter.Filter = pastieSearch;
         }
-        var response = await leaderBoards.GetPasties(pageFilter);
+        var response = await pointsSystem.GetLeaderPositions(pageFilter, 1);
         return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
