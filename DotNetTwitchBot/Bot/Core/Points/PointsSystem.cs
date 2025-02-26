@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
+using System.Reflection.Metadata.Ecma335;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -126,6 +127,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await CreateInitialDataIfNeeded();
+            await Register();
             logger.LogInformation("Started {module}", nameof(PointsSystem));
         }
 
@@ -342,14 +344,67 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return (await db.PointCommands.GetAsync(x => x.CommandName.Equals(pointTypeCommand), includeProperties: "PointType")).FirstOrDefault();
         }
 
-        public override Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            return Task.CompletedTask;
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            switch (command)
+            {
+                case "loyalty":
+                    { 
+                        await SayLoyalty(e);
+                    }
+                    break;
+            }
         }
 
-        public override Task Register()
+        private async Task SayLoyalty(CommandEventArgs e)
         {
-            throw new NotImplementedException();
+            var loyaltyMessage = await gameSettingsService.GetStringSetting(
+                "loyalty",
+                "LoyaltyMessage",
+                "{NameWithTitle} Watch Time: [{WatchTime}] - {PointsName}: [#{PointsRank}, {Points} - Messages: [#{MessagesRank}, {Messages}]");
+            var loyaltyPointType = await GetPointTypeForGame("loyalty");
+            var points = await GetPointsWithRank(e.UserId, loyaltyPointType.GetId());
+            var time = await GetUserTimeAndRank(e.Name);
+            var messages = await GetUserMessagesAndRank(e.Name);
+            loyaltyMessage = loyaltyMessage
+                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name))
+                .Replace("{WatchTime}", Tools.ConvertToCompoundDuration(time.Time))
+                .Replace("{PointsName}", loyaltyPointType.Name)
+                .Replace("{PointsRank}", points.Ranking.ToString())
+                .Replace("{Points}", points.Points.ToString("N0"))
+                .Replace("{MessagesRank}", messages.Ranking.ToString())
+                .Replace("{Messages}", messages.MessageCount.ToString("N0"));
+            await SendChatMessage(e.Name, loyaltyMessage);
+        }
+
+        public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
+        {
+            ViewerTimeWithRank? viewerTime;
+            await using (var scope = scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+            }
+            return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
+        }
+
+        public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
+        {
+            ViewerMessageCountWithRank? viewerMessage;
+            await using (var scope = scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                viewerMessage = await db.ViewerMessageCountsWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+            }
+
+            return viewerMessage ?? new ViewerMessageCountWithRank { Ranking = int.MaxValue };
+        }
+
+        public override async Task Register()
+        {
+            await RegisterDefaultCommand("loyalty", this, ModuleName);
+            logger.LogInformation("Registered commands for {module}", ModuleName);
         }
 
         public async Task RunCommand(CommandEventArgs e, PointCommand pointCommand)
@@ -438,6 +493,23 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return Task.CompletedTask;
         }
 
+        private async Task<UserPointsWithRank> GetPointsWithRank(string userId, int pointType)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+            var userPointType = await db.PointTypes.GetByIdAsync(pointType);
+            return userPoints ?? new UserPointsWithRank
+            {
+                UserId = userId,
+                Points = 0,
+                Ranking = int.MaxValue,
+                Username = "",
+                PointType = userPointType ?? new PointType()
+            };
+
+        }
+
         private async Task SendPointsMessage(CommandEventArgs e, int pointType)
         {
             var userId = e.UserId;
@@ -449,19 +521,32 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 await SendChatMessage(e.Name, $"You have #{userPoints.Ranking} {userPoints.Points} {userPointType?.Name}");
             }
-            var allUserPoints = db.UserPoints.UserPointsWithRank(pointType);
-            var allUserPointsList = await allUserPoints.Take(10).ToListAsync();
-            var userPointsTest = allUserPoints.FirstOrDefault(x => x.UserId == userId);
         }
 
-        public Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, PointType pointType)
+        public async Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType)
         {
-            throw new NotImplementedException();
-        }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var validFilter = new PaginationFilter(filter.Page, filter.Count);
+            var pagedData = db.UserPoints.GetRankedPoints(pointType,
+                filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
+                offset: (validFilter.Page) * filter.Count,
+                limit: filter.Count);
 
-        public Task<LeaderPosition> GetLeaderPosition(string userId, PointType pointType)
-        {
-            throw new NotImplementedException();
+            var totalRecords = 0;
+            if (string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                totalRecords = await db.UserPoints.Find(x => x.PointTypeId == pointType).CountAsync();
+            }
+            else
+            {
+                totalRecords = await db.UserPoints.Find(x => x.Username.Contains(filter.Filter) && x.PointTypeId == pointType).CountAsync();
+            }
+            return new PagedDataResponse<LeaderPosition>
+            {
+                Data = pagedData.Select(x => new LeaderPosition { Rank = x.Ranking, Amount = x.Points, Name = x.Username }).ToList(),
+                TotalItems = totalRecords
+            };
         }
     }
 }

@@ -441,7 +441,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         }
 
-        //private async Task SayLoyalty(CommandEventArgs e)
+        //private async Task ((CommandEventArgs e)
         //{
         //    var pasties = await GetUserPastiesAndRank(e.Name);
         //    var time = await GetUserTimeAndRank(e.Name);
