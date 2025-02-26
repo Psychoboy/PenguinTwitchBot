@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
@@ -14,14 +15,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         readonly Timer _autoPointsTimer;
 
         private readonly IViewerFeature _viewerFeature;
-        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IPointsSystem _pointsSystem;
         private static readonly Prometheus.Gauge NumberOfTicketsGained = Prometheus.Metrics.CreateGauge("number_of_tickets_gained", "Number of Tickets gained since last stream start", labelNames: new[] { "viewer" });
         private readonly IServiceBackbone _serviceBackbone;
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
             IServiceBackbone serviceBackbone,
-            IServiceScopeFactory scopeFactory,
+            IPointsSystem pointsSystem,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler)
             : base(serviceBackbone, commandHandler, "TicketsFeature")
@@ -31,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _autoPointsTimer = new Timer(300000); //5 minutes
             _autoPointsTimer.Elapsed += OnTimerElapsed;
             _viewerFeature = viewerFeature;
-            _scopeFactory = scopeFactory;
+            _pointsSystem = pointsSystem;
             _autoPointsTimer.Start();
             _serviceBackbone = serviceBackbone;
             _serviceBackbone.StreamStarted += StreamStarted;
@@ -117,61 +118,33 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 return 0;
             }
             if (ServiceBackbone.IsKnownBot(viewer.Username)) return 0;
-            ViewerTicket? viewerPoints;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerPoints = await db.ViewerTickets.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
-            }
-            viewerPoints ??= new ViewerTicket
-            {
-                UserId = userid,
-                Points = 0
-            };
-            viewerPoints.Username = viewer.Username;
-            viewerPoints.Points += amount;
-            if (viewerPoints.Points < 0)
-            {
-                //Should NEVER hit this
-                _logger.LogCritical("Points for {name} would have gone negative, points to remove {points}", viewer.Username, amount);
-                throw new Exception("Points would have went negative. ABORTING");
-            }
-
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.ViewerTickets.Update(viewerPoints);
-                await db.SaveChangesAsync();
-            }
+            //ViewerTicket? viewerPoints;
+            //await using (var scope = _scopeFactory.CreateAsyncScope())
+            //{
+            //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            //    viewerPoints = await db.ViewerTickets.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
+            //}
+            //viewerPoints ??= new ViewerTicket
+            //{
+            //    UserId = userid,
+            //    Points = 0
+            //};
+            //var viewerPoints = await _pointsSystem.GetUserPointsByUserIdAndGame(userid, ModuleName);
+            //viewerPoints.Username = viewer.Username;
+            //viewerPoints.Points += amount;
+            //await using (var scope = _scopeFactory.CreateAsyncScope())
+            //{
+            //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            //    db.ViewerTickets.Update(viewerPoints);
+            //    await db.SaveChangesAsync();
+            //}
+            await _pointsSystem.AddPointsByUserIdAndGame(userid, ModuleName, amount);
             if (amount > 0)
             {
                 NumberOfTicketsGained.WithLabels(viewer.Username).Inc(amount);
             }
 
-            return viewerPoints.Points;
-        }
-
-        public async Task<long> GetViewerTickets(string viewer)
-        {
-
-            ViewerTicket? viewerPoints;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerPoints = await db.ViewerTickets.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
-            }
-            return viewerPoints == null ? 0 : viewerPoints.Points;
-        }
-
-        public async Task<ViewerTicketWithRanks?> GetViewerTicketsWithRank(string viewer)
-        {
-            ViewerTicketWithRanks? viewerTickets;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerTickets = await db.ViewerTicketsWithRank.Find(x => x.Username.Equals(viewer)).FirstOrDefaultAsync();
-            }
-            return viewerTickets;
+            return (await _pointsSystem.GetUserPointsByUserIdAndGame(userid, ModuleName)).Points;
         }
 
         public async Task<bool> RemoveTicketsFromViewerByUsername(string username, long amount)
@@ -207,21 +180,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
         }
 
-        private async Task SayViewerTickets(CommandEventArgs e)
-        {
-            var tickets = await GetViewerTicketsWithRank(e.Name);
-            if (tickets == null)
-            {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
-            }
-            else
-            {
-                await ServiceBackbone.SendChatMessage(
-                    string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}. Use !enter AMOUNT to enter your tickets.",
-                    e.DisplayName, tickets.Points, tickets.Ranking
-                    ));
-            }
-        }
+        //private async Task SayViewerTickets(CommandEventArgs e)
+        //{
+        //    var tickets = await GetViewerTicketsWithRank(e.Name);
+        //    if (tickets == null)
+        //    {
+        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
+        //    }
+        //    else
+        //    {
+        //        await ServiceBackbone.SendChatMessage(
+        //            string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}. Use !enter AMOUNT to enter your tickets.",
+        //            e.DisplayName, tickets.Points, tickets.Ranking
+        //            ));
+        //    }
+        //}
 
         public override async Task Register()
         {
@@ -232,42 +205,43 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommandDefaultName(e.Command);
-            switch (command)
-            {
-                case "tickets":
-                    {
-                        await SayViewerTickets(e);
-                        break;
-                    }
-                case "givetickets":
-                    {
-                        if (Int64.TryParse(e.Args[1], out long amount))
-                        {
-                            var userId = await _viewerFeature.GetViewerId(e.TargetUser);
-                            if (userId == null) return;
-                            var totalPoints = await GiveTicketsToViewerByUserId(userId, amount);
-                            await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayNameByUsername(e.TargetUser), amount, totalPoints));
-                        }
-                        break;
-                    }
-                case "resettickets":
-                    {
-                        await ResetAllPoints();
-                    }
-                    break;
-            }
+            //var command = CommandHandler.GetCommandDefaultName(e.Command);
+            //switch (command)
+            //{
+            //    case "tickets":
+            //        {
+            //            await SayViewerTickets(e);
+            //            break;
+            //        }
+            //    case "givetickets":
+            //        {
+            //            if (Int64.TryParse(e.Args[1], out long amount))
+            //            {
+            //                var userId = await _viewerFeature.GetViewerId(e.TargetUser);
+            //                if (userId == null) return;
+            //                var totalPoints = await GiveTicketsToViewerByUserId(userId, amount);
+            //                await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayNameByUsername(e.TargetUser), amount, totalPoints));
+            //            }
+            //            break;
+            //        }
+            //    case "resettickets":
+            //        {
+            //            await ResetAllPoints();
+            //        }
+            //        break;
+            //}
+            return Task.CompletedTask;
         }
 
-        public async Task ResetAllPoints()
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await db.ViewerTickets.ExecuteDeleteAllAsync();
-            await db.SaveChangesAsync();
-        }
+        //public async Task ResetAllPoints()
+        //{
+        //    await using var scope = _scopeFactory.CreateAsyncScope();
+        //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        //    await db.ViewerTickets.ExecuteDeleteAllAsync();
+        //    await db.SaveChangesAsync();
+        //}
 
         public Task StartAsync(CancellationToken cancellationToken)
         {

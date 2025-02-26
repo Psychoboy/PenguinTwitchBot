@@ -40,6 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var points = await db.ViewerPoints.GetAllAsync();
             //var pointType = await db.PointTypes.GetByIdAsync(1);
+            await db.UserPoints.ExecuteDeleteAllAsync();
             foreach (var point in points)
             {
                 var userPoint = new UserPoints
@@ -52,7 +53,36 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 };
                 await db.UserPoints.AddAsync(userPoint);
             }
+            var ticketType = await db.PointTypes.Find(x => x.Name.Equals("tickets")).FirstOrDefaultAsync();
+            ticketType ??= new PointType
+                {
+                    Name = "Tickets",
+                    PointCommands =
+                    [
+                        new PointCommand {CommandName = "addtickets", CommandType = PointCommandType.Add, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "removetickets", CommandType = PointCommandType.Remove, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "tickets", CommandType = PointCommandType.Get },
+                        new() {CommandName = "settickets", CommandType = PointCommandType.Set, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "addactivetickets", CommandType = PointCommandType.AddActive, MinimumRank = Rank.Streamer }
+                    ]
+                };
+
+            var tickets = await db.ViewerTickets.GetAllAsync();
+            foreach(var ticket in tickets)
+            {
+                var userPoint = new UserPoints
+                {
+                    UserId = ticket.UserId,
+                    Username = ticket.Username,
+                    Points = ticket.Points,
+                    Banned = ticket.banned
+                };
+                ticketType.UserPoints.Add(userPoint);
+            }
+            db.PointTypes.Update(ticketType);
+
             await db.SaveChangesAsync();
+            _logger.LogInformation("All points upgraded");
         }
 
         public async Task BackupDatabase()

@@ -9,6 +9,7 @@ using DotNetTwitchBot.Circuit;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
 using DotNetTwitchBot.Repository;
+using LinqToDB.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.HttpLogging;
@@ -255,6 +256,7 @@ internal class Program
             }
         }
         catch (Exception) { }
+        LinqToDBForEFTools.Initialize();
         await app.RunAsync(); //Start in future to read input
 
     }

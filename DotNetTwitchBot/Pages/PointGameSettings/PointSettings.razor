@@ -75,6 +75,7 @@
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private PointType newPointType = CreateNewPointType();
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,6 +112,11 @@
 
     private async Task DeletePointType(PointType pointType)
     {
+        if(pointType.Id == 1)
+        {
+            Snackbar.Add("You can not delete the primary points. You can edit/rename it only.", Severity.Error);
+            return;
+        }
         await pointSystem.DeletePointType(pointType.Id.GetValueOrDefault());
         PointTypes = await pointSystem.GetPointTypes();
     }

@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
 using System.Timers;
@@ -11,12 +12,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         readonly Timer _taxTimer;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<Tax> _logger;
+        private readonly IPointsSystem _pointSystem;
 
         public Tax(
             ILogger<Tax> logger,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IPointsSystem pointsSystem
             ) : base(serviceBackbone, commandHandler, "Tax")
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
@@ -25,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ServiceBackbone.StreamEnded += OnStreamEnded;
             ServiceBackbone.StreamStarted += OnStreamStarted;
             _logger = logger;
+            _pointSystem = pointsSystem;
         }
 
         private Task OnStreamStarted(object? sender, EventArgs _)
@@ -64,17 +68,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 long totalRemoved = 0;
                 foreach (var viewer in viewers)
                 {
-                    await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+                    //await using var scope = _scopeFactory.CreateAsyncScope();
+                    //var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var viewerPoints = await _pointSystem.GetUserPointsByUserIdAndGame(viewer.UserId, "tax");
+                    //var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
                     if (viewerPoints == null) continue;
                     if (viewerPoints.Points <= 25000) continue;
                     var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
                     toRemove = toRemove > 200000069 ? 200000069 : toRemove;
                     totalRemoved += toRemove;
                     viewerPoints.Points -= toRemove;
-                    db.ViewerPoints.Update(viewerPoints);
-                    await db.SaveChangesAsync();
+                    await _pointSystem.RemovePointsFromUserByUserIdAndGame(viewer.UserId, "tax", toRemove);
+                    //db.ViewerPoints.Update(viewerPoints);
+                    //await db.SaveChangesAsync();
                 }
                 _logger.LogInformation("Removed {totalRemoved} pasties via taxes", totalRemoved);
             }

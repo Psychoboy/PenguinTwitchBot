@@ -172,7 +172,8 @@
         {
             pageFilter.Filter = ticketsSearch;
         }
-        var response = await leaderBoards.GetTickets(pageFilter);
+        var pointType = await pointsSystem.GetPointTypeForGame("giveawayfeature");
+        var response = await pointsSystem.GetLeaderPositions(pageFilter, pointType.GetId());
         return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 

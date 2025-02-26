@@ -141,6 +141,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     return pointType;
             }
             logger.LogWarning("PointType not found for game {gameName}, using default.", gameName);
+            await SetPointTypeForGame(gameName, 1);
             return PointsSystem.GetDefaultPointType();
         }
 
@@ -162,6 +163,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     SettingIntValue = pointTypeId
                 };
             }
+            dbContext.GameSettings.Update(setting);
+            await dbContext.SaveChangesAsync();
         }
     }
 }

@@ -3,8 +3,8 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
-@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketsFeature;
 @inject DotNetTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
+@inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject NavigationManager Navigation
 
 <PageTitle>SPTV Twitch Bot - Giveaway Settings</PageTitle>
@@ -48,6 +48,7 @@
     {
         await DatabaseTools.Backup();
         await GiveawayFeature.Reset();
-        await TicketsFeature.ResetAllPoints();
+        // await TicketsFeature.ResetAllPoints();
+        await PointSystem.RemoveAllPointsForGame("GiveawayFeature");
     }
 }

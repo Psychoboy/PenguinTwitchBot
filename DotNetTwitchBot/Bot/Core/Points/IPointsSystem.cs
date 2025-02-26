@@ -24,6 +24,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points);
         Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points);
         Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points);
+        Task RemoveAllPointsForGame(string gameName);
         Task<PointType?> GetPointTypeById(int pointTypeId);
         Task<PointCommand?> GetPointCommand(string pointTypeCommand);
         Task<IEnumerable<PointType>> GetPointTypes();
@@ -36,5 +37,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType);
         Task<ViewerTimeWithRank> GetUserTimeAndRank(string name);
         Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name);
+        Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType);
+        Task<UserPointsWithRank> GetPointsWithRankByUsername(string username, int pointType);
     }
 }

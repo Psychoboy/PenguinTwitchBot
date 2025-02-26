@@ -4,5 +4,6 @@ namespace DotNetTwitchBot.Repository
 {
     public interface IGiveawayEntriesRepository : IGenericRepository<GiveawayEntry>
     {
+        Task<int> GetSum();
     }
 }

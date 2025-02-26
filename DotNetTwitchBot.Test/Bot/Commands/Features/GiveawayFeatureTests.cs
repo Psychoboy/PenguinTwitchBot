@@ -1,10 +1,12 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Giveaway;
+using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +24,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IServiceScope scope;
         private readonly IServiceBackbone serviceBackbone;
         private readonly IServiceScopeFactory scopeFactory;
-        private readonly ITicketsFeature ticketsFeature;
+        private readonly IPointsSystem pointsSystem;
         private readonly IViewerFeature viewerFeature;
         private readonly IHubContext<MainHub> hubContext;
         private readonly IUnitOfWork dbContext;
@@ -48,7 +50,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceBackbone = Substitute.For<IServiceBackbone>();
             logger = Substitute.For<ILogger<GiveawayFeature>>();
             commandHandler = Substitute.For<ICommandHandler>();
-            ticketsFeature = Substitute.For<ITicketsFeature>();
+            pointsSystem = Substitute.For<IPointsSystem>();
             viewerFeature = Substitute.For<IViewerFeature>();
             hubContext = Substitute.For<IHubContext<MainHub>>();
 
@@ -70,7 +72,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
 
-            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, ticketsFeature, viewerFeature, hubContext, scopeFactory, commandHandler, new Language());
+            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, commandHandler, new Language());
 
         }
 
@@ -221,9 +223,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user", UserId = "123" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -248,9 +253,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -272,9 +280,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -296,9 +307,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -319,9 +333,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
-            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
+            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -341,9 +358,12 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(10);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 10
+            });
             viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(false);
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(false);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { "10" }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");
@@ -364,9 +384,13 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             var viewer = new Viewer { DisplayName = "Displayed Name", Title = "" };
             viewerFeature.GetViewerByUserName(Arg.Any<string>()).Returns(viewer);
 
-            ticketsFeature.GetViewerTickets(Arg.Any<string>()).Returns(1000000);
-            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("");
-            ticketsFeature.RemoveTicketsFromViewerByUsername("user", 10).Returns(true);
+            //pointsSystem.GetViewerTickets(Arg.Any<string>()).Returns(1000000);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints
+            {
+                Points = 1000000
+            });
+            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns("user");
+            pointsSystem.RemovePointsFromUserByUsernameAndGame("user", "GiveawayFeature", 10).Returns(true);
 
             var commandEvent = new CommandEventArgs { Command = "enter", Args = new List<string> { enterAmount }, DisplayName = "user", Name = "user" };
             commandHandler.GetCommandDefaultName("enter").Returns("enter");

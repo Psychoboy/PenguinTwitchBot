@@ -7,5 +7,10 @@ namespace DotNetTwitchBot.Repository.Repositories
         public GiveawayEntriesRepository(ApplicationDbContext context) : base(context)
         {
         }
+
+        public Task<int> GetSum()
+        {
+            return _context.GiveawayEntries.SumAsync(x => x.Tickets);
+        }
     }
 }

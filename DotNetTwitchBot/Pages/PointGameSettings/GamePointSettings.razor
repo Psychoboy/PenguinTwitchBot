@@ -7,6 +7,7 @@
     <MudText Typo="Typo.h5">Game Point Settings</MudText>
     <MudDivider />
     <MudText>Settings for the game points system.</MudText>
+    <MudText>If doing 2 currencies (1 for giveaways and another for fun, first half recommend fun, 2nd for giveaway</MudText>
     <MudSelect Label="Slots" @bind-Value="slotsPointType" ToStringFunc="@convertFunc">
         @foreach (var pointType in PointTypes)
         {
@@ -55,6 +56,9 @@
             <MudSelectItem Value="@pointType" />
         }
     </MudSelect>
+    <MudDivider />
+    <MudText>See above note, this is recommended for giveaways</MudText>
+
 </MudPaper>
 
 @code {
@@ -72,6 +76,8 @@
     private PointType gamblePointType { get; set; } = default!;
     private PointType rollPointType { get; set; } = default!;
     private PointType stealPointType { get; set; } = default!;
+
+    private PointType giveawayFeature { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
