@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task UpdateOrStopSpam()
         {
-            _addActive.AddActivePoints(Tools.RandomRange(1, 8));
+            _addActive.AddActivePoints(StaticTools.RandomRange(1, 8));
             var elapsedTime = DateTime.Now - _startTime;
             if (elapsedTime > _runTime)
             {
@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private async Task StartModSpam()
         {
             await ServiceBackbone.SendChatMessage("Starting Mod Spam... please wait while it spams silently...");
-            _runTime = new TimeSpan(0, 0, Tools.RandomRange(15, 20));
+            _runTime = new TimeSpan(0, 0, StaticTools.RandomRange(15, 20));
             _startTime = DateTime.Now;
             _intervalTimer.Change(1000, 1000);
         }

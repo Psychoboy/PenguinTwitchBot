@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -7,16 +8,27 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class FFA : BaseCommandService, IHostedService
     {
-        private readonly int Cooldown = 300;
-        private readonly int JoinTime = 180;
-        private readonly int Cost = 100;
         private readonly List<string> Entered = [];
         private readonly Timer _joinTimer;
         private readonly IPointsSystem _pointsSystem;
 
         private readonly IViewerFeature _viewFeature;
         private readonly ILogger<FFA> _logger;
+        private readonly IGameSettingsService _gameSettingsService;
         readonly string CommandName = "ffa";
+
+        public const string GAMENAME = "FFA";
+        public const string COOLDOWN = "Cooldown";
+        public const string JOIN_TIME = "JoinTime";
+        public const string COST = "Cost";
+        public const string NOT_ENOUGH_PLAYERS = "NotEnoughPlayers";
+        public const string WINNER_MESSAGE = "WinningMessage";
+        public const string STARTING = "Starting";
+        public const string JOINED = "Joined";
+        public const string LATE = "Late";
+        public const string ALREADY_JOINED = "AlreadyJoined";
+        public const string NOT_ENOUGH_POINTS = "NotEnoughPoints";
+
 
         enum State
         {
@@ -27,18 +39,22 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private State GameState { get; set; }
 
+        internal ITools Tools { get; set; } = new Tools();
+
         public FFA(
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
             ILogger<FFA> logger,
             IViewerFeature viewerFeature,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "FFA")
+            ICommandHandler commandHandler,
+            IGameSettingsService gameSettingsService
+            ) : base(serviceBackbone, commandHandler, GAMENAME)
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _pointsSystem = pointsSystem;
             _viewFeature = viewerFeature;
             _logger = logger;
+            _gameSettingsService = gameSettingsService;
         }
 
         private static void JoinTimerCallback(object? state)
@@ -51,19 +67,27 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task Finish()
         {
+            var cost = await _gameSettingsService.GetIntSetting(ModuleName, COST, 100);
             GameState = State.Finishing;
             if (Entered.Count == 1)
             {
-                await _pointsSystem.AddPointsByUserIdAndGame(Entered[0], ModuleName, Cost);
-                await ServiceBackbone.SendChatMessage("Not enough viewers joined the FFA, returning the fees.");
+                await _pointsSystem.AddPointsByUserIdAndGame(Entered[0], ModuleName, cost);
+                var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
+                await ServiceBackbone.SendChatMessage(notEnoughMessage);
                 await CleanUp();
                 return;
             }
 
             var winnerIndex = Tools.Next(0, Entered.Count - 1);
             var winner = Entered[winnerIndex];
-            var winnings = Entered.Count * Cost;
-            await ServiceBackbone.SendChatMessage(string.Format("The dust finally settled and the last one standing is {0}", await _viewFeature.GetNameWithTitle(winner)));
+            var winnings = Entered.Count * cost;
+            var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
+            var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
+            winnerMessage = winnerMessage
+                .Replace("{Name}", winner)
+                .Replace("{Points}", winnings.ToString("N0"))
+                .Replace("{PointType}", pointType.Name);
+            await ServiceBackbone.SendChatMessage(winnerMessage);
             await _pointsSystem.AddPointsByUserIdAndGame(winner, ModuleName, winnings);
             await CleanUp();
         }
@@ -73,7 +97,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             Entered.Clear();
             GameState = State.NotRunning;
             _joinTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            await CommandHandler.AddGlobalCooldown(CommandName, Cooldown);
+            var cooldown = await _gameSettingsService.GetIntSetting(ModuleName, COOLDOWN, 300);
+            await CommandHandler.AddGlobalCooldown(CommandName, cooldown);
         }
 
         public override async Task Register()
@@ -93,31 +118,47 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             if (GameState == State.Finishing)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "Sorry you were to late to join this one");
+                var late = await _gameSettingsService.GetStringSetting(ModuleName, LATE, "The FFA has already started, you are to late to join this one.");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, late);
                 throw new SkipCooldownException();
             }
 
             if (Entered.Contains(e.Name))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You have already joined the FFA!");
+                var alreadyJoined = await _gameSettingsService.GetStringSetting(ModuleName, ALREADY_JOINED, "You have already joined the FFA!");
+                await ServiceBackbone.SendChatMessage(e.DisplayName, alreadyJoined);
                 throw new SkipCooldownException();
             }
 
-            if (!(await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, Cost)))
+            var cost = await _gameSettingsService.GetIntSetting(ModuleName, COST, 100);
+
+            if (!(await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, cost)))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to enter the FFA, which you do not have.", Cost));
+                var notEnoughPoints = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_POINTS, "Sorry it costs {Cost} {PointType} to join the FFA game which you do not have.");
+                notEnoughPoints = notEnoughPoints
+                    .Replace("{Cost}", cost.ToString("N0"))
+                    .Replace("{PointType}", (await _pointsSystem.GetPointTypeForGame(ModuleName)).Name);
+                await ServiceBackbone.SendChatMessage(e.DisplayName, notEnoughPoints);
                 throw new SkipCooldownException();
             }
 
             if (GameState == State.NotRunning)
             {
-                await ServiceBackbone.SendChatMessage(string.Format("{0} is starting a FFA battle! Type !ffa to join now!", e.DisplayName));
+                var starting = await _gameSettingsService.GetStringSetting(ModuleName, STARTING, "{Name} is starting a FFA battle! Type !{CommandName} to join now!");
+                starting = starting
+                    .Replace("{Name}", e.DisplayName)
+                    .Replace("{CommandName}", e.Command);
+                await ServiceBackbone.SendChatMessage(starting);
                 GameState = State.Running;
-                _joinTimer.Change(JoinTime * 1000, Timeout.Infinite);
+                var joinTime = await _gameSettingsService.GetIntSetting(ModuleName, JOIN_TIME, 180);
+                _joinTimer.Change(joinTime * 1000, Timeout.Infinite);
             }
             else
             {
-                await ServiceBackbone.SendChatMessage(string.Format("{0} joined the FFA", e.DisplayName));
+                var joined = await _gameSettingsService.GetStringSetting(ModuleName, JOINED, "{Name} joined the FFA!");
+                joined = joined
+                    .Replace("{Name}", e.DisplayName);
+                await ServiceBackbone.SendChatMessage(joined);
             }
             Entered.Add(e.Name);
         }

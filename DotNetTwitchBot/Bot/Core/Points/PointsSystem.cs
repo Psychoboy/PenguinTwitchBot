@@ -386,7 +386,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var messages = await GetUserMessagesAndRank(e.Name);
             loyaltyMessage = loyaltyMessage
                 .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name))
-                .Replace("{WatchTime}", Tools.ConvertToCompoundDuration(time.Time))
+                .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time))
                 .Replace("{PointsName}", loyaltyPointType.Name)
                 .Replace("{PointsRank}", points.Ranking.ToString())
                 .Replace("{Points}", points.Points.ToString("N0"))

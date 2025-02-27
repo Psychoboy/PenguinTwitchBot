@@ -193,7 +193,7 @@ else
             viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
             if(viewer.Time != null)
             {
-                viewer.WatchedTime = Tools.ConvertToCompoundDuration((long)viewer.Time.Time);
+                viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);
             }
             viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
             IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username);

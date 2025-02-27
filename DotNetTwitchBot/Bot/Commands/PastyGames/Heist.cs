@@ -270,7 +270,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             foreach (var participant in Entered)
             {
-                var result = Tools.RandomRange(1, 100);
+                var result = StaticTools.RandomRange(1, 100);
                 if (result > 40)
                 {
                     Survivors.Add(participant);

@@ -164,7 +164,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
                         TotalGambled[e.Name] += amountToBet;
                         
-                        var value = Tools.Next(100);
+                        var value = StaticTools.Next(100);
                         if (value > MustBeatValue)
                         {
                             var totalPoints = await _pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, amountToBet);

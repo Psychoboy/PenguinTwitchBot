@@ -86,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var botName = ServiceBackbone.BotName ?? "";
             var top = await db.ViewersTimeWithRank.GetAsync(filter: x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), orderBy: y => y.OrderBy(z => z.Ranking), limit: topN);
             var rank = 1;
-            var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + Tools.ConvertToCompoundDuration(x.Time)));
+            var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + StaticTools.ConvertToCompoundDuration(x.Time)));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in Time: {1}", topN, names));
         }
 

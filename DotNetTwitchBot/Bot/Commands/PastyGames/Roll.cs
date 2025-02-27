@@ -53,8 +53,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task RunGame(CommandEventArgs e)
         {
-            var dice1 = Tools.RandomRange(1, 6);
-            var dice2 = Tools.RandomRange(1, 6);
+            var dice1 = StaticTools.RandomRange(1, 6);
+            var dice2 = StaticTools.RandomRange(1, 6);
             var resultMessage = string.Format("{0} rolls a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
             if (dice1 == dice2)
             {

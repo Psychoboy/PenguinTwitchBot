@@ -115,7 +115,7 @@
                 <RowTemplate>
                     <MudTd DataLabel="Rank">@context.Rank</MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
-                    <MudTd DataLabel="Amount">@Tools.ConvertToCompoundDuration(context.Amount)</MudTd>
+                    <MudTd DataLabel="Amount">@StaticTools.ConvertToCompoundDuration(context.Amount)</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>No matching records found</MudText>

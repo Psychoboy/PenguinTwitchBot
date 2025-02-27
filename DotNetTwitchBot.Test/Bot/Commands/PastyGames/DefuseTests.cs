@@ -12,6 +12,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Security.Cryptography;
+using DotNetTwitchBot.Bot;
 namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
 {
     public class DefuseTests
@@ -112,17 +113,18 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
                 DisplayName = "TestUser",
                 UserId = "123"
             };
+
             _commandHandler.GetCommand("defuse").Returns(new Command(new BaseCommandProperties { CommandName = "defuse" }, _defuse));
             _gameSettingsService.GetStringSetting(Defuse.GAMENAME, Defuse.STARTING, Arg.Any<string>()).Returns("The bomb is beeping and {Name} cuts the {Wire} wire... ");
             _gameSettingsService.GetStringSetting(Defuse.GAMENAME, Defuse.SUCCESS, Arg.Any<string>()).Returns("The bomb goes silent. As a thank for saving the day you got awarded {Points} {PointType}");
             _gameSettingsService.GetIntSetting(Defuse.GAMENAME, Defuse.COST, Arg.Any<int>()).Returns(Task.FromResult(500));
             _pointsSystem.RemovePointsFromUserByUserIdAndGame("123", Defuse.GAMENAME, 500).Returns(Task.FromResult(true));
             _pointsSystem.AddPointsByUserIdAndGame("123", Defuse.GAMENAME, Arg.Any<long>()).Returns(Task.FromResult(1500L));
-            _gameSettingsService.GetStringListSetting(Defuse.GAMENAME, Defuse.WIRES, Arg.Any<List<string>>()).Returns(Task.FromResult(new List<string> { "red"}));
+            _gameSettingsService.GetStringListSetting(Defuse.GAMENAME, Defuse.WIRES, Arg.Any<List<string>>()).Returns(Task.FromResult(new List<string> { "red", "blue", "green"}));
             _viewerFeature.GetNameWithTitle("testuser").Returns(Task.FromResult("TestUser"));
 
             // Act
-            await _defuse.OnCommand(null, commandEventArgs);
+            await _defuse.RunGame(commandEventArgs, ["red"], 500);
 
             // Assert
             await _serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.StartsWith("The bomb is beeping and TestUser cuts the red wire... The bomb goes silent.")));
@@ -141,6 +143,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
                 DisplayName = "TestUser",
                 UserId = "123"
             };
+
+            var mockTools = Substitute.For<ITools>();
+            _defuse.Tools = mockTools;
+            mockTools.Next(0, 2).Returns(1);
 
             _commandHandler.GetCommand("defuse").Returns(new Command(new BaseCommandProperties { CommandName = "defuse" }, _defuse));
             _gameSettingsService.GetStringSetting(Defuse.GAMENAME, Defuse.STARTING, Arg.Any<string>()).Returns("The bomb is beeping and {Name} cuts the {Wire} wire... ");
