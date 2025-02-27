@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
@@ -130,6 +131,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await CreateInitialDataIfNeeded();
+            await SetupSpecialServices();
             await Register();
             logger.LogInformation("Started {module}", nameof(PointsSystem));
         }
@@ -145,6 +147,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 await db.SaveChangesAsync();
                 logger.LogInformation("Initial data created");
             }
+        }
+
+        private async Task SetupSpecialServices()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var bonusService = scope.ServiceProvider.GetRequiredService<IBonusTickets>();
+            await bonusService.Setup();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
