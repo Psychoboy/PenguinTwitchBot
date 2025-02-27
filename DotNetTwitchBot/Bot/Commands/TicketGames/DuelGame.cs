@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         ILogger<DuelGame> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame"), IHostedService
     {
-        List<PendingDuel> PendingDuels { get; set; } = new List<PendingDuel>();
+        List<PendingDuel> PendingDuels { get; set; } = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
 
         public override async Task Register()

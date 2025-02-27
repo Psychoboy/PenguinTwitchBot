@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -7,38 +8,32 @@ using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class AddActive : BaseCommandService, IHostedService
+    public class AddActive(
+        ILogger<AddActive> logger,
+        IServiceBackbone serviceBackbone,
+        IPointsSystem pointSystem,
+        ICommandHandler commandHandler,
+        IGameSettingsService gameSettingsService
+        ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        //private readonly ITicketsFeature _ticketsFeature;
-        protected readonly Timer _pointsToActiveCommandTimer;
+        protected readonly Timer _pointsToActiveCommandTimer = new(1000);
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.Now;
-        private readonly ILogger<AddActive> _logger;
-        private readonly IPointsSystem _pointsSystem;
 
-        public AddActive(
-            ILogger<AddActive> logger,
-            IServiceBackbone serviceBackbone,
-            IPointsSystem pointSystem,
-            ICommandHandler commandHandler
-        ) : base(serviceBackbone, commandHandler, "AddActive")
-        {
-            _logger = logger;
-            _pointsToActiveCommandTimer = new Timer(1000);
-            _pointsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
-            _pointsSystem = pointSystem;
-        }
+        public static readonly string GAMENAME = "AddActive";
+        public static readonly string MAX_POINTS = "MaxPoints";
+        public static readonly string DELAY = "Delay";
+        public static readonly string MESSAGE = "Message";
 
         public override async Task Register()
         {
             var moduleName = "AddActive";
             await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);
-            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
-            _pointsToActiveCommandTimer.Start();
+            await pointSystem.RegisterDefaultPointForGame(ModuleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
-        public override Task OnCommand(object? sender, CommandEventArgs e)
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommandDefaultName(e.Command);
             switch (command)
@@ -47,17 +42,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     {
                         if (long.TryParse(e.Args[0], out long amount))
                         {
-                            AddActivePoints(amount);
+                            await AddActivePoints(amount);
                         }
                         break;
                     }
             }
-            return Task.CompletedTask;
         }
 
-        public void AddActivePoints(long amount)
+        public async Task AddActivePoints(long amount)
         {
-            if (amount > 100) amount = 100;
+            var maxPoints = await gameSettingsService.GetIntSetting(ModuleName, MAX_POINTS, 100);
+            if (maxPoints > 0 && amount > maxPoints) amount = maxPoints;
             _lastPointsGivenOut = GetDateTime();
             _pointsToGiveOut += amount;
         }
@@ -74,24 +69,32 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public async Task SendTickets()
         {
-            if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(5) < GetDateTime())
+            var delay = await gameSettingsService.GetIntSetting(ModuleName, DELAY, 5);
+            if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
             {
-                var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
-                await _pointsSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
-                await ServiceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _pointsToGiveOut));
+                var pointType = await pointSystem.GetPointTypeForGame(ModuleName);
+                await pointSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
+
+                var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
+                message = message.Replace("{Amount}", _pointsToGiveOut.ToString("n0")).Replace("{PointType}", pointType.Name);
+
+                await ServiceBackbone.SendChatMessage(message);
                 _pointsToGiveOut = 0;
             }
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
-            return Register();
+            logger.LogInformation("Starting {moduledname}", ModuleName);
+            _pointsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
+            _pointsToActiveCommandTimer.Start();
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
+            _pointsToActiveCommandTimer.Elapsed -= OnActiveCommandTimerElapsed;
             return Task.CompletedTask;
         }
     }
