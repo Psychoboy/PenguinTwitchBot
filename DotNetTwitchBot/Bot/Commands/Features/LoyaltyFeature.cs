@@ -406,7 +406,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task<string> GetViewerWatchTime(string user)
         {
             var time = await GetUserTimeAndRank(user);
-            return Tools.ConvertToCompoundDuration(time.Time);
+            return StaticTools.ConvertToCompoundDuration(time.Time);
         }
 
         private async Task AddTimeToViewerByUserId(string userId, int timeToAdd)

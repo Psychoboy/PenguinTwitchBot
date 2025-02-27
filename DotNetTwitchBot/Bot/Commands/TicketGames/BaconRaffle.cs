@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     max = 5;
                     break;
             }
-            NumberOfWinners = Tools.Next(min, max + 1);
+            NumberOfWinners = StaticTools.Next(min, max + 1);
         }
 
         public override async Task Register()

@@ -1,0 +1,96 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.PastyGames
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudPaper>
+    <MudText Typo="Typo.h5">FFA Settings</MudText>
+    <MudDivider />
+    <MudNumericField Min="1" @bind-Value="cooldown" Label="Cooldown" HelperText="Time in seconds between games" />
+    <MudNumericField Min="1" @bind-Value="joinTime" Label="Join Time" HelperText="Time in seconds to join the game" />
+    <MudNumericField Min="1" @bind-Value="cost" Label="Cost" HelperText="Cost to play the game" />
+    <MudTextField Label="Not Enough Players" @bind-Value="notEnoughPlayers" />
+    <MudTextField Label="Winner Message" @bind-Value="winnerMessage" />
+    <MudTextField Label="Starting Message" @bind-Value="starting" />
+    <MudTextField Label="Joined Message" @bind-Value="joined" />
+    <MudTextField Label="Late Message" @bind-Value="late" />
+    <MudTextField Label="Already Joined Message" @bind-Value="alreadyJoined" />
+    <MudTextField Label="Not Enough Points Message" @bind-Value="notEnoughPoints" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int cooldown { get; set; }
+    private int joinTime { get; set; }
+    private int cost { get; set; }
+    private string notEnoughPlayers { get; set; } = null!;
+    private string winnerMessage { get; set; } = null!;
+    private string starting { get; set; } = null!;
+    private string joined { get; set; } = null!;
+    private string late { get; set; } = null!;
+    private string alreadyJoined { get; set; } = null!;
+    private string notEnoughPoints { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cooldown = await gameSettingsService.GetIntSetting(
+            FFA.GAMENAME, FFA.COOLDOWN,
+            300
+        );
+        joinTime = await gameSettingsService.GetIntSetting(
+            FFA.GAMENAME, FFA.JOIN_TIME,
+            60
+        );
+        cost = await gameSettingsService.GetIntSetting(
+            FFA.GAMENAME, FFA.COST,
+            100
+        );
+        notEnoughPlayers = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.NOT_ENOUGH_PLAYERS,
+            "Not enough viewers joined the FFA, returning the fees."
+        );
+        winnerMessage = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.WINNER_MESSAGE,
+            "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!"
+        );
+        starting = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.STARTING,
+            "{Name} starts the FFA game! Type !{CommandName} to join the game."
+        );
+        joined = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.JOINED,
+            "{Name} has joined the FFA game!"
+        );
+        late = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.LATE,
+           "The FFA has already started, you are to late to join this one."
+        );
+        alreadyJoined = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.ALREADY_JOINED,
+            "You have already joined the FFA!"
+        );
+        notEnoughPoints = await gameSettingsService.GetStringSetting(
+            FFA.GAMENAME, FFA.NOT_ENOUGH_POINTS,
+            "Sorry it costs {Cost} {PointType} to join the FFA game which you do not have."
+        );
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetIntSetting(FFA.GAMENAME, FFA.COOLDOWN, cooldown);
+        await gameSettingsService.SetIntSetting(FFA.GAMENAME, FFA.JOIN_TIME, joinTime);
+        await gameSettingsService.SetIntSetting(FFA.GAMENAME, FFA.COST, cost);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.NOT_ENOUGH_PLAYERS, notEnoughPlayers);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.WINNER_MESSAGE, winnerMessage);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.STARTING, starting);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.JOINED, joined);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.LATE, late);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.ALREADY_JOINED, alreadyJoined);
+        await gameSettingsService.SetStringSetting(FFA.GAMENAME, FFA.NOT_ENOUGH_POINTS, notEnoughPoints);
+        Snackbar.Add("FFA settings saved", Severity.Success);
+    }
+}

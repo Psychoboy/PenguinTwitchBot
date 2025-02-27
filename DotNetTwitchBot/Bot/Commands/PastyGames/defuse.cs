@@ -33,6 +33,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public static readonly string COST = "Cost";
         public static readonly string WIN_MULTIPLIER = "WinMultiplier";
 
+        internal ITools Tools { get; set; } = new Tools();
+
 
         public override async Task Register()
         {

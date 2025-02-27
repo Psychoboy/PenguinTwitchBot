@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
 
                 message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
-                var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
+                var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
@@ -87,14 +87,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
 
                 message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
-                var randomMessage = WinMessages[Tools.Next(0, WinMessages.Count)];
+                var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
                 await ServiceBackbone.SendChatMessage(message);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
                 return;
             }
-            var randomLoseMessage = LoseMessages[Tools.Next(0, WinMessages.Count)];
+            var randomLoseMessage = LoseMessages[StaticTools.Next(0, WinMessages.Count)];
             //{NAME_HERE}
             message += randomLoseMessage;
             await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
@@ -173,7 +173,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private int GetEmoteKey()
         {
-            var key = Tools.Next(0, Emotes.Count);
+            var key = StaticTools.Next(0, Emotes.Count);
             return key;
         }
 

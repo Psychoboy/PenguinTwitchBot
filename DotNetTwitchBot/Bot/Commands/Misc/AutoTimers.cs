@@ -182,7 +182,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             try
             {
-                var randomNextMinutes = Tools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
+                var randomNextMinutes = StaticTools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
                 group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
                 group.LastRun = DateTime.Now;
                 await using var scope = _scopeFactory.CreateAsyncScope();

@@ -135,7 +135,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 return;
             }
 
-            var winner = Tools.Next(0, 100);
+            var winner = StaticTools.Next(0, 100);
             if (winner < 50)
             {
                 await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount * 2);

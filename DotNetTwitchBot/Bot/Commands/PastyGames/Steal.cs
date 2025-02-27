@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         {
             var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, ModuleName);
             var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
-            var amount = Tools.Next(StealMin, StealMax + 1);
+            var amount = StaticTools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName,
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await MovePoints(e.Name, e.TargetUser, amount);
                 return;
             }
-            var rand = Tools.Next(1, 12 + 1);
+            var rand = StaticTools.Next(1, 12 + 1);
             if (rand <= 4) // success
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} pasties from {2}",
