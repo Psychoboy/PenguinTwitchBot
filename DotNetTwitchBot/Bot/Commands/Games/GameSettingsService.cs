@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             {
                 if (setting.SettingStringValue != null)
                 {
-                    return setting.SettingStringValue.Split(',').Select(x => x.Trim()).ToList();
+                    return [.. setting.SettingStringValue.Split(',').Select(x => x.Trim())];
                 }
             }
             return defaultValue;

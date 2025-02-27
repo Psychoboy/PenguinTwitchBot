@@ -1,26 +1,38 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 using MediatR;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("DotNetTwitchBot.Test")]
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Defuse(
-        //ILoyaltyFeature loyaltyFeature,
         IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
+        IGameSettingsService gameSettingsService,
         IViewerFeature viewerFeature,
         IMediator mediator,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Defuse"), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        private readonly List<string> Wires = ["red", "blue", "yellow"];
-        private readonly int Cost = 500;
+        //For Game Settings
+        public static readonly string GAMENAME = "Defuse";
+        public static readonly string WIRES = "Wires";
+        public static readonly string NO_ARGS = "NoArgs";
+        public static readonly string NOT_ENOUGH = "NotEnough";
+        public static readonly string STARTING = "Starting";
+        public static readonly string SUCCESS = "Success";
+        public static readonly string FAIL = "Failure";
+        public static readonly string COST = "Cost";
+        public static readonly string WIN_MULTIPLIER = "WinMultiplier";
+
 
         public override async Task Register()
         {
@@ -35,45 +47,77 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("defuse")) return;
-
-            if (string.IsNullOrEmpty(e.Arg) ||
-            (!e.Arg.Equals("red", StringComparison.CurrentCultureIgnoreCase) &&
-            !e.Arg.Equals("blue", StringComparison.CurrentCultureIgnoreCase) &&
-            !e.Arg.Equals("yellow", StringComparison.CurrentCultureIgnoreCase)))
+            var wires = await GetWires();
+            if (string.IsNullOrEmpty(e.Arg) || !wires.Contains(e.Arg.Trim()))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you need to choose one of these wires to cut: {0}", string.Join(", ", Wires)));
+                var noArgMessage = await gameSettingsService.GetStringSetting(GAMENAME, NO_ARGS, "you need to choose one of these wires to cut: {Wires}");
+                noArgMessage = await ReplaceVariables(noArgMessage, e.Name, "", 0, wires);
+                await ServiceBackbone.SendChatMessage(e.DisplayName, noArgMessage);
                 throw new SkipCooldownException();
             }
 
-            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, Cost)))
-            {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Sorry it costs {0} to defuse the bomb which you do not have.", Cost));
-                throw new SkipCooldownException();
-            }
+            var cost = await GetCost();
 
-            var chosenWire = Wires.RandomElementOrDefault();
-            if (chosenWire == null)
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, cost)))
             {
-                logger.LogError("Couldn't choose a wire for defuse");
+                var notEnough = await gameSettingsService.GetStringSetting(GAMENAME, NOT_ENOUGH, "Sorry it costs {Cost} {PointType} to defuse the bomb which you do not have.");
+                notEnough = await ReplaceVariables(notEnough, e.Name, "", cost, wires);
+                await ServiceBackbone.SendChatMessage(e.DisplayName, notEnough);
                 throw new SkipCooldownException();
             }
-            var startMessage = string.Format("The bomb is beeping and {0} cuts the {1} wire... ", await viewerFeature.GetNameWithTitle(e.Name), e.Arg);
+            await RunGame(e, wires, cost);
+        }
+
+        internal async Task RunGame(CommandEventArgs e, List<string> wires, int cost)
+        {
+            var chosenWire = wires.RandomElement();
+            var nameWithTitle = await viewerFeature.GetNameWithTitle(e.Name);
+            var starting = await gameSettingsService.GetStringSetting(GAMENAME, STARTING, "The bomb is beeping and {Name} cuts the {Wire} wire... ");
+            starting = await ReplaceVariables(starting, nameWithTitle, e.Arg, cost, wires);
+            var startMessage = starting;
             if (chosenWire.Equals(e.Arg, StringComparison.CurrentCultureIgnoreCase))
             {
                 var multiplier = 3;
-                var min = Cost * multiplier - Cost / multiplier;
-                var max = Cost * multiplier + Cost / multiplier;
+                var min = cost * multiplier - cost / multiplier;
+                var max = cost * multiplier + cost / multiplier;
                 var value = Tools.Next(min, max + 1);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, value);
-                await ServiceBackbone.SendChatMessage(startMessage + string.Format("The bomb goes silent. As a thank for saving the day you got awarded {0} pasties", value));
+                var success = await gameSettingsService.GetStringSetting(GAMENAME, SUCCESS, "The bomb goes silent. As a thank for saving the day you got awarded {Points} {PointType}");
+                success = await ReplaceVariables(success, nameWithTitle, e.Arg, value, wires);
+                await ServiceBackbone.SendChatMessage(startMessage + success);
 
                 await mediator.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
             }
             else
             {
-                await ServiceBackbone.SendChatMessage(startMessage + string.Format("BOOM!!! The bomb explodes, you lose {0} pasties.", Cost));
+                var fail = await gameSettingsService.GetStringSetting(GAMENAME, FAIL, "BOOM!!! The bomb explodes, you lose {Points} {PointType}.");
+                fail = await ReplaceVariables(fail, nameWithTitle, e.Arg, cost, wires);
+                await ServiceBackbone.SendChatMessage(startMessage + fail);
                 await mediator.Publish(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
             }
+        }
+
+        private async Task<string> ReplaceVariables(string msg, string name, string wire, int points, List<string> wires)
+        {
+            return msg
+                .Replace("{Wires}", string.Join(", ", wires), StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{Wire}", wire, StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{Cost}", (await GetCost()).ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{PointType}",(await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{Name}", name, StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{Points}", points.ToString("N0"), StringComparison.CurrentCultureIgnoreCase);
+        }
+
+        private Task<int> GetCost()
+        {
+            return gameSettingsService.GetIntSetting(
+                Defuse.GAMENAME, Defuse.COST, 500
+            );
+        }
+
+        private Task<List<string>> GetWires()
+        {
+            return gameSettingsService.GetStringListSetting(GAMENAME, WIRES, ["red", "blue", "yellow"]);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
