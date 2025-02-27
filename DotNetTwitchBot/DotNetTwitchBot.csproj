@@ -84,7 +84,6 @@
     <Folder Include="Application\Alias\" />
     <Folder Include="Application\Metrics\Notifications\" />
     <Folder Include="Authorization\" />
-    <Folder Include="Helpers\" />
   </ItemGroup>
 
   <ItemGroup>
