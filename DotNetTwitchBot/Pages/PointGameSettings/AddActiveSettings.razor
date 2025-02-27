@@ -1,0 +1,48 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.TicketGames
+@attribute [Authorize(Roles = "Streamer")]
+
+
+<MudPaper>
+    <MudText Typo="Typo.h5">AddActive Settings</MudText>
+    <MudText>This sends points out as a bulk to users after a configured delay. This is also used by ModSpam</MudText>
+    <MudDivider />
+    <MudNumericField Min="1" @bind-Value="maxPoints" Label="Max Points" HelperText="Max points to send" />
+    <MudNumericField Min="1" @bind-Value="delay" Label="Delay" HelperText="Delay in seconds between sending points" />
+    <MudTextField Label="Message" @bind-Value="message" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int maxPoints { get; set; }
+    private int delay { get; set; }
+    private string message { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        maxPoints = await gameSettingsService.GetIntSetting(
+            AddActive.GAMENAME, AddActive.MAX_POINTS,
+            100
+        );
+        delay = await gameSettingsService.GetIntSetting(
+            AddActive.GAMENAME, AddActive.DELAY,
+            5
+        );
+        message = await gameSettingsService.GetStringSetting(
+            AddActive.GAMENAME, AddActive.MESSAGE,
+            "Sending {Amount} {PointType} to all active users."
+        );
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetIntSetting(AddActive.GAMENAME, AddActive.MAX_POINTS, maxPoints);
+        await gameSettingsService.SetIntSetting(AddActive.GAMENAME, AddActive.DELAY, delay);
+        await gameSettingsService.SetStringSetting(AddActive.GAMENAME, AddActive.MESSAGE, message);
+        Snackbar.Add("AddActive settings saved", Severity.Success);
+    }
+}
