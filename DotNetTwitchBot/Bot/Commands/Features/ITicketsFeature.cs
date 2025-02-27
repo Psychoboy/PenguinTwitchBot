@@ -11,7 +11,5 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task GiveTicketsWithBonusToViewers(IEnumerable<string> viewers, long amount, long subBonusAmount);
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
-        Task<bool> RemoveTicketsFromViewerByUserId(string userid, long amount);
-        Task<bool> RemoveTicketsFromViewerByUsername(string username, long amount);
     }
 }

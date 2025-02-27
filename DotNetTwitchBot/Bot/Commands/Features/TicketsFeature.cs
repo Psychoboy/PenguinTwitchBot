@@ -147,29 +147,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return (await _pointsSystem.GetUserPointsByUserIdAndGame(userid, ModuleName)).Points;
         }
 
-        public async Task<bool> RemoveTicketsFromViewerByUsername(string username, long amount)
-        {
-            var viewerData = await _viewerFeature.GetViewerByUserName(username);
-            if (viewerData == null || string.IsNullOrWhiteSpace(viewerData.UserId))
-            {
-                return false;
-            }
-            return await RemoveTicketsFromViewerByUserId(viewerData.UserId, amount);
-        }
-
-        public async Task<bool> RemoveTicketsFromViewerByUserId(string userId, long amount)
-        {
-            try
-            {
-                await GiveTicketsToViewerByUserId(userId, -amount);
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             if (ServiceBackbone.IsOnline)

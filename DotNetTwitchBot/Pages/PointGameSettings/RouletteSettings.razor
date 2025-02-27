@@ -1,0 +1,155 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.TicketGames
+@attribute [Authorize(Roles = "Streamer")]
+<MudPaper>
+    <MudText Typo="Typo.h5">Roulette Settings</MudText>
+    <MudDivider />
+    <MudNumericField Min="1" Max="99" @bind-Value="mustBeat" Label="Value to beat" HelperText="The value the viewer must beat to win" />
+    <MudNumericField Min="1" @bind-Value="maxAmount" Label="Max amount per stream" HelperText="Max total a viewer can roulette on a stream" />
+    <MudNumericField Min="1" Max="maxAmount" @bind-Value="maxPerBet" Label="Max amount per attempt" HelperText="Max a viewer can roulette per turn" />
+    <MudCheckBox @bind-Value="onlineOnly" Label="Live Only" />
+    <MudDivider />
+    <MudText>For both Win and Lose message the variables are: {Name}, {Rolled}, 
+        {WonPoints}, {PointsName}, {TotalPoints}, {TotalBet}, {MaxBet}
+    </MudText>
+    <MudTextField Label="Win Message" @bind-Value="winMessage"/>
+    <MudTextField Label="Lose Message" @bind-Value="loseMessage" />
+    <MudDivider />
+    <MudTextField Label="Reached Limit" @bind-Value="reachedLimit" HelperText="Variables: {MaxAmount}, {PointName}" />
+    <MudDivider />
+    <MudTextField Label="No Arguments" HelperText="Message when no arguments are passed" @bind-Value="noArgs" />
+    <MudTextField Label="Bad Arguments" HelperText="Message when bad arguments are passed" @bind-Value="badArgs" />
+    <MudTextField Label="Not enough points" HelperText="Message when viewer doesn't have enough points" @bind-Value=notEnough />
+    <MudTextField Label="Negative Bet" HelperText="Message when someone attempts to bet negative" @bind-Value=lessThanZero />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+    private string noArgs { get; set; } = null!;
+    private string badArgs { get; set; } = null!;
+    private string lessThanZero { get; set; } = null!;
+    private string notEnough { get; set; } = null!;
+    private string winMessage { get; set; } = null!;
+    private string loseMessage { get; set; } = null!;
+    private string reachedLimit { get; set; } = null!;
+    private int mustBeat { get; set; }
+    private int maxAmount { get; set; }
+    private int maxPerBet { get; set; }
+    private bool onlineOnly { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        noArgs = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.NO_ARGS,
+            "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk."
+        );
+        badArgs = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.BAD_ARGS,
+            "The amount must be a number, max, or all"
+        );
+        lessThanZero = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.LESS_THAN_ZERO,
+            "The amount needs to be greater then 0"
+        );
+        notEnough = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.NOT_ENOUGH,
+            "You don't have that many tickets."
+        );
+        winMessage = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.WIN_MESSAGE,
+            "{Name} rolled a {Rolled} and won {WonPoints} {PointsName} in the roulette and now has {TotalPoints} {PointsName}! FeelsGoodMan Rouletted {TotalBet} of {MaxBet} limit per stream"
+        );
+        loseMessage = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.LOSE_MESSAGE,
+            "{Name} rolled a {Rolled} and lost {WonPoints} {PointsName} in the roulette and now has {TotalPoints} {PointsName}! FeelsBadMan Rouletted {TotalBet} of {MaxBet} limit per stream"
+        );
+        reachedLimit = await gameSettingsService.GetStringSetting(
+            Roulette.GAMENAME,
+            Roulette.REACHED_LIMIT,
+            "You have reached your max per stream limit for !roulette ({MaxAmount} {PointsName})."
+        );
+        mustBeat = await gameSettingsService.GetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MUST_BEAT,
+            52
+        );
+        maxAmount = await gameSettingsService.GetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MAX_AMOUNT,
+            1000
+        );
+        maxPerBet = await gameSettingsService.GetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MAX_PER_BET,
+            500
+        );
+        onlineOnly = await gameSettingsService.GetBoolSetting(
+            Roulette.GAMENAME,
+            Roulette.ONLINE_ONLY,
+            true
+        );
+
+    }
+
+    private async Task SaveSettings()
+    {
+        List<Task> tasks = [
+            gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.NO_ARGS,
+        noArgs),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.NOT_ENOUGH,
+        notEnough),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.BAD_ARGS,
+        badArgs),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.LESS_THAN_ZERO,
+        lessThanZero),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.WIN_MESSAGE,
+        winMessage),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.LOSE_MESSAGE,
+        loseMessage),
+    gameSettingsService.SetStringSetting(
+        Roulette.GAMENAME,
+        Roulette.REACHED_LIMIT,
+        reachedLimit
+        ),
+    gameSettingsService.SetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MUST_BEAT,
+            mustBeat),
+        gameSettingsService.SetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MAX_AMOUNT,
+            maxAmount),
+        gameSettingsService.SetIntSetting(
+            Roulette.GAMENAME,
+            Roulette.MAX_PER_BET,
+            maxPerBet),
+        gameSettingsService.SetBoolSetting(
+            Roulette.GAMENAME,
+            Roulette.ONLINE_ONLY,
+            onlineOnly)
+        ];
+        Roulette.MaxAmount = maxAmount;
+        await Task.WhenAll(tasks);
+        Snackbar.Add("Roulette settings saved.", Severity.Success);
+    }
+}
