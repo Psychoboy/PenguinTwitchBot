@@ -124,7 +124,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             _viewerFeature.GetNameWithTitle("testuser").Returns(Task.FromResult("TestUser"));
 
             // Act
-            await _defuse.OnCommand(null, commandEventArgs);
+            await _defuse.RunGame(commandEventArgs, ["red"], 500);
 
             // Assert
             await _serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.StartsWith("The bomb is beeping and TestUser cuts the red wire... The bomb goes silent.")));
