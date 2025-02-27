@@ -7,6 +7,59 @@
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
+        <MudItem xs="6">
+            <GamePointSettings />
+        </MudItem>
+        <MudItem xs="6">
+            <MudText Typo="Typo.h5">Basic descripts of the various games</MudText>
+            <MudText>The games were originally designed with 2 different points in mind.
+                The first list is the more wreckless fun games. While the second is the more
+                serious ones designed with Giveaways in mind. You can configure these to use any point types
+                you want. You can also have as many point types as you want. The seperation is simply a 
+                suggest.
+            </MudText>
+            <MudDivider/>
+            <MudText Typo="Typo.h5">Suggested "Fun" Games</MudText>
+            <MudText Typo="Typo.h6">Defuse</MudText>
+            <MudText>Simple game where a user defuses a bomb by choosing a color</MudText>
+            <MudText Typo="Typo.h6">FFA</MudText>
+            <MudText>A free for all battle, winner takes all</MudText>
+            <MudText Typo="Typo.h6">Gamble</MudText>
+            <MudText>A way to gamble those points away</MudText>
+            <MudText Typo="Typo.h6">Heist</MudText>
+            <MudText>A heist where multiple people can join and some may succeed rather others may fail.</MudText>
+            <MudText Typo="Typo.h6">Roll</MudText>
+            <MudText>Roll some dice for a chance at points</MudText>
+            <MudText Typo="Typo.h6">Slots</MudText>
+            <MudText>Spin the wheel to win some points. The more emotes the lower the odds of winning</MudText>
+            <MudText Typo="Typo.h6">Steal</MudText>
+            <MudText>Attempt to steal points from another viewer</MudText>
+            <MudText Typo="Typo.h6">Tax</MudText>
+            <MudText>Post stream tax. After the stream has been offline for a bit process a tax removing
+                a small percentage of points up to a max for anyone who did not show up in stream.</MudText>
+            <MudText Typo="Typo.h6">Top</MudText>
+            <MudText>Top5/10 watch time, points, messages</MudText>
+            <MudDivider />
+            <MudText Typo="Typo.h5">Suggested games for more serious points ie. Giveaways</MudText>
+            <MudText Typo="Typo.h6">AddActive</MudText>
+            <MudText>Add points to all active viewers in chat. Can be used multiple times to stack up the points
+                then after a small period of time distributes all the points at once.
+            </MudText>
+            <MudText Typo="Typo.h6">DuelGame</MudText>
+            <MudText>Duel another viewer to win/lose tickets against opponent. The opponent must accept the duel.</MudText>
+            <MudText Typo="Typo.h6">First</MudText>
+            <MudText>Allows people to do a !first type of command and based on order lower amount of points awarded</MudText>
+            <MudText Typo="Typo.h6">GiveawayFeature</MudText>
+            <MudText>Used to run giveaways</MudText>
+            <MudText Typo="Typo.h6">LoyaltyFeature</MudText>
+            <MudText>Awards points for Cheers, Subs, etc...</MudText>
+            <MudText Typo="Typo.h6">Raffle</MudText>
+            <MudText>Do various raffles for points in chat</MudText>
+            <MudText Typo="Typo.h6">Roulette</MudText>
+            <MudText>Gamble those points away with a max per stream</MudText>
+            <MudText Typo="Typo.h6">TicketsFeature</MudText>
+            <MudText>Periodically gives points with bonuses based on subs and such if active in chat.</MudText>
+        </MudItem>
         <MudItem xs="9">
             <MudPaper>
                 <MudTable Items="@PointTypes">

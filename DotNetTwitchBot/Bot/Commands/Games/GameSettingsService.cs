@@ -74,6 +74,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 SettingName = settingName,
                 SettingStringValue = value
             };
+            setting.SettingStringValue = value;
             await SaveSetting(setting);
         }
 
@@ -86,6 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 SettingName = settingName,
                 SettingIntValue = value
             };
+            setting.SettingIntValue = value;
             await SaveSetting(setting);
         }
 
@@ -98,6 +100,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 SettingName = settingName,
                 SettingBoolValue = value
             };
+            setting.SettingBoolValue = value;
             await SaveSetting(setting);
         }
 
@@ -110,6 +113,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 SettingName = settingName,
                 SettingDoubleValue = value
             };
+            setting.SettingDoubleValue = value;
             await SaveSetting(setting);
         }
 
@@ -168,6 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                     result.Add(new PointGamePair { Setting = setting, PointType = pointType });
                 }
             }
+            result.Sort((a, b) => a.Setting.GameName.CompareTo(b.Setting.GameName));
             return result;
         }
 
