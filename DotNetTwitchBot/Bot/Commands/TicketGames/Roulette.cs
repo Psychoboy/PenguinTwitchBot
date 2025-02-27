@@ -9,26 +9,23 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommandService, IHostedService
     {
-        //private int MustBeatValue = 52;
-        //private int MaxAmount = 1000;
-        //private int MaxPerBet = 500;
         private readonly ConcurrentDictionary<string, int> TotalGambled = new();
         private readonly ILogger<Roulette> _logger;
         private readonly IGameSettingsService _gameSettings;
         private readonly IPointsSystem _pointsSystem;
 
-        public const string GAMENAME = "Roulette";
-        public const string NO_ARGS = "NoArgs";
-        public const string BAD_ARGS = "BadArgs";
-        public const string LESS_THAN_ZERO = "LessThanZero";
-        public const string NOT_ENOUGH = "NotEnough";
-        public const string WIN_MESSAGE = "WinMessage";
-        public const string LOSE_MESSAGE = "LoseMessage";
-        public const string REACHED_LIMIT = "ReachedLimit";
-        public const string MUST_BEAT = "MustBeatValue";
-        public const string MAX_AMOUNT = "MaxAmount";
-        public const string MAX_PER_BET = "MaxPerBet";
-        public const string ONLINE_ONLY = "OnlineOnly";
+        public static readonly string GAMENAME = "Roulette";
+        public static readonly string NO_ARGS = "NoArgs";
+        public static readonly string BAD_ARGS = "BadArgs";
+        public static readonly string LESS_THAN_ZERO = "LessThanZero";
+        public static readonly string NOT_ENOUGH = "NotEnough";
+        public static readonly string WIN_MESSAGE = "WinMessage";
+        public static readonly string LOSE_MESSAGE = "LoseMessage";
+        public static readonly string REACHED_LIMIT = "ReachedLimit";
+        public static readonly string MUST_BEAT = "MustBeatValue";
+        public static readonly string MAX_AMOUNT = "MaxAmount";
+        public static readonly string MAX_PER_BET = "MaxPerBet";
+        public static readonly string ONLINE_ONLY = "OnlineOnly";
 
         public Roulette(
             IServiceBackbone serviceBackbone,
@@ -222,8 +219,5 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
-
-        //private readonly string WinMessage = "{0} rolled a {3} and  won {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsGoodMan Rouletted {4} of {5} limit per stream";
-        //private readonly string LoseMessage = "{0} rolled a {3} and lost {1:n0} tickets in the roulette and now has {2:n0} tickets! FeelsBadMan Rouletted {4} of {5} limit per stream";
     }
 }
