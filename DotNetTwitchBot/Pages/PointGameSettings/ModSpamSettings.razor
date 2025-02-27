@@ -1,0 +1,75 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.TicketGames
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudPaper>
+    <MudText Typo="Typo.h5">Mod Spam Settings</MudText>
+    <MudText>Please note: Mod Spam uses the PointType from AddActive</MudText>
+    <MudDivider />
+    <MudNumericField Min="1" @bind-Value="minTime" Label="Minimum Time" HelperText="Minimum time between messages" />
+    <MudNumericField Min="1" @bind-Value="maxTime" Label="Maximum Time" HelperText="Maximum time between messages" />
+    <MudNumericField Min="1" @bind-Value="minAmount" Label="Minimum Amount" HelperText="Minimum amount of messages" />
+    <MudNumericField Min="1" @bind-Value="maxAmount" Label="Maximum Amount" HelperText="Maximum amount of messages" />
+    <MudTextField Label="Starting Message" @bind-Value="startingMessage" />
+    <MudTextField Label="Ending Message" @bind-Value="endingMessage" />
+    <MudDivider />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int minTime { get; set; }
+    private int maxTime { get; set; }
+    private int minAmount { get; set; }
+    private int maxAmount { get; set; }
+    private string startingMessage { get; set; } = null!;
+    private string endingMessage { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        minTime = await gameSettingsService.GetIntSetting(
+            ModSpam.GAMENAME, ModSpam.MIN_TIME,
+            15
+        );
+
+        maxTime = await gameSettingsService.GetIntSetting(
+            ModSpam.GAMENAME, ModSpam.MAX_TIME,
+            30
+        );
+
+        minAmount = await gameSettingsService.GetIntSetting(
+            ModSpam.GAMENAME, ModSpam.MIN_AMOUNT,
+            1
+        );
+
+        maxAmount = await gameSettingsService.GetIntSetting(
+            ModSpam.GAMENAME, ModSpam.MAX_AMOUNT,
+            5
+        );
+
+        startingMessage = await gameSettingsService.GetStringSetting(
+            ModSpam.GAMENAME, ModSpam.STARTING_MESSAGE,
+           "Starting Mod Spam... please wait while it spams silently..."
+        );
+
+        endingMessage = await gameSettingsService.GetStringSetting(
+            ModSpam.GAMENAME, ModSpam.ENDING_MESSAGE,
+           "Mod spam completed... {PointType} arriving soon."
+        );
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetIntSetting(ModSpam.GAMENAME, ModSpam.MIN_TIME, minTime);
+        await gameSettingsService.SetIntSetting(ModSpam.GAMENAME, ModSpam.MAX_TIME, maxTime);
+        await gameSettingsService.SetIntSetting(ModSpam.GAMENAME, ModSpam.MIN_AMOUNT, minAmount);
+        await gameSettingsService.SetIntSetting(ModSpam.GAMENAME, ModSpam.MAX_AMOUNT, maxAmount);
+        await gameSettingsService.SetStringSetting(ModSpam.GAMENAME, ModSpam.STARTING_MESSAGE, startingMessage);
+        await gameSettingsService.SetStringSetting(ModSpam.GAMENAME, ModSpam.ENDING_MESSAGE, endingMessage);
+        Snackbar.Add("Settings saved", Severity.Success);
+    }
+}

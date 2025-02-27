@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Admin;
+﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -102,6 +103,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
             services.AddSingleton<IGameSettingsService, GameSettingsService>();
+            services.AddSingleton<ITools, Tools>();
+            //services.AddSingleton<ITimer, Timer>();
 
             return services;
         }
