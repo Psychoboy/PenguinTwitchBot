@@ -82,7 +82,7 @@ else
     private HubConnection? hubConnection;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject]
-    private Bot.Commands.Features.ITicketsFeature TicketsFeature { get; set; } = default!;
+    private Bot.Core.Points.IPointsSystem pointsSystem { get; set; } = default!;
     protected override async Task OnInitializedAsync()
     {
         pastWinners = await GiveawayFeature.PastWinners();
@@ -142,7 +142,7 @@ else
         if (result != null)
         {
             await GiveawayFeature.Reset();
-            await TicketsFeature.ResetAllPoints();
+            await pointsSystem.RemoveAllPointsForGame("GiveawayFeature");
         }
         StateHasChanged();
     }

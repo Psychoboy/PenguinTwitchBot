@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Giveaway;
@@ -12,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
     public class GiveawayFeature(
         ILogger<GiveawayFeature> logger,
         IServiceBackbone serviceBackbone,
-        ITicketsFeature ticketsFeature,
+        IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         IHubContext<MainHub> hubContext,
         IServiceScopeFactory scopeFactory,
@@ -49,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _timer.Start();
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
@@ -106,13 +108,16 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<int> GetEntrantsCount()
         {
-            return (await GetEntries()).Count();
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.GiveawayEntries.CountAsync();
         }
 
         public async Task<int> GetEntriesCount()
         {
-            var entries = await GetEntries();
-            return entries.Sum(x => x.Tickets);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.GiveawayEntries.GetSum();
         }
 
         public async Task<IEnumerable<GiveawayExclusion>> GetAllExclusions()
@@ -360,10 +365,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     logger.LogWarning("Lock expired while waiting...");
                 }
                 amount = amount.ToLower();
-                var viewerPoints = await ticketsFeature.GetViewerTickets(sender);
+                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points; //await ticketsFeature.GetViewerTickets(sender);
                 if (amount == "max" || amount == "all")
                 {
-                    amount = (await ticketsFeature.GetViewerTickets(sender)).ToString();
+                    amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points.ToString();
                 }
                 var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
@@ -404,7 +409,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     }
                 }
 
-                if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
+                //if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
+                if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
                 {
                     var message = language.Get("giveawayfeature.enter.failure");
                     if (!fromUi)

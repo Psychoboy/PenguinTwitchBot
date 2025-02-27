@@ -1,38 +1,41 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
-namespace DotNetTwitchBot.Bot.Commands.Misc
+namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class AddActive : BaseCommandService, IHostedService
     {
-        private readonly ITicketsFeature _ticketsFeature;
-        protected readonly Timer _ticketsToActiveCommandTimer;
-        private long _ticketsToGiveOut = 0;
-        private DateTime _lastTicketsAdded = DateTime.Now;
+        //private readonly ITicketsFeature _ticketsFeature;
+        protected readonly Timer _pointsToActiveCommandTimer;
+        private long _pointsToGiveOut = 0;
+        private DateTime _lastPointsGivenOut = DateTime.Now;
         private readonly ILogger<AddActive> _logger;
+        private readonly IPointsSystem _pointsSystem;
 
         public AddActive(
             ILogger<AddActive> logger,
             IServiceBackbone serviceBackbone,
-            ITicketsFeature ticketsFeature,
+            IPointsSystem pointSystem,
             ICommandHandler commandHandler
         ) : base(serviceBackbone, commandHandler, "AddActive")
         {
-            _ticketsFeature = ticketsFeature;
             _logger = logger;
-            _ticketsToActiveCommandTimer = new Timer(1000);
-            _ticketsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
+            _pointsToActiveCommandTimer = new Timer(1000);
+            _pointsToActiveCommandTimer.Elapsed += OnActiveCommandTimerElapsed;
+            _pointsSystem = pointSystem;
         }
 
         public override async Task Register()
         {
             var moduleName = "AddActive";
             await RegisterDefaultCommand("addactive", this, moduleName, Rank.Streamer);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
-            _ticketsToActiveCommandTimer.Start();
+            _pointsToActiveCommandTimer.Start();
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)
@@ -42,9 +45,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 case "addactive":
                     {
-                        if (Int64.TryParse(e.Args[0], out long amount))
+                        if (long.TryParse(e.Args[0], out long amount))
                         {
-                            AddActiveTickets(amount);
+                            AddActivePoints(amount);
                         }
                         break;
                     }
@@ -52,11 +55,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return Task.CompletedTask;
         }
 
-        public void AddActiveTickets(long amount)
+        public void AddActivePoints(long amount)
         {
             if (amount > 100) amount = 100;
-            _lastTicketsAdded = GetDateTime();
-            _ticketsToGiveOut += amount;
+            _lastPointsGivenOut = GetDateTime();
+            _pointsToGiveOut += amount;
         }
 
         protected virtual DateTime GetDateTime()
@@ -71,11 +74,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task SendTickets()
         {
-            if (_ticketsToGiveOut > 0 && _lastTicketsAdded.AddSeconds(5) < GetDateTime())
+            if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(5) < GetDateTime())
             {
-                await _ticketsFeature.GiveTicketsToActiveUsers(_ticketsToGiveOut);
-                await ServiceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _ticketsToGiveOut));
-                _ticketsToGiveOut = 0;
+                var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
+                await _pointsSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
+                await ServiceBackbone.SendChatMessage(string.Format("Sending {0:n0} tickets to all active users.", _pointsToGiveOut));
+                _pointsToGiveOut = 0;
             }
         }
 

@@ -1,15 +1,16 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BaconRaffle(
         IServiceBackbone eventService,
-        ITicketsFeature ticketsFeature,
+        IPointsSystem pointsSystem,
         ICommandHandler commandHandler,
         ILogger<BaconRaffle> logger
-            ) : BaseRaffle(eventService, ticketsFeature, commandHandler, "sptvBacon", "!bacon", "bacon", logger)
+            ) : BaseRaffle(eventService, pointsSystem, commandHandler, "sptvBacon", "!bacon", "bacon", logger)
     {
         protected override void UpdateNumberOfWinners()
         {
@@ -38,6 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var moduleName = "BaconRaffle";
             await RegisterDefaultCommand("raffle", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("bacon", this, moduleName, Rank.Viewer);
+            await _pointSystem.RegisterDefaultPointForGame("raffle");
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 

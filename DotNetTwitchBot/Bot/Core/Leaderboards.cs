@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Models;
+using DotNetTwitchBot.Bot.Models.Points;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -11,35 +12,6 @@ namespace DotNetTwitchBot.Bot.Core
         {
             _scopeFactory = scopeFactory;
         }
-
-        public async Task<PagedDataResponse<LeaderPosition>> GetPasties(PaginationFilter filter)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var validFilter = new PaginationFilter(filter.Page, filter.Count);
-            var pagedData = await unitOfWork.ViewerPointWithRanks.GetAsync(
-                filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
-                orderBy: a => a.OrderBy(b => b.Ranking),
-                offset: (validFilter.Page) * filter.Count,
-                limit: filter.Count
-                );
-            var totalRecords = 0;
-            if (string.IsNullOrWhiteSpace(filter.Filter))
-            {
-                totalRecords = await unitOfWork.ViewerPoints.CountAsync();
-            }
-            else
-            {
-                totalRecords = await unitOfWork.ViewerPoints.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
-            }
-
-            return new PagedDataResponse<LeaderPosition>
-            {
-                Data = pagedData.Select(x => new LeaderPosition { Rank = x.Ranking, Amount = x.Points, Name = x.Username }).ToList(),
-                TotalItems = totalRecords
-            };
-        }
-
         public async Task<PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>> GetSongs(int numberOfMonths, PaginationFilter filter)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -58,34 +30,34 @@ namespace DotNetTwitchBot.Bot.Core
             };
         }
 
-        public async Task<PagedDataResponse<LeaderPosition>> GetTickets(PaginationFilter filter)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var validFilter = new PaginationFilter(filter.Page, filter.Count);
-            var pagedData = await unitOfWork.ViewerTicketsWithRank.GetAsync(
-                filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
-                orderBy: a => a.OrderBy(b => b.Ranking),
-                offset: (validFilter.Page) * filter.Count,
-                limit: filter.Count
-                );
+        //public async Task<PagedDataResponse<LeaderPosition>> GetTickets(PaginationFilter filter)
+        //{
+        //    await using var scope = _scopeFactory.CreateAsyncScope();
+        //    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        //    var validFilter = new PaginationFilter(filter.Page, filter.Count);
+        //    var pagedData = await unitOfWork.ViewerTicketsWithRank.GetAsync(
+        //        filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
+        //        orderBy: a => a.OrderBy(b => b.Ranking),
+        //        offset: (validFilter.Page) * filter.Count,
+        //        limit: filter.Count
+        //        );
 
-            var totalRecords = 0;
-            if (string.IsNullOrWhiteSpace(filter.Filter))
-            {
-                totalRecords = await unitOfWork.ViewerTickets.CountAsync();
-            }
-            else
-            {
-                totalRecords = await unitOfWork.ViewerTickets.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
-            }
+        //    var totalRecords = 0;
+        //    if (string.IsNullOrWhiteSpace(filter.Filter))
+        //    {
+        //        totalRecords = await unitOfWork.ViewerTickets.CountAsync();
+        //    }
+        //    else
+        //    {
+        //        totalRecords = await unitOfWork.ViewerTickets.Find(x => x.Username.Contains(filter.Filter)).CountAsync();
+        //    }
 
-            return new PagedDataResponse<LeaderPosition>
-            {
-                Data = pagedData.Select(x => new LeaderPosition { Rank = x.Ranking, Amount = x.Points, Name = x.Username }).ToList(),
-                TotalItems = totalRecords
-            };
-        }
+        //    return new PagedDataResponse<LeaderPosition>
+        //    {
+        //        Data = pagedData.Select(x => new LeaderPosition { Rank = x.Ranking, Amount = x.Points, Name = x.Username }).ToList(),
+        //        TotalItems = totalRecords
+        //    };
+        //}
 
         public async Task<PagedDataResponse<LeaderPosition>> GetLoudest(PaginationFilter filter)
         {

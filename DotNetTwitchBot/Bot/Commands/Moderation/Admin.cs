@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Metrics;
+using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -31,6 +32,57 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             _logger = logger;
             _scopeFactory = scopeFactory;
             _serviceBackbone = serviceBackbone;
+        }
+
+        public async Task UpgradePoints()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var points = await db.ViewerPoints.GetAllAsync();
+            //var pointType = await db.PointTypes.GetByIdAsync(1);
+            await db.UserPoints.ExecuteDeleteAllAsync();
+            foreach (var point in points)
+            {
+                var userPoint = new UserPoints
+                {
+                    UserId = point.UserId,
+                    Username = point.Username,
+                    Points = point.Points,
+                    PointTypeId = 1,
+                    Banned = point.banned
+                };
+                await db.UserPoints.AddAsync(userPoint);
+            }
+            var ticketType = await db.PointTypes.Find(x => x.Name.Equals("tickets")).FirstOrDefaultAsync();
+            ticketType ??= new PointType
+                {
+                    Name = "Tickets",
+                    PointCommands =
+                    [
+                        new PointCommand {CommandName = "addtickets", CommandType = PointCommandType.Add, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "removetickets", CommandType = PointCommandType.Remove, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "tickets", CommandType = PointCommandType.Get },
+                        new() {CommandName = "settickets", CommandType = PointCommandType.Set, MinimumRank = Rank.Streamer },
+                        new PointCommand {CommandName = "addactivetickets", CommandType = PointCommandType.AddActive, MinimumRank = Rank.Streamer }
+                    ]
+                };
+
+            var tickets = await db.ViewerTickets.GetAllAsync();
+            foreach(var ticket in tickets)
+            {
+                var userPoint = new UserPoints
+                {
+                    UserId = ticket.UserId,
+                    Username = ticket.Username,
+                    Points = ticket.Points,
+                    Banned = ticket.banned
+                };
+                ticketType.UserPoints.Add(userPoint);
+            }
+            db.PointTypes.Update(ticketType);
+
+            await db.SaveChangesAsync();
+            _logger.LogInformation("All points upgraded");
         }
 
         public async Task BackupDatabase()

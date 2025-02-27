@@ -158,6 +158,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RunFromBroadcasterOnly")
                         .HasColumnType("tinyint(1)");
 
@@ -184,6 +187,8 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
 
                     b.ToTable("AudioCommands");
                 });
@@ -257,6 +262,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RespondAsStreamer")
                         .HasColumnType("tinyint(1)");
 
@@ -290,6 +298,8 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
 
                     b.ToTable("CustomCommands");
                 });
@@ -337,6 +347,9 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RunFromBroadcasterOnly")
                         .HasColumnType("tinyint(1)");
 
@@ -363,6 +376,8 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
 
                     b.ToTable("DefaultCommands");
                 });
@@ -402,6 +417,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RunFromBroadcasterOnly")
                         .HasColumnType("tinyint(1)");
 
@@ -428,6 +446,8 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
 
                     b.ToTable("ExternalCommands");
                 });
@@ -473,6 +493,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Response")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -503,6 +526,8 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
 
                     b.ToTable("Keywords");
                 });
@@ -873,6 +898,138 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Playlists");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointCommand", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("CommandType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Cost")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("Disabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ExcludeFromUi")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("GlobalCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinimumRank")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PointTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RunFromBroadcasterOnly")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("SayCooldown")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("SayRankRequirement")
+                        .HasColumnType("tinyint(1)");
+
+                    b.PrimitiveCollection<string>("SpecificRanks")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SpecificUserOnly")
+                        .HasColumnType("longtext");
+
+                    b.PrimitiveCollection<string>("SpecificUsersOnly")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
+
+                    b.ToTable("PointCommands");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("PointTypes");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.UserPoints", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Banned")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("PointTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Points")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PointTypeId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("UserPoints");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.QuoteType", b =>
@@ -1595,6 +1752,73 @@ namespace DotNetTwitchBot.Migrations
                     b.HasDiscriminator().HasValue("UserRegisteredVoice");
                 });
 
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.AudioCommand", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.CustomCommands", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.DefaultCommand", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.ExternalCommands", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.KeywordType", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointCommand", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany("PointCommands")
+                        .HasForeignKey("PointTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PointType");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.UserPoints", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany("UserPoints")
+                        .HasForeignKey("PointTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PointType");
+                });
+
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Song", b =>
                 {
                     b.HasOne("DotNetTwitchBot.Bot.Models.MusicPlaylist", "MusicPlaylist")
@@ -1631,6 +1855,13 @@ namespace DotNetTwitchBot.Migrations
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.MusicPlaylist", b =>
                 {
                     b.Navigation("Songs");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointType", b =>
+                {
+                    b.Navigation("PointCommands");
+
+                    b.Navigation("UserPoints");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", b =>

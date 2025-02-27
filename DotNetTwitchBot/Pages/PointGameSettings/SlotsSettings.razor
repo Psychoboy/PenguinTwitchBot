@@ -1,5 +1,8 @@
 ﻿@attribute [Authorize(Roles = "Streamer")]
+@using DotNetTwitchBot.Bot.Commands.Games
 @using DotNetTwitchBot.Bot.Commands.PastyGames
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
 <MudPaper>
     <MudText Typo="Typo.h5">Slots Settings</MudText>
     <MudDivider />
@@ -27,6 +30,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+
         threeInARowMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_3_OF_A_KIND, 3.5);
         twoInARowMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_2_OF_A_KIND, 0.3);
         firstTwoMultiplier = await gameSettingsService.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_FIRST_2_MULTIPLIER, 2.5);

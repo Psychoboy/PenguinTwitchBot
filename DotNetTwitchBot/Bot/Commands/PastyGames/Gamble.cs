@@ -1,39 +1,24 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Gamble : BaseCommandService, IHostedService
+    public class Gamble(
+        ILogger<Gamble> logger,
+        ILanguage language,
+        //ILoyaltyFeature loyaltyFeature,
+        IPointsSystem pointsSystem,
+        IServiceScopeFactory scopeFactory,
+        ITwitchService twitchServices,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        MaxBetCalculator maxBetCalculator
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Gamble"), IHostedService
     {
-        private readonly ILoyaltyFeature _loyaltyFeature;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ITwitchService _twitchServices;
-        private readonly ILogger<Gamble> _logger;
-        private readonly ILanguage _language;
-        private readonly MaxBetCalculator _maxBetCalculator;
-
-        public Gamble(
-            ILogger<Gamble> logger,
-            ILanguage language,
-            ILoyaltyFeature loyaltyFeature,
-            IServiceScopeFactory scopeFactory,
-            ITwitchService twitchServices,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler,
-            MaxBetCalculator maxBetCalculator
-            ) : base(serviceBackbone, commandHandler, "Gamble")
-        {
-            _loyaltyFeature = loyaltyFeature;
-            _scopeFactory = scopeFactory;
-            _twitchServices = twitchServices;
-            _logger = logger;
-            _language = language;
-            _maxBetCalculator = maxBetCalculator;
-        }
-
         public int JackPotNumber { get; } = 69;
         public long JackpotDefault { get; } = 1000;
         public int WinRange { get; } = 48;
@@ -43,7 +28,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var moduleName = "Gamble";
             await RegisterDefaultCommand("gamble", this, moduleName, Rank.Viewer, userCooldown: 180);
             await RegisterDefaultCommand("jackpot", this, moduleName, Rank.Viewer);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -58,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 case "jackpot":
                     var jackpot = await GetJackpot();
                     await ServiceBackbone.SendChatMessage(e.DisplayName,
-                    _language.Get("game.jackpot.response").Replace("(jackpot)", jackpot.ToString("N0")));
+                    language.Get("game.jackpot.response").Replace("(jackpot)", jackpot.ToString("N0")));
                     break;
             }
         }
@@ -72,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var maxBet = await _maxBetCalculator.CheckBetAndRemovePasties(e.UserId, e.Args.First(), 5);
+            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, "gamble", e.Args.First(), 5);
             long amount = 0;
             switch (maxBet.Result)
             {
@@ -109,15 +95,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     jackpot = JackpotDefault;
                 }
                 await UpdateJackpot(jackpot, true);
-                await _twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
+                await twitchServices.Announcement(string.Format("{0} rolled {1} and won the jackpot of {2} pasties!", e.DisplayName, value, (winnings + jackpotWinnings).ToString("N0")));
                 await LaunchFireworks();
-                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, winnings + jackpotWinnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, amount);
             }
             else if (value > WinRange)
             {
                 var winnings = amount * 2;
                 await ServiceBackbone.SendChatMessage(string.Format("{0} rolled {1} and won the {2} pasties!", e.DisplayName, value, winnings.ToString("N0")));
-                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, winnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
             }
             else
             {
@@ -156,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 jackpot += amount;
             }
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var jackpotSetting = await db.Settings.Find(x => x.Name.Equals("jackpot")).FirstOrDefaultAsync();
             jackpotSetting ??= new Setting { Name = "jackpot", LongSetting = 0, DataType = Setting.DataTypeEnum.Long };
@@ -168,7 +154,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private async Task<Int64> GetJackpot()
         {
             var jackpot = JackpotDefault;
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var jackpotSetting = await db.Settings.Find(x => x.Name.Equals("jackpot")).FirstOrDefaultAsync();
@@ -182,13 +168,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }

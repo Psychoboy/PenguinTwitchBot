@@ -1,8 +1,9 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Core.Points;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class LurkBait(ILoyaltyFeature loyaltyFeature, ILogger<LurkBait> logger) : ILurkBait
+    public class LurkBait(IPointsSystem pointsSystem, ILogger<LurkBait> logger) : ILurkBait
     {
         public async Task AwardPoints(LurkBaitTrigger lbtrigger)
         {
@@ -11,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             logger.LogInformation("{username} caught a {fish} worth {gold} gold with {catchRating} stars and rarity of {rarity}",
                 lbtrigger.Username, lbtrigger.CatchName, lbtrigger.CatchValue, lbtrigger.CatchRating, lbtrigger.CatchRarity);
 
-            await loyaltyFeature.AddPointsToViewerByUsername(lbtrigger.Username, lbtrigger.CatchValue * lbtrigger.CatchRating * 10);
+            await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * lbtrigger.CatchRating * 10);
         }
     }
 }

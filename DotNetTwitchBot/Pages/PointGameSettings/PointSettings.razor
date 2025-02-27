@@ -1,0 +1,132 @@
+﻿@page "/pointsettings"
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
+@attribute [Authorize(Roles = "Streamer")]
+
+<PageTitle>SPTV Twitch Bot - Point Settings</PageTitle>
+
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudItem xs="9">
+            <MudPaper>
+                <MudTable Items="@PointTypes">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Description</MudTd>
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => EditPointType(context)">Edit</MudButton>
+                        </MudTd>
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="() => DeletePointType(context)">Delete</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <ChildRowContent>
+                        <MudTr>
+                            <td>
+                                <MudCard>
+                                    <MudCardHeader>
+                                        Commands for <strong>@context.Name</strong>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudTable Items="@context.PointCommands.ToList()" Context="CommandContext">
+                                            <HeaderContent>
+                                                <MudTh>Command</MudTh>
+                                                <MudTh>Command Description</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd>@CommandContext.CommandName</MudTd>
+                                                <MudTd>@CommandContext.CommandType</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    </MudCardContent>
+                                </MudCard>
+                            </td>
+                        </MudTr>
+                    </ChildRowContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="3">
+            <MudPaper>
+                <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
+                    <DataAnnotationsValidator />
+                    <MudTextField Label="Name" @bind-Value="newPointType.Name" />
+                    <MudTextField Label="Description" @bind-Value="newPointType.Description" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="GenerateCommands">GenerateCommands</MudButton>
+                    <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" />
+                    <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" />
+                    <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" />
+                    <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" />
+                    <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save</MudButton>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private PointType newPointType = CreateNewPointType();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PointTypes = await pointSystem.GetPointTypes();
+        newPointType = CreateNewPointType();
+    }
+
+    private async Task SavePointType()
+    {
+        await pointSystem.UpdatePointType(newPointType);
+        newPointType = CreateNewPointType();
+        PointTypes = await pointSystem.GetPointTypes();
+    }
+
+    private static PointType CreateNewPointType()
+    {
+        return new PointType
+            {
+                PointCommands = new List<PointCommand>
+                {
+                    new PointCommand { CommandType = PointCommandType.Add },
+                    new PointCommand { CommandType = PointCommandType.Remove },
+                    new PointCommand { CommandType = PointCommandType.Get },
+                    new PointCommand { CommandType = PointCommandType.Set },
+                    new PointCommand { CommandType = PointCommandType.AddActive }
+                }
+            };
+    }
+
+    private void EditPointType(PointType pointType)
+    {
+        newPointType = pointType;
+    }
+
+    private async Task DeletePointType(PointType pointType)
+    {
+        if(pointType.Id == 1)
+        {
+            Snackbar.Add("You can not delete the primary points. You can edit/rename it only.", Severity.Error);
+            return;
+        }
+        await pointSystem.DeletePointType(pointType.Id.GetValueOrDefault());
+        PointTypes = await pointSystem.GetPointTypes();
+    }
+
+    private void GenerateCommands()
+    {
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName = $"!add{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName = $"!remove{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName = $"!get{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName = $"!set{newPointType.Name.ToLower()}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName = $"!addactive{newPointType.Name.ToLower()}";
+    }
+}

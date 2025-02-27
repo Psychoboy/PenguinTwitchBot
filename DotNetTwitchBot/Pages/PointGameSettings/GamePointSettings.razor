@@ -1,0 +1,55 @@
+﻿@attribute [Authorize(Roles = "Streamer")]
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Games
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Commands.Games
+
+<MudPaper>
+    <MudTable Items="@PointSettings" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Settings for the game points system.</MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Point Type</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
+            <MudTd DataLabel="PointType">@context.PointType.Name</MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
+            <MudTd DataLabel="PointType">
+                <MudSelect Label="Point Type" @bind-Value="context.PointType" ToStringFunc="@convertFunc">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
+            </MudTd>
+        </RowEditingTemplate>
+        <EditButtonContent Context="button">
+            <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" />
+        </EditButtonContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    [Inject] IGameSettingsService gameSettingsService { get; set; } = null!;
+    private Func<PointType, string> convertFunc = ci => ci?.Name;
+    private List<PointGamePair> PointSettings { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PointSettings = await pointSystem.GetAllPointTypes();
+        PointTypes = await pointSystem.GetPointTypes();
+    }
+
+    private async void ItemHasBeenCommitted(object element)
+    {
+        var pointSettings = (PointGamePair)element;
+        await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.GetId());
+    }
+}

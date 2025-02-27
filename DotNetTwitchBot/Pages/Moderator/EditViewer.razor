@@ -3,9 +3,10 @@
 @using DotNetTwitchBot.Bot;
 
 @using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Models.Points
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature loyaltyFeature
-@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature ticketFeature
+@inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem pointSystem
 @inject DotNetTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
 @inject DotNetTwitchBot.Bot.Core.SubscriptionTracker subTracker
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -22,62 +23,62 @@ else
         <MudGrid>
             <MudItem xs="12">
                 <MudPaper Elevation="2" Class="pa-4">
-                <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
-                    <DataAnnotationsValidator />
-                    <MudCardContent>
-                        <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
-                        <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
+                    <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudCardContent>
+                            <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
+                            <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
                             Variant="Variant.Text" />
-                        <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
-                        <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
-                        <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isSub" Label="Subscriber?" />
+                            <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
+                            <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
+                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isSub" Label="Subscriber?" />
                             <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isVip" Label="VIP?" />
                             <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isMod" Label="Moderator?" />
                             <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
-                        <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
+                            <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
                             <MudTextField @bind-Value="viewer.DateCreated" Label="Account Created" ReadOnly="true" Variant="Variant.Text" />
-                        <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
-                        <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
-                        <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
-                        <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
-                        <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
+                            <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
+                            <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
+                            <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
+                            <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
+                            <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
 
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                            Submit
-                        </MudButton>
-                    </MudCardContent>
-                </EditForm>
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                                Submit
+                            </MudButton>
+                        </MudCardContent>
+                    </EditForm>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12">
                 <MudTable ServerData="MessagesReload" 
-                              Dense="true" Hover="true" @ref="messagesTable">
-                        <ToolBarContent>
-                            <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
+                Dense="true" Hover="true" @ref="messagesTable">
+                    <ToolBarContent>
+                        <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
                         <MudCheckBox Label="Include Commands?" Value="includeCommands" @onclick="CommandsViewChange" />
-                        </ToolBarContent>
-                        <HeaderContent>
-                            <MudTh>Date</MudTh>
-                            <MudTh>Message</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Rank">@context.CreatedAt</MudTd>
-                            <MudTd DataLabel="Name">@context.Message</MudTd>
-                        </RowTemplate>
-                        <NoRecordsContent>
-                            <MudText>No matching records found</MudText>
-                        </NoRecordsContent>
-                        <LoadingContent>
-                            <MudText>Loading...</MudText>
-                        </LoadingContent>
-                        <PagerContent>
-                            <MudTablePager />
-                        </PagerContent>
-                    </MudTable>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Date</MudTh>
+                        <MudTh>Message</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Rank">@context.CreatedAt</MudTd>
+                        <MudTd DataLabel="Name">@context.Message</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No matching records found</MudText>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudText>Loading...</MudText>
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
             </MudItem>
             <MudItem xs="6">
                 <MudTable Items="@IpLogs"
-                          Dense="true" Hover="true">
+                Dense="true" Hover="true">
                     <ToolBarContent>
                         <MudText Class="pa-4" Typo="Typo.h6">Ip History</MudText>
                     </ToolBarContent>
@@ -104,7 +105,7 @@ else
             </MudItem>
             <MudItem xs="6">
                 <MudTable Items="@OtherIpLogs"
-                          Dense="true" Hover="true">
+                Dense="true" Hover="true">
                     <ToolBarContent>
                         <MudText Class="pa-4" Typo="Typo.h6">Ip Match History</MudText>
                     </ToolBarContent>
@@ -117,7 +118,7 @@ else
                     <RowTemplate>
                         <MudTd DataLabel="Name">
                             <MudLink Href=@LinkBuilder("/editviewer/", context.Username)>
-                            @context.Username
+                                @context.Username
                             </MudLink>
                         </MudTd>
                         <MudTd DataLabel="Ip">@context.Ip</MudTd>
@@ -159,8 +160,8 @@ else
         public DateTime? LastSub { get; set; }
         public DateTime? DateCreated { get; set; }
         public ViewerMessageCountWithRank? Messages { get; set; }
-        public ViewerPointWithRank? Pasties { get; set; }
-        public ViewerTicketWithRanks? Tickets { get; set; }
+        public UserPointsWithRank? Pasties { get; set; }
+        public UserPointsWithRank? Tickets { get; set; }
         public ViewerTimeWithRank? Time { get; set; }
         public string WatchedTime { get; set; } = "";
 
@@ -184,9 +185,10 @@ else
             {
                 viewer.FollowDated = follower.FollowDate;
             }
-            viewer.Tickets = await ticketFeature.GetViewerTicketsWithRank(viewer.Viewer.Username);
+            var giveawayPointsSystem = await pointSystem.GetPointTypeForGame("giveawayfeature");
+            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, giveawayPointsSystem.Id.GetValueOrDefault());
+            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, 1);
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
-            viewer.Pasties = await loyaltyFeature.GetUserPastiesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
             viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
             if(viewer.Time != null)

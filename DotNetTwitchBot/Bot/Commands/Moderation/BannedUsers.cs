@@ -108,25 +108,18 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 db.ViewersTime.Update(viewerTime);
             }
 
-            var viewerTickets = await db.ViewerTickets.Find(x => x.Username == name).FirstOrDefaultAsync();
-            if (viewerTickets != null)
-            {
-                viewerTickets.banned = false;
-                db.ViewerTickets.Update(viewerTickets);
-            }
-
-            var viewerPasties = await db.ViewerPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
-            if (viewerPasties != null)
-            {
-                viewerPasties.banned = false;
-                db.ViewerPoints.Update(viewerPasties);
-            }
-
             var viewerMessages = await db.ViewerMessageCounts.Find(x => x.Username == name).FirstOrDefaultAsync();
             if (viewerMessages != null)
             {
                 viewerMessages.banned = false;
                 db.ViewerMessageCounts.Update(viewerMessages);
+            }
+
+            var userPoints = await db.UserPoints.Find(x => x.Username.Equals(name)).ToListAsync();
+            foreach (var userPoint in userPoints)
+            {
+                userPoint.Banned = false;
+                db.UserPoints.Update(userPoint);
             }
 
             await db.SaveChangesAsync();
@@ -151,25 +144,18 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                 db.ViewersTime.Update(viewerTime);
             }
 
-            var viewerTickets = await db.ViewerTickets.Find(x => x.Username == name).FirstOrDefaultAsync();
-            if (viewerTickets != null)
-            {
-                viewerTickets.banned = true;
-                db.ViewerTickets.Update(viewerTickets);
-            }
-
-            var viewerPasties = await db.ViewerPoints.Find(x => x.Username == name).FirstOrDefaultAsync();
-            if (viewerPasties != null)
-            {
-                viewerPasties.banned = true;
-                db.ViewerPoints.Update(viewerPasties);
-            }
-
             var viewerMessages = await db.ViewerMessageCounts.Find(x => x.Username == name).FirstOrDefaultAsync();
             if (viewerMessages != null)
             {
                 viewerMessages.banned = true;
                 db.ViewerMessageCounts.Update(viewerMessages);
+            }
+
+            var userPoints = await db.UserPoints.Find(x => x.Username.Equals(name)).ToListAsync();
+            foreach(var userPoint in userPoints)
+            {
+                userPoint.Banned = true;
+                db.UserPoints.Update(userPoint);
             }
 
             await db.SaveChangesAsync();

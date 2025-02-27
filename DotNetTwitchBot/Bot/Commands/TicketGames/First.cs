@@ -1,24 +1,25 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
-namespace DotNetTwitchBot.Bot.Commands.Misc
+namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class First : BaseCommandService, IHostedService
     {
         private List<string> ClaimedFirst { get; } = new List<string>();
         private readonly int MaxClaims = 200;
-        private readonly ITicketsFeature _ticketsFeature;
+        private readonly IPointsSystem _pointsSystem;
         private readonly ILogger<First> _logger;
 
         public First(
             IServiceBackbone eventService,
             ILogger<First> logger,
-            ITicketsFeature ticketsFeature,
+            IPointsSystem pointsSystem,
             ICommandHandler commandHandler
         ) : base(eventService, commandHandler, "First")
         {
-            _ticketsFeature = ticketsFeature;
+            _pointsSystem = pointsSystem;
             _logger = logger;
         }
 
@@ -29,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var moduleName = "First";
             await RegisterDefaultCommand("first", this, moduleName);
             await RegisterDefaultCommand("resetfirst", this, moduleName, Rank.Streamer);
+            await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
@@ -82,7 +84,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             CurrentClaims++;
             _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
-            await _ticketsFeature.GiveTicketsToViewerByUsername(sender, awardPoints);
+            //await _ticketsFeature.GiveTicketsToViewerByUsername(sender, awardPoints);
+            await _pointsSystem.AddPointsByUsernameAndGame(sender, ModuleName, awardPoints);
             await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
         }
 

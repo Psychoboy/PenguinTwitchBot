@@ -6,7 +6,8 @@
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
-@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature;
+@* @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature; *@
+@inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature LoyaltyFeature;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -17,7 +18,7 @@
 
 <style> 
     .mud-contrast-text {
-        color: var(--mud-palette-white);
+    color: var(--mud-palette-white);
     }
 </style>
 
@@ -27,7 +28,7 @@
         <MudItem sm="6">
             <BonusTickets/>
             <MudPaper Class="pa-4" Elevation="0">
-                 <center>
+                <center>
                     <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
                     <MudDivider class="mb-2" />
                     <MudText Typo="Typo.h5">@prize</MudText>
@@ -66,7 +67,7 @@
                             <DataAnnotationsValidator />
                             <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                       Class="ml-auto" Disabled=@isSubmitting>
+                            Class="ml-auto" Disabled=@isSubmitting>
                                 Enter
                             </MudButton>
                             @if (!string.IsNullOrWhiteSpace(AlertText))
@@ -90,20 +91,20 @@
         </MudItem>
         <MudItem>
             <Bookmark BookmarkName="howtoearn">
-            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0" id="howtoearn">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">How to earn tickets</MudText>
-                <MudDivider class="mb-2" />
-                <MudText>@TicketsPerSub tickets for every sub</MudText>
-                <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
-                <MudText>@BitsPerTicket tickets per 100 bits</MudText>
-                <MudDivider class="my-2" />
-                <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
-                <MudText>+1 Ticket for everyone</MudText>
-                <MudText>+5 Tickets for Active Viewers</MudText>
-                <MudText>+6 Tickets for Subscribers</MudText>
-                <MudText>so every 5 minutes a subscriber gets 12 tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
-                <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
-            </MudPaper>
+                <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0" id="howtoearn">
+                    <MudText Typo="Typo.h5" class="mud-contrast-text">How to earn tickets</MudText>
+                    <MudDivider class="mb-2" />
+                    <MudText>@TicketsPerSub tickets for every sub</MudText>
+                    <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
+                    <MudText>@BitsPerTicket tickets per 100 bits</MudText>
+                    <MudDivider class="my-2" />
+                    <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
+                    <MudText>+1 Ticket for everyone</MudText>
+                    <MudText>+5 Tickets for Active Viewers</MudText>
+                    <MudText>+6 Tickets for Subscribers</MudText>
+                    <MudText>so every 5 minutes a subscriber gets 12 tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
+                    <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
+                </MudPaper>
             </Bookmark>
             <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">Rules</MudText>
@@ -123,7 +124,7 @@
             </MudPaper>
         </MudItem>
     </MudGrid>
-    
+
 </MudContainer>
 
 @code {
@@ -159,7 +160,7 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
             Username = user.Identity.Name;
-            userTickets = await TicketFeature.GetViewerTickets(Username);
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
         }
         prize = await GiveawayFeature.GetPrize();
@@ -219,7 +220,7 @@
             var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
             AlertText = result;
             AlertSeverity = Severity.Success;
-            userTickets = await TicketFeature.GetViewerTickets(Username);
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
         } catch (SkipCooldownException ex)
         {

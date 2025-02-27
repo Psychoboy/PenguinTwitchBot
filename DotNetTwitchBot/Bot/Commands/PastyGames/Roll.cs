@@ -1,14 +1,19 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
-    public class Roll : BaseCommandService, IHostedService
+    public class Roll(
+        ILogger<Roll> logger,
+        //ILoyaltyFeature loyaltyFeature,
+        IPointsSystem pointsSystem,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Roll"), IHostedService
     {
-        private readonly ILogger<Roll> _logger;
-        private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LostMessages = LoadLostMessages();
         private readonly List<int> prizes = new()
@@ -17,23 +22,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             640, 1000, 1440
         };
 
-        public Roll(
-            ILogger<Roll> logger,
-            ILoyaltyFeature loyaltyFeature,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "Roll")
-        {
-            _logger = logger;
-            _loyaltyFeature = loyaltyFeature;
-        }
-
         public override async Task Register()
         {
             var moduleName = "Roll";
             await RegisterDefaultCommand("roll", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
             await RegisterDefaultCommand("dice", this, moduleName, Rank.Viewer, userCooldown: 180, sayCooldown: false);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            await pointsSystem.RegisterDefaultPointForGame(ModuleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -50,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error running dice game");
+                        logger.LogError(ex, "Error running dice game");
                     }
                     break;
             }
@@ -86,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 }
                 var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
-                await _loyaltyFeature.AddPointsToViewerByUserId(e.UserId, prizes[dice1 - 1]);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizes[dice1 - 1]);
             }
             else
             {
@@ -198,13 +193,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }
