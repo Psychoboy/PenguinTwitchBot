@@ -21,5 +21,10 @@ namespace DotNetTwitchBot.Extensions
             logger?.LogInformation("Got ElementNum: {0} from total: {1}", elementNum, list.Count());
             return list.ElementAt(elementNum);
         }
+        public static T RandomElement<T>(this IEnumerable<T> list)
+        {
+            var elementNum = RandomNumberGenerator.GetInt32(list.Count());
+            return list.ElementAt(elementNum);
+        }
     }
 }

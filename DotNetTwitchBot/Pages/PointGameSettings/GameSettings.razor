@@ -4,13 +4,22 @@
 <CascadingAuthenticationState>
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>
+            <MudItem sm="12">
+                <MudText Typo="Typo.h5">Game Settings</MudText>
+                <MudText>Most games have a cost outside of the command cost. So when setting costs for games set them here first. To choose which point
+                    type a game uses go to <MudLink Href="/pointsettings">Point Settings</MudLink>. Dynamic variables in messages are in format {Variable}
+                    so if you see something like {Cost} that is replaced with how much it costs or {PointType} that replaces with the name of the point. 
+                    These are just examples but there are more.
+                </MudText>
+            </MudItem>
             <MudItem sm="6">
                 <RouletteSettings />
             </MudItem>
             <MudItem sm="6">
-                <SlotsSettings />
+                <DefuseSettings />
             </MudItem>
             <MudItem sm="6">
+                <SlotsSettings />
             </MudItem>
             <MudItem sm="6">
             </MudItem>

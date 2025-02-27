@@ -1,0 +1,101 @@
+@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.PastyGames
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudPaper>
+    <MudText Typo="Typo.h5">Defuse Settings</MudText>
+    <MudDivider /> 
+    <MudNumericField Min="1" @bind-Value="cost" Label="Cost" HelperText="Cost to play the game" />
+    <MudText>The winnings are chosen based on cost and multiplier as below:</MudText>
+    <MudText>Minimum Payout: Cost * multiplier - Cost / multiplier</MudText>
+    <MudText>Maximum Payout: Cost * multiplier + Cost / multiplier</MudText>
+    <MudNumericField Min="2" @bind-Value="multiplier" Label="Multiplier" HelperText="Adjusts payout with randomizer" />
+    <MudTextField Label="Wires" HelperText="Minimum of 3, comma seperated list" @bind-Value="wires"/> 
+    <MudDivider />
+    <MudText>Message Responses:</MudText>
+    <MudTextField Label="Starting Message" @bind-Value="starting" />
+    <MudTextField Label="Success Message" @bind-Value="success" />
+    <MudTextField Label="Failure Message" @bind-Value="fail" /> 
+    <MudTextField Label="No Args Error" @bind-Value="noArgs" /> 
+    <MudTextField Label="Not enough points" @bind-Value="notEnough" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private string wires {get;set;} = null!;
+    private string noArgs {get;set;} = null!;
+    private string notEnough { get; set; } = null!;
+    private string starting { get; set; } = null!;
+    private string success { get; set; } = null!;
+    private string fail { get; set; } = null!;
+    private int cost { get; set; }
+    private double multiplier { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        wires = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.WIRES,
+            "red,blue,yellow"
+        );
+
+        noArgs = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.NO_ARGS,
+            "you need to choose one of these wires to cut: {Wires}"
+        );
+
+        notEnough = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.NOT_ENOUGH,
+            "Sorry it costs {Cost} {PointType} to defuse the bomb which you do not have."
+        );
+
+        starting = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.STARTING,
+            "The bomb is beeping and {Name} cuts the {Wire} wire... "
+        );
+
+        success = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.SUCCESS,
+            "The bomb goes silent. As a thank for saving the day you got awarded {Points} {PointType}"
+        );
+
+        fail = await gameSettingsService.GetStringSetting(
+            Defuse.GAMENAME, Defuse.FAIL,
+            "BOOM!!! The bomb explodes, you lose {Points} {PointType}."
+        );
+
+        cost = await gameSettingsService.GetIntSetting(
+            Defuse.GAMENAME, Defuse.COST, 500
+        );
+
+        multiplier = await gameSettingsService.GetDoubleSetting(
+            Defuse.GAMENAME, Defuse.WIN_MULTIPLIER, 3
+        );
+    }
+
+    public async Task SaveSettings()
+    {
+        var validatedWires = wires.Split(',').Select(p => p.Trim()).ToList();
+        if (validatedWires.Count < 3)
+        {
+            Snackbar.Add("Need at least 3 wires", Severity.Error);
+            return;
+        }
+        List<Task> tasks = [
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.NO_ARGS, noArgs),
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.WIRES, string.Join(',', validatedWires)),
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.NOT_ENOUGH, notEnough),
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.STARTING, starting),
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.SUCCESS, success),
+            gameSettingsService.SetStringSetting(Defuse.GAMENAME, Defuse.FAIL, fail),
+            gameSettingsService.SetIntSetting(Defuse.GAMENAME, Defuse.COST, cost),
+            gameSettingsService.SetDoubleSetting(Defuse.GAMENAME, Defuse.WIN_MULTIPLIER, multiplier)
+        ];
+        await Task.WhenAll(tasks);
+        Snackbar.Add("Defuse settings saved.");
+    }
+}
