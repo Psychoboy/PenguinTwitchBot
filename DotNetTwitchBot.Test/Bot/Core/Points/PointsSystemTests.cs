@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models;
@@ -28,6 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         private readonly IUnitOfWork _unitOfWorkMock;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
+        private readonly IBonusTickets _bonusTickets;
         private readonly PointsSystem _pointsSystem;
 
         public PointsSystemTests()
@@ -41,10 +43,12 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _unitOfWorkMock = Substitute.For<IUnitOfWork>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
+            _bonusTickets = Substitute.For<IBonusTickets>();
 
             _scopeFactoryMock.CreateScope().Returns(_scopeMock);
             _scopeMock.ServiceProvider.Returns(_serviceProviderMock);
             _serviceProviderMock.GetService(typeof(IUnitOfWork)).Returns(_unitOfWorkMock);
+            _serviceProviderMock.GetService(typeof(IBonusTickets)).Returns(_bonusTickets);
 
             _pointsSystem = new PointsSystem(
                 _viewerFeatureMock,
