@@ -1,34 +1,38 @@
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
-    public class ModSpam : BaseCommandService, IHostedService
+    public class ModSpam(
+        AddActive addActive,
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        ILogger<ModSpam> logger,
+        ITools tools,
+        TimeProvider timeProvider,
+        IGameSettingsService gameSettingsService,
+        IPointsSystem pointsSystem
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        private readonly AddActive _addActive;
-        readonly Timer _intervalTimer;
-        private readonly ILogger<ModSpam> _logger;
+        private ITimer? _intervalTimer;
         TimeSpan _runTime = new(0, 0, 0, 15);
         DateTime _startTime = new();
 
-        public ModSpam(
-            AddActive addActive,
-            IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler,
-            ILogger<ModSpam> logger
-            ) : base(serviceBackbone, commandHandler, "ModSpam")
-        {
-            _addActive = addActive;
-            _intervalTimer = new Timer(TimerCallBack, this, Timeout.Infinite, Timeout.Infinite);
-            _logger = logger;
-        }
+        public const string GAMENAME = "ModSpam";
+        public const string STARTING_MESSAGE = "StartingMessage";
+        public const string ENDING_MESSAGE = "EndingMessage";
+        public const string MIN_TIME = "MinTime";
+        public const string MAX_TIME = "MaxTime";
+        public const string MIN_AMOUNT = "MinAmount";
+        public const string MAX_AMOUNT = "MaxAmount";
 
         public override async Task Register()
         {
-            var moduleName = "ModSpam";
-            await RegisterDefaultCommand("modspam", this, moduleName, Rank.Moderator, globalCoolDown: 1200);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            await RegisterDefaultCommand("modspam", this, GAMENAME, Rank.Moderator, globalCoolDown: 1200);
+            logger.LogInformation("Registered commands for {moduleName}", GAMENAME);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -53,12 +57,16 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task UpdateOrStopSpam()
         {
-            _addActive.AddActivePoints(StaticTools.RandomRange(1, 8));
+            var minAmount = await gameSettingsService.GetIntSetting(GAMENAME, MIN_AMOUNT, 1);
+            var maxAmount = await gameSettingsService.GetIntSetting(GAMENAME, MAX_AMOUNT, 8);
+            addActive.AddActivePoints(tools.RandomRange(minAmount, maxAmount));
             var elapsedTime = DateTime.Now - _startTime;
             if (elapsedTime > _runTime)
             {
-                _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                await ServiceBackbone.SendChatMessage("Mod spam completed... tickets arriving soon.");
+                _intervalTimer?.Dispose();
+                var message = await gameSettingsService.GetStringSetting(GAMENAME, ENDING_MESSAGE, "Mod spam completed... {PointType} arriving soon.");
+                message = message.Replace("{PointType}", (await pointsSystem.GetPointTypeForGame("AddActive")).Name);
+                await ServiceBackbone.SendChatMessage(message);
 
 
             }
@@ -66,21 +74,24 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task StartModSpam()
         {
-            await ServiceBackbone.SendChatMessage("Starting Mod Spam... please wait while it spams silently...");
-            _runTime = new TimeSpan(0, 0, StaticTools.RandomRange(15, 20));
+            var message = await gameSettingsService.GetStringSetting(GAMENAME, STARTING_MESSAGE, "Starting Mod Spam... please wait while it spams silently...");
+            await ServiceBackbone.SendChatMessage(message);
+            var minTime = await gameSettingsService.GetIntSetting(GAMENAME, MIN_TIME, 15);
+            var maxTime = await gameSettingsService.GetIntSetting(GAMENAME, MAX_TIME, 20);
+            _runTime = new TimeSpan(0, 0, tools.RandomRange(minTime, minTime));
             _startTime = DateTime.Now;
-            _intervalTimer.Change(1000, 1000);
+            _intervalTimer = timeProvider.CreateTimer(TimerCallBack, this, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Started {moduledname}", ModuleName);
+            logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }
