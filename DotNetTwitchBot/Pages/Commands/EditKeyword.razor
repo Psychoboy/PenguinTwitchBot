@@ -1,8 +1,10 @@
 @page "/keywords/{id:int}"
+@using DotNetTwitchBot.Bot.Core.Points
 @using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 
 @using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Models.Points
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>SPTV Twitch Bot - Edit Keyword Command</PageTitle>
@@ -33,6 +35,12 @@ else
                 <MudNumericField @bind-Value="@keyword.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@keyword.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudSelect Required="@(keyword.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="keyword.PointType" ToStringFunc="@ConvertFunction">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
                 <MudCheckBox @bind-Value="@keyword.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@keyword.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@keyword.Disabled" Label="Disabled?"></MudCheckBox>
@@ -65,6 +73,8 @@ else
 
     private KeywordType? keyword { get; set; }
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
 
     protected override async void OnParametersSet()
     {
@@ -80,5 +90,14 @@ else
         ranks = new HashSet<Rank>();
         await CustomCommand.SaveKeyword(keyword);
         navigationManager.NavigateTo($"/keywords");
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
     }
 }

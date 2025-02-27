@@ -20,7 +20,7 @@
         <RowEditingTemplate>
             <MudTd DataLabel="Name">@context.Setting.GameName</MudTd>
             <MudTd DataLabel="PointType">
-                <MudSelect Label="Point Type" @bind-Value="context.PointType" ToStringFunc="@convertFunc">
+                <MudSelect Label="Point Type" @bind-Value="context.PointType" ToStringFunc="@ConvertFunction">
                     @foreach (var pointType in PointTypes)
                     {
                         <MudSelectItem Value="@pointType" />
@@ -38,12 +38,11 @@
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     [Inject] IGameSettingsService gameSettingsService { get; set; } = null!;
-    private Func<PointType, string> convertFunc = ci => ci?.Name;
     private List<PointGamePair> PointSettings { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
-        PointSettings = await pointSystem.GetAllPointTypes();
+        PointSettings = await pointSystem.GetPointTypesForGames();
         PointTypes = await pointSystem.GetPointTypes();
     }
 
@@ -51,5 +50,14 @@
     {
         var pointSettings = (PointGamePair)element;
         await pointSystem.SetPointTypeForGame(pointSettings.Setting.GameName, pointSettings.PointType.GetId());
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
     }
 }

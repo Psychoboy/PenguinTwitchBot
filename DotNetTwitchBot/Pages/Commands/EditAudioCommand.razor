@@ -1,7 +1,9 @@
 @page "/audiocommands/{id:int}"
+@using DotNetTwitchBot.Bot.Core.Points
 @using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Models.Points
 @inject Bot.Commands.AudioCommand.AudioCommands AudioCommands
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
@@ -32,6 +34,13 @@
                 <MudNumericField @bind-Value="@audioCommand.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@audioCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudSelect Required="@(audioCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="audioCommand.PointType" ToStringFunc="@ConvertFunction">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
+                
                 <MudCheckBox @bind-Value="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
@@ -66,12 +75,15 @@
     private List<string>? audioFiles;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
 
     protected override async void OnParametersSet()
     {
         audioCommand = await AudioCommands.GetAudioCommand(id);
         ranks = audioCommand != null ? audioCommand.SpecificRanks : [];
         audioFiles = AudioCommands.GetAudioFiles();
+        PointTypes = await pointSystem.GetPointTypes();
         StateHasChanged();
     }
 
@@ -101,4 +113,13 @@
         await AudioCommands.SaveAudioCommand(audioCommand);
         navigationManager.NavigateTo($"/audiocommands");
     }
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
+    }
+}
 }

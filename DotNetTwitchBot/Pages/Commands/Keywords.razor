@@ -1,5 +1,7 @@
 @page "/keywords"
+@using DotNetTwitchBot.Bot.Core.Points
 @using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Models.Points
 @attribute [Authorize(Roles = "Streamer")]
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -62,6 +64,12 @@
                             Variant="Variant.Text">
                         </MudNumericField>
                         <MudNumericField @bind-Value="@keyword.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                        <MudSelect Required="@(keyword.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="keyword.PointType" ToStringFunc="@ConvertFunction">
+                            @foreach (var pointType in PointTypes)
+                            {
+                                <MudSelectItem Value="@pointType" />
+                            }
+                        </MudSelect>
                         <MudCheckBox @bind-Value="@keyword.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                         <MudCheckBox @bind-Value="@keyword.SayRankRequirement" Label="Say Rank Requirement?">
                         </MudCheckBox>
@@ -96,6 +104,8 @@
     private KeywordType keyword { get; set; } = new KeywordType();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
     protected override Task OnInitializedAsync()
     {
         keywords = CustomCommand.GetKeywords();
@@ -130,5 +140,14 @@
     private void Edit(KeywordType item)
     {
         navigationManager.NavigateTo($"/keywords/{item.Id}");
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
     }
 }
