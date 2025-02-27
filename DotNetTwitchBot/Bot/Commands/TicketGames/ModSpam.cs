@@ -21,13 +21,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         TimeSpan _runTime = new(0, 0, 0, 15);
         DateTime _startTime = new();
 
-        public const string GAMENAME = "ModSpam";
-        public const string STARTING_MESSAGE = "StartingMessage";
-        public const string ENDING_MESSAGE = "EndingMessage";
-        public const string MIN_TIME = "MinTime";
-        public const string MAX_TIME = "MaxTime";
-        public const string MIN_AMOUNT = "MinAmount";
-        public const string MAX_AMOUNT = "MaxAmount";
+        public static readonly string GAMENAME = "ModSpam";
+        public static readonly string STARTING_MESSAGE = "StartingMessage";
+        public static readonly string ENDING_MESSAGE = "EndingMessage";
+        public static readonly string MIN_TIME = "MinTime";
+        public static readonly string MAX_TIME = "MaxTime";
+        public static readonly string MIN_AMOUNT = "MinAmount";
+        public static readonly string MAX_AMOUNT = "MaxAmount";
 
         public override async Task Register()
         {

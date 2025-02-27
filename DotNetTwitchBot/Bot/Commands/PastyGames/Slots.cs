@@ -21,12 +21,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LoseMessages = LoadLoseMessages();
 
-        public const string GAMESETTING_3_OF_A_KIND = "3 of a kind";
-        public const string GAMESETTING_2_OF_A_KIND = "2 of a kind";
-        public const string GAMESETTING_FIRST_2_MULTIPLIER = "First 2 multiplier";
-        public const string GAMESETTING_LAST_2_MULTIPLIER = "Last 2 multiplier";
-        public const string GAMESETTING_EMOTES = "Emotes";
-        public const string GAMENAME = "Slots";
+        public static readonly string GAMESETTING_3_OF_A_KIND = "3 of a kind";
+        public static readonly string GAMESETTING_2_OF_A_KIND = "2 of a kind";
+        public static readonly string GAMESETTING_FIRST_2_MULTIPLIER = "First 2 multiplier";
+        public static readonly string GAMESETTING_LAST_2_MULTIPLIER = "Last 2 multiplier";
+        public static readonly string GAMESETTING_EMOTES = "Emotes";
+        public static readonly string GAMENAME = "Slots";
 
         public override async Task Register()
         {

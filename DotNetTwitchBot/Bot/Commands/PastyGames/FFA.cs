@@ -17,17 +17,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private readonly IGameSettingsService _gameSettingsService;
         readonly string CommandName = "ffa";
 
-        public const string GAMENAME = "FFA";
-        public const string COOLDOWN = "Cooldown";
-        public const string JOIN_TIME = "JoinTime";
-        public const string COST = "Cost";
-        public const string NOT_ENOUGH_PLAYERS = "NotEnoughPlayers";
-        public const string WINNER_MESSAGE = "WinningMessage";
-        public const string STARTING = "Starting";
-        public const string JOINED = "Joined";
-        public const string LATE = "Late";
-        public const string ALREADY_JOINED = "AlreadyJoined";
-        public const string NOT_ENOUGH_POINTS = "NotEnoughPoints";
+        public static readonly string GAMENAME = "FFA";
+        public static readonly string COOLDOWN = "Cooldown";
+        public static readonly string JOIN_TIME = "JoinTime";
+        public  static readonly string COST = "Cost";
+        public static readonly string NOT_ENOUGH_PLAYERS = "NotEnoughPlayers";
+        public static readonly string WINNER_MESSAGE = "WinningMessage";
+        public static readonly string STARTING = "Starting";
+        public static readonly string JOINED = "Joined";
+        public static readonly string LATE = "Late";
+        public static readonly string ALREADY_JOINED = "AlreadyJoined";
+        public static readonly string NOT_ENOUGH_POINTS = "NotEnoughPoints";
 
 
         enum State

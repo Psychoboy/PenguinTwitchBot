@@ -20,10 +20,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.Now;
 
-        public const string GAMENAME = "AddActive";
-        public const string MAX_POINTS = "MaxPoints";
-        public const string DELAY = "Delay";
-        public const string MESSAGE = "Message";
+        public static readonly string GAMENAME = "AddActive";
+        public static readonly string MAX_POINTS = "MaxPoints";
+        public static readonly string DELAY = "Delay";
+        public static readonly string MESSAGE = "Message";
 
         public override async Task Register()
         {
