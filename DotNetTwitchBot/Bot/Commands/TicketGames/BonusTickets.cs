@@ -30,7 +30,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public async Task RedeemBonus(string username)
         {
-            await pointSystem.RegisterDefaultPointForGame("Bonus");
             await _semaphoreSlim.WaitAsync();
             try
             {
@@ -46,7 +45,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
-                //var amount = await ticketsFeature.GiveTicketsToViewerByUsername(username, ticketsWon);
                 var amount = await pointSystem.AddPointsByUserIdAndGame(username, "bonus", ticketsWon);
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
@@ -71,6 +69,11 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
+        }
+
+        public Task Setup()
+        {
+            return pointSystem.RegisterDefaultPointForGame("Bonus");
         }
     }
 }

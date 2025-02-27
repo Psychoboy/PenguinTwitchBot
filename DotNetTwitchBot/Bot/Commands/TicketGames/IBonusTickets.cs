@@ -5,6 +5,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         Task<bool> DidUserRedeemBonus(string username);
         Task RedeemBonus(string username);
+        Task Setup();
         Task Reset();
     }
 }
