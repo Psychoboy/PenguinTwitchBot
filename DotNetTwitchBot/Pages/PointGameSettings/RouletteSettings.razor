@@ -28,6 +28,8 @@
     private IGameSettingsService gameSettingsService { get; set; } = null!;
     [Inject]
     private ISnackbar Snackbar { get; set; } = null!;
+    [Inject]
+    private Roulette roulette { get; set; } = null!;
     private string noArgs { get; set; } = null!;
     private string badArgs { get; set; } = null!;
     private string lessThanZero { get; set; } = null!;
@@ -103,52 +105,51 @@
     {
         List<Task> tasks = [
             gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.NO_ARGS,
-        noArgs),
+    Roulette.GAMENAME,
+    Roulette.NO_ARGS,
+    noArgs),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.NOT_ENOUGH,
-        notEnough),
+    Roulette.GAMENAME,
+    Roulette.NOT_ENOUGH,
+    notEnough),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.BAD_ARGS,
-        badArgs),
+    Roulette.GAMENAME,
+    Roulette.BAD_ARGS,
+    badArgs),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.LESS_THAN_ZERO,
-        lessThanZero),
+    Roulette.GAMENAME,
+    Roulette.LESS_THAN_ZERO,
+    lessThanZero),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.WIN_MESSAGE,
-        winMessage),
+    Roulette.GAMENAME,
+    Roulette.WIN_MESSAGE,
+    winMessage),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.LOSE_MESSAGE,
-        loseMessage),
+    Roulette.GAMENAME,
+    Roulette.LOSE_MESSAGE,
+    loseMessage),
     gameSettingsService.SetStringSetting(
-        Roulette.GAMENAME,
-        Roulette.REACHED_LIMIT,
-        reachedLimit
-        ),
+    Roulette.GAMENAME,
+    Roulette.REACHED_LIMIT,
+    reachedLimit
+    ),
     gameSettingsService.SetIntSetting(
-            Roulette.GAMENAME,
-            Roulette.MUST_BEAT,
-            mustBeat),
-        gameSettingsService.SetIntSetting(
-            Roulette.GAMENAME,
-            Roulette.MAX_AMOUNT,
-            maxAmount),
-        gameSettingsService.SetIntSetting(
-            Roulette.GAMENAME,
-            Roulette.MAX_PER_BET,
-            maxPerBet),
-        gameSettingsService.SetBoolSetting(
-            Roulette.GAMENAME,
-            Roulette.ONLINE_ONLY,
-            onlineOnly)
+    Roulette.GAMENAME,
+    Roulette.MUST_BEAT,
+    mustBeat),
+    gameSettingsService.SetIntSetting(
+    Roulette.GAMENAME,
+    Roulette.MAX_AMOUNT,
+    maxAmount),
+    gameSettingsService.SetIntSetting(
+    Roulette.GAMENAME,
+    Roulette.MAX_PER_BET,
+    maxPerBet),
+    gameSettingsService.SetBoolSetting(
+    Roulette.GAMENAME,
+    Roulette.ONLINE_ONLY,
+    onlineOnly)
         ];
-        Roulette.MaxAmount = maxAmount;
         await Task.WhenAll(tasks);
         Snackbar.Add("Roulette settings saved.", Severity.Success);
     }

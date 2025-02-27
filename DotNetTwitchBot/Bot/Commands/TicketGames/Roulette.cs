@@ -9,9 +9,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommandService, IHostedService
     {
-        private int MustBeatValue = 52;
-        public static int MaxAmount = 1000;
-        private int MaxPerBet = 500;
+        //private int MustBeatValue = 52;
+        //private int MaxAmount = 1000;
+        //private int MaxPerBet = 500;
         private readonly ConcurrentDictionary<string, int> TotalGambled = new();
         private readonly ILogger<Roulette> _logger;
         private readonly IGameSettingsService _gameSettings;
@@ -66,11 +66,19 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 case "roulette":
                     {
-                        var maxAmount = await _gameSettings.GetIntSetting(
+                        var MaxAmount = await _gameSettings.GetIntSetting(
                             Roulette.GAMENAME,
                             Roulette.MAX_AMOUNT,
                             1000
                         );
+                        var MustBeatValue = await _gameSettings.GetIntSetting(
+                            GAMENAME,
+                            MUST_BEAT,
+                            52);
+                        var MaxPerBet = await _gameSettings.GetIntSetting(
+                            GAMENAME,
+                            MAX_PER_BET,
+                            500);
                         if (await _gameSettings.GetBoolSetting(GAMENAME, ONLINE_ONLY, true))
                         {
                             if (ServiceBackbone.IsOnline == false) return;
@@ -81,7 +89,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             var noArgs = await _gameSettings.GetStringSetting(
                             Roulette.GAMENAME,
                             Roulette.NO_ARGS,
-                            "To roulette tickets please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
+                            "To roulette please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
                             await SendChatMessage(e.DisplayName, noArgs);
                             throw new SkipCooldownException();
                         }
@@ -123,7 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             var notEnough = await _gameSettings.GetStringSetting(
                                 Roulette.GAMENAME,
                                 Roulette.NOT_ENOUGH,
-                                "You don't have that many tickets."
+                                "You don't have that many."
                             );
                             await SendChatMessage(e.DisplayName, notEnough);
                             throw new SkipCooldownException();
@@ -142,7 +150,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                     "You have reached your max per stream limit for !roulette ({MaxAmount} {PointsName})."
                                 );
                                 reachedLimit = reachedLimit
-                                    .Replace("{MaxAmount}", maxAmount.ToString("N0"))
+                                    .Replace("{MaxAmount}", MaxAmount.ToString("N0"))
                                     .Replace("{PointsName}", pointType.Name);
                                 await SendChatMessage(e.DisplayName, reachedLimit);
                                 throw new SkipCooldownException();
@@ -205,11 +213,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Started {moduledname}", ModuleName);
-            MaxAmount = await _gameSettings.GetIntSetting(
-                Roulette.GAMENAME,
-                Roulette.MAX_AMOUNT,
-                1000
-            );
+            
             await  Register();
         }
 
