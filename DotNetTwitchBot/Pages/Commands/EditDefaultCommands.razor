@@ -1,7 +1,9 @@
 @page "/defaultcommands/{id:int}"
+@using DotNetTwitchBot.Bot.Core.Points
 @using DotNetTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Models.Points
 @inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
@@ -44,6 +46,12 @@ else
                     Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@defaultCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudSelect Required="@(defaultCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="defaultCommand.PointType" ToStringFunc="@ConvertFunction">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
                 <MudCheckBox @bind-Value="@defaultCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@defaultCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@defaultCommand.Disabled" Label="Disabled?"></MudCheckBox>
@@ -78,10 +86,13 @@ else
     private DefaultCommand? defaultCommand;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
     protected override async void OnParametersSet()
     {
         defaultCommand = await CommandHandler.GetDefaultCommandById(id);
         ranks = defaultCommand != null ? defaultCommand.SpecificRanks : new HashSet<Rank>();
+        PointTypes = await pointSystem.GetPointTypes();
         StateHasChanged();
     }
 
@@ -112,4 +123,12 @@ else
         navigationManager.NavigateTo($"/defaultcommands");
     }
 
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
+    }
 }

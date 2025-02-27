@@ -2,6 +2,8 @@
 @attribute [Authorize(Roles = "Streamer")]
 
 @using System.ComponentModel.DataAnnotations
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Commands.ICommandHelper CommandHelper
@@ -32,6 +34,12 @@ else
                 <MudNumericField @bind-Value="@customCommand.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
                 </MudNumericField>
                 <MudNumericField @bind-Value="@customCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudSelect Required="@(customCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="customCommand.PointType" ToStringFunc="@ConvertFunction">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
                 <MudCheckBox @bind-Value="@customCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@customCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@customCommand.RespondAsStreamer" Label="Respond as Streamer?">
@@ -68,10 +76,13 @@ else
     private Bot.Models.Commands.CustomCommands? customCommand { get; set; }
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
     protected override async void OnParametersSet()
     {
         customCommand = await CustomCommand.GetCustomCommand(id);
         ranks = customCommand != null ? customCommand.SpecificRanks : [];
+        PointTypes = await pointSystem.GetPointTypes();
         StateHasChanged();
     }
 
@@ -100,5 +111,14 @@ else
         ranks = new HashSet<Rank>();
         await CustomCommand.SaveCommand(customCommand);
         navigationManager.NavigateTo($"/customcommands");
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
     }
 }

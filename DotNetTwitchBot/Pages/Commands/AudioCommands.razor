@@ -27,16 +27,13 @@
                             <MudTd DataLabel="AudioFile">@context.Value.AudioFile</MudTd>
                             <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
                             <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                @onclick="() => Edit(context.Value)">Edit
-                                </MudButton>
+                                <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
+                                        @onclick="() => Edit(context.Value)" />
                             </MudTd>
-                                <MudTd DataLabel="Delete">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Error"
-                                               @onclick="() => Delete(context.Value)">
-                                        Edit
-                                    </MudButton>
-                                </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudFab Color="Color.Secondary" StartIcon="@Icons.Material.Filled.DeleteForever"
+                                        @onclick="() => Delete(context.Value)" />
+                            </MudTd>
                         </RowTemplate>
                     </MudTable>
                 </MudPaper>

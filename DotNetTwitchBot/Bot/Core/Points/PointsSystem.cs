@@ -424,7 +424,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             logger.LogInformation("Registered commands for {module}", ModuleName);
         }
 
-        public Task<List<PointGamePair>> GetAllPointTypes()
+        public Task<List<PointGamePair>> GetPointTypesForGames()
         {
             return gameSettingsService.GetAllPointTypes();
         }
