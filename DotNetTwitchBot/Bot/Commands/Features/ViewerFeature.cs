@@ -95,6 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await UpdateSubscribers();
+            await UpdateEditors();
         }
 
 
@@ -430,6 +431,57 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating subscribers");
+            }
+        }
+
+        public async Task UpdateEditors()
+        {
+            try
+            {
+                var editors = await _twitchService.GetEditors();
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    foreach (var editor in editors)
+                    {
+                        try
+                        {
+                            var viewer = await GetViewerByUserIdOrName(editor.UserId, editor.UserName);
+                            viewer ??= new Viewer
+                            {
+                                UserId = editor.UserId
+                            };
+                            viewer.Username = editor.UserName;
+                            viewer.DisplayName = editor.UserName;
+                            viewer.isEditor = true;
+                            db.Viewers.Update(viewer);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed updating editor for {userlogin}", editor.UserName);
+                        }
+                    }
+                    await db.SaveChangesAsync();
+                }
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var curEditors = await db.Viewers.Find(x => x.isEditor == true).ToListAsync();
+                    foreach (var curEditor in curEditors)
+                    {
+                        if (!editors.Exists(x => x.UserName.Equals(curEditor.Username)))
+                        {
+                            _logger.LogInformation("Removing Editor {name}", curEditor.Username);
+                            curEditor.isEditor = false;
+                            db.Viewers.Update(curEditor);
+                        }
+                    }
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating editors");
             }
         }
 

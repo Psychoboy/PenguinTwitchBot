@@ -1,5 +1,5 @@
 @page "/autoshoutouts"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>SPTV Twitch Bot - Auto Shoutouts</PageTitle>

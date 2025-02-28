@@ -22,6 +22,7 @@ namespace DotNetTwitchBot.Bot.Models
         public bool isSub { get; set; } = false;
         public bool isVip { get; set; } = false;
         public bool isMod { get; set; } = false;
+        public bool isEditor { get; set; } = false;
         public bool isBroadcaster { get; set; } = false;
 
         public string NameWithTitle()

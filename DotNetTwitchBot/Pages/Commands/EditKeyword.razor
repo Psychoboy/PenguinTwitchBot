@@ -1,7 +1,7 @@
 @page "/keywords/{id:int}"
 @using DotNetTwitchBot.Bot.Core.Points
 @using DotNetTwitchBot.Bot.Models.Commands
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
 @using DotNetTwitchBot.Bot.Models.Points

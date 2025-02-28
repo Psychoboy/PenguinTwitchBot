@@ -23,5 +23,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task Register();
         Task SaveViewer(Viewer viewer);
         Task<List<Viewer>> SearchForViewer(string name);
+        Task UpdateEditors();
     }
 }

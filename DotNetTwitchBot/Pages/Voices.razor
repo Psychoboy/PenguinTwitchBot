@@ -1,5 +1,5 @@
 ﻿@page "/voices"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.TTS.ITTSService TTSService
 
 <PageTitle>SPTV Twitch Bot - Voices</PageTitle>

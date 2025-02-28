@@ -1,5 +1,5 @@
 @page "/timergroups"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers Timers
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

@@ -1,5 +1,5 @@
 @page "/raidhistory"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.Misc.RaidTracker RaidTracker
 
 <PageTitle>SPTV Twitch Bot - Raid History</PageTitle>

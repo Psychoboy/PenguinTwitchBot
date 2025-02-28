@@ -1,5 +1,5 @@
 ﻿@page "/giveawaybots"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 

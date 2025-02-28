@@ -1,5 +1,5 @@
 ﻿@page "/externalcommands"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

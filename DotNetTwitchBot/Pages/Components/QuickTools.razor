@@ -1,5 +1,6 @@
-﻿@attribute [Authorize(Roles = "Streamer")]
+﻿@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.Moderation.Admin Admin
+@inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Core.IChatHistory ChatHistory
 @inject DotNetTwitchBot.Bot.StreamSchedule.ISchedule Schedule
@@ -12,16 +13,21 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ForceOnline">Force Online</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CleanupChat">Cleanup Chat History</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdatePostedSchedule">Update Schedule</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpgradePoints">Upgrade Points</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateEditors">Update Editors</MudButton>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
     </AuthorizeView>
 </CascadingAuthenticationState>
 @code {
+    private async Task UpdateEditors()
+    {
+        await viewerFeature.UpdateEditors();
+    }
+
     private async Task UpgradePoints()
     {
         await Admin.UpgradePoints();

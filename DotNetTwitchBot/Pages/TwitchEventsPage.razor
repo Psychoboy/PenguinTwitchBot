@@ -1,6 +1,6 @@
 ﻿@page "/events"
 @using DotNetTwitchBot.Bot.Commands.TwitchEvents
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.TwitchEvents.ITwitchEventsService TwitchEventsService
 
 <PageTitle>SPTV Twitch Bot - Channel Points</PageTitle>

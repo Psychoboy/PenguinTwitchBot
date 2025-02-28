@@ -1,5 +1,5 @@
 @page "/aliases/{id:int}"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
