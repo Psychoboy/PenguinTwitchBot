@@ -262,11 +262,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     if (keyword.Keyword.IsCaseSensitive)
                     {
-                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.CurrentCulture)) match = true;
+                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.OrdinalIgnoreCase)) match = true;
                     }
                     else
                     {
-                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.CurrentCultureIgnoreCase)) match = true;
+                        if (e.Message.Contains(keyword.Keyword.CommandName, StringComparison.OrdinalIgnoreCase)) match = true;
                     }
 
                 }
@@ -609,7 +609,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return await Task.Run(() =>
             {
-                if (eventArgs.Name.Equals(args, StringComparison.CurrentCultureIgnoreCase)) return new CustomCommandResult();
+                if (eventArgs.Name.Equals(args, StringComparison.OrdinalIgnoreCase)) return new CustomCommandResult();
                 return new CustomCommandResult(true);
             });
 

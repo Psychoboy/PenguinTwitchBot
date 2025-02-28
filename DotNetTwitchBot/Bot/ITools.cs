@@ -7,5 +7,6 @@
         int Next(int max);
         int Next(int min, int max);
         int RandomRange(int min, int max);
+        void Sleep(int milliseconds);
     }
 }

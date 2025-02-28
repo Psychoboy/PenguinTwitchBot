@@ -3,20 +3,20 @@
 @attribute [Authorize(Roles = "Streamer")]
 <MudPaper>
     <MudText Typo="Typo.h5">Roulette Settings</MudText>
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudNumericField Min="1" Max="99" @bind-Value="mustBeat" Label="Value to beat" HelperText="The value the viewer must beat to win" />
     <MudNumericField Min="1" @bind-Value="maxAmount" Label="Max amount per stream" HelperText="Max total a viewer can roulette on a stream" />
     <MudNumericField Min="1" Max="maxAmount" @bind-Value="maxPerBet" Label="Max amount per attempt" HelperText="Max a viewer can roulette per turn" />
     <MudCheckBox @bind-Value="onlineOnly" Label="Live Only" />
-    <MudDivider />
+    <MudSpacer />
     <MudText>For both Win and Lose message the variables are: {Name}, {Rolled}, 
         {WonPoints}, {PointsName}, {TotalPoints}, {TotalBet}, {MaxBet}
     </MudText>
     <MudTextField Label="Win Message" @bind-Value="winMessage"/>
     <MudTextField Label="Lose Message" @bind-Value="loseMessage" />
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudTextField Label="Reached Limit" @bind-Value="reachedLimit" HelperText="Variables: {MaxAmount}, {PointName}" />
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudTextField Label="No Arguments" HelperText="Message when no arguments are passed" @bind-Value="noArgs" />
     <MudTextField Label="Bad Arguments" HelperText="Message when bad arguments are passed" @bind-Value="badArgs" />
     <MudTextField Label="Not enough points" HelperText="Message when viewer doesn't have enough points" @bind-Value=notEnough />

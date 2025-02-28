@@ -1,0 +1,148 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.PastyGames
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudPaper>
+    <MudText Typo="Typo.h5">Heist Settings</MudText>
+    <MudDivider Class="mb-2 mt-2" />
+    <MudNumericField Min="1" @bind-Value="cooldown" Label="Cooldown" HelperText="Time in seconds between games" />
+    <MudNumericField Min="1" @bind-Value="joinTime" Label="Join Time" HelperText="Time in seconds to join the game" />
+    <MudNumericField Min="1" @bind-Value="minBet" Label="Min Bet" HelperText="Minimum amount to join the game" />
+    <MudNumericField Min="1" @bind-Value="winMultiplier" Label="Win Multiplier" HelperText="Multiplier for winning the game" />
+    <MudDivider Class="mb-2 mt-2" />
+    <MudText>These are the messages that are displayed at the end of the game when it is running.</MudText>
+    <MudTextField Label="Stage One" @bind-Value="stageOne" />
+    <MudTextField Label="Stage Two" @bind-Value="stageTwo" />
+    <MudTextField Label="Stage Three" @bind-Value="stageThree" />
+    <MudTextField Label="Stage Four" @bind-Value="stageFour" />
+    <MudDivider Class="mb-2 mt-2" />
+    <MudTextField Label="Game Starting" @bind-Value="gameStarting" />
+    <MudTextField Label="Game Finishing" @bind-Value="gameFinishing" />
+    <MudTextField Label="No One Won" @bind-Value="noOneWon" />
+    <MudTextField Label="Names To Long" @bind-Value="namesToLong" />
+    <MudTextField Label="Survivors" @bind-Value="survivors" />
+    <MudTextField Label="Already Joined" @bind-Value="alreadyJoined" />
+    <MudDivider Class="mb-2 mt-2" />
+    <MudTextField Label="No Args" @bind-Value="noArgs" />
+    <MudTextField Label="Invalid Bet" @bind-Value="invalidBet" />
+    <MudTextField Label="Not Enough Points" @bind-Value="notEnoughPoints" />
+    <MudDivider Class="mb-2 mt-2" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int cooldown { get; set; }
+    private int joinTime { get; set; }
+    private int minBet { get; set; }
+    private double winMultiplier { get; set; }
+    private string gameFinishing { get; set; } = null!;
+    private string gameStarting { get; set; } = null!;
+    private string alreadyJoined { get; set; } = null!;
+    private string noArgs { get; set; } = null!;
+    private string invalidBet { get; set; } = null!;
+    private string notEnoughPoints { get; set; } = null!;
+    private string stageOne { get; set; } = null!;
+    private string stageTwo { get; set; } = null!;
+    private string stageThree { get; set; } = null!;
+    private string stageFour { get; set; } = null!;
+    private string noOneWon { get; set; } = null!;
+    private string namesToLong { get; set; } = null!;
+    private string survivors { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cooldown = await gameSettingsService.GetIntSetting(
+            Heist.GAMENAME, Heist.COOLDOWN,
+            300
+        );
+        joinTime = await gameSettingsService.GetIntSetting(
+            Heist.GAMENAME, Heist.JOINTIME,
+            300
+        );
+        minBet = await gameSettingsService.GetIntSetting(
+            Heist.GAMENAME, Heist.MINBET,
+            100
+        );
+        winMultiplier = await gameSettingsService.GetDoubleSetting(
+            Heist.GAMENAME, Heist.WIN_MULTIPLIER,
+            1.5
+        );
+        gameFinishing = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.GAMEFINISHING,
+            "you can not join the heist now."
+        );
+        gameStarting = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.GAMESTARTING,
+            "{Name} is trying to get a team together for some serious heist business! use \"!{Command} AMOUNT/ALL/MAX\" to join!"
+        );
+        alreadyJoined = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.ALREADYJOINED,
+            "you have already joined the heist."
+        );
+        noArgs = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.INVALIDARGS,
+            "To Enter/Start a heist do !{Command} AMOUNT/ALL/MAX/%"
+        );
+        invalidBet = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.INVALIDBET,
+            "The max amount to join the heist is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}"
+        );
+        notEnoughPoints = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.NOTENOUGHPOINTS,
+            "sorry you don't have that amount of {PointType} to enter the heist."
+        );
+        stageOne = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.STAGEONE,
+            "The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! sptvCharlie"
+        );
+        stageTwo = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.STAGETWO,
+            "Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!"
+        );
+        stageThree = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.STAGETHREE,
+            "Look out! Charlie sptvCharlie captured {Caught}");
+        stageFour = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.STAGEFOUR,
+            "{Survivors} managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
+        noOneWon = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.NOONEWON,
+            "The heist ended! There are no survivors."
+        );
+        namesToLong = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.NAMESTOLONG,
+            "The heist ended with {SurvivorsCount} survivor(s) and {CaughtCount} death(s)."
+        );
+        survivors = await gameSettingsService.GetStringSetting(
+            Heist.GAMENAME, Heist.SURVIVORS,
+            "The heist ended! Survivors are: {Payouts}."
+        );
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.COOLDOWN, cooldown);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.JOINTIME, joinTime);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.MINBET, minBet);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, winMultiplier);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.GAMEFINISHING, gameFinishing);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.GAMESTARTING, gameStarting);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.ALREADYJOINED, alreadyJoined);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.INVALIDARGS, noArgs);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.INVALIDBET, invalidBet);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.NOTENOUGHPOINTS, notEnoughPoints);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.STAGEONE, stageOne);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.STAGETWO, stageTwo);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.STAGETHREE, stageThree);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.STAGEFOUR, stageFour);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.NOONEWON, noOneWon);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.NAMESTOLONG, namesToLong);
+        await gameSettingsService.SaveSetting(Heist.GAMENAME, Heist.SURVIVORS, survivors);
+        Snackbar.Add("Settings saved", Severity.Success);
+    }
+}

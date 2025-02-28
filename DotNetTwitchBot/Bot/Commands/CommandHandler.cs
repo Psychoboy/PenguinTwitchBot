@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands
                 logger.LogWarning("Could not find the default command name {defaultCommandId}", defaultCommand.Id);
                 return;
             }
-            if (originalCommand.CustomCommandName.Equals(defaultCommand.CustomCommandName, StringComparison.CurrentCultureIgnoreCase) == false)
+            if (originalCommand.CustomCommandName.Equals(defaultCommand.CustomCommandName, StringComparison.OrdinalIgnoreCase) == false)
             {
                 UpdateCommandName(originalCommand.CustomCommandName, defaultCommand.CustomCommandName);
             }
@@ -363,7 +363,7 @@ namespace DotNetTwitchBot.Bot.Commands
             }
             if(passed && string.IsNullOrEmpty(commandProperties.SpecificUserOnly) == false)
             {
-                if (eventArgs.Name.Equals(commandProperties.SpecificUserOnly, StringComparison.CurrentCultureIgnoreCase) == false)
+                if (eventArgs.Name.Equals(commandProperties.SpecificUserOnly, StringComparison.OrdinalIgnoreCase) == false)
                 {
                     passed = false;
                 }

@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                     var regex = new Regex(wordFilter.Phrase);
                     if (regex.IsMatch(e.Message)) match = true;
                 }
-                else if (e.Message.Contains(wordFilter.Phrase, StringComparison.CurrentCultureIgnoreCase))
+                else if (e.Message.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase))
                 {
                     match = true;
                 }

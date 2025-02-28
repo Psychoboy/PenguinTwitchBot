@@ -140,6 +140,30 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             await SaveSetting(setting);
         }
 
+        public Task SaveSetting(string gameName, string settingName, string value)
+        {
+            return SetStringSetting(gameName, settingName, value);
+        }
+
+        public Task SaveSetting(string gameName, string settingName, int value)
+        {
+            return SetIntSetting(gameName, settingName, value);
+        }
+
+        public Task SaveSetting(string gameName, string settingName, double value)
+        {
+            return SetDoubleSetting(gameName, settingName, value);
+        }
+
+        public Task SaveSetting(string gameName, string settingName, bool value)
+        {
+            return SetBoolSetting(gameName, settingName, value);
+        }
+
+        public Task SaveSetting(string gameName, string settingName, long value)
+        {
+            return SetLongSetting(gameName, settingName, value);
+        }
 
         private async Task<GameSetting?> GetSetting(string gameName, string settingName)
         {

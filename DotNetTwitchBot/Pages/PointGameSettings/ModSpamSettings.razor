@@ -5,14 +5,14 @@
 <MudPaper>
     <MudText Typo="Typo.h5">Mod Spam Settings</MudText>
     <MudText>Please note: Mod Spam uses the PointType from AddActive</MudText>
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudNumericField Min="1" @bind-Value="minTime" Label="Minimum Time" HelperText="Minimum time between messages" />
     <MudNumericField Min="1" @bind-Value="maxTime" Label="Maximum Time" HelperText="Maximum time between messages" />
     <MudNumericField Min="1" @bind-Value="minAmount" Label="Minimum Amount" HelperText="Minimum amount of messages" />
     <MudNumericField Min="1" @bind-Value="maxAmount" Label="Maximum Amount" HelperText="Maximum amount of messages" />
     <MudTextField Label="Starting Message" @bind-Value="startingMessage" />
     <MudTextField Label="Ending Message" @bind-Value="endingMessage" />
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
 </MudPaper>
 

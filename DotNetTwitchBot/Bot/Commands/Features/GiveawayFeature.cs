@@ -290,9 +290,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);
                 var prize = await GetPrize();
                 var message = language.Get("giveawayfeature.draw.winner")
-                    .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("(prize)", prize, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("(isFollowingCheck)", isFollower ? "is" : "is not", StringComparison.CurrentCultureIgnoreCase)
+                    .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.OrdinalIgnoreCase)
+                    .Replace("(prize)", prize, StringComparison.OrdinalIgnoreCase)
+                    .Replace("(isFollowingCheck)", isFollower ? "is" : "is not", StringComparison.OrdinalIgnoreCase)
                     ;
                 await ServiceBackbone.SendChatMessage(message);
                 await AddWinner(viewer, isFollower);

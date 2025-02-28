@@ -301,7 +301,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                song = Requests.Where(x => x.SongId.Equals(songId, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+                song = Requests.Where(x => x.SongId.Equals(songId, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                 if (song == null) return;
                 Requests.Remove(song);
                 Requests.Insert(0, song);

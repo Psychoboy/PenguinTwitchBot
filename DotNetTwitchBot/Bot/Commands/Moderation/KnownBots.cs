@@ -16,20 +16,20 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         public bool IsStreamerOrBot(string username)
         {
-            if (username.Equals(BotName, StringComparison.CurrentCultureIgnoreCase)) return true;
-            if (username.Equals(BroadcasterName, StringComparison.CurrentCultureIgnoreCase)) return true;
+            if (username.Equals(BotName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (username.Equals(BroadcasterName, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }
 
         public bool IsKnownBot(string username)
         {
-            if (username.Equals(BotName, StringComparison.CurrentCultureIgnoreCase)) return true;
-            return _knownBots.Where(x => x.Username.Equals(username, StringComparison.CurrentCultureIgnoreCase)).Any();
+            if (username.Equals(BotName, StringComparison.OrdinalIgnoreCase)) return true;
+            return _knownBots.Where(x => x.Username.Equals(username, StringComparison.OrdinalIgnoreCase)).Any();
         }
 
         public bool IsKnownBotOrCurrentStreamer(string username)
         {
-            if (username.Equals(BroadcasterName, StringComparison.CurrentCultureIgnoreCase)) return true;
+            if (username.Equals(BroadcasterName, StringComparison.OrdinalIgnoreCase)) return true;
             return IsKnownBot(username);
         }
 

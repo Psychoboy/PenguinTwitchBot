@@ -4,14 +4,14 @@
 
 <MudPaper>
     <MudText Typo="Typo.h5">Defuse Settings</MudText>
-    <MudDivider /> 
+    <MudDivider Class="mb-2 mt-2" />
     <MudNumericField Min="1" @bind-Value="cost" Label="Cost" HelperText="Cost to play the game" />
     <MudText>The winnings are chosen based on cost and multiplier as below:</MudText>
     <MudText>Minimum Payout: Cost * multiplier - Cost / multiplier</MudText>
     <MudText>Maximum Payout: Cost * multiplier + Cost / multiplier</MudText>
     <MudNumericField Min="2" @bind-Value="multiplier" Label="Multiplier" HelperText="Adjusts payout with randomizer" />
     <MudTextField Label="Wires" HelperText="Minimum of 3, comma seperated list" @bind-Value="wires"/> 
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudText>Message Responses:</MudText>
     <MudTextField Label="Starting Message" @bind-Value="starting" />
     <MudTextField Label="Success Message" @bind-Value="success" />

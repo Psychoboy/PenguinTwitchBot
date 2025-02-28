@@ -91,8 +91,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             throw new SkipCooldownException();
                         }
                         var amount = e.Args[0];
-                        if (amount.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
-                            amount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
+                        if (amount.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+                            amount.Equals("max", StringComparison.OrdinalIgnoreCase))
                         {
                             var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
                             if (viewerPoints.Points > Int32.MaxValue / 2)
@@ -147,8 +147,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                     "You have reached your max per stream limit for !roulette ({MaxAmount} {PointsName})."
                                 );
                                 reachedLimit = reachedLimit
-                                    .Replace("{MaxAmount}", MaxAmount.ToString("N0"))
-                                    .Replace("{PointsName}", pointType.Name);
+                                    .Replace("{MaxAmount}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                    .Replace("{PointsName}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                                 await SendChatMessage(e.DisplayName, reachedLimit);
                                 throw new SkipCooldownException();
                             }
@@ -174,13 +174,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 "{Name} rolled a {Rolled} and won {WonPoints} {PointsName} in the roulette and now has {TotalPoints} {PointsName}! FeelsGoodMan Rouletted {TotalBet} of {MaxBet} limit per stream"
                                 );
                             winMessage = winMessage
-                                .Replace("{Name}", e.DisplayName)
-                                .Replace("{Rolled}", value.ToString("N0"))
-                                .Replace("{WonPoints}", amountToBet.ToString("N0"))
-                                .Replace("{PointsName}", pointType.Name)
-                                .Replace("{TotalPoints}", totalPoints.ToString("N0"))
-                                .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"))
-                                .Replace("{MaxBet}", MaxAmount.ToString("N0"));
+                                .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
+                                .Replace("{Rolled}", value.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{WonPoints}", amountToBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{PointsName}", pointType.Name, StringComparison.OrdinalIgnoreCase)
+                                .Replace("{TotalPoints}", totalPoints.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                             await SendChatMessage(winMessage);
                         }
                         else
@@ -193,13 +193,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 "{Name} rolled a {Rolled} and lost {WonPoints} {PointsName} in the roulette and now has {TotalPoints} {PointsName}! FeelsGoodMan Rouletted {TotalBet} of {MaxBet} limit per stream"
                                 );
                             loseMessage = loseMessage
-                                .Replace("{Name}", e.DisplayName)
-                                .Replace("{Rolled}", value.ToString("N0"))
-                                .Replace("{WonPoints}", amountToBet.ToString("N0"))
-                                .Replace("{PointsName}", pointType.Name)
-                                .Replace("{TotalPoints}", totalPoints.Points.ToString("N0"))
-                                .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"))
-                                .Replace("{MaxBet}", MaxAmount.ToString("N0"));
+                                .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
+                                .Replace("{Rolled}", value.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{WonPoints}", amountToBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{PointsName}", pointType.Name, StringComparison.OrdinalIgnoreCase)
+                                .Replace("{TotalPoints}", totalPoints.Points.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                             await SendChatMessage(loseMessage);
                         }
                     }

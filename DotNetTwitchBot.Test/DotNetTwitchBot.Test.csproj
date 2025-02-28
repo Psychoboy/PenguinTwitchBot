@@ -20,6 +20,7 @@
     <PackageReference Include="ILogger.Moq" Version="1.1.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.2.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="MockQueryable.NSubstitute" Version="7.0.3" />
     <PackageReference Include="Moq" Version="4.20.72" />

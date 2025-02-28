@@ -385,13 +385,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var time = await GetUserTimeAndRank(e.Name);
             var messages = await GetUserMessagesAndRank(e.Name);
             loyaltyMessage = loyaltyMessage
-                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name))
-                .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time))
-                .Replace("{PointsName}", loyaltyPointType.Name)
-                .Replace("{PointsRank}", points.Ranking.ToString())
-                .Replace("{Points}", points.Points.ToString("N0"))
-                .Replace("{MessagesRank}", messages.Ranking.ToString())
-                .Replace("{Messages}", messages.MessageCount.ToString("N0"));
+                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name), StringComparison.OrdinalIgnoreCase)
+                .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time), StringComparison.OrdinalIgnoreCase)
+                .Replace("{PointsName}", loyaltyPointType.Name, StringComparison.OrdinalIgnoreCase)
+                .Replace("{PointsRank}", points.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Points}", points.Points.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{MessagesRank}", messages.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Messages}", messages.MessageCount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
             await SendChatMessage(e.Name, loyaltyMessage);
         }
 
