@@ -65,6 +65,16 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             return defaultValue;
         }
 
+        public async Task<long> GetLongSetting(string gameName, string settingName, long defaultValue)
+        {
+            var setting = await GetSetting(gameName, settingName);
+            if (setting != null)
+            {
+                return setting.SettingLongValue;
+            }
+            return defaultValue;
+        }
+
         public async Task SetStringSetting(string gameName, string settingName, string value)
         {
             var setting = await GetSetting(gameName, settingName);
@@ -114,6 +124,19 @@ namespace DotNetTwitchBot.Bot.Commands.Games
                 SettingDoubleValue = value
             };
             setting.SettingDoubleValue = value;
+            await SaveSetting(setting);
+        }
+
+        public async Task SetLongSetting(string gameName, string settingName, long value)
+        {
+            var setting = await GetSetting(gameName, settingName);
+            setting ??= new GameSetting
+            {
+                GameName = gameName,
+                SettingName = settingName,
+                SettingLongValue = value
+            };
+            setting.SettingLongValue = value;
             await SaveSetting(setting);
         }
 

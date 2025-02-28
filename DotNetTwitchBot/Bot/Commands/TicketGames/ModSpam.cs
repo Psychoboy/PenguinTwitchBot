@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             var minAmount = await gameSettingsService.GetIntSetting(GAMENAME, MIN_AMOUNT, 1);
             var maxAmount = await gameSettingsService.GetIntSetting(GAMENAME, MAX_AMOUNT, 8);
-            addActive.AddActivePoints(tools.RandomRange(minAmount, maxAmount));
+            await addActive.AddActivePoints(tools.RandomRange(minAmount, maxAmount));
             var elapsedTime = DateTime.Now - _startTime;
             if (elapsedTime > _runTime)
             {

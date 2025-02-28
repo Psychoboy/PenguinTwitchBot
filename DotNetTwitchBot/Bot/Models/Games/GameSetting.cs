@@ -17,5 +17,6 @@ namespace DotNetTwitchBot.Bot.Models.Games
         public int SettingIntValue { get; set; }
         public bool SettingBoolValue { get; set; }
         public double SettingDoubleValue { get; set; }
+        public long SettingLongValue { get; set; }
     }
 }
