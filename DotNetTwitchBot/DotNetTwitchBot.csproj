@@ -9,18 +9,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Authorization\**" />
     <Compile Remove="Backups\**" />
     <Compile Remove="Logs\**" />
     <Compile Remove="Twitch\**" />
     <Compile Remove="wwwroot\tts\**" />
+    <Content Remove="Authorization\**" />
     <Content Remove="Backups\**" />
     <Content Remove="Logs\**" />
     <Content Remove="Twitch\**" />
     <Content Remove="wwwroot\tts\**" />
+    <EmbeddedResource Remove="Authorization\**" />
     <EmbeddedResource Remove="Backups\**" />
     <EmbeddedResource Remove="Logs\**" />
     <EmbeddedResource Remove="Twitch\**" />
     <EmbeddedResource Remove="wwwroot\tts\**" />
+    <None Remove="Authorization\**" />
     <None Remove="Backups\**" />
     <None Remove="Logs\**" />
     <None Remove="Twitch\**" />
@@ -83,7 +87,6 @@
   <ItemGroup>
     <Folder Include="Application\Alias\" />
     <Folder Include="Application\Metrics\Notifications\" />
-    <Folder Include="Authorization\" />
   </ItemGroup>
 
   <ItemGroup>

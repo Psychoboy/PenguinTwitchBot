@@ -77,7 +77,7 @@
         );
     }
 
-    public async Task SaveSettings()
+    private async Task SaveSettings()
     {
         var validatedWires = wires.Split(',').Select(p => p.Trim()).ToList();
         if (validatedWires.Count < 3)
