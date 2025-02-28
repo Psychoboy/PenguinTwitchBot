@@ -28,5 +28,10 @@ namespace DotNetTwitchBot.Bot
         {
             return StaticTools.CleanInput(strIn);
         }
+
+        public void Sleep(int milliseconds)
+        {
+            Thread.Sleep(milliseconds);
+        }
     }
 }

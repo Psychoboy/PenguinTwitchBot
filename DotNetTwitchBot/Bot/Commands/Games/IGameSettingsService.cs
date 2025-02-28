@@ -21,5 +21,11 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         Task<List<PointGamePair>> GetAllPointTypes();
         Task<long> GetLongSetting(string gameName, string settingName, long defaultValue);
         Task SetLongSetting(string gameName, string settingName, long value);
+
+        Task SaveSetting(string gameName, string settingName, string value);
+        Task SaveSetting(string gameName, string settingName, int value);
+        Task SaveSetting(string gameName, string settingName, double value);
+        Task SaveSetting(string gameName, string settingName, bool value);
+        Task SaveSetting(string gameName, string settingName, long value);
     }
 }

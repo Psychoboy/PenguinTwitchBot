@@ -154,7 +154,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         {
             if (WinningIndex == index)
             {
-                var winningMessage = CurrentWheel?.WinningMessage.Replace("{label}", CurrentWheel.Properties[index].Label);
+                var winningMessage = CurrentWheel?.WinningMessage.Replace("{label}", CurrentWheel.Properties[index].Label, StringComparison.CurrentCultureIgnoreCase);
                 if (winningMessage != null)
                 {
                     Thread.Sleep(4000);

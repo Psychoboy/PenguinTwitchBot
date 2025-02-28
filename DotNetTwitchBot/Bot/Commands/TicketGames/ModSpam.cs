@@ -65,7 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _intervalTimer?.Dispose();
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, ENDING_MESSAGE, "Mod spam completed... {PointType} arriving soon.");
-                message = message.Replace("{PointType}", (await pointsSystem.GetPointTypeForGame("AddActive")).Name);
+                message = message.Replace("{PointType}", (await pointsSystem.GetPointTypeForGame("AddActive")).Name, StringComparison.CurrentCultureIgnoreCase);
                 await ServiceBackbone.SendChatMessage(message);
 
 

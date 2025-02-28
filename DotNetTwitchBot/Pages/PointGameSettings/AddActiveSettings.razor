@@ -6,7 +6,7 @@
 <MudPaper>
     <MudText Typo="Typo.h5">AddActive Settings</MudText>
     <MudText>This sends points out as a bulk to users after a configured delay. This is also used by ModSpam</MudText>
-    <MudDivider />
+    <MudDivider Class="mb-2 mt-2" />
     <MudNumericField Min="1" @bind-Value="maxPoints" Label="Max Points" HelperText="Max points to send" />
     <MudNumericField Min="1" @bind-Value="delay" Label="Delay" HelperText="Delay in seconds between sending points" />
     <MudTextField Label="Message" @bind-Value="message" />

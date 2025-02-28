@@ -84,9 +84,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
             var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
             winnerMessage = winnerMessage
-                .Replace("{Name}", winner)
-                .Replace("{Points}", winnings.ToString("N0"))
-                .Replace("{PointType}", pointType.Name);
+                .Replace("{Name}", winner, StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{Points}", winnings.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
+                .Replace("{PointType}", pointType.Name, StringComparison.CurrentCultureIgnoreCase);
             await ServiceBackbone.SendChatMessage(winnerMessage);
             await _pointsSystem.AddPointsByUserIdAndGame(winner, ModuleName, winnings);
             await CleanUp();
@@ -136,8 +136,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var notEnoughPoints = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_POINTS, "Sorry it costs {Cost} {PointType} to join the FFA game which you do not have.");
                 notEnoughPoints = notEnoughPoints
-                    .Replace("{Cost}", cost.ToString("N0"))
-                    .Replace("{PointType}", (await _pointsSystem.GetPointTypeForGame(ModuleName)).Name);
+                    .Replace("{Cost}", cost.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
+                    .Replace("{PointType}", (await _pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase);
                 await ServiceBackbone.SendChatMessage(e.DisplayName, notEnoughPoints);
                 throw new SkipCooldownException();
             }
@@ -146,8 +146,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var starting = await _gameSettingsService.GetStringSetting(ModuleName, STARTING, "{Name} is starting a FFA battle! Type !{CommandName} to join now!");
                 starting = starting
-                    .Replace("{Name}", e.DisplayName)
-                    .Replace("{CommandName}", e.Command);
+                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase)
+                    .Replace("{CommandName}", e.Command, StringComparison.CurrentCultureIgnoreCase);
                 await ServiceBackbone.SendChatMessage(starting);
                 GameState = State.Running;
                 var joinTime = await _gameSettingsService.GetIntSetting(ModuleName, JOIN_TIME, 180);
@@ -157,7 +157,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var joined = await _gameSettingsService.GetStringSetting(ModuleName, JOINED, "{Name} joined the FFA!");
                 joined = joined
-                    .Replace("{Name}", e.DisplayName);
+                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase);
                 await ServiceBackbone.SendChatMessage(joined);
             }
             Entered.Add(e.Name);
