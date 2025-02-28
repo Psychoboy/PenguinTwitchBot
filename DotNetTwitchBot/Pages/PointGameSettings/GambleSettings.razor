@@ -1,0 +1,118 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.PastyGames
+@attribute [Authorize(Roles = "Streamer")]
+
+<MudPaper>
+    <MudText Typo="Typo.h5">Gamble Settings</MudText>
+    <MudDivider />
+    <MudNumericField Min="1" @bind-Value="jackpotNumber" Label="Jackpot Number" HelperText="The number to roll to win the jackpot" />
+    <MudNumericField Min="1" @bind-Value="startingJackpot" Label="Starting Jackpot" HelperText="The starting amount of the jackpot" />
+    <MudNumericField Min="1" @bind-Value="minimumToWin" Label="Minimum to Win" HelperText="The minimum number to roll to win" />
+    <MudNumericField Min="1" @bind-Value="minimumBet" Label="Minimum Bet" HelperText="The minimum amount to bet" />
+    <MudNumericField Min="1" @bind-Value="winningMultiplier" Label="Winning Multiplier" HelperText="The multiplier for the winning prize" />
+    <MudNumericField Min="0" @bind-Value="jackpotMultiplier" Label="Jackpot Contribution" HelperText="The percentage of the bet that goes to the jackpot" />
+    <MudTextField Label="Current Jackpot Message" @bind-Value="currentJackpot" />
+    <MudTextField Label="Incorrect Args" @bind-Value="incorrectArgs" />
+    <MudTextField Label="Incorrect Bet" @bind-Value="incorrectBet" />
+    <MudTextField Label="Not Enough Points" @bind-Value="notEnoughPoints" />
+    <MudTextField Label="Win Message" @bind-Value="winMessage" />
+    <MudTextField Label="Lose Message" @bind-Value="loseMessage" />
+    <MudTextField Label="Jackpot Message" @bind-Value="jackpotMessage" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int jackpotNumber { get; set; }
+    private int startingJackpot { get; set; }
+    private int minimumToWin { get; set; }
+    private int minimumBet { get; set; }
+    private int winningMultiplier { get; set; }
+    private double jackpotMultiplier { get; set; }
+
+    private string currentJackpot { get; set; } = null!;
+    private string incorrectArgs { get; set; } = null!;
+    private string incorrectBet { get; set; } = null!;
+    private string notEnoughPoints { get; set; } = null!;
+    private string winMessage { get; set; } = null!;
+    private string loseMessage { get; set; } = null!;
+    private string jackpotMessage { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        jackpotNumber = await gameSettingsService.GetIntSetting(
+            Gamble.GAMENAME, Gamble.JACKPOT_NUMBER,
+            69
+        );
+        startingJackpot = await gameSettingsService.GetIntSetting(
+            Gamble.GAMENAME, Gamble.STARTING_JACKPOT,
+            1000
+        );
+        minimumToWin = await gameSettingsService.GetIntSetting(
+            Gamble.GAMENAME, Gamble.MINIMUM_FOR_WIN,
+            48
+        );
+        minimumBet = await gameSettingsService.GetIntSetting(
+            Gamble.GAMENAME, Gamble.MINIMUM_BET,
+            5
+        );
+        winningMultiplier = await gameSettingsService.GetIntSetting(
+            Gamble.GAMENAME, Gamble.WINNING_MULTIPLIER,
+            2
+        );
+        jackpotMultiplier = await gameSettingsService.GetDoubleSetting(
+            Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION,
+            0.10
+        );
+        currentJackpot = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE,
+            "The current jackpot is {Jackpot}"
+        );
+        incorrectArgs = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.INCORRECT_ARGS,
+            "To gamble, do !{Command} amount to specify amount or do !{Command} max or all to do the max bet. You can also do it by percentage like !{Command} 50%"
+        );
+        incorrectBet = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.INCORRECT_BET,
+            "The max bet is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}"
+        );
+        notEnoughPoints = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.NOT_ENOUGH,
+            "You don't have enough to gamble with."
+        );
+        winMessage = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.WIN_MESSAGE,
+            "{Name} rolled {Rolled} and won {Points} {PointType}!"
+        );
+        loseMessage = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.LOSE_MESSAGE,
+            "{Name} rolled {Rolled} and lost {Points} {PointType}"
+        );
+        jackpotMessage = await gameSettingsService.GetStringSetting(
+            Gamble.GAMENAME, Gamble.JACKPOT_MESSAGE, 
+            "{Name} rolled {Rolled} and won the jackpot of {Points} {PointType}!");
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetIntSetting(Gamble.GAMENAME, Gamble.JACKPOT_NUMBER, jackpotNumber);
+        await gameSettingsService.SetIntSetting(Gamble.GAMENAME, Gamble.STARTING_JACKPOT, startingJackpot);
+        await gameSettingsService.SetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_FOR_WIN, minimumToWin);
+        await gameSettingsService.SetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_BET, minimumBet);
+        await gameSettingsService.SetIntSetting(Gamble.GAMENAME, Gamble.WINNING_MULTIPLIER, winningMultiplier);
+        await gameSettingsService.SetDoubleSetting(Gamble.GAMENAME, Gamble.JACKPOT_CONTRIBUTION, jackpotMultiplier);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE, currentJackpot);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_ARGS, incorrectArgs);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.INCORRECT_BET, incorrectBet);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.NOT_ENOUGH, notEnoughPoints);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.WIN_MESSAGE, winMessage);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.LOSE_MESSAGE, loseMessage);
+        await gameSettingsService.SetStringSetting(Gamble.GAMENAME, Gamble.JACKPOT_MESSAGE, jackpotMessage);
+
+        Snackbar.Add("Gamble settings Saved", Severity.Success);
+    }
+}

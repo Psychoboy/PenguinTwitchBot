@@ -7,7 +7,6 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Heist : BaseCommandService, IHostedService
     {
-        //private readonly ILoyaltyFeature _loyaltyFeature;
         private readonly int Cooldown = 300;
         private readonly int JoinTime = 300;
         private readonly int MinBet = 10;
@@ -36,14 +35,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         }
 
         public Heist(
-            //ILoyaltyFeature loyaltyFeature,
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
             ILogger<Heist> logger,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "Heist")
         {
-            //_loyaltyFeature = loyaltyFeature;
             _pointSystem = pointsSystem;
             JoinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _logger = logger;

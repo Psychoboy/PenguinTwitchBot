@@ -19,5 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         Task SetPointTypeForGame(string gameName, int pointTypeId);
         Task RegisterDefaultPointForGame(string gameName);
         Task<List<PointGamePair>> GetAllPointTypes();
+        Task<long> GetLongSetting(string gameName, string settingName, long defaultValue);
+        Task SetLongSetting(string gameName, string settingName, long value);
     }
 }
