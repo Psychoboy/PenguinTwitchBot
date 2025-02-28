@@ -51,9 +51,9 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
             {
                 if (string.IsNullOrWhiteSpace(adEvent.Command) == false)
                 {
-                    var commandString = adEvent.Command.Replace("(length)", e.Length.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                        .Replace("(automatic)", e.Automatic.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                        .Replace("(startdate)", e.StartedAt.ToString(), StringComparison.CurrentCultureIgnoreCase);
+                    var commandString = adEvent.Command.Replace("(length)", e.Length.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("(automatic)", e.Automatic.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("(startdate)", e.StartedAt.ToString(), StringComparison.OrdinalIgnoreCase);
                     var commandArgs = commandString.Split(' ');
                     var commandName = commandArgs[0];
                     var newCommandArgs = new List<string>();

@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
     {
         public async Task AwardPoints(LurkBaitTrigger lbtrigger)
         {
-            if (lbtrigger.Trigger.Equals("LurkBait Catch", StringComparison.CurrentCultureIgnoreCase) == false) return;
+            if (lbtrigger.Trigger.Equals("LurkBait Catch", StringComparison.OrdinalIgnoreCase) == false) return;
 
             logger.LogInformation("{username} caught a {fish} worth {gold} gold with {catchRating} stars and rarity of {rarity}",
                 lbtrigger.Username, lbtrigger.CatchName, lbtrigger.CatchValue, lbtrigger.CatchRating, lbtrigger.CatchRarity);

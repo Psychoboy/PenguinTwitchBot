@@ -10,8 +10,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         public async Task<MaxBet> CheckAndRemovePoints(string userId, string gameName, string betAmount, long minBet)
         {
             long amount;
-            if (betAmount.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
-               betAmount.Equals("max", StringComparison.CurrentCultureIgnoreCase))
+            if (betAmount.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+               betAmount.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
                 amount = await pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, PointsSystem.MaxBet);
             }

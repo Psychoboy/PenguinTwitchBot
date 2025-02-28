@@ -115,6 +115,16 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _pointsSystem.RemovePointsFromUserByUserIdAndGame("user123", Heist.GAMENAME, 1000L)
                 .Returns(true);
 
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGEONE, Arg.Any<string>())
+                .Returns("Stage One");
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGETWO, Arg.Any<string>())
+                .Returns("Stage Two");
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGETHREE, Arg.Any<string>())
+                .Returns("Stage Three");
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGEFOUR, Arg.Any<string>())
+                .Returns("{Survivors} managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
+            _tools.RandomRange(1, 100).Returns(50, 1);
+
             var eventArgs = new CommandEventArgs
             {
                 Command = "heist",
@@ -128,7 +138,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             await _heist.OnCommand(this, eventArgs);
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>());
+            await _serviceBackbone.Received(5).SendChatMessage(Arg.Any<string>());
         }
 
         [Theory]
@@ -160,7 +170,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             await _heist.OnCommand(this, eventArgs);
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>());
+            await _serviceBackbone.Received(5).SendChatMessage(Arg.Any<string>());
         }
 
         [Fact]
@@ -213,6 +223,10 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Heist.GAMENAME, Arg.Any<long>())
                 .Returns(true);
 
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.GAMESTARTING, Arg.Any<string>())
+                .Returns("TestUser is trying to get a team together for some serious heist business! use \"!heist AMOUNT/ALL/MAX\" to join!");
+            _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.SURVIVORS, Arg.Any<string>())
+                .Returns("The heist ended! Survivors are: {Payouts}.");
             _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGEONE, Arg.Any<string>())
                 .Returns("Stage One");
             _gameSettingsService.GetStringSetting(Heist.GAMENAME, Heist.STAGETWO, Arg.Any<string>())
@@ -232,6 +246,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             await _serviceBackbone.Received(1).SendChatMessage("Stage One");
             await _serviceBackbone.Received(1).SendChatMessage("Stage Two");
             await _serviceBackbone.Received(1).SendChatMessage("TestUser managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
+            await _serviceBackbone.Received(1).SendChatMessage("The heist ended! Survivors are: TestUser (100).");
         }
     }
 }

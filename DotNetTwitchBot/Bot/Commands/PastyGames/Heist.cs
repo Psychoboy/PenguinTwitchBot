@@ -98,8 +98,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             var amountStr = e.Args.First();
             var amount = 0L;
-            if (amountStr.Equals("all", StringComparison.CurrentCultureIgnoreCase) ||
-               amountStr.Equals("max", StringComparison.CurrentCultureIgnoreCase))
+            if (amountStr.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+               amountStr.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
                 amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet);
             }
@@ -132,9 +132,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, INVALIDBET, "The max amount to join the heist is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}");
                 message = message
-                    .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{PointType}", pointType.Name, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(e.DisplayName, message); //INVALIDBET
                 throw new SkipCooldownException();
             }
@@ -142,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, amount)))
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, NOTENOUGHPOINTS, "sorry you don't have that amount of {PointType} to enter the heist.");
-                message = message.Replace("{PointType}", pointType.Name, StringComparison.CurrentCultureIgnoreCase);
+                message = message.Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(e.DisplayName, message); //NOTENOUGHPOINTS
                 throw new SkipCooldownException();
             }
@@ -151,8 +151,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, GAMESTARTING, "{Name} is trying to get a team together for some serious heist business! use \"!{Command} AMOUNT/ALL/MAX\" to join!");
                 message = message
-                    .Replace("{Command}", e.Command, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(message); //GAMESTARTING
                 GameState = State.Running;
                 Entered.Add(new Participant
@@ -179,7 +179,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private async Task SendInvalidArgsMessage(string displayName, string command)
         {
             var message = await gameSettingsService.GetStringSetting(GAMENAME, INVALIDARGS, "To Enter/Start a heist do !{Command} AMOUNT/ALL/MAX/%");
-            message = message.Replace("{Command}", command, StringComparison.CurrentCultureIgnoreCase);
+            message = message.Replace("{Command}", command, StringComparison.OrdinalIgnoreCase);
             await ServiceBackbone.SendChatMessage(displayName, message); //INVALIDARGS
         }
 
@@ -254,8 +254,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private string ReplaceStageMessages(string message)
         {
             return message
-                .Replace("{Caught}", GetCaughtNames(), StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{Survivors}", GetWinnerNames(), StringComparison.CurrentCultureIgnoreCase);
+                .Replace("{Caught}", GetCaughtNames(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Survivors}", GetWinnerNames(), StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task EndHeist()
@@ -283,14 +283,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     var message = await gameSettingsService.GetStringSetting(GAMENAME, NAMESTOLONG, "The heist ended with {SurvivorsCount} survivor(s) and {CaughtCount} death(s).");
                     message = message
-                        .Replace("{SurvivorsCount}", Survivors.Count.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                        .Replace("{CaughtCount}", Caught.Count.ToString(), StringComparison.CurrentCultureIgnoreCase);
+                        .Replace("{SurvivorsCount}", Survivors.Count.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("{CaughtCount}", Caught.Count.ToString(), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(message); //HEISTENDEDWITHBOTH
                 }
                 else
                 {
                     var message = await gameSettingsService.GetStringSetting(GAMENAME, SURVIVORS, "The heist ended! Survivors are: {Payouts}.");
-                    message = message.Replace("{Payouts}", string.Join(", ", payouts), StringComparison.CurrentCultureIgnoreCase);
+                    message = message.Replace("{Payouts}", string.Join(", ", payouts), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(message); //HEISTENDED
                 }
                 await CleanUp();

@@ -181,7 +181,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var existingDuel = await GetExistingDuel(e.Name);
             if (existingDuel != null)
             {
-                if (existingDuel.Attacker.Equals(e.Name, StringComparison.CurrentCultureIgnoreCase))
+                if (existingDuel.Attacker.Equals(e.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     await ServiceBackbone.SendChatMessage(e.DisplayName, "You are already attacking someone, wait for that one to timeout or the defender to !accept/!deny it");
                 }
@@ -236,8 +236,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 await _semaphoreSlim.WaitAsync();
                 var existingDuel = PendingDuels
-                    .Where(x => x.Attacker.Equals(name, StringComparison.CurrentCultureIgnoreCase) ||
-                    x.Defender.Equals(name, StringComparison.CurrentCultureIgnoreCase)
+                    .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
                     ).FirstOrDefault();
                 if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
                 {
@@ -261,8 +261,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 await _semaphoreSlim.WaitAsync();
                 var existingDuel = PendingDuels
-                    .Where(x => x.Attacker.Equals(name, StringComparison.CurrentCultureIgnoreCase) ||
-                    x.Defender.Equals(name, StringComparison.CurrentCultureIgnoreCase)
+                    .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
                     ).FirstOrDefault();
                 if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
                 {

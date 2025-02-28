@@ -128,8 +128,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var format = setting.StringSetting;
             var value = count.IntSetting;
             var text = format
-                .Replace("{value}", value.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{nextgoal}", NextValue(value).ToString(), StringComparison.CurrentCultureIgnoreCase);
+                .Replace("{value}", value.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{nextgoal}", NextValue(value).ToString(), StringComparison.OrdinalIgnoreCase);
             await WriteCounterFile(text);
         }
 

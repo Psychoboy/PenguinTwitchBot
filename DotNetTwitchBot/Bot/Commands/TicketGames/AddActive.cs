@@ -77,8 +77,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
                 var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
                 message = message
-                    .Replace("{Amount}", _pointsToGiveOut.ToString("n0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{PointType}", pointType.Name, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{Amount}", _pointsToGiveOut.ToString("n0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
 
                 await ServiceBackbone.SendChatMessage(message);
                 _pointsToGiveOut = 0;

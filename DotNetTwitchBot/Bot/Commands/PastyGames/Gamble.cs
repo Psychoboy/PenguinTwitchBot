@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 case "jackpot":
                     var jackpot = await GetJackpot();
                     var jackpotMessage = await gameSettingsService.GetStringSetting(ModuleName, CURRENT_JACKPOT_MESSAGE, "The current jackpot is {jackpot}");
-                    jackpotMessage = jackpotMessage.Replace("{jackpot}", jackpot.ToString("N0"), StringComparison.CurrentCultureIgnoreCase);
+                    jackpotMessage = jackpotMessage.Replace("{jackpot}", jackpot.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(e.DisplayName, jackpotMessage);
                     break;
             }
@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (e.Args.Count == 0)
             {
                 var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_ARGS, "To gamble, do !{Command} amount to specify amount or do !{Command} max or all to do the max bet. You can also do it by percentage like !{Command} 50%");
-                errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.CurrentCultureIgnoreCase);
+                errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
                 throw new SkipCooldownException();
             }
@@ -87,7 +87,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 case MaxBet.ParseResult.InvalidValue:
                     {
                         var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_ARGS, "To gamble, do !{Command} amount to specify amount or do !{Command} max or all to do the max bet. You can also do it by percentage like !{Command} 50%");
-                        errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.CurrentCultureIgnoreCase);
+                        errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase);
                         await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
                         throw new SkipCooldownException();
                     }
@@ -98,9 +98,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                         var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_BET, "The max bet is {MaxBet} {PointType} and must be greater then {MinBet} {PointType}");
                         errorMessage = errorMessage
-                            .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                            .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                            .Replace("{PointType}", pointType.Name, StringComparison.CurrentCultureIgnoreCase);
+                            .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                            .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                            .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
                         await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
                         throw new SkipCooldownException();
                     }
@@ -134,10 +134,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await UpdateJackpot(jackpot, true);
                 var jackpotWin = await gameSettingsService.GetStringSetting(ModuleName, JACKPOT_MESSAGE, "{Name} rolled {Rolled} and won the jackpot of {Points} {PointType}!");
                 jackpotWin = jackpotWin
-                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Rolled}", value.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Points}", (winnings + jackpotWinnings).ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{PointType", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Points}", (winnings + jackpotWinnings).ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{PointType", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await twitchServices.Announcement(jackpotWin);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings + jackpotWinnings);
                 await LaunchFireworks();
@@ -148,10 +148,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var winnings = amount * winningMultiplier;
                 var winMessage = await gameSettingsService.GetStringSetting(ModuleName, WIN_MESSAGE, "{Name} rolled {Rolled} and won {Points} {PointType}!");
                 winMessage = winMessage
-                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Rolled}", value.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Points}", winnings.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Points}", winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(winMessage);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
             }
@@ -162,10 +162,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await UpdateJackpot(Convert.ToInt64(amount * jackpotContribution), false);
                 var loseMessage = await gameSettingsService.GetStringSetting(ModuleName, LOSE_MESSAGE, "{Name} rolled {Rolled} and lost {Points} {PointType}");
                 loseMessage = loseMessage
-                    .Replace("{Name}", e.DisplayName, StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Rolled}", value.ToString(), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{Points}", amount.ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                    .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase);
+                    .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Points}", amount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(loseMessage);
             }
         }

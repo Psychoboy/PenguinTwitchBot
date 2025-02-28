@@ -77,7 +77,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var starting = await gameSettingsService.GetStringSetting(GAMENAME, STARTING, "The bomb is beeping and {Name} cuts the {Wire} wire... ");
             starting = await ReplaceVariables(starting, nameWithTitle, e.Arg, cost, wires);
             var startMessage = starting;
-            if (chosenWire.Equals(e.Arg, StringComparison.CurrentCultureIgnoreCase))
+            if (chosenWire.Equals(e.Arg, StringComparison.OrdinalIgnoreCase))
             {
                 var multiplier = 3;
                 var min = cost * multiplier - cost / multiplier;
@@ -102,12 +102,12 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private async Task<string> ReplaceVariables(string msg, string name, string wire, int points, List<string> wires)
         {
             return msg
-                .Replace("{Wires}", string.Join(", ", wires), StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{Wire}", wire, StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{Cost}", (await GetCost()).ToString("N0"), StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{PointType}",(await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{Name}", name, StringComparison.CurrentCultureIgnoreCase)
-                .Replace("{Points}", points.ToString("N0"), StringComparison.CurrentCultureIgnoreCase);
+                .Replace("{Wires}", string.Join(", ", wires), StringComparison.OrdinalIgnoreCase)
+                .Replace("{Wire}", wire, StringComparison.OrdinalIgnoreCase)
+                .Replace("{Cost}", (await GetCost()).ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{PointType}",(await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase)
+                .Replace("{Name}", name, StringComparison.OrdinalIgnoreCase)
+                .Replace("{Points}", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
         }
 
         private Task<int> GetCost()

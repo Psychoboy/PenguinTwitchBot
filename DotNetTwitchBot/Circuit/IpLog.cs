@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Circuit
     {
         public async Task AddLogEntry(string username, string ipAddress)
         {
-            if (username.Equals("anonymous", StringComparison.CurrentCultureIgnoreCase)) return;
+            if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
