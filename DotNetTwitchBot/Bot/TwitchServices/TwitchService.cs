@@ -5,6 +5,7 @@ using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Core.Exceptions;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
+using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Subscriptions;
@@ -907,6 +908,29 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError(ex, "Error doing announcement");
             }
 
+        }
+
+        public async Task<List<ChannelEditor>> GetEditors()
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                _logger.LogError("Error getting broadcaster id.");
+                return [];
+            }
+            try
+            {
+                var editors = await _twitchApi.Helix.Channels.GetChannelEditorsAsync(broadcasterId, _configuration["twitchAccessToken"]);
+                if (editors != null)
+                {
+                    return [.. editors.Data];
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting editors");
+            }
+            return [];
         }
 
         public async Task SubscribeToAllTheStuffs(string sessionId)

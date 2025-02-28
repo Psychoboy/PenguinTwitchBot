@@ -1,5 +1,5 @@
 @page "/viewplaylist/{id:int}"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 
 <PageTitle>SPTV Twitch Bot - View Playlist</PageTitle>

@@ -1,5 +1,5 @@
 @page "/autoshoutouts/{id:int}"
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager

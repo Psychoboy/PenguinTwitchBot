@@ -218,6 +218,11 @@ namespace DotNetTwitchBot.Controllers
                     {
                         claims.Add(new Claim(ClaimTypes.Role, "VIP"));
                     }
+
+                    if(viewer.isEditor)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Editor"));
+                    }
                 }
 
                 var claimsIdentity = new ClaimsIdentity(

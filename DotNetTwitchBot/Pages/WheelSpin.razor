@@ -1,7 +1,7 @@
 ﻿@page "/wheelspin"
 @using DotNetTwitchBot.Bot
 @using DotNetTwitchBot.Bot.Models.Wheel
-@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.WheelSpin.IWheelService WheelService
 
 <PageTitle>SPTV Twitch Bot - Wheel Spins</PageTitle>
