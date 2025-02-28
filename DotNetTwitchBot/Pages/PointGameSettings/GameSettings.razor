@@ -1,45 +1,76 @@
 ﻿@page "/gamesettings"
+@using System.Text.RegularExpressions
 @attribute [Authorize(Roles = "Streamer")]
 <PageTitle>SPTV Twitch Bot - Game Settings</PageTitle>
 <CascadingAuthenticationState>
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>
             <MudItem sm="12">
+                <MudPaper Class="pa-4" Elevation="0">
                 <MudText Typo="Typo.h5">Game Settings</MudText>
                 <MudText>Most games have a cost outside of the command cost. So when setting costs for games set them here first. To choose which point
                     type a game uses go to <MudLink Href="/pointsettings">Point Settings</MudLink>. Dynamic variables in messages are in format {Variable}
                     so if you see something like {Cost} that is replaced with how much it costs or {PointType} that replaces with the name of the point. 
                     These are just examples but there are more.
                 </MudText>
+                </MudPaper>
             </MudItem>
-            <MudItem sm="6">
-                <RouletteSettings />
+            <MudItem sm="12">
+                <MudPaper Class="pa-4" Elevation="0">
+                <MudSelect Label="Select Game" @bind-Value="selectedType" ToStringFunc="@ConvertFunction">
+                    @foreach (var game in gameSettings)
+                    {
+                        <MudSelectItem Value="@game.Value"/>
+                    }
+                </MudSelect>
+                </MudPaper>
+               
             </MudItem>
-            <MudItem sm="6">
-                <HeistSettings />
-            </MudItem>
-            <MudItem sm="6">
-                <AddActiveSettings />
-            </MudItem>
-            <MudItem sm="6">
-                <SlotsSettings />
-            </MudItem>
-            <MudItem sm="6">
-                <ModSpamSettings />
-            </MudItem>
-            <MudItem sm="6">
-                <DefuseSettings />
-                
-            </MudItem>
-            <MudItem sm="6">
-                <FFASettings />
-            </MudItem>
-            <MudItem sm="6">
-                <GambleSettings />
-            </MudItem>
+             @if (selectedType != null)
+                {
+                    <MudItem sm="12">
+                        <DynamicComponent Type="selectedType" />
+                    </MudItem>
+                }
         </MudGrid>
     </MudContainer>
 </CascadingAuthenticationState>
 @code {
+    private readonly Dictionary<string, Type> gameSettings = new Dictionary<string, Type>
+    {
+        { "Roulette", typeof(RouletteSettings) },
+        { "Heist", typeof(HeistSettings) },
+        { "AddActive", typeof(AddActiveSettings) },
+        { "Slots", typeof(SlotsSettings) },
+        { "ModSpam", typeof(ModSpamSettings) },
+        { "Defuse", typeof(DefuseSettings) },
+        { "FFA", typeof(FFASettings) },
+        { "Gamble", typeof(GambleSettings) }
+    };
+    private Type? selectedType;
 
+    private void SelectGame(ChangeEventArgs e)
+    {
+        if (e.Value is string game)
+        {
+            selectedType = gameSettings[game];
+        } 
+        else
+        {
+            selectedType = null;
+        }
+    }
+
+    private string ConvertFunction(Type? kvp)
+    {
+        if (kvp == null)
+        {
+            return "";
+        }
+        return SplitCamelCase( kvp.Name);
+    }
+    private static string SplitCamelCase(string input)
+    {
+        return Regex.Replace(input, "(?<=[a-z])([A-Z])", " $1", RegexOptions.Compiled);
+    }
 }
