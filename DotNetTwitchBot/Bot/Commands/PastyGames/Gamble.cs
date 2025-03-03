@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 case "jackpot":
                     var jackpot = await GetJackpot();
                     var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
-                    var jackpotMessage = await gameSettingsService.GetStringSetting(ModuleName, CURRENT_JACKPOT_MESSAGE, "The current jackpot is {jackpot} {PointType}");
+                    var jackpotMessage = await gameSettingsService.GetStringSetting(GAMENAME, CURRENT_JACKPOT_MESSAGE, "The current jackpot is {jackpot} {PointType}");
                     jackpotMessage = jackpotMessage
                         .Replace("{jackpot}", jackpot.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                         .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
