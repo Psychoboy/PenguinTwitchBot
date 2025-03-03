@@ -50,6 +50,6 @@ namespace DotNetTwitchBot.Bot.Core
         Task SendChatMessage(string message);
         Task SendChatMessage(string name, string message);
         Task SendChatMessageWithTitle(string viewerName, string message);
-        Task OnViewerBan(string userId, string username, bool unbanned);
+        Task OnViewerBan(string userId, string username, bool unbanned, DateTimeOffset? endsAt);
     }
 }

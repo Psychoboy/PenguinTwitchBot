@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Models
         [JsonIgnore]
         public int? Id { get; set; }
         public int TimeOutLength { get; set; } = 300;
+        public bool PermaBan { get; set; } = false;
         public bool IsRegex { get; set; } = false;
         public string Phrase { get; set; } = "";
         public bool IsSilent { get; set; } = false;

@@ -50,7 +50,12 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
                     {
                         if (bannedUser.ExpiresAt.HasValue == false) continue;
                         _logger.LogInformation("{user} didn't exist in banned user list adding...", bannedUser.UserLogin);
-                        await AddBannedUser(bannedUser.UserLogin);
+                        await AddBannedUser(new Events.BanEventArgs
+                        {
+                            Name = bannedUser.UserLogin,
+                            BanEndsAt = bannedUser.ExpiresAt,
+                            UserId = bannedUser.UserId
+                        });
                     }
                 }
 
@@ -86,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             }
             else
             {
-                await AddBannedUser(e.Name);
+                await AddBannedUser(e);
             }
         }
 
@@ -125,8 +130,10 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             await db.SaveChangesAsync();
         }
 
-        private async Task AddBannedUser(string name)
+        private async Task AddBannedUser(Events.BanEventArgs e)
         {
+            var name = e.Name;
+            if (e.BanEndsAt != null) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bannedUser = await db.BannedViewers.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();

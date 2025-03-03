@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Test.Bot.Core
         public async Task AddChatMessage_ShouldAddMessage()
         {
             // Arrange
-            var chatMessageEventArgs = new ChatMessageEventArgs { Name = "testUser", DisplayName = "Test User", Message = "Hello" };
+            var chatMessageEventArgs = new ChatMessageEventArgs { Name = "testUser", DisplayName = "Test User", Message = "Hello", FromOwnChannel=true };
 
             // Act
             await _chatHistory.AddChatMessage(chatMessageEventArgs);

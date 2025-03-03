@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
 using DotNetTwitchBot.Repository;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace DotNetTwitchBot.Bot.Commands.Markov
 {
@@ -68,11 +69,45 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             if (markov != null)
             {
                 if(e.Message.StartsWith("!") == false 
-                    && Bots.Contains(e.Name.ToLower()) == false)
+                    && Bots.Contains(e.Name.ToLower()) == false
+                    && e.FromOwnChannel)
                 {
                     markov.Learn([e.Message], false);
                 }
             }
+        }
+
+        public async Task Relearn()
+        {
+            var statistics = markov.GetStatistics();
+            logger.LogInformation("Relearning MarkovChat Previous Stats count: {count}", statistics.Count());
+            await UpdateBots();
+            markov.Chain.Clear();
+            await Learn();
+            
+        }
+
+        private async Task Learn()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
+            var messages = await db.ViewerChatHistories
+                .Find(x => x.Message.StartsWith("!") == false &&
+                Bots.Contains(x.Username.ToLower()) == false &&
+                bannedUsers.Contains(x.Username.ToLower()) == false)
+                .Select(x => x.Message).ToListAsync();
+            if (messages != null)
+            {
+                markov.Learn(messages, false);
+                var statistics = markov.GetStatistics();
+                logger.LogInformation("MarkovChat Stats count: {count}", statistics.Count());
+            }
+            else
+            {
+                logger.LogWarning("No messages found to teach MarkovChat");
+            }
+            logger.LogInformation("MarkovChat is ready");
         }
 
         public async Task UpdateBots()
@@ -98,23 +133,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             await UpdateBots();
 
 
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
-            var messages = await db.ViewerChatHistories
-                .Find(x => x.Message.StartsWith("!") == false &&
-                Bots.Contains(x.Username.ToLower()) == false &&
-                bannedUsers.Contains(x.Username.ToLower()) == false)
-                .Select(x => x.Message).ToListAsync(cancellationToken);
-            if (messages != null)
-            {
-                markov.Learn(messages, false);
-            }
-            else
-            {
-                logger.LogWarning("No messages found to teach MarkovChat");
-            }
-            logger.LogInformation("MarkovChat is ready");
+            await Learn();
 
             await Register();
         }

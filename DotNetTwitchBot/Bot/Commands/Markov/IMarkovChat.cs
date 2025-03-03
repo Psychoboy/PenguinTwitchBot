@@ -6,5 +6,6 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
     {
         void LearnMessage(ChatMessageEventArgs e);
         Task UpdateBots();
+        Task Relearn();
     }
 }

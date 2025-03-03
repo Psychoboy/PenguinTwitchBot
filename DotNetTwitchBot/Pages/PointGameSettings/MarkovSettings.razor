@@ -7,6 +7,7 @@
     <MudDivider Class="mb-2 mt-2" />
     <MudTextField Label="Exclude Bots" @bind-Value="excludeBots" HelperText="Comma separated list of bots to exclude" />
     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="Relearn">Relearn</MudButton>
 </MudPaper>
 
 @code {
@@ -31,5 +32,11 @@
         await gameSettingsService.SetStringSetting(MarkovChat.GAMENAME, MarkovChat.EXCLUDE_BOTS, excludeBots);
         await markovChat.UpdateBots();
         Snackbar.Add("Markov settings saved.", Severity.Success);
+    }
+
+    private async Task Relearn()
+    {
+        await markovChat.Relearn();
+        Snackbar.Add("Markov chat relearned.", Severity.Success);
     }
 }

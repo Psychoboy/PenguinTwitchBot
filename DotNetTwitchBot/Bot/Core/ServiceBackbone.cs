@@ -273,7 +273,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnViewerBan(string userId, string username, bool unbanned)
+        public async Task OnViewerBan(string userId, string username, bool unbanned, DateTimeOffset? endsAt)
         {
             if (BanEvent != null)
             {

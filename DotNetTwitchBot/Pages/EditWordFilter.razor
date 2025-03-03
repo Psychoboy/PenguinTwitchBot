@@ -27,6 +27,7 @@ else
                 @bind-Value="wordFilter.BanReason" />
                 <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length" Variant="Variant.Text">
                 </MudNumericField>
+                <MudCheckBox @bind-Value="@wordFilter.PermaBan" Label="Perma Ban?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?"></MudCheckBox>
                 <MudCheckBox @bind-Value="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?"></MudCheckBox>
