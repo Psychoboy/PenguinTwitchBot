@@ -209,36 +209,6 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             return SetLongSetting(gameName, settingName, value);
         }
 
-        public Task<bool> GetGameSetting(string gameName, string settingName, bool defaultValue)
-        {
-           return GetBoolSetting(gameName, settingName, defaultValue);
-        }
-
-        public Task<int> GetGameSetting(string gameName, string settingName, int defaultValue)
-        {
-            return GetIntSetting(gameName, settingName, defaultValue);
-        }
-
-        public Task<double> GetGameSetting(string gameName, string settingName, double defaultValue)
-        {
-            return GetDoubleSetting(gameName, settingName, defaultValue);
-        }
-
-        public Task<long> GetGameSetting(string gameName, string settingName, long defaultValue)
-        {
-            return GetLongSetting(gameName, settingName, defaultValue);
-        }
-
-        public Task<string> GetGameSetting(string gameName, string settingName, string defaultValue)
-        {
-            return GetStringSetting(gameName, settingName, defaultValue);
-        }
-
-        public Task<List<string>> GetGameSetting(string gameName, string settingName, List<string> defaultValue)
-        {
-            return GetStringListSetting(gameName, settingName, defaultValue);
-        }
-
         private async Task<GameSetting?> GetSetting(string gameName, string settingName)
         {
             using var scope = scopeFactory.CreateScope();

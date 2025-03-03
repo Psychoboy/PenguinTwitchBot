@@ -28,12 +28,5 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         Task SaveSetting(string gameName, string settingName, double value);
         Task SaveSetting(string gameName, string settingName, bool value);
         Task SaveSetting(string gameName, string settingName, long value);
-
-        Task<bool> GetGameSetting(string gameName, string settingName, bool defaultValue);
-        Task<int> GetGameSetting(string gameName, string settingName, int defaultValue);
-        Task<double> GetGameSetting(string gameName, string settingName, double defaultValue);
-        Task<long> GetGameSetting(string gameName, string settingName, long defaultValue);
-        Task<string> GetGameSetting(string gameName, string settingName, string defaultValue);
-        Task<List<string>> GetGameSetting(string gameName, string settingName, List<string> defaultValue);
     }
 }
