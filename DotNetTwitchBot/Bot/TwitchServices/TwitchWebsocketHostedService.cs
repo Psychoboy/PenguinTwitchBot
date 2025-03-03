@@ -58,10 +58,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
+        private Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
         {
-            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return;
-            if (DidProcessMessage(args.Notification.Metadata)) return;
+            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return Task.CompletedTask;
+            if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Notification.Payload.Event.UserName, args.Notification.Payload.Event.Message);
             var e = args.Notification.Payload.Event;
             var chatMessage = new ChatMessageEventArgs
@@ -75,7 +75,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = false,
                 IsBroadcaster = false,
             };
-            await mediator.Publish(new ReceivedSuspiciousChatMessage { EventArgs = chatMessage });
+            return mediator.Publish(new ReceivedSuspiciousChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
