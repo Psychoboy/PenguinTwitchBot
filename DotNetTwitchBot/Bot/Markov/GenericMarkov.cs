@@ -57,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Markov
 
         // The number of previous states for the model to to consider when 
         //suggesting the next state
-        public int Level { get; private set; } = 2;
+        public int Level { get; set; } = 2;
 
         public void Learn(IEnumerable<TPhrase> phrases, bool ignoreAlreadyLearnt = true)
         {

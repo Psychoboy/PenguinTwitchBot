@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
     {
         public static readonly string GAMENAME = "MarkovChat";
         public static readonly string EXCLUDE_BOTS = "bots";
+        public static readonly string LEVEL = "level";
 
         //private StringMarkov? markov;
         private List<string> Bots = [];
@@ -79,10 +80,9 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 
         public async Task Relearn()
         {
-            var statistics = markov.GetStatistics();
-            logger.LogInformation("Relearning MarkovChat Previous Stats count: {count}", statistics.Count());
             await UpdateBots();
             markov.Chain.Clear();
+            markov.SourcePhrases.Clear();
             await Learn();
             
         }
@@ -97,11 +97,12 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                 Bots.Contains(x.Username.ToLower()) == false &&
                 bannedUsers.Contains(x.Username.ToLower()) == false)
                 .Select(x => x.Message).ToListAsync();
+
+            markov.Level = await gameSettingsService.GetIntSetting(GAMENAME, LEVEL, 2);
+
             if (messages != null)
             {
                 markov.Learn(messages, false);
-                var statistics = markov.GetStatistics();
-                logger.LogInformation("MarkovChat Stats count: {count}", statistics.Count());
             }
             else
             {
