@@ -41,6 +41,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task SendMessage(string message)
         {
+            if (message.Length == 0)
+            {
+                logger.LogWarning("Message is empty, not sending");
+                return;
+            }
             try
             {
                 var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message);
