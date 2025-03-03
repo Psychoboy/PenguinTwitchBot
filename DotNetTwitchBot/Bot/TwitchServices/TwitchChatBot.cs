@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to send message.");
+                logger.LogError(ex, "Failed to send message. {message}", message);
             }
         }
 
