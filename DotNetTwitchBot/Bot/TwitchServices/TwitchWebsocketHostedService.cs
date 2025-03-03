@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Websockets;
@@ -15,7 +16,7 @@ using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
-    public class TwitchWebsocketHostedService(
+    public partial class TwitchWebsocketHostedService(
         ILogger<TwitchWebsocketHostedService> logger,
         IServiceBackbone eventService,
         EventSubWebsocketClient eventSubWebsocketClient,
@@ -35,6 +36,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.MessageId)) return;
             if (DidProcessMessage(args.Notification.Metadata)) return;
 
+            var messageText = args.Notification.Payload.Event.Message.Text;
+            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+
             if (string.IsNullOrEmpty(args.Notification.Payload.Event.ChannelPointsCustomRewardId) == false)
             {
                 var channelPoint = await twitchService.GetCustomReward(args.Notification.Payload.Event.ChannelPointsCustomRewardId);
@@ -48,11 +52,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                    args.Notification.Payload.Event.ChatterUserName.ToLower(),
                    channelPoint.Title,
                    args.Notification.Payload.Event.Message.Text);
-                logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+                logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Notification.Payload.Event.ChatterUserName, messageText);
             }
             else
             {
-                logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, args.Notification.Payload.Event.Message.Text);
+                logger.LogInformation("CHATMSG: {name}: {message}", args.Notification.Payload.Event.ChatterUserName, messageText);
                 var e = args.Notification.Payload.Event;
                 await Task.WhenAll([ProcessCommandMessage(e), ProcessChatMessage(e)]);
             }
@@ -64,9 +68,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Notification.Payload.Event.UserName, args.Notification.Payload.Event.Message);
             var e = args.Notification.Payload.Event;
+            var messageText = args.Notification.Payload.Event.Message.Text;
+            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
             var chatMessage = new ChatMessageEventArgs
             {
-                Message = e.Message.Text,
+                Message = messageText,
                 UserId = e.UserId,
                 Name = e.UserLogin,
                 DisplayName = e.UserName,
@@ -75,14 +81,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = false,
                 IsBroadcaster = false,
             };
-            return mediator.Publish(new ReceivedSuspiciousChatMessage { EventArgs = chatMessage });
+            return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
         {
+            var messageText = e.Message.Text;
+            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
             var chatMessage = new ChatMessageEventArgs
             {
-                Message = e.Message.Text,
+                Message = messageText,
                 UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin.ToLower(),
                 DisplayName = e.ChatterUserName,
@@ -100,8 +108,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private async Task ProcessCommandMessage(ChannelChatMessage e)
         {
             if (e.Message.Text.StartsWith('!') == false) return;
-
-            var argsFull = e.Message.Text.Split(' ', 2);
+            var messageText = e.Message.Text;
+            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            var argsFull = messageText.Split(' ', 2);
             var command = argsFull[0];
             var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
             var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
@@ -592,5 +601,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
             
         }
+
+        [GeneratedRegex(@"[^\u0000-\u00FF]+")]
+        private static partial Regex MessageRegex();
     }
 }
