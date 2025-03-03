@@ -151,7 +151,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, true);
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, true, null);
             }
             catch (Exception ex)
             {
@@ -170,7 +170,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     return;
                 }
                 logger.LogInformation("{UserLogin} banned by {Moderator}", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.ModeratorUserLogin);
-                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, false);
+                
+                await eventService.OnViewerBan(e.Notification.Payload.Event.UserId, e.Notification.Payload.Event.UserLogin, false, e.Notification.Payload.Event.EndsAt);
             }
             catch (Exception ex)
             {

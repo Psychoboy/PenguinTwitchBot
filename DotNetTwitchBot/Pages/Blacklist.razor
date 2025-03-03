@@ -24,7 +24,7 @@
                         <RowTemplate>
                             <MudTd DataLabel="Phrase">@context.Phrase</MudTd>
                             <MudTd DataLabel="Message">@context.Message</MudTd>
-                            <MudTd DataLabel="Timeout Length">@context.TimeOutLength</MudTd>
+                            <MudTd DataLabel="Timeout Length">@context.PermaBan ? "Perma Banned" : @context.TimeOutLength</MudTd>
                             <MudTd DataLabel="Is Regex">@context.IsRegex</MudTd>
                             <MudTd DataLabel="Edit">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
@@ -57,6 +57,7 @@
                             <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length"
                                 Variant="Variant.Text">
                             </MudNumericField>
+                            <MudCheckBox @bind-Value="@wordFilter.PermaBan" Label="Perma Ban?"></MudCheckBox>
                             <MudCheckBox @bind-Value="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
                             <MudCheckBox @bind-Value="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?">
                             </MudCheckBox>
