@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Core;
+﻿using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
 using DotNetTwitchBot.Repository;
@@ -10,28 +11,16 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         ILogger<MarkovChat> logger,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
+        IGameSettingsService gameSettingsService,
         IServiceScopeFactory scopeFactory,
         StringMarkov markov
         ) : BaseCommandService(serviceBackbone, commandHandler, "MarkovChat"), IHostedService, IMarkovChat
     {
         public static readonly string GAMENAME = "MarkovChat";
+        public static readonly string EXCLUDE_BOTS = "bots";
 
         //private StringMarkov? markov;
-        private static readonly List<string> bots = [
-                "streamelements",
-                "streamlabs",
-                "nightbot",
-                "moobot",
-                "ankhbot",
-                "phantombot",
-                "wizebot",
-                "super_waffle_bot",
-                "superpenguintv",
-                "defbott",
-                "drinking_buddy_bot",
-                "dixperbot",
-                "lumiastream"
-                    ];
+        private List<string> Bots = [];
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommandDefaultName(e.Command);
@@ -79,23 +68,42 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             if (markov != null)
             {
                 if(e.Message.StartsWith("!") == false 
-                    && bots.Contains(e.Name.ToLower()) == false)
+                    && Bots.Contains(e.Name.ToLower()) == false)
                 {
                     markov.Learn([e.Message], false);
                 }
             }
         }
 
+        public async Task UpdateBots()
+        {
+            Bots = await gameSettingsService.GetStringListSetting(GAMENAME, EXCLUDE_BOTS, ["streamelements",
+                "streamlabs",
+                "nightbot",
+                "moobot",
+                "ankhbot",
+                "phantombot",
+                "wizebot",
+                "super_waffle_bot",
+                "defbott",
+                "drinking_buddy_bot",
+                "dixperbot",
+                "lumiastream"]);
+        }
+
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting MarkovChat");
             logger.LogInformation("Teaching MarkovChat");
+            await UpdateBots();
+
+
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var messages = await db.ViewerChatHistories
                 .Find(x => x.Message.StartsWith("!") == false &&
-                bots.Contains(x.Username.ToLower()) == false)
+                Bots.Contains(x.Username.ToLower()) == false)
                 .Select(x => x.Message).ToListAsync(cancellationToken);
             if (messages != null)
             {

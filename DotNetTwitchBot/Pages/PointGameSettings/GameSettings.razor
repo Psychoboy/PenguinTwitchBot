@@ -38,14 +38,15 @@
 @code {
     private readonly Dictionary<string, Type> gameSettings = new Dictionary<string, Type>
     {
-        { "Roulette", typeof(RouletteSettings) },
-        { "Heist", typeof(HeistSettings) },
         { "AddActive", typeof(AddActiveSettings) },
-        { "Slots", typeof(SlotsSettings) },
-        { "ModSpam", typeof(ModSpamSettings) },
         { "Defuse", typeof(DefuseSettings) },
         { "FFA", typeof(FFASettings) },
-        { "Gamble", typeof(GambleSettings) }
+        { "Gamble", typeof(GambleSettings) },
+        { "Heist", typeof(HeistSettings) },
+        {"MarkovChat", typeof(MarkovSettings) },
+        { "ModSpam", typeof(ModSpamSettings) },
+        { "Roulette", typeof(RouletteSettings) },
+        { "Slots", typeof(SlotsSettings) },
     };
     private Type? selectedType;
 
