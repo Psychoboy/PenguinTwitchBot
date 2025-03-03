@@ -12,15 +12,45 @@ namespace DotNetTwitchBot.Bot.Commands.Games
     {
 
         //Default Parameter names
+        /// <summary>
+        /// Used to replace the PointType in a string with the actual PointType name.
+        /// </summary>
         public static readonly string POINT_TYPE = "{PointType}";
+        /// <summary>
+        /// Used to replace the points value with the actual points value
+        /// </summary>
         public static readonly string POINTS = "{Points}";
+        /// <summary>
+        /// used to replace the points name with actual points name
+        /// </summary>
         public static readonly string POINTS_NAME = "{PointsName}";
+        /// <summary>
+        /// Used to replace the cost value with the actual cost value
+        /// </summary>
         public static readonly string COST = "{Cost}";
+        /// <summary>
+        /// Used to replace the the name witht he actual users name
+        /// </summary>
         public static readonly string NAME = "{Name}";
+        /// <summary>
+        /// used to replace the command name with the actual command name
+        /// </summary>
         public static readonly string COMMAND_NAME = "{CommandName}";
+        /// <summary>
+        /// used to replace the command name with the actual command name
+        /// </summary>
         public static readonly string COMMAND = "{Command}";
+        /// <summary>
+        /// Used for the minimum bet
+        /// </summary>
         public static readonly string MinBet = "{MinBet}";
+        /// <summary>
+        /// Used for the maximum bet
+        /// </summary>
         public static readonly string MaxBet = "{MaxBet}";
+        /// <summary>
+        /// Used for the amount
+        /// </summary>
         public static readonly string Amount = "{Amount}";
 
 
@@ -179,32 +209,32 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             return SetLongSetting(gameName, settingName, value);
         }
 
-        public Task<bool> GetSetting(string gameName, string settingName, bool defaultValue)
+        public Task<bool> GetGameSetting(string gameName, string settingName, bool defaultValue)
         {
            return GetBoolSetting(gameName, settingName, defaultValue);
         }
 
-        public Task<int> GetSetting(string gameName, string settingName, int defaultValue)
+        public Task<int> GetGameSetting(string gameName, string settingName, int defaultValue)
         {
             return GetIntSetting(gameName, settingName, defaultValue);
         }
 
-        public Task<double> GetSetting(string gameName, string settingName, double defaultValue)
+        public Task<double> GetGameSetting(string gameName, string settingName, double defaultValue)
         {
             return GetDoubleSetting(gameName, settingName, defaultValue);
         }
 
-        public Task<long> GetSetting(string gameName, string settingName, long defaultValue)
+        public Task<long> GetGameSetting(string gameName, string settingName, long defaultValue)
         {
             return GetLongSetting(gameName, settingName, defaultValue);
         }
 
-        public Task<string> GetSetting(string gameName, string settingName, string defaultValue)
+        public Task<string> GetGameSetting(string gameName, string settingName, string defaultValue)
         {
             return GetStringSetting(gameName, settingName, defaultValue);
         }
 
-        public Task<List<string>> GetSetting(string gameName, string settingName, List<string> defaultValue)
+        public Task<List<string>> GetGameSetting(string gameName, string settingName, List<string> defaultValue)
         {
             return GetStringListSetting(gameName, settingName, defaultValue);
         }
