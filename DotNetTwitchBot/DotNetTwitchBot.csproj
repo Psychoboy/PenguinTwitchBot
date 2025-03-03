@@ -75,7 +75,7 @@
     <PackageReference Include="Quartz.AspNetCore" Version="3.13.1" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageReference Include="Serilog.Expressions" Version="5.1.0-dev-00186" />
+    <PackageReference Include="Serilog.Expressions" Version="5.1.0-dev-02301" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.5.0" />
