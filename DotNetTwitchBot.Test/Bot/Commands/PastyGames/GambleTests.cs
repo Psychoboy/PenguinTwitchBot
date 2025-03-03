@@ -72,10 +72,11 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         public async Task OnCommand_WithJackpotCommand_ShouldDisplayJackpot()
         {
             // Arrange
+            _pointsSystem.GetPointTypeForGame(Gamble.GAMENAME).Returns(new PointType { Name = "Points" });
             _commandHandler.GetCommand("jackpot").Returns(new Command(new BaseCommandProperties { CommandName = "jackpot" }, _gamble));
             _gameSettingsService.GetLongSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT, 1000).Returns(5000);
-            _gameSettingsService.GetStringSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE, "The current jackpot is {jackpot}")
-                .Returns("The current jackpot is {jackpot}");
+            _gameSettingsService.GetStringSetting(Gamble.GAMENAME, Gamble.CURRENT_JACKPOT_MESSAGE, Arg.Any<string>())
+                .Returns("The current jackpot is {jackpot} {PointType}");
 
             var eventArgs = new CommandEventArgs { Command = "jackpot", DisplayName = "TestUser" };
 
@@ -83,7 +84,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             await _gamble.OnCommand(this, eventArgs);
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "The current jackpot is 5,000");
+            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "The current jackpot is 5,000 Points");
         }
 
         [Fact]

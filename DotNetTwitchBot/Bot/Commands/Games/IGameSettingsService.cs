@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
+using System.Runtime.CompilerServices;
 
 namespace DotNetTwitchBot.Bot.Commands.Games
 {
