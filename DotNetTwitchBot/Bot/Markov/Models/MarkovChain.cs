@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
@@ -7,6 +8,14 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         public MarkovChain()
         {
             ChainDictionary = new ConcurrentDictionary<NgramContainer<T>, List<T>>();
+        }
+
+        internal void Clear()
+        {
+            lock (_lockObj)
+            {
+                ChainDictionary.Clear();
+            }
         }
 
         internal ConcurrentDictionary<NgramContainer<T>, List<T>> ChainDictionary { get; }
