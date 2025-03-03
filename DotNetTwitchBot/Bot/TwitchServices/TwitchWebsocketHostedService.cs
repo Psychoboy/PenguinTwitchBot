@@ -63,20 +63,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return Task.CompletedTask;
             if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Notification.Payload.Event.UserName, args.Notification.Payload.Event.Message);
-            return Task.CompletedTask;
-            //var e = args.Notification.Payload.Event;
-            //var chatMessage = new ChatMessageEventArgs
-            //{
-            //    Message = e.Message.Text,
-            //    UserId = e.UserId,
-            //    Name = e.UserLogin,
-            //    DisplayName = e.UserName,
-            //    IsSub = false,
-            //    IsMod = false,
-            //    IsVip = false,
-            //    IsBroadcaster = false,
-            //};
-            //await mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+            var e = args.Notification.Payload.Event;
+            var chatMessage = new ChatMessageEventArgs
+            {
+                Message = e.Message.Text,
+                UserId = e.UserId,
+                Name = e.UserLogin,
+                DisplayName = e.UserName,
+                IsSub = false,
+                IsMod = false,
+                IsVip = false,
+                IsBroadcaster = false,
+            };
+            return mediator.Publish(new ReceivedSuspiciousChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
