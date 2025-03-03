@@ -65,13 +65,13 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 var newTerms = phrases.Where(s => !SourcePhrases.Contains(s));
 
-                logger.LogInformation($"Learning {newTerms.Count()} lines");
+                logger.LogInformation("Learning {count} lines", newTerms.Count());
                 // For every sentence which hasnt already been learnt, learn it
                 Parallel.ForEach(phrases, Learn);
             }
             else
             {
-                logger.LogInformation($"Learning {phrases.Count()} lines");
+                logger.LogInformation("Learning {count} lines", phrases.Count());
                 // For every sentence, learn it
                 Parallel.ForEach(phrases, Learn);
             }
