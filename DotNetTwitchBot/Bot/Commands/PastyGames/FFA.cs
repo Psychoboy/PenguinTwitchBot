@@ -84,9 +84,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var winnerMessage = await _gameSettingsService.GetStringSetting(ModuleName, WINNER_MESSAGE, "The dust finally settled and the last one standing is {Name} and gets {Points} {PointType}!");
             var pointType = await _pointsSystem.GetPointTypeForGame(ModuleName);
             winnerMessage = winnerMessage
-                .Replace("{Name}", winner, StringComparison.OrdinalIgnoreCase)
-                .Replace("{Points}", winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
+                .Replace(GameSettingsService.NAME, winner, StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
             await ServiceBackbone.SendChatMessage(winnerMessage);
             await _pointsSystem.AddPointsByUserIdAndGame(winner, ModuleName, winnings);
             await CleanUp();

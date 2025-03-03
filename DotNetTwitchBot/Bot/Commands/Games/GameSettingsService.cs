@@ -10,6 +10,20 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         IServiceScopeFactory scopeFactory
         ) : IGameSettingsService
     {
+
+        //Default Parameter names
+        public static readonly string POINT_TYPE = "{PointType}";
+        public static readonly string POINTS = "{Points}";
+        public static readonly string POINTS_NAME = "{PointsName}";
+        public static readonly string COST = "{Cost}";
+        public static readonly string NAME = "{Name}";
+        public static readonly string COMMAND_NAME = "{CommandName}";
+        public static readonly string COMMAND = "{Command}";
+        public static readonly string MinBet = "{MinBet}";
+        public static readonly string MaxBet = "{MaxBet}";
+        public static readonly string Amount = "{Amount}";
+
+
         public async Task<string> GetStringSetting(string gameName, string settingName, string defaultValue)
         {
             var setting = await GetSetting(gameName, settingName);
@@ -163,6 +177,36 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         public Task SaveSetting(string gameName, string settingName, long value)
         {
             return SetLongSetting(gameName, settingName, value);
+        }
+
+        public Task<bool> GetSetting(string gameName, string settingName, bool defaultValue)
+        {
+           return GetBoolSetting(gameName, settingName, defaultValue);
+        }
+
+        public Task<int> GetSetting(string gameName, string settingName, int defaultValue)
+        {
+            return GetIntSetting(gameName, settingName, defaultValue);
+        }
+
+        public Task<double> GetSetting(string gameName, string settingName, double defaultValue)
+        {
+            return GetDoubleSetting(gameName, settingName, defaultValue);
+        }
+
+        public Task<long> GetSetting(string gameName, string settingName, long defaultValue)
+        {
+            return GetLongSetting(gameName, settingName, defaultValue);
+        }
+
+        public Task<string> GetSetting(string gameName, string settingName, string defaultValue)
+        {
+            return GetStringSetting(gameName, settingName, defaultValue);
+        }
+
+        public Task<List<string>> GetSetting(string gameName, string settingName, List<string> defaultValue)
+        {
+            return GetStringListSetting(gameName, settingName, defaultValue);
         }
 
         private async Task<GameSetting?> GetSetting(string gameName, string settingName)

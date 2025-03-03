@@ -104,10 +104,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             return msg
                 .Replace("{Wires}", string.Join(", ", wires), StringComparison.OrdinalIgnoreCase)
                 .Replace("{Wire}", wire, StringComparison.OrdinalIgnoreCase)
-                .Replace("{Cost}", (await GetCost()).ToString("N0"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{PointType}",(await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase)
-                .Replace("{Name}", name, StringComparison.OrdinalIgnoreCase)
-                .Replace("{Points}", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
+                .Replace(GameSettingsService.COST, (await GetCost()).ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.POINT_TYPE,(await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.NAME, name, StringComparison.OrdinalIgnoreCase)
+                .Replace(GameSettingsService.POINTS, points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
         }
 
         private Task<int> GetCost()
