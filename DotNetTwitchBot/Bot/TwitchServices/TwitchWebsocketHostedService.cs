@@ -58,24 +58,25 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
+        private Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
         {
-            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return;
-            if (DidProcessMessage(args.Notification.Metadata)) return;
+            if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return Task.CompletedTask;
+            if (DidProcessMessage(args.Notification.Metadata)) return Task.CompletedTask;
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Notification.Payload.Event.UserName, args.Notification.Payload.Event.Message);
-            var e = args.Notification.Payload.Event;
-            var chatMessage = new ChatMessageEventArgs
-            {
-                Message = e.Message.Text,
-                UserId = e.UserId,
-                Name = e.UserLogin,
-                DisplayName = e.UserName,
-                IsSub = false,
-                IsMod = false,
-                IsVip = false,
-                IsBroadcaster = false,
-            };
-            await mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+            return Task.CompletedTask;
+            //var e = args.Notification.Payload.Event;
+            //var chatMessage = new ChatMessageEventArgs
+            //{
+            //    Message = e.Message.Text,
+            //    UserId = e.UserId,
+            //    Name = e.UserLogin,
+            //    DisplayName = e.UserName,
+            //    IsSub = false,
+            //    IsMod = false,
+            //    IsVip = false,
+            //    IsBroadcaster = false,
+            //};
+            //await mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
@@ -89,7 +90,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsSub = e.IsSubscriber,
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
-                IsBroadcaster = e.IsBroadcaster
+                IsBroadcaster = e.IsBroadcaster,
+                MessageId = e.MessageId
+
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
@@ -116,7 +119,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : "",
-                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
+                MessageId = e.MessageId
             };
             await eventService.OnCommand(eventArgs);
         }

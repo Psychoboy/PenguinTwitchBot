@@ -8,6 +8,7 @@
         public string DisplayName { get; set; } = default!;
         public string Username { get; set; } = default!;
         public string Message { get; set; } = default!;
+        public string? MessageId { get; set; }
         public DateTime? CreatedAt { get; set; } = DateTime.Now;
     }
 }
