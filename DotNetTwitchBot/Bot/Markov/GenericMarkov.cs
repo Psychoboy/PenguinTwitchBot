@@ -260,7 +260,7 @@ namespace DotNetTwitchBot.Bot.Markov
             }
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-            while (built.Count < 1500)
+            while (built.Count < 25)
             {
                 // Choose a new token to add from the model
                 var key = new NgramContainer<TUnigram>(q.Cast<TUnigram>().ToArray());
