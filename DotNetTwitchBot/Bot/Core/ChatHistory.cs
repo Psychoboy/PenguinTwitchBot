@@ -44,7 +44,8 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 Username = name,
                 DisplayName = displayName,
-                Message = message
+                Message = message,
+                MessageId = messageId,
             };
             try
             {
