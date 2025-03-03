@@ -100,10 +100,11 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
+            var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
             var messages = await db.ViewerChatHistories
                 .Find(x => x.Message.StartsWith("!") == false &&
-                Bots.Contains(x.Username.ToLower()) == false)
+                Bots.Contains(x.Username.ToLower()) == false &&
+                bannedUsers.Contains(x.Username.ToLower()) == false)
                 .Select(x => x.Message).ToListAsync(cancellationToken);
             if (messages != null)
             {

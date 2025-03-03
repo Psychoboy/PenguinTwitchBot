@@ -32,10 +32,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         private Task OnCommandMessage(object? sender, CommandEventArgs e)
         {
-            return AddMessage(e.Name, e.DisplayName, e.Command + " " + e.Arg);
+            return AddMessage(e.Name, e.DisplayName, e.Command + " " + e.Arg, e.MessageId);
         }
 
-        private async Task AddMessage(string name, string displayName, string message)
+        private async Task AddMessage(string name, string displayName, string message, string messageId)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task AddChatMessage(ChatMessageEventArgs e)
         {
-            return AddMessage(e.Name, e.DisplayName, e.Message);
+            return AddMessage(e.Name, e.DisplayName, e.Message, e.MessageId);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
