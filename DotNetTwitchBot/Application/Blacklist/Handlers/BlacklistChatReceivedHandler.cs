@@ -11,4 +11,12 @@ namespace DotNetTwitchBot.Application.Blacklist.Handlers
             return blacklist.ChatMessage(notification.EventArgs);
         }
     }
+
+    public class BlacklistSuspiciousChatReceivedHandler(Bot.Commands.Moderation.Blacklist blacklist) : INotificationHandler<ReceivedSuspiciousChatMessage>
+    {
+        public Task Handle(ReceivedSuspiciousChatMessage notification, CancellationToken cancellationToken)
+        {
+            return blacklist.ChatMessage(notification.EventArgs);
+        }
+    }
 }
