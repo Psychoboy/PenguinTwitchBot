@@ -32,6 +32,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private Task OnCommandMessage(object? sender, CommandEventArgs e)
         {
+            if(e.FromOwnChannel == false) return Task.CompletedTask;
             return AddMessage(e.Name, e.DisplayName, e.Command + " " + e.Arg, e.MessageId);
         }
 
@@ -58,6 +59,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task AddChatMessage(ChatMessageEventArgs e)
         {
+            if(e.FromOwnChannel == false) return Task.CompletedTask;
             return AddMessage(e.Name, e.DisplayName, e.Message, e.MessageId);
         }
 

@@ -8,6 +8,6 @@ namespace DotNetTwitchBot.Bot.Events.Chat
     public class ChatMessageEventArgs : BaseChatEventArgs
     {
         public string Message { get; set; } = "";
-
+        public bool FromOwnChannel { get; internal set; }
     }
 }

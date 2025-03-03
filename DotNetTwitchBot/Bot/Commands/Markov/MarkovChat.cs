@@ -68,7 +68,8 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             if (markov != null)
             {
                 if(e.Message.StartsWith("!") == false 
-                    && Bots.Contains(e.Name.ToLower()) == false)
+                    && Bots.Contains(e.Name.ToLower()) == false
+                    && e.FromOwnChannel)
                 {
                     markov.Learn([e.Message], false);
                 }

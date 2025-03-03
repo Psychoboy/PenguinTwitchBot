@@ -91,7 +91,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
-                MessageId = e.MessageId
+                MessageId = e.MessageId,
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
 
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
