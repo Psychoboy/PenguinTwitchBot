@@ -1,0 +1,35 @@
+﻿@attribute [Authorize(Roles = "Streamer, Editor")]
+@using DotNetTwitchBot.Bot.Commands.Games
+@using DotNetTwitchBot.Bot.Commands.Markov
+
+<MudPaper>
+    <MudText Typo="Typo.h5">Markov Settings</MudText>
+    <MudDivider Class="mb-2 mt-2" />
+    <MudTextField Label="Exclude Bots" @bind-Value="excludeBots" HelperText="Comma separated list of bots to exclude" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private IGameSettingsService gameSettingsService { get; set; } = null!;
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+    [Inject]
+    private IMarkovChat markovChat { get; set; } = null!;
+    private string excludeBots { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        excludeBots = await gameSettingsService.GetStringSetting(
+            MarkovChat.GAMENAME, MarkovChat.EXCLUDE_BOTS,
+                    "streamelements,streamlabs,nightbot,moobot,ankhbot,phantombot,wizebot,super_waffle_bot,defbott,drinking_buddy_bot,dixperbot,lumiastream"
+        );
+    }
+
+    private async Task SaveSettings()
+    {
+        await gameSettingsService.SetStringSetting(MarkovChat.GAMENAME, MarkovChat.EXCLUDE_BOTS, excludeBots);
+        await markovChat.UpdateBots();
+        Snackbar.Add("Markov settings saved.", Severity.Success);
+    }
+}

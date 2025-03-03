@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var logs = db.ViewerChatHistories.Find(x => x.CreatedAt < DateTime.Now.AddMonths(-6));
+            var logs = db.ViewerChatHistories.Find(x => x.CreatedAt < DateTime.Now.AddMonths(-12));
             db.ViewerChatHistories.RemoveRange(logs);
             var result = await db.SaveChangesAsync();
             _logger.LogInformation("Removed {amount} chat histories", result);

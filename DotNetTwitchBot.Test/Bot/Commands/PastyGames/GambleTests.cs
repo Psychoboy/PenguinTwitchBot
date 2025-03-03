@@ -28,7 +28,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly ITools _tools;
         private readonly MaxBetCalculator _maxBetCalculator;
         private readonly Gamble _gamble;
-        private readonly Gamble _gambleMockService;
 
         public GambleTests()
         {
