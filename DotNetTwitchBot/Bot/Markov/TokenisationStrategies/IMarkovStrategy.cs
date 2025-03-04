@@ -13,8 +13,6 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 
         void Learn(string phrase);
 
-        void Retrain(int newLevel);
-
         IEnumerable<string> Walk(int lines = 1, string? seed = default);
 
         string? GetTerminatorUnigram();

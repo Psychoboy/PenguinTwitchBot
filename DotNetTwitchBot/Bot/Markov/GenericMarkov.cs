@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Markov
         /// </summary>
         public IUnigramSelector UnigramSelector { get; set; } = new MostPopularRandomUnigramSelector();
 
-        public List<string> SourcePhrases { get; set; } = new List<string>();
+        //public List<string> SourcePhrases { get; set; } = new List<string>();
 
         /// <summary>
         /// Defines how to split the phrase to ngrams
@@ -59,20 +59,14 @@ namespace DotNetTwitchBot.Bot.Markov
 
         public void Learn(IEnumerable<string> phrases, bool ignoreAlreadyLearnt = true)
         {
-            if (ignoreAlreadyLearnt)
-            {
-                var newTerms = phrases.Where(s => !SourcePhrases.Contains(s));
 
-                logger.LogInformation("Learning {count} lines", newTerms.Count());
-                // For every sentence which hasnt already been learnt, learn it
-                Parallel.ForEach(phrases, Learn);
-            }
-            else
+            if (phrases.Count() > 0)
             {
                 logger.LogInformation("Learning {count} lines", phrases.Count());
-                // For every sentence, learn it
-                Parallel.ForEach(phrases, Learn);
             }
+            // For every sentence, learn it
+            Parallel.ForEach(phrases, Learn);
+            
         }
 
         public void Learn(string phrase)
@@ -88,14 +82,6 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 logger.LogDebug($"Phrase {phrase} too short - skipped");
                 return;
-            }
-
-            // Add it to the source lines so we can ignore it 
-            // when learning in future
-            if (!SourcePhrases.Contains(phrase))
-            {
-                logger.LogDebug($"Adding phrase {phrase} to source lines");
-                SourcePhrases.Add(phrase);
             }
 
             // Split the sentence to an array of words
@@ -171,28 +157,6 @@ namespace DotNetTwitchBot.Bot.Markov
         }
 
         /// <summary>
-        /// Retrain an existing trained model instance to a different 'level'
-        /// </summary>
-        /// <param name="newLevel"></param>
-        public void Retrain(int newLevel)
-        {
-            if (newLevel < 1)
-            {
-                throw new ArgumentException("Invalid argument - retrain level must be a positive integer", nameof(newLevel));
-            }
-
-            logger.LogInformation($"Retraining model as level {newLevel}");
-            Level = newLevel;
-
-            // Empty the model so it can be rebuilt
-            Chain = new MarkovChain();
-
-            Learn(SourcePhrases, false);
-        }
-
-
-
-        /// <summary>
         /// Generate a collection of phrase output data based on the current model
         /// </summary>
         /// <param name="lines">The number of phrases to emit</param>
@@ -223,7 +187,7 @@ namespace DotNetTwitchBot.Bot.Markov
                     break;
                 }
                 var result = WalkLine(seed);
-                if ((!EnsureUniqueWalk || !SourcePhrases.Contains(result)) && (!EnsureUniqueWalk || !sentences.Contains(result)))
+                if (!EnsureUniqueWalk && (!EnsureUniqueWalk || !sentences.Contains(result)))
                 {
                     sentences.Add(result);
                     created++;
