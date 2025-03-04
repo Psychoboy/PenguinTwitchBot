@@ -73,17 +73,15 @@ namespace DotNetTwitchBot.Bot.Core
             return AddMessage(e.Name, e.DisplayName, e.Message, e.MessageId);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting Chat History");
-            _serviceBackbone.CommandEvent += OnCommandMessage;
-            return Register();
+            await Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopping Chat History");
-            _serviceBackbone.CommandEvent -= OnCommandMessage;
             return Task.CompletedTask;
         }
 
@@ -119,6 +117,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
+            await OnCommandMessage(sender, e);
             var command = CommandHandler.GetCommandDefaultName(e.Command);
             if(command.Equals("vanish", StringComparison.OrdinalIgnoreCase))
             {
@@ -149,10 +148,10 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public override Task Register()
+        public async override Task Register()
         {
             _logger.LogInformation("Registered Chat History");
-            return RegisterDefaultCommand("vanish", this, ModuleName, description: "Deletes your last chat message.");
+            await RegisterDefaultCommand("vanish", this, ModuleName, description: "Deletes your last chat message.");
         }
     }
 }

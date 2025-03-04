@@ -71,25 +71,5 @@ namespace DotNetTwitchBot.Test.Bot.Core
             _unitOfWork.ViewerChatHistories.Received(1).RemoveRange(Arg.Any<IEnumerable<ViewerChatHistory>>());
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
-
-        [Fact]
-        public async Task StartAsync_ShouldSubscribeToCommandEvent()
-        {
-            // Act
-            await _chatHistory.StartAsync(CancellationToken.None);
-
-            // Assert
-            _serviceBackbone.Received(1).CommandEvent += Arg.Any<AsyncEventHandler<CommandEventArgs>>();
-        }
-
-        [Fact]
-        public async Task StopAsync_ShouldUnsubscribeFromCommandEvent()
-        {
-            // Act
-            await _chatHistory.StopAsync(CancellationToken.None);
-
-            // Assert
-            _serviceBackbone.Received(1).CommandEvent -= Arg.Any<AsyncEventHandler<CommandEventArgs>>();
-        }
     }
 }
