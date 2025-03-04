@@ -82,7 +82,6 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         {
             await UpdateBots();
             markov.Chain.Clear();
-            markov.SourcePhrases.Clear();
             await Learn();
             
         }

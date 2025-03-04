@@ -1,13 +1,13 @@
-﻿using System.Collections.Concurrent;
+﻿ using System.Collections.Concurrent;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
-    public class MarkovChain<T>
+    public class MarkovChain
     {
         public MarkovChain()
         {
-            ChainDictionary = new ConcurrentDictionary<NgramContainer<T>, List<T>>();
+            ChainDictionary = new ConcurrentDictionary<NgramContainer<string>, List<string>>();
         }
 
         internal void Clear()
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             }
         }
 
-        internal ConcurrentDictionary<NgramContainer<T>, List<T>> ChainDictionary { get; }
+        internal ConcurrentDictionary<NgramContainer<string>, List<string>> ChainDictionary { get; }
         private readonly object _lockObj = new object();
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         public int Count => ChainDictionary.Count;
 
-        internal bool Contains(NgramContainer<T> key)
+        internal bool Contains(NgramContainer<string> key)
         {
             return ChainDictionary.ContainsKey(key);
         }
@@ -36,14 +36,14 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         /// <param name="key">The composite key under which to add the TGram value</param>
         /// <param name="value">The value to add to the store</param>
-        internal void AddOrCreate(NgramContainer<T> key, T? value)
+        internal void AddOrCreate(NgramContainer<string> key, string? value)
         {
             if (value == null) return;
             lock (_lockObj)
             {
                 if (!ChainDictionary.ContainsKey(key))
                 {
-                    ChainDictionary.TryAdd(key, new List<T> { value });
+                    ChainDictionary.TryAdd(key, new List<string> { value });
                 }
                 else
                 {
@@ -52,17 +52,9 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             }
         }
 
-        internal List<T> GetValuesForKey(NgramContainer<T> key)
+        internal List<string> GetValuesForKey(NgramContainer<string> key)
         {
             return ChainDictionary[key];
-        }
-
-        internal IEnumerable<StateStatistic<T>> GetStatistics()
-        {
-            var stats = ChainDictionary.Keys.Select(a => new StateStatistic<T>(a, ChainDictionary[a]))
-                .OrderByDescending(a => a.Next.Sum(x => x.Count));
-
-            return stats;
         }
     }
 }

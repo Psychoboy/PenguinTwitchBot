@@ -1,6 +1,6 @@
 ﻿namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 {
-    public class StringMarkov : GenericMarkov<string, string>
+    public class StringMarkov : GenericMarkov
     {
         public StringMarkov(ILogger<StringMarkov> logger)
             : base(logger)

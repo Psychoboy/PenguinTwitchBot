@@ -1,7 +1,7 @@
 ﻿namespace DotNetTwitchBot.Bot.Markov.Components
 {
-    public interface IUnigramSelector<TUnigram>
+    public interface IUnigramSelector
     {
-        TUnigram SelectUnigram(IEnumerable<TUnigram> ngrams);
+        string SelectUnigram(IEnumerable<string> ngrams);
     }
 }
