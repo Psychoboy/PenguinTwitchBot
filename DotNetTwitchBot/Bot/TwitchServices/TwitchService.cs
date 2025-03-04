@@ -159,7 +159,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return null;
         }
 
-        public async Task<bool> WillBeAutomodded(string message)
+        public async Task<bool> WillBePermittedByAutomod(string message)
         {
             await ValidateAndRefreshToken();
             try
