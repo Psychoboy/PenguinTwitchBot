@@ -2,18 +2,18 @@
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
-    public class NgramContainer<T>
+    public class NgramContainer
     {
-        internal T[] Ngrams { get; }
+        internal string[] Ngrams { get; }
 
-        public NgramContainer(params T[] args)
+        public NgramContainer(params string[] args)
         {
             Ngrams = args;
         }
 
         public override bool Equals(object? o)
         {
-            if (o is NgramContainer<T> testObj)
+            if (o is NgramContainer testObj)
             {
                 return Ngrams.OrderBy(a => a).ToArray().SequenceEqual(testObj.Ngrams.OrderBy(a => a).ToArray());
             }
@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             unchecked
             {
                 int hash = 17;
-                var defaultVal = default(T);
+                var defaultVal = default(string);
                 foreach (var member in Ngrams.Where(a => a != null && !a.Equals(defaultVal)))
                 {
                     if(member != null)

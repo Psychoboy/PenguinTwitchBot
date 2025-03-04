@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Markov.Components;
 using DotNetTwitchBot.Bot.Markov.Models;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
+using Quartz.Util;
 using Serilog;
 
 namespace DotNetTwitchBot.Bot.Markov
@@ -12,8 +13,6 @@ namespace DotNetTwitchBot.Bot.Markov
     /// define overrides for SplitTokens and RebuildPhrase, which is generally
     /// all that should be needed for implementation of a new model type.
     /// </summary>
-    /// <typeparam name="TPhrase">The type representing the entire phrase</typeparam>
-    /// <typeparam name="TUnigram">The type representing a unigram, or state</typeparam>
     public abstract class GenericMarkov(ILogger<GenericMarkov> logger) : IMarkovStrategy
     {
 
@@ -25,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Markov
         /// Used for defining a strategy to select the next value when calling Walk()
         /// Set this to something else for different behaviours
         /// </summary>
-        public IUnigramSelector UnigramSelector { get; set; } = new MostPopularRandomUnigramSelector();
+        public IUnigramSelector UnigramSelector { get; set; } = new WeightedListUnigramSelector();
 
         //public List<string> SourcePhrases { get; set; } = new List<string>();
 
@@ -43,24 +42,14 @@ namespace DotNetTwitchBot.Bot.Markov
         /// <returns></returns>
         public abstract string RebuildPhrase(IEnumerable<string> tokens);
 
-        public abstract string? GetTerminatorUnigram();
-
-        public abstract string GetPrepadUnigram();
-
-        /// <summary>
-        /// Set to true to ensure that all lines generated are different and not same as the training data.
-        /// This might not return as many lines as requested if genreation is exhausted and finds no new unique values.
-        /// </summary>
-        public bool EnsureUniqueWalk { get; set; } = false;
-
         // The number of previous states for the model to to consider when 
         //suggesting the next state
         public int Level { get; set; } = 2;
 
-        public void Learn(IEnumerable<string> phrases, bool ignoreAlreadyLearnt = true)
+        public void Learn(IEnumerable<string> phrases)
         {
 
-            if (phrases.Count() > 0)
+            if (phrases.Any())
             {
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }
@@ -71,8 +60,8 @@ namespace DotNetTwitchBot.Bot.Markov
 
         public void Learn(string phrase)
         {
-            logger.LogDebug($"Learning phrase: '{phrase}'");
-            if (phrase == null || phrase.Equals(default(string)))
+            logger.LogDebug("Learning phrase: '{phrase}'", phrase);
+            if (phrase == null || phrase.Equals(default))
             {
                 return;
             }
@@ -80,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Markov
             // Ignore particularly short phrases
             if (SplitTokens(phrase).Count() < Level)
             {
-                logger.LogDebug($"Phrase {phrase} too short - skipped");
+                logger.LogDebug("Phrase {phrase} too short - skipped", phrase);
                 return;
             }
 
@@ -95,30 +84,30 @@ namespace DotNetTwitchBot.Bot.Markov
                 string previous;
                 try
                 {
-                    previous = tokens[tokens.Length - j];
-                    logger.LogDebug($"Adding TGram ({typeof(string)}) {previous} to lastCol");
+                    previous = tokens[^j];
+                    logger.LogDebug("Adding TGram {previous} to lastCol", previous);
                     lastCol.Add(previous);
                 }
                 catch (IndexOutOfRangeException e)
                 {
-                    logger.LogWarning($"Caught an exception: {e}");
-                    previous = GetPrepadUnigram();
+                    logger.LogWarning(e, "Caught an exception");
+                    previous = "";
                     lastCol.Add(previous);
                 }
             }
 
-            logger.LogDebug($"Reached final key for phrase {phrase}");
-            var finalKey = new NgramContainer<string>(lastCol.ToArray());
-            Chain.AddOrCreate(finalKey, GetTerminatorUnigram());
+            logger.LogDebug("Reached final key for phrase {phrase}", phrase);
+            var finalKey = new NgramContainer([.. lastCol]);
+            Chain.AddOrCreate(finalKey, null);
         }
 
         /// <summary>
         /// Iterate over a list of TGrams and store each of them in the model at a composite key genreated from its prior [Level] number of TGrams
         /// </summary>
         /// <param name="tokens"></param>
-        private void LearnTokens(IReadOnlyList<string> tokens)
+        private void LearnTokens(string[] tokens)
         {
-            for (var i = 0; i < tokens.Count; i++)
+            for (var i = 0; i < tokens.Length; i++)
             {
                 var current = tokens[i];
                 var previousCol = new List<string>();
@@ -133,7 +122,7 @@ namespace DotNetTwitchBot.Bot.Markov
                         // and we effectively would be looking at tokens before the beginning phrase
                         if (i - j < 0)
                         {
-                            previousCol.Add(GetPrepadUnigram());
+                            previousCol.Add("");
                         }
                         else
                         {
@@ -143,13 +132,13 @@ namespace DotNetTwitchBot.Bot.Markov
                     }
                     catch (IndexOutOfRangeException)
                     {
-                        previous = GetPrepadUnigram();
+                        previous = "";
                         previousCol.Add(previous);
                     }
                 }
 
                 // create the composite key based on previous tokens
-                var key = new NgramContainer<string>(previousCol.ToArray());
+                var key = new NgramContainer(previousCol.ToArray());
 
                 // add the current token to the markov model at the composite key
                 Chain.AddOrCreate(key, current);
@@ -159,42 +148,15 @@ namespace DotNetTwitchBot.Bot.Markov
         /// <summary>
         /// Generate a collection of phrase output data based on the current model
         /// </summary>
-        /// <param name="lines">The number of phrases to emit</param>
         /// <param name="seed">Optionally provide the start of the phrase to generate from</param>
         /// <returns></returns>
-        public IEnumerable<string> Walk(int lines = 1, string? seed = default)
+        public string Walk(string? seed = default)
         {
             if (seed == null)
             {
-                seed = RebuildPhrase(new List<string>() { GetPrepadUnigram() });
+                seed = RebuildPhrase([""]);
             }
-
-            logger.LogDebug($"Walking to return {lines} phrases from {Chain.Count} states");
-            if (lines < 1)
-            {
-                throw new ArgumentException("Invalid argument - line count for walk must be a positive integer", nameof(lines));
-            }
-
-            var sentences = new List<string>();
-
-            int genCount = 0;
-            int created = 0;
-            while (created < lines)
-            {
-                if (genCount == lines * 10)
-                {
-                    logger.LogInformation($"Breaking out of walk early - {genCount} generations did not produce {lines} distinct lines ({sentences.Count} were created)");
-                    break;
-                }
-                var result = WalkLine(seed);
-                if (!EnsureUniqueWalk && (!EnsureUniqueWalk || !sentences.Contains(result)))
-                {
-                    sentences.Add(result);
-                    created++;
-                    yield return result;
-                }
-                genCount++;
-            }
+            return WalkLine(seed);
         }
 
         /// <summary>
@@ -204,9 +166,9 @@ namespace DotNetTwitchBot.Bot.Markov
         /// <returns></returns>
         private string WalkLine(string seed)
         {
-#pragma warning disable CS8604 // Possible null reference argument.
+
             var paddedSeed = PadArrayLow(SplitTokens(seed)?.ToArray());
-#pragma warning restore CS8604 // Possible null reference argument.
+
             var built = new List<string>();
 
             // Allocate a queue to act as the memory, which is n 
@@ -215,17 +177,15 @@ namespace DotNetTwitchBot.Bot.Markov
 
             // If the start of the generated text has been seeded,
             // append that before generating the rest
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-            if (!seed.Equals(GetPrepadUnigram()))
+            if (!seed.IsNullOrWhiteSpace())
             {
                 built.AddRange(SplitTokens(seed));
             }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             while (built.Count < 25)
             {
                 // Choose a new token to add from the model
-                var key = new NgramContainer<string>(q.Cast<string>().ToArray());
+                var key = new NgramContainer(q.Cast<string>().ToArray());
                 if (Chain.Contains(key))
                 {
                     string chosen;
@@ -254,29 +214,26 @@ namespace DotNetTwitchBot.Bot.Markov
 
         // Pad out an array with empty strings from bottom up
         // Used when providing a seed sentence or word for generation
-        private string[] PadArrayLow(string[] input)
+        private string[] PadArrayLow(string[]? input)
         {
-            if (input == null)
-            {
-                input = new List<string>().ToArray();
-            }
+            input ??= new List<string>().ToArray();
 
             var splitCount = input.Length;
             if (splitCount > Level)
             {
-                input = input.Skip(splitCount - Level).Take(Level).ToArray();
+                input = [.. input.Skip(splitCount - Level).Take(Level)];
             }
 
             var p = new string[Level];
             var j = 0;
-            for (var i = (Level - input.Length); i < (Level); i++)
+            for (var i = Level - input.Length; i < Level; i++)
             {
                 p[i] = input[j];
                 j++;
             }
             for (var i = Level - input.Length; i > 0; i--)
             {
-                p[i - 1] = GetPrepadUnigram();
+                p[i - 1] = "";
             }
 
             return p;

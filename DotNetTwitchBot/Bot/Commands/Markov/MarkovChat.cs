@@ -23,7 +23,6 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         public static readonly string EXCLUDE_BOTS = "bots";
         public static readonly string LEVEL = "level";
 
-        //private StringMarkov? markov;
         private List<string> Bots = [];
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -36,23 +35,23 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     args = Regex.Replace(args, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                     if (!string.IsNullOrWhiteSpace(args))
                     {
-                        var message = markov.Walk(1, e.Args.First());
+                        var message = markov.Walk(e.Args.First());
                         await CheckAndSendMessage(message, args);
                     }
                     else
                     {
-                        var message = markov.Walk(1);
+                        var message = markov.Walk();
                         await CheckAndSendMessage(message, args);
                     }
                 }
             }
         }
 
-        private async Task CheckAndSendMessage(IEnumerable<string>? messages, string args)
+        private async Task CheckAndSendMessage(string messages, string args)
         {
-            if (messages != null && messages.Any())
+            if (!string.IsNullOrWhiteSpace(messages))
             {
-                var messageToSend = messages.First();
+                var messageToSend = messages;
                 messageToSend = Regex.Replace(messageToSend, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                 if (!string.IsNullOrEmpty(messageToSend) && !args.Equals(messageToSend))
                 {
@@ -80,9 +79,10 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             {
                 if(e.Message.StartsWith("!") == false 
                     && Bots.Contains(e.Name.ToLower()) == false
-                    && e.FromOwnChannel)
+                    && e.FromOwnChannel 
+                    && e.Message.Contains("http") == false)
                 {
-                    markov.Learn([e.Message], false);
+                    markov.Learn([e.Message]);
                 }
             }
         }
@@ -111,7 +111,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 
             if (messages != null)
             {
-                markov.Learn(messages, false);
+                markov.Learn(messages);
             }
             else
             {

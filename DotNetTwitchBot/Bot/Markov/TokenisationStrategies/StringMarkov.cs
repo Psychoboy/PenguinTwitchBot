@@ -10,7 +10,7 @@
         {
             if (input == null)
             {
-                return new List<string> { GetPrepadUnigram() };
+                return new List<string> { "" };
             }
 
             input = input.Trim();
@@ -20,16 +20,6 @@
         public override string RebuildPhrase(IEnumerable<string> tokens)
         {
             return string.Join(" ", tokens);
-        }
-
-        public override string? GetTerminatorUnigram()
-        {
-            return null;
-        }
-
-        public override string GetPrepadUnigram()
-        {
-            return "";
         }
     }
 }
