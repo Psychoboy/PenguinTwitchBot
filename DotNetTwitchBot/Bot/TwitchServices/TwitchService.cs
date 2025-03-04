@@ -933,6 +933,24 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return [];
         }
 
+        public async Task DeleteMessage(string messageId)
+        {
+            var broadcasterId = await GetBroadcasterUserId();
+            if (broadcasterId == null)
+            {
+                _logger.LogError("Error getting broadcaster id.");
+                return;
+            }
+            try
+            {
+                await _twitchApi.Helix.Moderation.DeleteChatMessagesAsync(broadcasterId, broadcasterId, messageId, _configuration["twitchAccessToken"]);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting message");
+            }
+        }
+
         public async Task SubscribeToAllTheStuffs(string sessionId)
         {
             await ValidateAndRefreshToken();

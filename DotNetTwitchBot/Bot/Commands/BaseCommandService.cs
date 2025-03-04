@@ -53,7 +53,8 @@ namespace DotNetTwitchBot.Bot.Commands
             bool sayCooldown = true,
             bool sayRankRequirement = false,
             int userCooldown = 0,
-            int globalCoolDown = 0)
+            int globalCoolDown = 0,
+            string description = "")
         {
             var defaultCommand = new DefaultCommand
             {
@@ -64,7 +65,8 @@ namespace DotNetTwitchBot.Bot.Commands
                 SayCooldown = sayCooldown,
                 SayRankRequirement = sayRankRequirement,
                 UserCooldown = userCooldown,
-                GlobalCooldown = globalCoolDown
+                GlobalCooldown = globalCoolDown,
+                Description = description
             };
 
             defaultCommand = await RegisterDefaultCommand(defaultCommand);
