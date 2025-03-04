@@ -1,11 +1,19 @@
-﻿using DotNetTwitchBot.Bot.Events.Chat;
+﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
-    public class ChatHistory(IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ILogger<ChatHistory> logger) : IChatHistory, IHostedService
+    public class ChatHistory(
+        IServiceScopeFactory scopeFactory, 
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        ITwitchService twitchService,
+        ILogger<ChatHistory> logger
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ChatHistory"), IChatHistory, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
         private readonly IServiceBackbone _serviceBackbone = serviceBackbone;
@@ -69,7 +77,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             _logger.LogInformation("Starting Chat History");
             _serviceBackbone.CommandEvent += OnCommandMessage;
-            return Task.CompletedTask;
+            return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -109,5 +117,42 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = CommandHandler.GetCommandDefaultName(e.Command);
+            if(command.Equals("vanish", StringComparison.OrdinalIgnoreCase))
+            {
+                await DeleteLastChatMessage(e);
+            }
+        }
+
+        private async Task DeleteLastChatMessage(CommandEventArgs e)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var chatHistory = db.ViewerChatHistories.Find(x => x.Username == e.Name).OrderByDescending(x => x.CreatedAt).FirstOrDefault();
+                if (chatHistory != null)
+                {
+                    db.ViewerChatHistories.Remove(chatHistory);
+                    await db.SaveChangesAsync();
+                    if(chatHistory.MessageId != null && !string.IsNullOrWhiteSpace(chatHistory.MessageId))
+                    {
+                        await twitchService.DeleteMessage(chatHistory.MessageId);
+                    }
+                }
+            } 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete last chat message");
+            }
+        }
+
+        public override Task Register()
+        {
+            _logger.LogInformation("Registered Chat History");
+            return RegisterDefaultCommand("vanish", this, ModuleName, description: "Deletes your last chat message.");
+        }
     }
 }

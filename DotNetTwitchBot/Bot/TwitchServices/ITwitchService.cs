@@ -59,5 +59,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<Game?> GetGameInfo(string gameId);
         Task<List<User?>?> GetUsers(List<string> userNames);
         Task<List<ChannelEditor>> GetEditors();
+        Task DeleteMessage(string messageId);
     }
 }
