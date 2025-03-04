@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                 messageToSend = Regex.Replace(messageToSend, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                 if (!string.IsNullOrEmpty(messageToSend) && !args.Equals(messageToSend))
                 {
-                    if (!await twitchService.WillBeAutomodded(messageToSend))
+                    if (await twitchService.WillBePermittedByAutomod(messageToSend))
                     {
                         await ServiceBackbone.SendChatMessage(messageToSend);
                         return;

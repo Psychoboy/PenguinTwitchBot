@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<IEnumerable<CustomReward>> GetChannelPointRewards(bool onlyManageable);
         Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request);
         Task DeleteChannelPointReward(string rewardId);
-        Task<bool> WillBeAutomodded(string message);
+        Task<bool> WillBePermittedByAutomod(string message);
         Task<CustomReward?> GetCustomReward(string id);
         void SetAccessToken(string accessToken);
         Task SendMessage(string message);
