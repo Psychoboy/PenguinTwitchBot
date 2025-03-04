@@ -39,12 +39,6 @@ namespace DotNetTwitchBot.Bot.Core
             };
         }
 
-        private Task OnCommandMessage(object? sender, CommandEventArgs e)
-        {
-            if(e.FromOwnChannel == false) return Task.CompletedTask;
-            return AddMessage(e.Name, e.DisplayName, e.Command + " " + e.Arg, e.MessageId);
-        }
-
         private async Task AddMessage(string name, string displayName, string message, string messageId)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -117,7 +111,6 @@ namespace DotNetTwitchBot.Bot.Core
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            await OnCommandMessage(sender, e);
             var command = CommandHandler.GetCommandDefaultName(e.Command);
             if(command.Equals("vanish", StringComparison.OrdinalIgnoreCase))
             {
@@ -131,7 +124,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var chatHistory = db.ViewerChatHistories.Find(x => x.Username == e.Name).OrderByDescending(x => x.CreatedAt).FirstOrDefault();
+                var chatHistory = db.ViewerChatHistories.Find(x => x.Username == e.Name && x.Message.StartsWith("!" + e.Command) == false).OrderByDescending(x => x.CreatedAt).FirstOrDefault();
                 if (chatHistory != null)
                 {
                     db.ViewerChatHistories.Remove(chatHistory);
