@@ -137,7 +137,7 @@ namespace DotNetTwitchBot.Bot.Core
                 {
                     db.ViewerChatHistories.Remove(chatHistory);
                     await db.SaveChangesAsync();
-                    if(chatHistory.MessageId != null && !string.IsNullOrWhiteSpace(chatHistory.MessageId))
+                    if(!string.IsNullOrWhiteSpace(chatHistory.MessageId))
                     {
                         await twitchService.DeleteMessage(chatHistory.MessageId);
                     }
