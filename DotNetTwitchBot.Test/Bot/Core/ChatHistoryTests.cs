@@ -1,6 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Core;
+﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
+using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Repository;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,8 @@ namespace DotNetTwitchBot.Test.Bot.Core
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ILogger<ChatHistory> _logger;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICommandHandler _commandHandler;
+        private readonly ITwitchService _twitchService;
         private readonly ChatHistory _chatHistory;
 
         public ChatHistoryTests()
@@ -22,6 +26,8 @@ namespace DotNetTwitchBot.Test.Bot.Core
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _logger = Substitute.For<ILogger<ChatHistory>>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
+            _commandHandler = Substitute.For<ICommandHandler>();
+            _twitchService = Substitute.For<ITwitchService>();
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -30,7 +36,7 @@ namespace DotNetTwitchBot.Test.Bot.Core
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService<IUnitOfWork>().Returns(_unitOfWork);
 
-            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _logger);
+            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, _logger);
         }
 
 
