@@ -62,6 +62,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        private Task ChannelChatMessageDelete(object sender, ChannelChatMessageDeleteArgs args)
+        {
+            return Task.CompletedTask;
+        }
+
         private Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
         {
             if (messageIdTracker.IsSelfMessage(args.Notification.Payload.Event.Message.MessageId)) return Task.CompletedTask;
@@ -567,6 +572,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage += ChannelSuspiciousUserMessage;
+            eventSubWebsocketClient.ChannelChatMessageDelete += ChannelChatMessageDelete;
             eventService.IsOnline = await twitchService.IsStreamOnline();
             await Reconnect();
         }
@@ -599,7 +605,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             eventSubWebsocketClient.ChannelAdBreakBegin -= ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
-            
+            eventSubWebsocketClient.ChannelSuspiciousUserMessage -= ChannelSuspiciousUserMessage;
+            eventSubWebsocketClient.ChannelChatMessageDelete -= ChannelChatMessageDelete;
+            //eventSubWebsocketClient.Mod
+
         }
 
         [GeneratedRegex(@"[^\u0000-\u00FF]+")]

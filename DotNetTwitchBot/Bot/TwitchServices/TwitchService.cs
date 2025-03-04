@@ -860,7 +860,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return [];
         }
 
-        public async Task TimeoutUser(string name, int length, string reason)
+        public async Task TimeoutUser(string name, string reason, int? length)
         {
             var broadcasterId = await GetBroadcasterUserId();
             if (broadcasterId == null)
@@ -1068,6 +1068,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 new Dictionary<string, string>{
                     {"broadcaster_user_id", userId},
                     {"moderator_user_id", userId}
+                },
+                EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+                );
+            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.message_delete",
+                "1",
+                new Dictionary<string, string>{
+                    {"broadcaster_user_id", userId},
+                    {"user_id", userId}
                 },
                 EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]

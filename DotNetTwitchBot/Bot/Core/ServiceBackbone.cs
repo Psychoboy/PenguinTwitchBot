@@ -277,7 +277,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             if (BanEvent != null)
             {
-                await BanEvent(this, new BanEventArgs {UserId = userId, Name = username, IsUnBan = unbanned });
+                await BanEvent(this, new BanEventArgs {UserId = userId, Name = username, IsUnBan = unbanned, BanEndsAt = endsAt });
             }
         }
     }
