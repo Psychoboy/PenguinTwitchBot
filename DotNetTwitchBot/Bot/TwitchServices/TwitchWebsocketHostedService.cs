@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task ChannelChatMessageDelete(object sender, ChannelChatMessageDeleteArgs args)
         {
-            return Task.CompletedTask;
+            return mediator.Publish(new DeletedChatMessage { EventArgs = args });
         }
 
         private Task ChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
