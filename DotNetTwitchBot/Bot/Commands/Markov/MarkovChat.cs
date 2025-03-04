@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
+using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService,
         IServiceScopeFactory scopeFactory,
+        ITwitchService twitchService,
         StringMarkov markov
         ) : BaseCommandService(serviceBackbone, commandHandler, "MarkovChat"), IHostedService, IMarkovChat
     {
@@ -46,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             }
         }
 
-        private Task CheckAndSendMessage(IEnumerable<string>? messages, string args)
+        private async Task CheckAndSendMessage(IEnumerable<string>? messages, string args)
         {
             if (messages != null && messages.Any())
             {
@@ -54,10 +56,17 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                 messageToSend = Regex.Replace(messageToSend, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                 if (!string.IsNullOrEmpty(messageToSend) && !args.Equals(messageToSend))
                 {
-                    return ServiceBackbone.SendChatMessage(messageToSend);
+                    if (!await twitchService.WillBeAutomodded(messageToSend))
+                    {
+                        await ServiceBackbone.SendChatMessage(messageToSend);
+                        return;
+                    } else
+                    {
+                        logger.LogWarning("Message would be automodded generated from Markov: {message}", messageToSend);
+                    }
                 }
             }
-            return ServiceBackbone.SendChatMessage($"I don't know \"{args}\" yet!");
+            await ServiceBackbone.SendChatMessage($"I don't know \"{args}\" yet!");
         }
 
         public override async Task Register()
@@ -94,7 +103,8 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             var messages = await db.ViewerChatHistories
                 .Find(x => x.Message.StartsWith("!") == false &&
                 Bots.Contains(x.Username.ToLower()) == false &&
-                bannedUsers.Contains(x.Username.ToLower()) == false)
+                bannedUsers.Contains(x.Username.ToLower()) == false && 
+                x.Message.Contains("http") == false)
                 .Select(x => x.Message).ToListAsync();
 
             markov.Level = await gameSettingsService.GetIntSetting(GAMENAME, LEVEL, 2);
