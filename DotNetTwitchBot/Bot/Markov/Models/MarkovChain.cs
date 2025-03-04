@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
     {
         public MarkovChain()
         {
-            ChainDictionary = new ConcurrentDictionary<NgramContainer<string>, List<string>>();
+            ChainDictionary = new ConcurrentDictionary<NgramContainer, List<string>>();
         }
 
         internal void Clear()
@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             }
         }
 
-        internal ConcurrentDictionary<NgramContainer<string>, List<string>> ChainDictionary { get; }
+        internal ConcurrentDictionary<NgramContainer, List<string>> ChainDictionary { get; }
         private readonly object _lockObj = new object();
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         public int Count => ChainDictionary.Count;
 
-        internal bool Contains(NgramContainer<string> key)
+        internal bool Contains(NgramContainer key)
         {
             return ChainDictionary.ContainsKey(key);
         }
@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         /// <param name="key">The composite key under which to add the TGram value</param>
         /// <param name="value">The value to add to the store</param>
-        internal void AddOrCreate(NgramContainer<string> key, string? value)
+        internal void AddOrCreate(NgramContainer key, string? value)
         {
             if (value == null) return;
             lock (_lockObj)
@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             }
         }
 
-        internal List<string> GetValuesForKey(NgramContainer<string> key)
+        internal List<string> GetValuesForKey(NgramContainer key)
         {
             return ChainDictionary[key];
         }

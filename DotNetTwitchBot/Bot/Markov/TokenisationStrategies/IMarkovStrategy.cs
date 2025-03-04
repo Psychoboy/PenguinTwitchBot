@@ -9,14 +9,10 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 
         string RebuildPhrase(IEnumerable<string> tokens);
 
-        void Learn(IEnumerable<string> phrases, bool ignoreAlreadyLearnt = true);
+        void Learn(IEnumerable<string> phrases);
 
         void Learn(string phrase);
 
-        IEnumerable<string> Walk(int lines = 1, string? seed = default);
-
-        string? GetTerminatorUnigram();
-
-        string GetPrepadUnigram();
+        string Walk(string? seed = default);
     }
 }
