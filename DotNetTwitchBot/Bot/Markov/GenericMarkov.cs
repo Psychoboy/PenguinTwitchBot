@@ -14,40 +14,38 @@ namespace DotNetTwitchBot.Bot.Markov
     /// </summary>
     /// <typeparam name="TPhrase">The type representing the entire phrase</typeparam>
     /// <typeparam name="TUnigram">The type representing a unigram, or state</typeparam>
-    public abstract class GenericMarkov<TPhrase, TUnigram>(ILogger<GenericMarkov<TPhrase, TUnigram>> logger) : IMarkovStrategy<TPhrase, TUnigram>
+    public abstract class GenericMarkov(ILogger<GenericMarkov> logger) : IMarkovStrategy
     {
-        public Type UnigramType => typeof(TUnigram);
-        public Type PhraseType => typeof(TPhrase);
 
         // Chain containing the model data. The key is the N number of
         // previous words and value is a list of possible outcomes, given that key
-        public MarkovChain<TUnigram> Chain { get; set; } = new MarkovChain<TUnigram>();
+        public MarkovChain Chain { get; set; } = new MarkovChain();
 
         /// <summary>
         /// Used for defining a strategy to select the next value when calling Walk()
         /// Set this to something else for different behaviours
         /// </summary>
-        public IUnigramSelector<TUnigram> UnigramSelector { get; set; } = new WeightedRandomUnigramSelector<TUnigram>();
+        public IUnigramSelector UnigramSelector { get; set; } = new MostPopularRandomUnigramSelector();
 
-        public List<TPhrase> SourcePhrases { get; set; } = new List<TPhrase>();
+        public List<string> SourcePhrases { get; set; } = new List<string>();
 
         /// <summary>
         /// Defines how to split the phrase to ngrams
         /// </summary>
         /// <param name="phrase"></param>
         /// <returns></returns>
-        public abstract IEnumerable<TUnigram> SplitTokens(TPhrase phrase);
+        public abstract IEnumerable<string> SplitTokens(string phrase);
 
         /// <summary>
         /// Defines how to join ngrams back together to form a phrase
         /// </summary>
         /// <param name="tokens"></param>
         /// <returns></returns>
-        public abstract TPhrase RebuildPhrase(IEnumerable<TUnigram> tokens);
+        public abstract string RebuildPhrase(IEnumerable<string> tokens);
 
-        public abstract TUnigram? GetTerminatorUnigram();
+        public abstract string? GetTerminatorUnigram();
 
-        public abstract TUnigram GetPrepadUnigram();
+        public abstract string GetPrepadUnigram();
 
         /// <summary>
         /// Set to true to ensure that all lines generated are different and not same as the training data.
@@ -59,7 +57,7 @@ namespace DotNetTwitchBot.Bot.Markov
         //suggesting the next state
         public int Level { get; set; } = 2;
 
-        public void Learn(IEnumerable<TPhrase> phrases, bool ignoreAlreadyLearnt = true)
+        public void Learn(IEnumerable<string> phrases, bool ignoreAlreadyLearnt = true)
         {
             if (ignoreAlreadyLearnt)
             {
@@ -77,10 +75,10 @@ namespace DotNetTwitchBot.Bot.Markov
             }
         }
 
-        public void Learn(TPhrase phrase)
+        public void Learn(string phrase)
         {
             logger.LogDebug($"Learning phrase: '{phrase}'");
-            if (phrase == null || phrase.Equals(default(TPhrase)))
+            if (phrase == null || phrase.Equals(default(string)))
             {
                 return;
             }
@@ -105,14 +103,14 @@ namespace DotNetTwitchBot.Bot.Markov
 
             LearnTokens(tokens);
 
-            var lastCol = new List<TUnigram>();
+            var lastCol = new List<string>();
             for (var j = Level; j > 0; j--)
             {
-                TUnigram previous;
+                string previous;
                 try
                 {
                     previous = tokens[tokens.Length - j];
-                    logger.LogDebug($"Adding TGram ({typeof(TUnigram)}) {previous} to lastCol");
+                    logger.LogDebug($"Adding TGram ({typeof(string)}) {previous} to lastCol");
                     lastCol.Add(previous);
                 }
                 catch (IndexOutOfRangeException e)
@@ -124,7 +122,7 @@ namespace DotNetTwitchBot.Bot.Markov
             }
 
             logger.LogDebug($"Reached final key for phrase {phrase}");
-            var finalKey = new NgramContainer<TUnigram>(lastCol.ToArray());
+            var finalKey = new NgramContainer<string>(lastCol.ToArray());
             Chain.AddOrCreate(finalKey, GetTerminatorUnigram());
         }
 
@@ -132,17 +130,17 @@ namespace DotNetTwitchBot.Bot.Markov
         /// Iterate over a list of TGrams and store each of them in the model at a composite key genreated from its prior [Level] number of TGrams
         /// </summary>
         /// <param name="tokens"></param>
-        private void LearnTokens(IReadOnlyList<TUnigram> tokens)
+        private void LearnTokens(IReadOnlyList<string> tokens)
         {
             for (var i = 0; i < tokens.Count; i++)
             {
                 var current = tokens[i];
-                var previousCol = new List<TUnigram>();
+                var previousCol = new List<string>();
 
                 // From the current token's index, get hold of the previous [Level] number of tokens that came before it
                 for (var j = Level; j > 0; j--)
                 {
-                    TUnigram previous;
+                    string previous;
                     try
                     {
                         // this case addresses when we are at a token index less then the value of [Level], 
@@ -165,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 }
 
                 // create the composite key based on previous tokens
-                var key = new NgramContainer<TUnigram>(previousCol.ToArray());
+                var key = new NgramContainer<string>(previousCol.ToArray());
 
                 // add the current token to the markov model at the composite key
                 Chain.AddOrCreate(key, current);
@@ -187,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Markov
             Level = newLevel;
 
             // Empty the model so it can be rebuilt
-            Chain = new MarkovChain<TUnigram>();
+            Chain = new MarkovChain();
 
             Learn(SourcePhrases, false);
         }
@@ -200,11 +198,11 @@ namespace DotNetTwitchBot.Bot.Markov
         /// <param name="lines">The number of phrases to emit</param>
         /// <param name="seed">Optionally provide the start of the phrase to generate from</param>
         /// <returns></returns>
-        public IEnumerable<TPhrase> Walk(int lines = 1, TPhrase? seed = default)
+        public IEnumerable<string> Walk(int lines = 1, string? seed = default)
         {
             if (seed == null)
             {
-                seed = RebuildPhrase(new List<TUnigram>() { GetPrepadUnigram() });
+                seed = RebuildPhrase(new List<string>() { GetPrepadUnigram() });
             }
 
             logger.LogDebug($"Walking to return {lines} phrases from {Chain.Count} states");
@@ -213,7 +211,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 throw new ArgumentException("Invalid argument - line count for walk must be a positive integer", nameof(lines));
             }
 
-            var sentences = new List<TPhrase>();
+            var sentences = new List<string>();
 
             int genCount = 0;
             int created = 0;
@@ -240,16 +238,16 @@ namespace DotNetTwitchBot.Bot.Markov
         /// </summary>
         /// <param name="seed">Optionally provide the start of the phrase to generate from</param>
         /// <returns></returns>
-        private TPhrase WalkLine(TPhrase seed)
+        private string WalkLine(string seed)
         {
 #pragma warning disable CS8604 // Possible null reference argument.
             var paddedSeed = PadArrayLow(SplitTokens(seed)?.ToArray());
 #pragma warning restore CS8604 // Possible null reference argument.
-            var built = new List<TUnigram>();
+            var built = new List<string>();
 
             // Allocate a queue to act as the memory, which is n 
             // levels deep of previous words that were used
-            var q = new Queue<TUnigram>(paddedSeed);
+            var q = new Queue<string>(paddedSeed);
 
             // If the start of the generated text has been seeded,
             // append that before generating the rest
@@ -263,14 +261,14 @@ namespace DotNetTwitchBot.Bot.Markov
             while (built.Count < 25)
             {
                 // Choose a new token to add from the model
-                var key = new NgramContainer<TUnigram>(q.Cast<TUnigram>().ToArray());
+                var key = new NgramContainer<string>(q.Cast<string>().ToArray());
                 if (Chain.Contains(key))
                 {
-                    TUnigram chosen;
+                    string chosen;
 
                     if (built.Count == 0)
                     {
-                        chosen = new UnweightedRandomUnigramSelector<TUnigram>().SelectUnigram(Chain.GetValuesForKey(key));
+                        chosen = new MostPopulatorUnigramStarterSelector().SelectUnigram(Chain.GetValuesForKey(key));
                     }
                     else
                     {
@@ -290,42 +288,13 @@ namespace DotNetTwitchBot.Bot.Markov
             return RebuildPhrase(built);
         }
 
-        // Returns any viable options for the next word based on
-        // what was provided as input, based on the trained model.
-        public List<TUnigram> GetMatches(TPhrase input)
-        {
-            var inputArray = SplitTokens(input).ToArray();
-            if (inputArray.Count() > Level)
-            {
-                inputArray = inputArray.Skip(inputArray.Length - Level).ToArray();
-            }
-            else if (inputArray.Count() < Level)
-            {
-                inputArray = PadArrayLow(inputArray);
-            }
-
-            var key = new NgramContainer<TUnigram>(inputArray);
-            var chosen = new List<TUnigram>();
-
-            try
-            {
-                chosen = Chain.GetValuesForKey(key);
-            }
-            catch (KeyNotFoundException)
-            {
-                logger.LogWarning("Key not found in chain: {key}", key);
-            }
-
-            return chosen;
-        }
-
         // Pad out an array with empty strings from bottom up
         // Used when providing a seed sentence or word for generation
-        private TUnigram[] PadArrayLow(TUnigram[] input)
+        private string[] PadArrayLow(string[] input)
         {
             if (input == null)
             {
-                input = new List<TUnigram>().ToArray();
+                input = new List<string>().ToArray();
             }
 
             var splitCount = input.Length;
@@ -334,7 +303,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 input = input.Skip(splitCount - Level).Take(Level).ToArray();
             }
 
-            var p = new TUnigram[Level];
+            var p = new string[Level];
             var j = 0;
             for (var i = (Level - input.Length); i < (Level); i++)
             {
@@ -347,94 +316,6 @@ namespace DotNetTwitchBot.Bot.Markov
             }
 
             return p;
-        }
-
-        public IEnumerable<StateStatistic<TUnigram>> GetStatistics()
-        {
-            return Chain.GetStatistics();
-        }
-
-        public virtual ChainPhraseProbability<TPhrase> GetFit(TPhrase testData)
-        {
-            var testUnigrams = SplitTokens(testData).ToArray();
-
-            var results = new List<NgramChainMatch<TPhrase>>();
-
-            for (int i = 0; i < testUnigrams.Count(); i++)
-            {
-                var testCase = new List<TUnigram>();
-
-                for (int j = 0; j < Level; j++)
-                {
-                    var index = i + j;
-                    if (index >= testUnigrams.Count())
-                    {
-                        break;
-                    }
-
-                    testCase.Add(testUnigrams[i + j]);
-                }
-
-                if (testCase.Count() == Level)
-                {
-                    var testPhrase = RebuildPhrase(testCase);
-
-                    try
-                    {
-                        var testResults = GetMatches(testPhrase);
-                        if (testResults.Any())
-                        {
-                            results.Add(new NgramChainMatch<TPhrase>(testPhrase, true));
-                        }
-                        else
-                        {
-                            results.Add(new NgramChainMatch<TPhrase>(testPhrase, false));
-                        }
-                    }
-                    catch (KeyNotFoundException)
-                    {
-                        results.Add(new NgramChainMatch<TPhrase>(testPhrase, false));
-                    }
-                }
-            }
-
-            return new ChainPhraseProbability<TPhrase>(results);
-        }
-
-        public double GetTransitionProbabilityUnigram(TPhrase currentState, TUnigram nextState)
-        {
-            try
-            {
-                var potentialNext = GetMatches(currentState);
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-                return (double)potentialNext.Count(s => s.Equals(nextState)) / potentialNext.Count;
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-            }
-            catch (KeyNotFoundException)
-            {
-                return 0;
-            }
-        }
-
-        public double GetTransitionProbabilityPhrase(TPhrase currentState, TPhrase nextStates)
-        {
-            double pTotal = 1;
-            foreach (var followingState in SplitTokens(nextStates))
-            {
-                var p = GetTransitionProbabilityUnigram(currentState, followingState);
-                pTotal = pTotal * p;
-
-                if (pTotal == 0)
-                {
-                    break;
-                }
-
-                var newSequence = SplitTokens(currentState).ToList();
-                newSequence.Add(followingState);
-                currentState = RebuildPhrase(newSequence);
-            }
-
-            return pTotal;
         }
     }
 }

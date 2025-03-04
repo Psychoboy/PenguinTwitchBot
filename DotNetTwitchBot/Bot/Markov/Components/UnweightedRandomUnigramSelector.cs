@@ -1,15 +1,12 @@
-﻿namespace DotNetTwitchBot.Bot.Markov.Components
+﻿using DotNetTwitchBot.Extensions;
+
+namespace DotNetTwitchBot.Bot.Markov.Components
 {
-    public class UnweightedRandomUnigramSelector<T> : IUnigramSelector<T>
+    public class UnweightedRandomUnigramSelector : IUnigramSelector
     {
-        public T SelectUnigram(IEnumerable<T> ngrams)
+        public string SelectUnigram(IEnumerable<string> ngrams)
         {
-#pragma warning disable CS8603 // Possible null reference return.
-            return ngrams.GroupBy(a => a)
-                .Select(a => a.FirstOrDefault())
-                .OrderBy(a => Guid.NewGuid())
-                .FirstOrDefault();
-#pragma warning restore CS8603 // Possible null reference return.
+            return ngrams.GroupBy(a => a).RandomElement().First();
         }
     }
 }
