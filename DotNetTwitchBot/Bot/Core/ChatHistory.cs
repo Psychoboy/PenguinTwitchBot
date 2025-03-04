@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -88,5 +89,25 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation("Removed {amount} chat histories", result);
 
         }
+
+        public async Task DeleteChatMessage(ChannelChatMessageDeleteArgs e)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var chatHistory = db.ViewerChatHistories.Find(x => x.MessageId == e.Notification.Payload.Event.MessageId).FirstOrDefault();
+                if (chatHistory != null)
+                {
+                    db.ViewerChatHistories.Remove(chatHistory);
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete chat message");
+            }
+        }
+
     }
 }

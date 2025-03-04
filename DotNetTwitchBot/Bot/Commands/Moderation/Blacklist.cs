@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
                 if (match)
                 {
-                    await twitchService.TimeoutUser(e.Name, wordFilter.TimeOutLength, wordFilter.BanReason);
+                    await twitchService.TimeoutUser(e.Name, wordFilter.BanReason, wordFilter.PermaBan ? null : wordFilter.TimeOutLength);
                     await ServiceBackbone.SendChatMessage(wordFilter.Message);
                     break;
                 }
