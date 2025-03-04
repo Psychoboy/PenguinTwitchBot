@@ -1,12 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Models.Points;
-using DotNetTwitchBot.Models;
 using LinqToDB;
 using LinqToDB.EntityFrameworkCore;
-using System.Linq;
-using static LinqToDB.Reflection.Methods.LinqToDB.Insert;
 using System.Linq.Expressions;
-using LinqToDB.SqlQuery;
-using MySqlX.XDevAPI.Common;
 using MudBlazor;
 namespace DotNetTwitchBot.Repository.Repositories
 {
@@ -27,26 +22,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         public override Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             return Task.CompletedTask;
-        }
-
-        public IQueryable<UserPointsWithRank> UserPointsWithRank(int pointType)
-        {
-            return _context.UserPoints
-                .Include(x => x.PointType)
-                .Where(x => x.PointTypeId == pointType && x.Banned == false)
-                .OrderByDescending(x => x.Points)
-                .ToLinqToDB()
-                .Select((x, i) => new UserPointsWithRank
-                {
-                    Id = x.Id,
-                    PointTypeId = x.PointTypeId,
-                    PointType = x.PointType,
-                    UserId = x.UserId,
-                    Username = x.Username,
-                    Points = x.Points,
-                    Banned = x.Banned,
-                    Ranking = (int)Sql.Ext.Rank().Over().OrderByDesc(x.Points).ToValue()
-                });
         }
 
         public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, int pointType)
