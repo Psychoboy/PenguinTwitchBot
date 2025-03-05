@@ -33,7 +33,7 @@ jobs:
       - name: Install SonarScanner
         run: dotnet tool install --global dotnet-sonarscanner
       - name: Begin SonarQube
-        run: dotnet sonarscanner begin /k:"Psychoboy_PenguinTwitchBot" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+        run: dotnet sonarscanner begin /o:"psychoboy" /k:"Psychoboy_PenguinTwitchBot" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
       - name: Build
         run: dotnet build --no-incremental
       - name: Test
