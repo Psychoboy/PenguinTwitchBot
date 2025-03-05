@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public Rank MinimumRank { get; set; } = Rank.Viewer;
         public int Cost { get; set; } = 0;
         public int? PointTypeId { get; set; }
+        [JsonIgnore]
         public PointType? PointType { get; set; }
         public bool Disabled { get; set; } = false;
         public bool SayCooldown { get; set; } = true;

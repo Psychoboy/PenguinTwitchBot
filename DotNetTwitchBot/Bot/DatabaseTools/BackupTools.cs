@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Repository;
+﻿using DotNetTwitchBot.Bot.Models.Points;
+using DotNetTwitchBot.Repository;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -15,7 +16,13 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
         public static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
         {
             var records = await context.Set<T>().ToListAsync();
+            await WriteData(backupDirectory, records, logger);
+        }
+
+        public static async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger = null)
+        {
             var json = JsonSerializer.Serialize(records);
+
             var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
             await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
             logger?.LogDebug($"Backed up {records.Count} records to {typeof(T).Name}");
