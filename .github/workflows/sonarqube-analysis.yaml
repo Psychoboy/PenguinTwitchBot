@@ -30,6 +30,8 @@ jobs:
         run: dotnet restore
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
       - name: Begin SonarQube
         run: dotnet sonarscanner begin /k:"Psychoboy_PenguinTwitchBot" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
       - name: Build
