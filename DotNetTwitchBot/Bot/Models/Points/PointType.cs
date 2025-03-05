@@ -8,9 +8,7 @@ namespace DotNetTwitchBot.Bot.Models.Points
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [JsonIgnore]
         public int? Id { get; set; }
-        [JsonIgnore]
         public ICollection<UserPoints> UserPoints { get; set; } = [];
         public string Name { get; set; } = null!;
         public string Description { get; set; } = "";

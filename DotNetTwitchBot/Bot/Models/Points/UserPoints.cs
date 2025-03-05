@@ -10,7 +10,9 @@ namespace DotNetTwitchBot.Bot.Models.Points
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [JsonIgnore]
         public int? Id { get; set; }
+        [JsonIgnore]
         public int PointTypeId { get; set; }
+        [JsonIgnore]
         public PointType PointType { get; set; } = null!;
         public string UserId { get; set; } = null!;
         public string Username { get; set; } = null!;
