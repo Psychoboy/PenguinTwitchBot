@@ -5,11 +5,10 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-jobs:
-  env:
+env:
     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+jobs:
   build:
     permissions:
       contents: read
