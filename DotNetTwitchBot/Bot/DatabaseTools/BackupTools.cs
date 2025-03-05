@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
 
             var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
             await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
-            logger?.LogDebug($"Backed up {records.Count} records to {typeof(T).Name}");
+            logger?.LogDebug("Backed up {Count} records to {Name}", records.Count, typeof(T).Name);
         }
 
         public static async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             if(records == null) throw new Exception($"{typeof(T).Name}.json was null");
             context.Set<T>().RemoveRange(context.Set<T>());
             context.Set<T>().AddRange(records);
-            logger?.LogDebug($"Restored {records.Count} records from {typeof(T).Name}");
+            logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);
         }
 
         public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                 if (handlerInstance == null)
                 {
-                    logger.LogError($"Failed to create instance of {handler.Name}");
+                    logger.LogError("Failed to create instance of {Name}", handler.Name);
                     continue;
                 }
                 await handlerInstance.BackupTable(context, tempDirectory, logger);
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                 if (handlerInstance == null)
                 {
-                    logger?.LogError($"Failed to create instance of {handler.Name}");
+                    logger?.LogError("Failed to create instance of {Name}", handler.Name);
                     continue;
                 }
                 await handlerInstance.RestoreTable(context, backupDirectory, logger);
