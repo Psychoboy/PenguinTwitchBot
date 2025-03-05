@@ -9,7 +9,11 @@ namespace DotNetTwitchBot.Repository.Repositories
     {
         public override Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
-            IQueryable<PointType> recordsSet = context.Set<PointType>().Include(x => x.UserPoints).Include(x => x.PointCommands);
+            IQueryable<PointType> recordsSet = context
+                .Set<PointType>()
+                .Include(x => x.UserPoints)
+                .Include(x => x.PointCommands)
+                .AsSplitQuery();
             var data = recordsSet.ToList();
             return BackupTools.WriteData<PointType>(backupDirectory, data, logger);
         }
