@@ -28,7 +28,8 @@ namespace DotNetTwitchBot.Shared
                     username = user.Claims.Where(x => x.Type.Equals("DisplayName")).First().Value;
                 }
             }
-            Logger?.LogWarning("{user} tried to access {pageurl} which does not exist.", username, NavigationManager.Uri);
+            var sanitizedUri = NavigationManager.Uri.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
+            Logger?.LogWarning("{user} tried to access {pageurl} which does not exist.", username, sanitizedUri);
             if (httpContextAccessor is not null)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
