@@ -161,7 +161,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 if (keyword.Keyword.IsRegex)
                 {
-                    keyword.Regex = new Regex(keyword.Keyword.CommandName);
+                    keyword.Regex = new Regex(keyword.Keyword.CommandName, RegexOptions.None, TimeSpan.FromMilliseconds(500));
                 }
             }
             _logger.LogInformation("Finished loading commands: {count}", count);
