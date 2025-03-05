@@ -60,7 +60,8 @@ namespace DotNetTwitchBot.Circuit
             {
                 Circuits[CircuitId].LastPage = uri;
                 Circuits[CircuitId].LastSeen = DateTime.Now;
-                logger.LogInformation("{UserId} navigated to {Uri}.", Circuits[CircuitId].UserId, uri);
+                var sanitizedUri = uri.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
+                logger.LogInformation("{UserId} navigated to {Uri}.", Circuits[CircuitId].UserId, sanitizedUri);
                 OnCircuitsChanged();
             }
 
