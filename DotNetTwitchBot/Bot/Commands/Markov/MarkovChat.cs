@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     args = Regex.Replace(args, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                     if (!string.IsNullOrWhiteSpace(args))
                     {
-                        var message = markov.Walk(e.Args.First());
+                        var message = markov.Walk(args);
                         await CheckAndSendMessage(message, args);
                     }
                     else
