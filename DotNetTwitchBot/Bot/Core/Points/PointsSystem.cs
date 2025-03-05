@@ -67,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var viewer = await viewerFeature.GetViewerByUserName(username);
             if (viewer == null)
             {
-                logger.LogWarning("Viewer not found for username {username}", username);
+                logger.LogWarning("Viewer not found for username {username}", username.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", ""));
                 return 0;
             }
             return await AddPointsByUserId(viewer.UserId, pointType, points);
