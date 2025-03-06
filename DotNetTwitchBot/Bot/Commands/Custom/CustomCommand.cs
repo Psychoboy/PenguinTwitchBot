@@ -471,16 +471,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                         if (CommandTags.Contains(tagName.Value.Trim()))
                         {
-                            //thisTagFound = true;
-                            ////CustomCommandResult result = await CommandTags[tagName.Value.Trim()](eventArgs, tagArgs.Value.Trim());
-
-                            //var tagType = CommandTags[tagName.Value.Trim()];
-                            //var tag = (ICustomCommandTag?)Activator.CreateInstance(tagType);
-                            //if(tag == null)
-                            //{
-                            //    _logger.LogError("Failed to create instance of {Name}", tagType.Name);
-                            //    continue;
-                            //}
+                            thisTagFound = true;
                             CustomCommandResult result = await GetResult(tagName.Value.Trim(), eventArgs, tagArgs.Value.Trim());
                             if (result.Cancel)
                             {
