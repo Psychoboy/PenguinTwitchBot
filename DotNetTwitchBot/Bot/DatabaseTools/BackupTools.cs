@@ -8,9 +8,9 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
     public class BackupTools
     {
         public static string BACKUP_DIRECTORY = Path.Combine(Directory.GetCurrentDirectory(), "Data", "backups");
-        public static List<string> GetBackupFiles(string backupDirectory)
+        public static List<FileInfo> GetBackupFiles(string backupDirectory)
         {
-            return [.. Directory.GetFiles(backupDirectory, "*.zip").Order()];
+            return Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
         }
 
         public static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
@@ -53,17 +53,13 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             {
                 Directory.CreateDirectory(tempDirectory);
             }
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName.Contains("GenericRepository")== false);
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
 
             foreach (var handler in handlers)
             {
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-                var handlerInstance = (IBackupDb)Activator.CreateInstance(handler, context);
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+                var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
                 if (handlerInstance == null)
                 {
                     logger.LogError("Failed to create instance of {Name}", handler.Name);
@@ -83,17 +79,13 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
         public static async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             logger?.LogInformation("Restoring database");
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName.Contains("GenericRepository") == false);
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
 
             foreach (var handler in handlers)
             {
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-                var handlerInstance = (IBackupDb)Activator.CreateInstance(handler, context);
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+                var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
                 if (handlerInstance == null)
                 {
                     logger?.LogError("Failed to create instance of {Name}", handler.Name);
