@@ -12,10 +12,10 @@ namespace DotNetTwitchBot.Bot.Notifications
     public class WebSocketMessenger : IWebSocketMessenger
     {
         private readonly BlockingCollection<string> _queue = [];
-        private List<SocketConnection> websocketConnections = [];
+        private ConcurrentBag<SocketConnection> _websocketConnections = [];
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
-        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        //static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly IMediator _mediator;
 
         public WebSocketMessenger(ILogger<WebSocketMessenger> logger, IMediator mediator)
@@ -28,6 +28,11 @@ namespace DotNetTwitchBot.Bot.Notifications
         public void AddToQueue(string message)
         {
             if (Paused) return;
+            if(_websocketConnections.IsEmpty)
+            {
+                _logger.LogWarning("No websockets connected. Not adding message to queue.");
+                return;
+            }
             _queue.Add(message);
 
         }
@@ -35,16 +40,11 @@ namespace DotNetTwitchBot.Bot.Notifications
         public async Task Handle(Guid id, WebSocket webSocket)
         {
             _logger.LogInformation("Adding Websocket: {id}", id.ToString());
-            try
+            _websocketConnections.Add(new SocketConnection
             {
-                await _semaphoreSlim.WaitAsync();
-                websocketConnections.Add(new SocketConnection
-                {
-                    Id = id,
-                    WebSocket = webSocket
-                });
-            }
-            finally { _semaphoreSlim.Release(); }
+                Id = id,
+                WebSocket = webSocket
+            });
 
             var pushTask = Task.Run(() => PushMessages(webSocket));
             try
@@ -102,7 +102,6 @@ namespace DotNetTwitchBot.Bot.Notifications
                     var wheelSpinComplete = JsonSerializer.Deserialize<WheelSpinComplete>(data);
                     if (wheelSpinComplete != null)
                         await _mediator.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
-                    //await _mediator.Publish(new TTSNotification(data));
                 }
             }
         }
@@ -139,12 +138,8 @@ namespace DotNetTwitchBot.Bot.Notifications
         {
             _logger.LogDebug("Closing all sockets");
             IEnumerable<SocketConnection> sockets;
-            try
-            {
-                await _semaphoreSlim.WaitAsync();
-                sockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
-            }
-            finally { _semaphoreSlim.Release(); }
+    
+            sockets = _websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
             foreach (var socket in sockets)
             {
                 await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
@@ -155,12 +150,8 @@ namespace DotNetTwitchBot.Bot.Notifications
         private async Task SendMessageToSockets(string message)
         {
             IEnumerable<SocketConnection> toSentTo;
-            try
-            {
-                await _semaphoreSlim.WaitAsync();
-                toSentTo = websocketConnections.ToList();
-            }
-            finally { _semaphoreSlim.Release(); }
+
+            toSentTo = _websocketConnections.ToList();
 
             var tasks = toSentTo.Select(async websocketConnection =>
             {
@@ -183,15 +174,11 @@ namespace DotNetTwitchBot.Bot.Notifications
                     IEnumerable<SocketConnection> openSockets;
                     IEnumerable<SocketConnection> closedSockets;
 
-                    try
-                    {
-                        _semaphoreSlim.Wait();
-                        openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
-                        closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
+                    openSockets = _websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
+                    closedSockets = _websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
 
-                        websocketConnections = openSockets.ToList();
-                    }
-                    finally { _semaphoreSlim.Release(); }
+                    _websocketConnections.Clear();
+                    _websocketConnections.AddRange(openSockets.ToList());
 
                     foreach (var closedWebsocketConnection in closedSockets)
                     {
