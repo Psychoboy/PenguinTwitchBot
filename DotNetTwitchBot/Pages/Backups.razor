@@ -10,10 +10,14 @@
     <MudTable Items="@DatabaseBackups">
         <HeaderContent>
             <MudTh>File Name</MudTh>
+            <MudTh>Creation Time</MudTh>
+            <MudTh>Size</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.CreationTime</MudTd>
+            <MudTh>@FormatBytes(@context.Length)</MudTh>
             <MudTd>
                 <MudButton Variant="Variant.Filled" Color="Color.Secondary" 
                 @onclick="() => RestoreBackup(context)">Restore Backup</MudButton></MudTd>
@@ -23,21 +27,21 @@
 
 @code {
 
-    private List<string> DatabaseBackups = [];
+    private List<FileInfo> DatabaseBackups = [];
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override void OnInitialized()
     {
-        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY);
+        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY).OrderByDescending(x => x.CreationTime).ToList();
     }
 
     private async Task BackupDatabase()
     {
         await Admin.BackupDatabase();
-        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY);
+        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BACKUP_DIRECTORY).OrderByDescending(x => x.CreationTime).ToList();
     }
 
-    private async Task RestoreBackup(string fileName)
+    private async Task RestoreBackup(FileInfo fileInfo)
     {
         bool? result = await DialogService.ShowMessageBox(
         "Warning",
@@ -47,7 +51,7 @@
         {
             try
             {
-                await Admin.RestoreDatabase(fileName);
+                await Admin.RestoreDatabase(fileInfo.FullName);
                 await DialogService.ShowMessageBox("Success", "Database restored successfully!");
             }
             catch (Exception e)
@@ -55,5 +59,15 @@
                 await DialogService.ShowMessageBox("Error", e.Message);
             }
         }
+    }
+    private static string FormatBytes(Int64 bytes)
+    {
+        if (bytes >= 0x1000000000000000) { return ((double)(bytes >> 50) / 1024).ToString("0.### EB"); }
+        if (bytes >= 0x4000000000000) { return ((double)(bytes >> 40) / 1024).ToString("0.### PB"); }
+        if (bytes >= 0x10000000000) { return ((double)(bytes >> 30) / 1024).ToString("0.### TB"); }
+        if (bytes >= 0x40000000) { return ((double)(bytes >> 20) / 1024).ToString("0.### GB"); }
+        if (bytes >= 0x100000) { return ((double)(bytes >> 10) / 1024).ToString("0.### MB"); }
+        if (bytes >= 0x400) { return ((double)(bytes) / 1024).ToString("0.###") + " KB"; }
+        return bytes.ToString("0 Bytes");
     }
 }
