@@ -10,7 +10,6 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
         public static string BACKUP_DIRECTORY = Path.Combine(Directory.GetCurrentDirectory(), "Data", "backups");
         public static List<FileInfo> GetBackupFiles(string backupDirectory)
         {
-            //return [.. Directory.GetFiles(backupDirectory, "*.zip").Order()];
             return Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
         }
 
@@ -56,7 +55,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             }
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p?.FullName?.Contains("GenericRepository") == false);
+            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
 
             foreach (var handler in handlers)
             {
@@ -82,7 +81,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             logger?.LogInformation("Restoring database");
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p?.FullName?.Contains("GenericRepository") == false);
+            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
 
             foreach (var handler in handlers)
             {
