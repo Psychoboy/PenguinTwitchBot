@@ -492,3 +492,4 @@ DotNetTwitchBot/Bot/Commands/Misc/DailyCounter.cs
 /DotNetTwitchBot/ffmpeg.exe
 /DotNetTwitchBot/yt-dlp.exe
 /DotNetTwitchBot/wwwroot/tts
+/DotNetTwitchBot/Data/counters
