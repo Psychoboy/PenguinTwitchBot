@@ -1,0 +1,59 @@
+﻿@page "/twitcheventsettings"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
+@using Microsoft.AspNetCore.SignalR.Client
+@inject DotNetTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
+
+<PageTitle>SPTV Twitch Bot - Twitch Event Settings</PageTitle>
+
+<MudCard>
+    <MudCardContent>
+        <MudNumericField Label="Points per 100 bits" Required="true" @bind-Value="@pointsPer100" />
+        <MudNumericField Label="Points per Sub" Required="true" @bind-Value="@pointsPerSub" />
+        <MudSelect Label="Point Type" @bind-Value="pointType" ToStringFunc="@ConvertFunction">
+            @foreach (var pointType in PointTypes)
+            {
+                <MudSelectItem Value="@pointType" />
+            }
+        </MudSelect>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto"
+        OnClick="OnLoyaltySubmit">
+            Submit
+        </MudButton>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private int pointsPer100 { get; set; }
+    private int pointsPerSub { get; set; }
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private PointType pointType { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        pointsPerSub = await twitchEventsBonus.GetPointsPerSub();
+        var BitsPerTicket = await twitchEventsBonus.GetBitsPerPoint();
+        if (BitsPerTicket > 0) pointsPer100 = 100 / BitsPerTicket;
+        PointTypes = await pointSystem.GetPointTypes();
+        pointType = await twitchEventsBonus.GetPointType();
+    }
+
+    protected async void OnLoyaltySubmit()
+    {
+        await twitchEventsBonus.SetPointsPerSub(pointsPerSub);
+        var BitsPerTicket = 100 / pointsPer100;
+        await twitchEventsBonus.SetBitsPerPoint(BitsPerTicket);
+        await twitchEventsBonus.SetPointType(pointType);
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
+    }
+}

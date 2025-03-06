@@ -92,6 +92,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<IClipService, ClipService>();
             services.AddHostedApiService<IWheelService, WheelService>();
             services.AddHostedApiService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>();
+            services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();

@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Markov
         public void Learn(IEnumerable<string> phrases)
         {
 
-            if (phrases.Any())
+            if (phrases.Count() > 1)
             {
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }

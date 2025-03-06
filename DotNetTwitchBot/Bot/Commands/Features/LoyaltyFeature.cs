@@ -14,7 +14,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         IViewerFeature viewerFeature,
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        ITicketsFeature ticketsFeature,
         ICommandHandler commandHandler,
         IPointsSystem pointsSystem
             ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature"), ILoyaltyFeature, IHostedService
@@ -51,84 +50,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
             });
         }
-
-        private async Task OnCheer(object? sender, CheerEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous || string.IsNullOrWhiteSpace(e.UserId))
-            {
-                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
-                return;
-            }
-            try
-            {
-                await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
-                var bitsPerTicket = await GetBitsPerTicket();
-                if (bitsPerTicket > 0)
-                {
-                    var ticketsToAward = (int)Math.Floor((double)e.Amount / bitsPerTicket);
-                    if (ticketsToAward < 1) return;
-                    await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, ticketsToAward);
-                    logger.LogInformation("Awarded {name} {tickets} tickets for {amount} of bits", e.Name, ticketsToAward, e.Amount);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error OnCheer");
-            }
-        }
-
-        private async Task OnSubScriptionGift(object? sender, SubscriptionGiftEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(e.Name) || string.IsNullOrWhiteSpace(e.UserId)) return;
-            try
-            {
-                var amountToGift = await GetTicketsPerSub() * e.GiftAmount;
-                await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, amountToGift);
-                logger.LogInformation("Gave {name} {amountToGift} tickets for gifting {GiftAmount} subs", e.Name, amountToGift, e.GiftAmount);
-                var message = $"{e.DisplayName} gifted {e.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
-                if (e.TotalGifted != null && e.TotalGifted > e.GiftAmount)
-                {
-                    message += $" They have gifted a total of {e.TotalGifted} subs to the channel!";
-                }
-                await ServiceBackbone.SendChatMessage(message);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error when processing gift subscription for {user}", e.Name);
-            }
-        }
-
-        private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(e.Name) || string.IsNullOrWhiteSpace(e.UserId)) return;
-            if (e.IsGift) return;
-            try
-            {
-                var subTickets = await GetTicketsPerSub();
-                await ticketsFeature.GiveTicketsToViewerByUserId(e.UserId, subTickets);
-                logger.LogInformation("Gave {name} {tickets} tickets for subscribing.", e.Name, subTickets);
-                var message = $"{e.DisplayName} just subscribed";
-                if (e.Count != null && e.Count > 0)
-                {
-                    message += $" for a total of {e.Count} months";
-                }
-
-                if (e.Streak != null && e.Streak > 0)
-                {
-                    if (e.Count != null && e.Count > 0) message += " and";
-                    message += $" for {e.Streak} months in a row";
-                }
-
-                message += "! sptvHype";
-                await ServiceBackbone.SendChatMessage(message);
-
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error when processing subscription for {user}", e.Name);
-            }
-        }
-
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
@@ -210,199 +131,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.CompletedTask;
-            //var command = CommandHandler.GetCommandDefaultName(e.Command);
-            //switch (command)
-            //{
-            //    case "pasties":
-            //        await SayLoyalty(e);
-            //        break;
-            //    case "gift":
-            //    case "give":
-            //        await GiftPasties(e);
-            //        break;
-            //    case "check":
-            //        await CheckUsersPasties(e);
-            //        break;
-            //    case "addpasties":
-            //        if (e.Args.Count < 2) return;
-            //        if (string.IsNullOrWhiteSpace(e.TargetUser)) return;
-            //        if (long.TryParse(e.Args[1], out var points))
-            //        {
-            //            if (points <= 0) return;
-            //            var userId = await viewerFeature.GetViewerId(e.TargetUser);
-            //            if (userId == null) return;
-            //            await AddPointsToViewerByUserId(userId, points);
-            //            var totalPasties = await GetUserPastiesByUserId(userId);
-            //            await ServiceBackbone.SendChatMessage(string.Format("{0} now has {1} pasties", e.TargetUser, totalPasties.Points));
-            //        }
-            //        break;
-
-            //}
         }
-
-        //private async Task CheckUsersPasties(CommandEventArgs e)
-        //{
-        //    if (string.IsNullOrWhiteSpace(e.TargetUser))
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "to check Pasties the command is !check USERNAME");
-        //        throw new SkipCooldownException();
-        //    }
-
-        //    var pasties = await GetUserPastiesByUsername(e.TargetUser);
-        //    if (pasties.Points == 0)
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has no pasties or doesn't exist.");
-        //    }
-        //    else
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, $"{e.TargetUser} has {pasties.Points:N0} pasties.");
-        //    }
-        //}
-
-        //private async Task GiftPasties(CommandEventArgs e)
-        //{
-        //    if (e.Args.Count < 2 || e.TargetUser.Equals(e.Name))
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-        //        throw new SkipCooldownException();
-        //    }
-
-        //    if (!long.TryParse(e.Args[1], out long amount))
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "to gift Pasties the command is !gift TARGETNAME AMOUNT");
-        //        throw new SkipCooldownException();
-        //    }
-
-        //    var target = await viewerFeature.GetViewerByUserName(e.TargetUser);
-        //    if (target == null)
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "that viewer is unknown.");
-        //        throw new SkipCooldownException();
-        //    }
-
-        //    if (!(await RemovePointsFromUserByUserId(e.UserId, amount)))
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "you don't have that many points.");
-        //        throw new SkipCooldownException();
-        //    }
-
-        //    await AddPointsToViewerByUserId(target.UserId, amount);
-        //    await ServiceBackbone.SendChatMessage(string.Format("{0} has given {1} pasties to {2}", await viewerFeature.GetNameWithTitle(e.Name), amount, e.TargetUser));
-        //}
-
-        //public async Task<long> GetMaxPointsFromUserByUserId(string userId)
-        //{
-        //    return await GetMaxPointsFromUserByUserId(userId, MaxBet);
-        //}
-
-        //public async Task<long> GetMaxPointsFromUserByUserId(string userId, long max)
-        //{
-        //    var viewerPoints = await GetUserPastiesByUserId(userId);
-        //    long maxPoints;
-        //    if (viewerPoints.Points > max)
-        //    {
-        //        maxPoints = max;
-        //    }
-        //    else
-        //    {
-        //        maxPoints = Convert.ToInt64(viewerPoints.Points);
-        //    }
-        //    return maxPoints;
-        //}
-
-        //public async Task<bool> RemovePointsFromUserByUserName(string username, long points)
-        //{
-        //    await using var scope = scopeFactory.CreateAsyncScope();
-        //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //    var viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
-        //    if (viewerPoint == null) return false;
-        //    if (viewerPoint.Points < points) return false;
-        //    viewerPoint.Points -= points;
-        //    if (viewerPoint.Points < 0)
-        //    {
-        //        viewerPoint.Points = 0;
-        //        logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
-        //    }
-        //    db.ViewerPoints.Update(viewerPoint);
-        //    await db.SaveChangesAsync();
-        //    if (points > 0)
-        //    {
-        //        NumberOfPastiesLost.WithLabels(viewerPoint.Username).Inc(points);
-        //        NumberOfPastiesDiff.WithLabels(viewerPoint.Username).Dec(points);
-        //    }
-        //    return true;
-        //}
-  
-
-        //public async Task<bool> RemovePointsFromUserByUserId(string userid, long points)
-        //{
-        //    await using var scope = scopeFactory.CreateAsyncScope();
-        //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //    var viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
-        //    if (viewerPoint == null) return false;
-        //    if (viewerPoint.Points < points) return false;
-        //    viewerPoint.Points -= points;
-        //    if (viewerPoint.Points < 0)
-        //    {
-        //        viewerPoint.Points = 0;
-        //        logger.LogWarning("User: {name} was about to go negative when attempting to remove {points} pasties.", viewerPoint.Username, points);
-        //    }
-        //    db.ViewerPoints.Update(viewerPoint);
-        //    await db.SaveChangesAsync();
-        //    if (points > 0)
-        //    {
-        //        NumberOfPastiesLost.WithLabels(viewerPoint.Username).Inc(points);
-        //        NumberOfPastiesDiff.WithLabels(viewerPoint.Username).Dec(points);
-        //    }
-        //    return true;
-        //}
-
-        //public async Task AddPointsToViewerByUsername(string username, long points)
-        //{
-        //    var target = await viewerFeature.GetViewerByUserName(username);
-        //    if (target == null || string.IsNullOrWhiteSpace(target.UserId))
-        //    {
-        //        logger.LogWarning("Failed to get user: {target}", target);
-        //        return;
-        //    }
-        //    await AddPointsToViewerByUserId(target.UserId, points);
-        //}
-
-        //public async Task AddPointsToViewerByUserId(string userId, long points)
-        //{
-        //    try
-        //    {
-        //        var viewer = await viewerFeature.GetViewerByUserId(userId);
-        //        if(viewer == null)
-        //        {
-        //            logger.LogInformation("No viewer record for {target}", userId);
-        //            return;
-        //        }
-        //        await using var scope = scopeFactory.CreateAsyncScope();
-        //        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //        var viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-        //        viewerPoint ??= new ViewerPoint
-        //        {
-        //            UserId = viewer.UserId
-        //        };
-        //        viewerPoint.Username = viewer.Username.ToLower();
-        //        viewerPoint.Points += points;
-        //        db.ViewerPoints.Update(viewerPoint);
-        //        await db.SaveChangesAsync();
-        //        if (points > 0)
-        //        {
-        //            NumberOfPastiesEarned.WithLabels(viewer.Username).Inc(points);
-        //            NumberOfPastiesDiff.WithLabels(viewer.Username).Inc(points);
-        //        }
-
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        logger.LogError(ex, "Error adding points to viewer");
-        //    }
-
-        //}
-
         public async Task<string> GetViewerWatchTime(string user)
         {
             var time = await GetUserTimeAndRank(user);
@@ -435,14 +164,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         }
 
-        //private async Task ((CommandEventArgs e)
-        //{
-        //    var pasties = await GetUserPastiesAndRank(e.Name);
-        //    var time = await GetUserTimeAndRank(e.Name);
-        //    var messages = await GetUserMessagesAndRank(e.Name);
-        //    await ServiceBackbone.SendChatMessage($"{await viewerFeature.GetNameWithTitle(e.Name)} Watch time: [{Tools.ConvertToCompoundDuration(time.Time)}] - sptvBacon Pasties: [#{pasties.Ranking}, {pasties.Points:N0}] - Messages: [#{messages.Ranking}, {messages.MessageCount:N0} Messages]");
-        //}
-
         public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
         {
             ViewerMessageCountWithRank? viewerMessage;
@@ -462,42 +183,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return await db.ViewerMessageCountsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
         }
 
-        //public async Task<ViewerPoint> GetUserPastiesByUsername(string username)
-        //{
-        //    ViewerPoint? viewerPoint;
-        //    await using (var scope = scopeFactory.CreateAsyncScope())
-        //    {
-        //        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //        viewerPoint = await db.ViewerPoints.Find(x => x.Username.Equals(username)).FirstOrDefaultAsync();
-        //    }
-
-        //    return viewerPoint ?? new ViewerPoint();
-        //}
-
-        //public async Task<ViewerPoint> GetUserPastiesByUserId(string userId)
-        //{
-        //    ViewerPoint? viewerPoint;
-        //    await using (var scope = scopeFactory.CreateAsyncScope())
-        //    {
-        //        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //        viewerPoint = await db.ViewerPoints.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-        //    }
-
-        //    return viewerPoint ?? new ViewerPoint();
-        //}
-
-        //public async Task<ViewerPointWithRank> GetUserPastiesAndRank(string name)
-        //{
-        //    ViewerPointWithRank? viewerPoints;
-        //    await using (var scope = scopeFactory.CreateAsyncScope())
-        //    {
-        //        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //        viewerPoints = await db.ViewerPointWithRanks.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
-        //    }
-
-        //    return viewerPoints ?? new ViewerPointWithRank() { Ranking = int.MaxValue };
-        //}
-
         public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
         {
             ViewerTimeWithRank? viewerTime;
@@ -509,52 +194,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
         }
 
-        public async Task SetBitsPerTicket(int numberOfBitsPerTicket)
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var bitsPerTicket = (await db.Settings.GetAsync(x => x.Name.Equals("loyalty.bitsperticket"))).FirstOrDefault();
-            bitsPerTicket ??= new()
-            {
-                Name = "loyalty.bitsperticket"
-            };
-            bitsPerTicket.IntSetting = numberOfBitsPerTicket;
-            db.Settings.Update(bitsPerTicket);
-            await db.SaveChangesAsync();
-        }
-
-        public async Task<int> GetBitsPerTicket()
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var bitsPerTicket = db.Settings.Find(x => x.Name.Equals("loyalty.bitsperticket")).FirstOrDefault();
-            if (bitsPerTicket == null) { return 10; }
-            return bitsPerTicket.IntSetting;
-        }
-
-        public async Task SetTicketsPerSub(int numberOfTicketsPerSub)
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
-            ticketsPersub ??= new()
-            {
-                Name = "loyalty.ticketspersub"
-            };
-            ticketsPersub.IntSetting = numberOfTicketsPerSub;
-            db.Settings.Update(ticketsPersub);
-            await db.SaveChangesAsync();
-        }
-
-        public async Task<int> GetTicketsPerSub()
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var ticketsPersub = db.Settings.Find(x => x.Name.Equals("loyalty.ticketspersub")).FirstOrDefault();
-            if (ticketsPersub == null) { return 50; }
-            return ticketsPersub.IntSetting;
-        }
-
         public Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting {moduledname}", ModuleName);
@@ -562,9 +201,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _intervalTimer.Start();
 
             //Loyalty Stuff
-            ServiceBackbone.SubscriptionEvent += OnSubscription;
-            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
-            ServiceBackbone.CheerEvent += OnCheer;
             ServiceBackbone.StreamStarted += StreamStarted;
             return Register();
         }
@@ -574,9 +210,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             logger.LogInformation("Stopped {moduledname}", ModuleName);
             _intervalTimer.Stop();
             _intervalTimer.Elapsed -= ElapseTimer;
-            ServiceBackbone.SubscriptionEvent -= OnSubscription;
-            ServiceBackbone.SubscriptionGiftEvent -= OnSubScriptionGift;
-            ServiceBackbone.CheerEvent -= OnCheer;
             ServiceBackbone.StreamStarted -= StreamStarted;
 
             return Task.CompletedTask;
