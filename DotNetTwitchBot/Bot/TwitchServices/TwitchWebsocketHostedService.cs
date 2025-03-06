@@ -132,7 +132,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
-                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim().ToLower() : "",
+                TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim() : "",
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
                 MessageId = e.MessageId
             };
