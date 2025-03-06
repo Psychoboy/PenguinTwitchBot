@@ -107,6 +107,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("disabletimergroup", DisableTimerGroup);
             CommandTags.Add("enablecommand", EnableCommand);
             CommandTags.Add("disablecommand", DisableCommand);
+            CommandTags.Add("giftpoints", GiftPoints);
+            CommandTags.Add("checkpoints", CheckPoints);
         }
 
 
@@ -993,6 +995,118 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             var time = await _loyaltyFeature.GetViewerWatchTime(args);
             return new CustomCommandResult(time);
         }
+
+        private async Task<CustomCommandResult> GiftPoints(CommandEventArgs eventArgs, string args)
+        {
+            if(string.IsNullOrWhiteSpace(args))
+            {
+                _logger.LogWarning("Missing args for custom command of 'giftpoints' type. Requires 1");
+                return new CustomCommandResult();
+            }
+
+            var commandArgs = args.Split(" ");
+            if (commandArgs.Length < 1)
+            {
+                _logger.LogWarning("Missing required args for custom command of 'giftpoints' type. Requires 1 PointTypeId");
+                return new CustomCommandResult();
+            }
+
+            if(int.TryParse(commandArgs[0], out var pointTypeId) == false)
+            {
+                _logger.LogWarning("Invalid PointTypeId for custom command of 'giftpoints' type.");
+                return new CustomCommandResult();
+            }
+
+            var pointSystem = await _PointsSystem.GetPointTypeById(pointTypeId);
+            if (pointSystem == null)
+            {
+                _logger.LogWarning("Invalid PointTypeId for custom command of 'giftpoints' type.");
+                return new CustomCommandResult();
+            }
+
+            if(eventArgs.Args.Count < 2)
+            {
+                _logger.LogWarning("Missing required args for custom command of 'giftpoints' type. Requires 2");
+                await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, "Missing required args for custom command of 'gift' type. Requires amount and target");
+                return new CustomCommandResult();
+            }
+
+            var targetName = eventArgs.TargetUser;
+            if(targetName.Equals(eventArgs.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Cannot gift points to self");
+                return new CustomCommandResult();
+            }
+
+            if (int.TryParse(eventArgs.Args[1], out var amount) == false)
+            {
+                _logger.LogWarning("Invalid amount for custom command of 'giftpoints' type.");
+                return new CustomCommandResult();
+            }
+
+            if(amount <= 0)
+            {
+                _logger.LogWarning("Invalid amount for custom command of 'giftpoints' type.");
+                await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, "Invalid amount for custom command of 'gift' type. Must be greater than 0.");
+                return new CustomCommandResult();
+            }
+
+            var target = await _viewerFeature.GetViewerByUserName(targetName);
+            if (target == null)
+            {
+                _logger.LogWarning("Invalid target for custom command of 'giftpoints' type.");
+                await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, $"User {targetName} not found.");
+                return new CustomCommandResult();
+            }
+
+            if (await _PointsSystem.RemovePointsFromUserByUserId(eventArgs.UserId, pointTypeId, amount) == false)
+            {
+                _logger.LogWarning("Not enough points for custom command of 'giftpoints' type.");
+                await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, $"You don't have enough {pointSystem.Name} to gift {amount} to {targetName}.");
+                return new CustomCommandResult();
+            }
+            await _PointsSystem.AddPointsByUserId(target.UserId, pointTypeId, amount);
+            await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, $"You have gifted {amount} {pointSystem.Name} to {target.DisplayName}.");
+            return new CustomCommandResult();
+        }
+
+        private async Task<CustomCommandResult> CheckPoints(CommandEventArgs eventArgs, string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                _logger.LogWarning("Missing args for custom command of 'checkpoints' type.");
+                return new CustomCommandResult();
+            }
+            var commandArgs = args.Split(" ");
+            if (commandArgs.Length < 1)
+            {
+                _logger.LogWarning("Missing required args for custom command of 'checkpoints' type.");
+                return new CustomCommandResult();
+            }
+            if (int.TryParse(commandArgs[0], out var pointTypeId) == false)
+            {
+                _logger.LogWarning("Invalid PointTypeId for custom command of 'checkpoints' type.");
+                return new CustomCommandResult();
+            }
+            var pointSystem = await _PointsSystem.GetPointTypeById(pointTypeId);
+            if (pointSystem == null)
+            {
+                _logger.LogWarning("Invalid PointTypeId for custom command of 'checkpoints' type.");
+                return new CustomCommandResult();
+            }
+            var targetName = eventArgs.TargetUser;
+            var target = await _viewerFeature.GetViewerByUserName(targetName);
+            if (target == null)
+            {
+                _logger.LogWarning("Invalid target for custom command of 'checkpoints' type.");
+                await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, $"User {target} not found.");
+                return new CustomCommandResult();
+            }
+            var points = await _PointsSystem.GetUserPointsByUserId(target.UserId, pointTypeId);
+            await ServiceBackbone.SendChatMessage(eventArgs.DisplayName, $"{target.DisplayName} has {points.Points:N0} {pointSystem.Name}.");
+            return new CustomCommandResult();
+        }
+
 
         private async Task<CustomCommandResult> ExecuteCommand(CommandEventArgs eventArgs, string args)
         {

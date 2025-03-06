@@ -11,10 +11,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
         Task UpdatePointsAndTime();
-        Task SetBitsPerTicket(int numberOfBitsPerTicket);
-        Task<int> GetBitsPerTicket();
-        Task SetTicketsPerSub(int numberOfTicketsPerSub);
-        Task<int> GetTicketsPerSub();
         Task OnChatMessage(ChatMessageEventArgs e);
     }
 }

@@ -39,6 +39,8 @@
                 a small percentage of points up to a max for anyone who did not show up in stream.</MudText>
             <MudText Typo="Typo.h6">Top</MudText>
             <MudText>Top5/10 watch time, points, messages</MudText>
+            <MudText Typo="Typo.h6">LoyaltyFeature</MudText>
+            <MudText>Awards Periodic Points</MudText>
             <MudDivider Class="mb-2 mt-2" />
             <MudText Typo="Typo.h5">Suggested games for more serious points ie. Giveaways</MudText>
             <MudText Typo="Typo.h6">AddActive</MudText>
@@ -53,8 +55,7 @@
             <MudText>Allows people to do a !first type of command and based on order lower amount of points awarded</MudText>
             <MudText Typo="Typo.h6">GiveawayFeature</MudText>
             <MudText>Used to run giveaways</MudText>
-            <MudText Typo="Typo.h6">LoyaltyFeature</MudText>
-            <MudText>Awards points for Cheers, Subs, etc...</MudText>
+            
             <MudText Typo="Typo.h6">Raffle</MudText>
             <MudText>Do various raffles for points in chat</MudText>
             <MudText Typo="Typo.h6">Roulette</MudText>
@@ -66,12 +67,14 @@
             <MudPaper>
                 <MudTable Items="@PointTypes">
                     <HeaderContent>
+                        <MudTh>Id</MudTh>
                         <MudTh>Name</MudTh>
                         <MudTh>Description</MudTh>
                         <MudTh></MudTh>
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
+                        <MudTd>@context.Id</MudTd>
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Description</MudTd>
                         <MudTd>

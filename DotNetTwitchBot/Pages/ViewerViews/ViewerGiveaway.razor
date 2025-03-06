@@ -6,9 +6,8 @@
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
-@* @inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature TicketFeature; *@
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
-@inject DotNetTwitchBot.Bot.Commands.Features.ILoyaltyFeature LoyaltyFeature;
+@inject DotNetTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
@@ -167,8 +166,8 @@
         imageUrl = await GiveawayFeature.GetImageUrl();
         entries = await GiveawayFeature.GetEntriesCount();
         entrants = await GiveawayFeature.GetEntrantsCount();
-        TicketsPerSub = await LoyaltyFeature.GetTicketsPerSub();
-        BitsPerTicket = await LoyaltyFeature.GetBitsPerTicket();
+        TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
+        BitsPerTicket = await twitchEventsBonus.GetBitsPerPoint();
         if (BitsPerTicket > 0) BitsPerTicket = 100 / BitsPerTicket;
     }
 
