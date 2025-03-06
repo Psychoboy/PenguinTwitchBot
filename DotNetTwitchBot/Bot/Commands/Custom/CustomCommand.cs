@@ -34,14 +34,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<KeywordWithRegex> Keywords = [];
         private readonly IMediator _mediator;
-        private readonly IViewerFeature _viewerFeature;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
-        private readonly ILoyaltyFeature _loyaltyFeature;
-        private readonly GiveawayFeature _giveawayFeature;
-        private readonly ITTSService _ttsService;
-        private readonly AutoTimers _timers;
         private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
@@ -50,24 +45,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
-            ILoyaltyFeature loyaltyFeature,
             IPointsSystem pointsSystem,
-            GiveawayFeature giveawayFeature,
             IServiceBackbone serviceBackbone,
-            ITTSService ttsService,
-            AutoTimers timers,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
         {
             _mediator = mediator;
-            _viewerFeature = viewerFeature;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _twitchService = twitchService;
-            _loyaltyFeature = loyaltyFeature;
             _PointsSystem = pointsSystem;
-            _giveawayFeature = giveawayFeature;
-            _ttsService = ttsService;
-            _timers = timers;
 
             //Register Tags here
             CommandTags.Add("alert");
