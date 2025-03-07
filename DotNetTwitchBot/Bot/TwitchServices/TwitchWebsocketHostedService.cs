@@ -139,6 +139,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await eventService.OnCommand(eventArgs);
         }
 
+        public async Task AdBreak(AdBreakStartEventArgs e)
+        {
+            await eventService.OnAdBreakStartEvent(e);
+        }
+
         private async Task ChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs e)
         {
             try
@@ -151,7 +156,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     Length = e.Notification.Payload.Event.DurationSeconds,
                     StartedAt = e.Notification.Payload.Event.StartedAt
                 };
-                await eventService.OnAdBreakStartEvent(ev);
+                await AdBreak(ev);
             }
             catch (Exception ex)
             {
@@ -227,14 +232,41 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         }
 
+        public async Task StreamOffline()
+        {
+            try
+            {
+                if (eventService.IsOnline == false) return;
+                logger.LogInformation("Stream is offline");
+                eventService.IsOnline = false;
+                await eventService.OnStreamEnded();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in websocket message");
+            }
+        }
+
         private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
         {
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                logger.LogInformation("Stream is offline");
-                eventService.IsOnline = false;
-                await eventService.OnStreamEnded();
+                await StreamOffline();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in websocket message");
+            }
+        }
+        
+        public async Task StreamOnline()
+        {
+            try
+            {
+                logger.LogInformation("Stream is online");
+                eventService.IsOnline = true;
+                await eventService.OnStreamStarted();
             }
             catch (Exception ex)
             {
@@ -247,9 +279,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
-                logger.LogInformation("Stream is online");
-                eventService.IsOnline = true;
-                await eventService.OnStreamStarted();
+                await StreamOnline();
             }
             catch (Exception ex)
             {
