@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
-                var amount = await pointSystem.AddPointsByUserIdAndGame(username, "bonus", ticketsWon);
+                var amount = await pointSystem.AddPointsByUsernameAndGame(username, "bonus", ticketsWon);
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",

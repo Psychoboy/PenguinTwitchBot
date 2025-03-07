@@ -161,7 +161,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        private async Task RunGroup(TimerGroup group)
+        public async Task RunGroup(TimerGroup group)
         {
             if (CheckEnoughMessagesAndUpdate(group) == false) return;
             try

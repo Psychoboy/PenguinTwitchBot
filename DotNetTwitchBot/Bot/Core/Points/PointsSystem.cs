@@ -440,6 +440,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
+                            var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());
+                            if (userPoints != null)
+                            {
+                                await SendChatMessage(e.TargetUser, $"You now have {userPoints.Points} {pointCommand.PointType.Name}");
+                            }
                         }
                         break;
                     }
@@ -558,7 +563,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
             if (userPoints != null)
             {
-                await SendChatMessage(e.Name, $"You have #{userPoints.Ranking} {userPoints.Points:N0} {userPointType?.Name}");
+                await SendChatMessage(e.Name, $"You are ranked #{userPoints.Ranking} and have {userPoints.Points:N0} {userPointType?.Name}");
             }
         }
 

@@ -21,6 +21,7 @@
                         <MudTh>Next Run</MudTh>
                         <MudTh></MudTh>
                         <MudTh></MudTh>
+                        <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Name">@context.Name</MudTd>
@@ -38,6 +39,9 @@
                             <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">
                                 Delete
                             </MudButton>
+                        </MudTd>
+                        <MudTd>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" @onclick="() => Run(context)">Run</MudButton>"
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -108,5 +112,10 @@
         timerGroups = await Timers.GetTimerGroupsAsync();
         timerGroup = new();
         StateHasChanged();
+    }
+
+    private async Task Run(DotNetTwitchBot.Bot.Models.Timers.TimerGroup item)
+    {
+        await Timers.RunGroup(item); 
     }
 }
