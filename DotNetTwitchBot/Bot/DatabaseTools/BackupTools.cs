@@ -1,5 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
+using EFCore.BulkExtensions;
+using LinqToDB.EntityFrameworkCore;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -30,14 +32,22 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
 
         public static async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
         {
-            var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
-            if (!File.Exists(fileName)) return;
-            var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-            var records = JsonSerializer.Deserialize<List<T>>(json);
-            if(records == null) throw new Exception($"{typeof(T).Name}.json was null");
-            context.Set<T>().RemoveRange(context.Set<T>());
-            context.Set<T>().AddRange(records);
-            logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);
+            try
+            {
+                var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
+                if (!File.Exists(fileName)) return;
+                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
+                var records = JsonSerializer.Deserialize<List<T>>(json);
+                if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
+                await context.Set<T>().ExecuteDeleteAsync();
+                context.Set<T>().AddRange(records);
+                logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to restore {Name}", typeof(T).Name);
+                throw;
+            }
         }
 
         public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
@@ -82,20 +92,31 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
             .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
-
+            var errors = "";
             foreach (var handler in handlers)
             {
-                var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
-                if (handlerInstance == null)
+                try
                 {
-                    logger?.LogError("Failed to create instance of {Name}", handler.Name);
-                    continue;
+                    var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
+                    if (handlerInstance == null)
+                    {
+                        logger?.LogError("Failed to create instance of {Name}", handler.Name);
+                        continue;
+                    }
+                    await handlerInstance.RestoreTable(context, backupDirectory, logger);
                 }
-                await handlerInstance.RestoreTable(context, backupDirectory, logger);
+                catch (Exception ex)
+                {
+                    errors += $"{handler.Name}: {ex.Message}\n";
 
+                }
             }
             logger?.LogInformation("Database committing");
             await context.SaveChangesAsync();
+            if (!string.IsNullOrEmpty(errors))
+            {
+                logger?.LogError("Errors occurred during restore:\n{Errors}", errors);
+            }
             logger?.LogInformation("Database restored");
         }
     }

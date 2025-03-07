@@ -13,11 +13,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<GiveawayWinner> GiveawayWinners { get; set; } = null!;
         public DbSet<GiveawayExclusion> GiveawayExclusions { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
-        public DbSet<ViewerTicket> ViewerTickets { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
-        public DbSet<ViewerPoint> ViewerPoints { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;
         public DbSet<ViewerChatHistory> ViewerChatHistories { get; set; } = null!;
@@ -56,11 +54,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
 
         //Virtual tables
-        public DbSet<ViewerPointWithRank> ViewerPointWithRanks { get; set; } = null!;
         public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;
         public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
         public DbSet<FilteredQuoteType> FilteredQuotes { get; set; } = null!;
-        public DbSet<ViewerTicketWithRanks> ViewerTicketWithRanks { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
         
@@ -68,9 +64,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<ViewerPointWithRank>()
-            .ToView(nameof(ViewerPointWithRanks))
-            .HasKey(t => t.Id);
 
             modelBuilder.Entity<ViewerTimeWithRank>()
             .ToView(nameof(ViewersTimeWithRank))
@@ -82,10 +75,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
             modelBuilder.Entity<FilteredQuoteType>()
             .ToView(nameof(FilteredQuotes))
-            .HasKey(t => t.Id);
-
-            modelBuilder.Entity<ViewerTicketWithRanks>()
-            .ToView(nameof(ViewerTicketWithRanks))
             .HasKey(t => t.Id);
 
             modelBuilder.Entity<SongRequestViewItem>()

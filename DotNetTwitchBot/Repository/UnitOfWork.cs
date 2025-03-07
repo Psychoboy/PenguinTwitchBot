@@ -13,8 +13,6 @@ namespace DotNetTwitchBot.Repository
             DefaultCommands = new DefaultCommandRepository(_context);
             SongRequestMetrics = new SongRequestMetricsRepository(_context);
             RaidHistory = new RaidHistoryRepository(_context);
-            ViewerTickets = new TicketRepository(_context);
-            ViewerTicketsWithRank = new TicketsWithRankRepository(_context);
             Viewers = new ViewersRepository(_context);
             Aliases = new AliasRepository(_context);
             Settings = new SettingsRepository(_context);
@@ -25,8 +23,6 @@ namespace DotNetTwitchBot.Repository
             DeathCounters = new DeathCountersRepository(_context);
             ViewerMessageCounts = new ViewerMessageCountsRepository(_context);
             ViewerMessageCountsWithRank = new ViewerMessageCountsWithRankRepository(_context);
-            ViewerPoints = new ViewerPointsRepository(_context);
-            ViewerPointWithRanks = new ViewerPointWithRanksRepository(_context);
             ViewersTime = new ViewersTimeRepository(_context);
             ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
             CustomCommands = new CustomCommandsRepository(_context);
@@ -70,8 +66,6 @@ namespace DotNetTwitchBot.Repository
         public ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; private set; }
         public ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
-        public ITicketsRepository ViewerTickets { get; private set; }
-        public ITicketsWithRankRepository ViewerTicketsWithRank { get; private set; }
         public IViewersRepository Viewers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
         public ISettingsRepository Settings { get; private set; }
@@ -82,8 +76,6 @@ namespace DotNetTwitchBot.Repository
         public IDeathCountersRepository DeathCounters { get; private set; }
         public IViewerMessageCountsRepository ViewerMessageCounts { get; private set; }
         public IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; private set; }
-        public IViewerPointsRepository ViewerPoints { get; private set; }
-        public IViewerPointWithRanksRepository ViewerPointWithRanks { get; private set; }
         public IViewersTimeRepository ViewersTime { get; private set; }
         public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
         public IViewerChatHistoriesRepository ViewerChatHistories { get; private set; }
