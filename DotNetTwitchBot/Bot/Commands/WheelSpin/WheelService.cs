@@ -71,14 +71,16 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
             showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
-            webSocketMessenger.AddToQueue(json);
+            var task = webSocketMessenger.AddToQueue(json);
+            task.Wait(500);
         }
 
         public void HideWheel()
         {
             var hideWheel = new HideWheel();
             var json = JsonSerializer.Serialize(hideWheel, jsonOptions);
-            webSocketMessenger.AddToQueue(json);
+            var task = webSocketMessenger.AddToQueue(json);
+            task.Wait(500);
         }
 
         public void SpinWheel()
@@ -96,7 +98,8 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
             var spinWheel = new SpinWheel(WinningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
-            webSocketMessenger.AddToQueue(json);
+            var task = webSocketMessenger.AddToQueue(json);
+            task.Wait(500);
         }
 
         public async Task<List<Wheel>> GetWheels()

@@ -137,37 +137,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
 
         }
 
-        public void ShowWheel()
-        {
-            var wheel = new ShowWheel();
-            wheel.Items.Add(new WheelProperty { Label = "Test 1"});
-            wheel.Items.Add(new WheelProperty { Label = "Test 2" });
-            wheel.Items.Add(new WheelProperty { Label = "Test 3" });
-            wheel.Items.Add(new WheelProperty { Label = "Test 4", Weight = 1.5f });
-            _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(wheel, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            }));
-        }
-
-        public void HideWheel()
-        {
-            var wheel = new HideWheel();
-            _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(wheel, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            }));
-        }
-
-        public void SpinWheel()
-        {
-            var wheel = new SpinWheel(1);
-            _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(wheel, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            }));
-        }
-
         public async Task ResumeAlerts()
         {
             _webSocketMessenger.Resume();

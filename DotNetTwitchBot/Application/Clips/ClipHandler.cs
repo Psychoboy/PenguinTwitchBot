@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Application.Clips
                 };
                 File.SetLastWriteTime("wwwroot/clips/" + request.Clip.Id + ".mp4", DateTime.Now);
                 var alert = new QueueAlert(playClip.Generate());
-                webSocketMessenger.AddToQueue(alert.Alert);
+                await webSocketMessenger.AddToQueue(alert.Alert);
             }
             catch (Exception ex)
             {
