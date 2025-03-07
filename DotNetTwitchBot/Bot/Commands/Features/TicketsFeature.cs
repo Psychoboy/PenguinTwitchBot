@@ -176,9 +176,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public override async Task Register()
         {
             var moduleName = "TicketsFeature";
-            await RegisterDefaultCommand("tickets", this, moduleName);
-            await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);
+            //await RegisterDefaultCommand("tickets", this, moduleName);
+            //await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
+            //await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);
             await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
