@@ -441,10 +441,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());
-                            if (userPoints != null)
+                            if (e.Args.Count >= 3 && bool.TryParse(e.Args[2], out bool sayPoints) && sayPoints && userPoints != null)
                             {
-                                await SendChatMessage(e.TargetUser, $"You now have {userPoints.Points} {pointCommand.PointType.Name}");
+                                await SendChatMessage(e.TargetUser, $"Gave you {amount} {pointCommand.PointType.Name}, you now have {userPoints.Points} {pointCommand.PointType.Name}");
                             }
+ 
                         }
                         break;
                     }
