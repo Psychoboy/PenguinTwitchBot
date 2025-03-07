@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Application.TTS
                 };
                 logger.LogInformation("Queueing TTS file for {voice} {type} with message: {message}", voice.Name, voice.Type, message);
                 var alert = new QueueAlert(audioAlert.Generate());
-                webSocketMessenger.AddToQueue(alert.Alert);
+                await webSocketMessenger.AddToQueue(alert.Alert);
             }
             catch (Exception ex)
             {

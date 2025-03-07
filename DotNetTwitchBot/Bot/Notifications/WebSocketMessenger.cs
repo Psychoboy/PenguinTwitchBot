@@ -26,10 +26,27 @@ namespace DotNetTwitchBot.Bot.Notifications
             _mediator = mediator;
         }
 
-        public void AddToQueue(string message)
+        public async Task AddToQueue(string message)
         {
             if (Paused) return;
-            _queue.Add(message);
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                if(websocketConnections.Count == 0)
+                {
+                    _logger.LogWarning("No websockets connected. Not adding message to queue.");
+                    return;
+                }
+                if (_queue.Count > 100)
+                {
+                    _logger.LogWarning("Queue is full. Not adding message to queue.");
+                    return;
+                }
+                _queue.Add(message);
+
+            }
+            finally { _semaphoreSlim.Release(); }
+            
 
         }
 
