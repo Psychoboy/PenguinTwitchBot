@@ -236,7 +236,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (eventService.IsOnline == false) return;
                 logger.LogInformation("Stream is offline");
                 eventService.IsOnline = false;
                 await eventService.OnStreamEnded();

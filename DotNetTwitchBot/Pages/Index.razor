@@ -83,46 +83,6 @@
         songRequests = songs;
     }
 
-    private async Task PauseAlerts()
-    {
-        await Admin.PauseAlerts();
-    }
-
-    private async Task ResumeAlerts()
-    {
-        await Admin.ResumeAlerts();
-    }
-
-    private async Task Reconnect()
-    {
-        await Admin.ReconnectTwitchWebsocket();
-    }
-
-    private async Task ForceOnline()
-    {
-        await Admin.ForceStreamOnline();
-    }
-
-    private async Task ForceOffline()
-    {
-        await Admin.ForceStreamOffline();
-    }
-
-    private async Task UpdateSongs()
-    {
-        await Admin.UpdateSongs();
-    }
-
-    private Task CleanupChat()
-    {
-        return ChatHistory.CleanOldLogs();
-    }
-
-    private async Task UpdateSchedule()
-    {
-        await Schedule.UpdateEvents();
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (ythub is not null)
