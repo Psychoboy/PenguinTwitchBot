@@ -4,7 +4,7 @@ namespace DotNetTwitchBot.Bot.Notifications
 {
     public interface IWebSocketMessenger
     {
-        void AddToQueue(string message);
+        Task AddToQueue(string message);
         Task Handle(Guid id, WebSocket webSocket);
 
         Task CloseAllSockets();

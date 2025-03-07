@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var userPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.UserId, ModuleName);
+            var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
             if (userPasties.Points < StealMax)
             {
                 await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));

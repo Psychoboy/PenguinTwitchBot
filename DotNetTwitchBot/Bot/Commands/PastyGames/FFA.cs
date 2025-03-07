@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             GameState = State.Finishing;
             if (Entered.Count == 1)
             {
-                await _pointsSystem.AddPointsByUserIdAndGame(Entered[0], ModuleName, cost);
+                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0], ModuleName, cost);
                 var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
                 await ServiceBackbone.SendChatMessage(notEnoughMessage);
                 await CleanUp();
@@ -88,7 +88,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                 .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
             await ServiceBackbone.SendChatMessage(winnerMessage);
-            await _pointsSystem.AddPointsByUserIdAndGame(winner, ModuleName, winnings);
+            await _pointsSystem.AddPointsByUsernameAndGame(winner, ModuleName, winnings);
             await CleanUp();
         }
 
