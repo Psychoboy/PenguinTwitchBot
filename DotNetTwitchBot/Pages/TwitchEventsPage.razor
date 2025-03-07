@@ -2,6 +2,8 @@
 @using DotNetTwitchBot.Bot.Commands.TwitchEvents
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.TwitchEvents.ITwitchEventsService TwitchEventsService
+@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchWebsocketHostedService TwitchWebsocketHostedService
+
 
 <PageTitle>SPTV Twitch Bot - Channel Points</PageTitle>
 
@@ -57,6 +59,11 @@
                     </EditForm>
                     <MudText> Ads - (length) (automatic) (startdate)</MudText>
                 </MudPaper>
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudButton OnClick="TestAdbreak" Variant="Variant.Outlined" Color="Color.Tertiary">Test Ad Break</MudButton>
+                    <MudButton OnClick="TestStreamOnline" Variant="Variant.Outlined" Color="Color.Tertiary">Test Stream Online</MudButton>
+                    <MudButton OnClick="TestStreamOffline" Variant="Variant.Outlined" Color="Color.Tertiary">Test Stream Offline</MudButton>
+                </MudPaper>
             </MudCard>
         </MudItem>
     </MudGrid>
@@ -85,5 +92,25 @@
         TwitchEvents = await TwitchEventsService.GetTwitchEvents();
         TwitchEvent = new();
         StateHasChanged();
+    }
+
+    private async Task TestAdbreak()
+    {
+        await TwitchWebsocketHostedService.AdBreak(new DotNetTwitchBot.Bot.Events.AdBreakStartEventArgs
+            {
+                Length = 30,
+                Automatic = true,
+                StartedAt = DateTime.Now
+            });
+    }
+
+    private async Task TestStreamOnline()
+    {
+        await TwitchWebsocketHostedService.StreamOnline();
+    }
+
+    private async Task TestStreamOffline()
+    {
+        await TwitchWebsocketHostedService.StreamOffline();
     }
 }

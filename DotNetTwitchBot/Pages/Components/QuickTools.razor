@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DotNetTwitchBot.Bot.Core.IChatHistory ChatHistory
 @inject DotNetTwitchBot.Bot.StreamSchedule.ISchedule Schedule
+@inject DotNetTwitchBot.Bot.TwitchServices.ITwitchWebsocketHostedService TwitchWebsocketHostedService
 
 <CascadingAuthenticationState> 
     <AuthorizeView Roles="Streamer">
@@ -49,27 +50,17 @@
 
     private async Task Reconnect()
     {
-        await Admin.ReconnectTwitchWebsocket();
+        await TwitchWebsocketHostedService.ForceReconnect();
     }
 
     private async Task ForceOnline()
     {
-        await Admin.ForceStreamOnline();
+        await TwitchWebsocketHostedService.StreamOnline();
     }
 
     private async Task ForceOffline()
     {
-        await Admin.ForceStreamOffline();
-    }
-
-    private async Task UpdateSongs()
-    {
-        await Admin.UpdateSongs();
-    }
-
-    private Task CleanupChat()
-    {
-        return ChatHistory.CleanOldLogs();
+        await TwitchWebsocketHostedService.StreamOffline();
     }
 
     private async Task UpdateSchedule()

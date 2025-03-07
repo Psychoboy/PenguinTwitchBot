@@ -149,42 +149,6 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
             await ServiceBackbone.SendChatMessage("Alerts paused.");
         }
 
-        public async Task UpdateSongs()
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.SongRequestHistory.ExecuteDeleteAll();
-            var oldHistory = await db.SongRequestMetrics.GetAllAsync();
-            var songs = new List<SongRequestHistory>();
-            foreach (var item in oldHistory)
-            {
-                for (var i = 0; i < item.RequestedCount; i++) {
-                    songs.Add(new SongRequestHistory
-                    {
-                        SongId = item.SongId,
-                        Title = item.Title,
-                        Duration = item.Duration,
-                    });
-                }
-            }
-            await db.SongRequestHistory.AddRangeAsync(songs);
-            await db.SaveChangesAsync();
-        } 
-
-        public async Task ReconnectTwitchWebsocket()
-        {
-            try
-            {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var websocketService = scope.ServiceProvider.GetServices<IHostedService>().OfType<TwitchWebsocketHostedService>().Single();
-                await websocketService.ForceReconnect();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to reconnect manually.");
-            }
-        }
-
         public async Task ForceStreamOnline()
         {
             _serviceBackbone.IsOnline = true;
