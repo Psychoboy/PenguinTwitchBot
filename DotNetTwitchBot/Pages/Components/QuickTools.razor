@@ -16,7 +16,6 @@
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ForceOffline">Force Offline</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdatePostedSchedule">Update Schedule</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpgradePoints">Upgrade Points</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateEditors">Update Editors</MudButton>
         </Authorized>
         <NotAuthorized>
@@ -28,12 +27,6 @@
     {
         await viewerFeature.UpdateEditors();
     }
-
-    private async Task UpgradePoints()
-    {
-        await Admin.UpgradePoints();
-    }
-
     private async Task UpdatePostedSchedule()
     {
         await Schedule.PostSchedule();

@@ -9,8 +9,6 @@
         ISongRequestHistoryRepository SongRequestHistory { get; }
         ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; }
         IRaidHistoryRepository RaidHistory { get; }
-        ITicketsRepository ViewerTickets { get; }
-        //ITicketsWithRankRepository ViewerTicketsWithRank { get; }
         IViewersRepository Viewers { get; }
         IAliasRepository Aliases { get; }
         ISettingsRepository Settings { get; }
@@ -21,8 +19,6 @@
         IDeathCountersRepository DeathCounters { get; }
         IViewerMessageCountsRepository ViewerMessageCounts { get; }
         IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; }
-        IViewerPointsRepository ViewerPoints { get; }
-        //IViewerPointWithRanksRepository ViewerPointWithRanks { get; }
         IViewersTimeRepository ViewersTime { get; }
         IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
