@@ -445,7 +445,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             {
                                 await SendChatMessage(e.TargetUser, $"Gave you {amount} {pointCommand.PointType.Name}, you now have {userPoints.Points} {pointCommand.PointType.Name}");
                             }
- 
+                            logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+
                         }
                         break;
                     }
@@ -456,6 +457,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                            logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
                         }
                         break;
                     }
