@@ -440,6 +440,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
+                            var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());
+                            if (e.Args.Count >= 3 && bool.TryParse(e.Args[2], out bool sayPoints) && sayPoints && userPoints != null)
+                            {
+                                await SendChatMessage(e.TargetUser, $"Gave you {amount} {pointCommand.PointType.Name}, you now have {userPoints.Points} {pointCommand.PointType.Name}");
+                            }
+                            logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+
                         }
                         break;
                     }
@@ -450,6 +457,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                            logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
                         }
                         break;
                     }
@@ -558,7 +566,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
             if (userPoints != null)
             {
-                await SendChatMessage(e.Name, $"You have #{userPoints.Ranking} {userPoints.Points:N0} {userPointType?.Name}");
+                await SendChatMessage(e.Name, $"You are ranked #{userPoints.Ranking} and have {userPoints.Points:N0} {userPointType?.Name}");
             }
         }
 
