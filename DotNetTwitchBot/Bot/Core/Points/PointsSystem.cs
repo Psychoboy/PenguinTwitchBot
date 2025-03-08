@@ -443,7 +443,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());
                             if (e.Args.Count >= 3 && bool.TryParse(e.Args[2], out bool sayPoints) && sayPoints && userPoints != null)
                             {
-                                await SendChatMessage(e.TargetUser, $"Gave you {amount} {pointCommand.PointType.Name}, you now have {userPoints.Points} {pointCommand.PointType.Name}");
+                                await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
                             }
                             logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 

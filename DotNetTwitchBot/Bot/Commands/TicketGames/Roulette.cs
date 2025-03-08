@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommandService, IHostedService
     {
-        private readonly ConcurrentDictionary<string, int> TotalGambled = new();
+        private readonly ConcurrentDictionary<string, long> TotalGambled = new();
         private readonly ILogger<Roulette> _logger;
         private readonly IGameSettingsService _gameSettings;
         private readonly IPointsSystem _pointsSystem;
@@ -95,14 +95,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             amount.Equals("max", StringComparison.OrdinalIgnoreCase))
                         {
                             var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
-                            if (viewerPoints.Points > Int32.MaxValue / 2)
-                            {
-                                viewerPoints.Points = (Int32.MaxValue - 1) / 2;
-                            }
                             amount = viewerPoints.ToString();
                         }
 
-                        if (!Int32.TryParse(amount, out int amountToBet))
+                        if (!long.TryParse(amount, out var amountToBet))
                         {
                             var badArgs = await _gameSettings.GetStringSetting(
                                 Roulette.GAMENAME,
