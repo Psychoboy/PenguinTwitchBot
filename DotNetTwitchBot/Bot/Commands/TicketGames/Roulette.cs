@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class Roulette : BaseCommandService, IHostedService
     {
-        private readonly ConcurrentDictionary<string, int> TotalGambled = new();
+        private readonly ConcurrentDictionary<string, long> TotalGambled = new();
         private readonly ILogger<Roulette> _logger;
         private readonly IGameSettingsService _gameSettings;
         private readonly IPointsSystem _pointsSystem;
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             amount = viewerPoints.ToString();
                         }
 
-                        if (!Int32.TryParse(amount, out int amountToBet))
+                        if (!long.TryParse(amount, out var amountToBet))
                         {
                             var badArgs = await _gameSettings.GetStringSetting(
                                 Roulette.GAMENAME,
