@@ -95,10 +95,6 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             amount.Equals("max", StringComparison.OrdinalIgnoreCase))
                         {
                             var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
-                            if (viewerPoints.Points > Int32.MaxValue / 2)
-                            {
-                                viewerPoints.Points = (Int32.MaxValue - 1) / 2;
-                            }
                             amount = viewerPoints.ToString();
                         }
 
