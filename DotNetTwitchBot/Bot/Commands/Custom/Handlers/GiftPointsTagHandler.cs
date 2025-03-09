@@ -85,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 return new CustomCommandResult();
             }
             await pointsSystem.AddPointsByUserId(target.UserId, pointTypeId, amount);
-            await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"You have gifted {amount} {pointSystem.Name} to {target.DisplayName}.");
+            await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"You have gifted {amount:N0} {pointSystem.Name} to {target.DisplayName}.");
             return new CustomCommandResult();
         }
     }
