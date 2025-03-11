@@ -35,12 +35,12 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     args = Regex.Replace(args, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                     if (!string.IsNullOrWhiteSpace(args))
                     {
-                        var message = markov.Walk(args);
+                        var message = await markov.Walk(args);
                         await CheckAndSendMessage(message, args);
                     }
                     else
                     {
-                        var message = markov.Walk();
+                        var message = await markov.Walk();
                         await CheckAndSendMessage(message, args);
                     }
                 }
@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             await RegisterDefaultCommand("g", this, GAMENAME);
         }
 
-        public void LearnMessage(ChatMessageEventArgs e)
+        public async Task LearnMessage(ChatMessageEventArgs e)
         {
             if (markov != null)
             {
@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     && e.FromOwnChannel 
                     && e.Message.Contains("http") == false)
                 {
-                    markov.Learn([e.Message]);
+                    await markov.Learn([e.Message]);
                 }
             }
         }
@@ -90,7 +90,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         public async Task Relearn()
         {
             await UpdateBots();
-            markov.Chain.Clear();
+            await markov.Chain.Clear();
             await Learn();
             
         }
@@ -111,7 +111,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 
             if (messages != null)
             {
-                markov.Learn(messages);
+                await markov.Learn(messages);
             }
             else
             {
@@ -143,7 +143,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             await UpdateBots();
 
 
-            await Learn();
+            //await Learn();
 
             await Register();
         }

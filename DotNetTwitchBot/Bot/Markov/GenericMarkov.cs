@@ -13,12 +13,12 @@ namespace DotNetTwitchBot.Bot.Markov
     /// define overrides for SplitTokens and RebuildPhrase, which is generally
     /// all that should be needed for implementation of a new model type.
     /// </summary>
-    public abstract class GenericMarkov(ILogger<GenericMarkov> logger) : IMarkovStrategy
+    public abstract class GenericMarkov(ILogger<GenericMarkov> logger, IServiceScopeFactory scopeFactory) : IMarkovStrategy
     {
 
         // Chain containing the model data. The key is the N number of
         // previous words and value is a list of possible outcomes, given that key
-        public MarkovChain Chain { get; set; } = new MarkovChain();
+        public MarkovChain Chain { get; set; } = new MarkovChain(scopeFactory);
 
         /// <summary>
         /// Used for defining a strategy to select the next value when calling Walk()
@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Bot.Markov
         //suggesting the next state
         public int Level { get; set; } = 2;
 
-        public void Learn(IEnumerable<string> phrases)
+        public async Task Learn(IEnumerable<string> phrases)
         {
 
             if (phrases.Count() > 1)
@@ -54,11 +54,16 @@ namespace DotNetTwitchBot.Bot.Markov
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }
             // For every sentence, learn it
-            Parallel.ForEach(phrases, Learn);
-            
+            //Parallel.ForEachAsync(phrases, Learn);
+            var tasks = new List<Task>();
+            foreach (var phrase in phrases)
+            {
+                tasks.Add(Learn(phrase));
+            }
+            await Task.WhenAll([.. tasks]);
         }
 
-        public void Learn(string phrase)
+        public async Task Learn(string phrase)
         {
             logger.LogDebug("Learning phrase: '{phrase}'", phrase);
             if (phrase == null || phrase.Equals(default))
@@ -76,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Markov
             // Split the sentence to an array of words
             var tokens = SplitTokens(phrase).ToArray();
 
-            LearnTokens(tokens);
+            await LearnTokens(tokens);
 
             var lastCol = new List<string>();
             for (var j = Level; j > 0; j--)
@@ -98,14 +103,14 @@ namespace DotNetTwitchBot.Bot.Markov
 
             logger.LogDebug("Reached final key for phrase {phrase}", phrase);
             var finalKey = new NgramContainer([.. lastCol]);
-            Chain.AddOrCreate(finalKey, null);
+            await Chain.AddOrCreate(finalKey, null);
         }
 
         /// <summary>
         /// Iterate over a list of TGrams and store each of them in the model at a composite key genreated from its prior [Level] number of TGrams
         /// </summary>
         /// <param name="tokens"></param>
-        private void LearnTokens(string[] tokens)
+        private async Task LearnTokens(string[] tokens)
         {
             for (var i = 0; i < tokens.Length; i++)
             {
@@ -141,7 +146,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 var key = new NgramContainer(previousCol.ToArray());
 
                 // add the current token to the markov model at the composite key
-                Chain.AddOrCreate(key, current);
+                await Chain.AddOrCreate(key, current);
             }
         }
 
@@ -150,13 +155,13 @@ namespace DotNetTwitchBot.Bot.Markov
         /// </summary>
         /// <param name="seed">Optionally provide the start of the phrase to generate from</param>
         /// <returns></returns>
-        public string Walk(string? seed = default)
+        public async Task<string> Walk(string? seed = default)
         {
             if (seed == null)
             {
                 seed = RebuildPhrase([""]);
             }
-            return WalkLine(seed);
+            return await WalkLine(seed);
         }
 
         /// <summary>
@@ -164,7 +169,7 @@ namespace DotNetTwitchBot.Bot.Markov
         /// </summary>
         /// <param name="seed">Optionally provide the start of the phrase to generate from</param>
         /// <returns></returns>
-        private string WalkLine(string seed)
+        private async Task<string> WalkLine(string seed)
         {
 
             var paddedSeed = PadArrayLow(SplitTokens(seed)?.ToArray());
@@ -186,17 +191,17 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 // Choose a new token to add from the model
                 var key = new NgramContainer(q.Cast<string>().ToArray());
-                if (Chain.Contains(key))
+                if (await Chain.Contains(key))
                 {
                     string chosen;
 
                     if (built.Count == 0)
                     {
-                        chosen = new MostPopulatorUnigramStarterSelector().SelectUnigram(Chain.GetValuesForKey(key));
+                        chosen = new MostPopulatorUnigramStarterSelector().SelectUnigram(await Chain.GetValuesForKey(key));
                     }
                     else
                     {
-                        chosen = UnigramSelector.SelectUnigram(Chain.GetValuesForKey(key));
+                        chosen = UnigramSelector.SelectUnigram(await Chain.GetValuesForKey(key));
                     }
 
                     q.Dequeue();

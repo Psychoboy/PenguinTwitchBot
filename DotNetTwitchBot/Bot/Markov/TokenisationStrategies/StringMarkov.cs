@@ -2,8 +2,8 @@
 {
     public class StringMarkov : GenericMarkov
     {
-        public StringMarkov(ILogger<StringMarkov> logger)
-            : base(logger)
+        public StringMarkov(ILogger<StringMarkov> logger, IServiceScopeFactory scopeFactory)
+            : base(logger, scopeFactory)
         { }
 
         public override IEnumerable<string> SplitTokens(string input)
