@@ -101,7 +101,7 @@ namespace DotNetTwitchBot.Bot.Markov
 
             logger.LogDebug("Reached final key for phrase {phrase}", phrase);
             var finalKey = new NgramContainer([.. lastCol]);
-            await Chain.AddOrCreate(finalKey, null);
+            await Chain.AddOrCreate(finalKey, "\n\n");
         }
 
         /// <summary>
@@ -201,7 +201,10 @@ namespace DotNetTwitchBot.Bot.Markov
                     {
                         chosen = UnigramSelector.SelectUnigram(await Chain.GetValuesForKey(key));
                     }
-
+                    if(chosen == "\n\n")
+                    {
+                        break;
+                    }
                     q.Dequeue();
                     q.Enqueue(chosen);
                     built.Add(chosen);
