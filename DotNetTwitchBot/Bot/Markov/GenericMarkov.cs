@@ -54,13 +54,11 @@ namespace DotNetTwitchBot.Bot.Markov
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }
             // For every sentence, learn it
-            //Parallel.ForEachAsync(phrases, Learn);
-            var tasks = new List<Task>();
-            foreach (var phrase in phrases)
+            await Parallel.ForEachAsync(phrases,async (phrase, ct) =>
             {
-                tasks.Add(Learn(phrase));
-            }
-            await Task.WhenAll([.. tasks]);
+                await Learn(phrase);
+            });
+
         }
 
         public async Task Learn(string phrase)
