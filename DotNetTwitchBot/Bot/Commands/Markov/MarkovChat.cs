@@ -142,9 +142,6 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             logger.LogInformation("Teaching MarkovChat");
             await UpdateBots();
 
-
-            //await Learn();
-
             await Register();
         }
 
