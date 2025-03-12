@@ -13,11 +13,6 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             await db.SaveChangesAsync();
         }
 
-        /// <summary>
-        /// The number of states in the chain
-        /// </summary>
-        //public int Count => ChainDictionary.Count;
-
         internal async Task<bool> Contains(NgramContainer key)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
