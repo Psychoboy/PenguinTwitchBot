@@ -3,11 +3,9 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using System.Reflection.Metadata.Ecma335;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -23,6 +21,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
+        private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", new string[] { "username", "pointTypeId" });
+        private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", new string[] { "game", "pointTypeId" });
         public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
             try
@@ -52,6 +52,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     userPoints.Points += points;
                     db.UserPoints.Update(userPoints);
                 }
+                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
                 await db.SaveChangesAsync();
                 return userPoints.Points;
             }
@@ -133,6 +134,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await CreateInitialDataIfNeeded();
             await SetupSpecialServices();
             await Register();
+            ServiceBackbone.StreamStarted += StreamStarted;
             logger.LogInformation("Started {module}", nameof(PointsSystem));
         }
 
@@ -159,6 +161,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Stopped {module}", nameof(PointsSystem));
+            ServiceBackbone.StreamStarted -= StreamStarted;
             return Task.CompletedTask;
         }
 
@@ -298,6 +301,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.UserPoints.Update(userPoints);
             await db.SaveChangesAsync();
+            NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
             return true;
         }
 
@@ -327,24 +331,28 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
             return await RemovePointsFromUserByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
             return await RemovePointsFromUserByUsername(username, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
             return await AddPointsByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
             return await AddPointsByUsername(username, pointType.GetId(), points);
         }
 
@@ -602,6 +610,28 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var points = await db.UserPoints.Find(x => x.PointTypeId == pointType.Id).ToListAsync();
             db.UserPoints.RemoveRange(points);
             await db.SaveChangesAsync();
+            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Set(0);
+        }
+
+        private Task StreamStarted(object? sender, EventArgs _)
+        {
+            {
+                var labels = NumberOfPoints.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    NumberOfPoints.RemoveLabelled(label);
+                }
+            }
+            {
+                var labels = NumberOfPointsByGame.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    NumberOfPointsByGame.RemoveLabelled(label);
+                }
+            }
+
+
+            return Task.CompletedTask;
         }
     }
 }
