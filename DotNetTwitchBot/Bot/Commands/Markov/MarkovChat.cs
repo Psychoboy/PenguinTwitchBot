@@ -22,6 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         public static readonly string GAMENAME = "MarkovChat";
         public static readonly string EXCLUDE_BOTS = "bots";
         public static readonly string LEVEL = "level";
+        public static readonly string NUMBER_OF_MONTHS = "months";
 
         private List<string> Bots = [];
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -97,6 +98,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 
         private async Task Learn()
         {
+            var numberOfMonths = await gameSettingsService.GetIntSetting(GAMENAME, NUMBER_OF_MONTHS, 3);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
@@ -104,7 +106,8 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                 .Find(x => x.Message.StartsWith("!") == false &&
                 Bots.Contains(x.Username.ToLower()) == false &&
                 bannedUsers.Contains(x.Username.ToLower()) == false && 
-                x.Message.Contains("http") == false)
+                x.Message.Contains("http") == false &&
+                x.CreatedAt > DateTime.Now.AddMonths(-numberOfMonths))
                 .Select(x => x.Message).ToListAsync();
 
             markov.Level = await gameSettingsService.GetIntSetting(GAMENAME, LEVEL, 2);
