@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",
-                    username, ticketsWon, amount);
+                    username, ticketsWon.ToString("N0"), amount.ToString("N0"));
                 await mediator.Publish(new SendBotMessage(message));
             }
             finally
