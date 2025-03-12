@@ -103,11 +103,13 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
             var messages = await db.ViewerChatHistories
-                .Find(x => x.Message.StartsWith("!") == false &&
-                Bots.Contains(x.Username.ToLower()) == false &&
-                bannedUsers.Contains(x.Username.ToLower()) == false && 
-                x.Message.Contains("http") == false &&
-                x.CreatedAt > DateTime.Now.AddMonths(-numberOfMonths))
+                .Find(x => 
+                    !x.Message.StartsWith("!") &&
+                    !Bots.Contains(x.Username.ToLower()) &&
+                    !bannedUsers.Contains(x.Username.ToLower()) && 
+                    !x.Message.Contains("http") &&
+                    x.CreatedAt > DateTime.Now.AddMonths(-numberOfMonths)
+                )
                 .Select(x => x.Message).ToListAsync();
 
             markov.Level = await gameSettingsService.GetIntSetting(GAMENAME, LEVEL, 2);
