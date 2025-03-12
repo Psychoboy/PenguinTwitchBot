@@ -3,7 +3,7 @@ using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
-    public class MarkovChain(IServiceScopeFactory scopeFactory)
+    public class MarkovChain(IServiceScopeFactory scopeFactory, ILogger<GenericMarkov> logger)
     {
         internal async Task Clear()
         {
@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await db.MarkovValues.AnyAsync(a => a.KeyIndex == string.Join(' ', key.Ngrams));
+            return await db.MarkovValues.AnyAsync(a => a.KeyIndex == key.ToString());
 
         }
 
@@ -33,18 +33,29 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// <param name="value">The value to add to the store</param>
         internal async Task AddOrCreate(NgramContainer key, string? value)
         {
-            if (value == null) return;
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await db.MarkovValues.AddAsync(new MarkovValue { KeyIndex = string.Join(' ', key.Ngrams), Value = value });
-            await db.SaveChangesAsync();
+            try
+            {
+                if (value == null) return;
+                if(key.Ngrams.Length == 0) return;
+                if(key.Ngrams.Length > 1 && string.IsNullOrEmpty(key.Ngrams[0]) && string.IsNullOrEmpty(key.Ngrams[1])) return;
+                var keyValue = key.ToString();
+                if(keyValue.Length > 255) return;
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await db.MarkovValues.AddAsync(new MarkovValue { KeyIndex = keyValue, Value = value });
+                await db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to add value to markov chain {chain}", key.ToString());
+            }
         }
 
         internal async Task<List<string>> GetValuesForKey(NgramContainer key)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var result = await db.MarkovValues.Where(a => a.KeyIndex == string.Join(' ', key.Ngrams)).Select(a => a.Value).ToListAsync();
+            var result = await db.MarkovValues.Where(a => a.KeyIndex == key.ToString()).Select(a => a.Value).ToListAsync();
             if(result == null)
             {
                 return [];

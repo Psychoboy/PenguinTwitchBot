@@ -2,7 +2,6 @@
 using DotNetTwitchBot.Bot.Markov.Models;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
 using Quartz.Util;
-using Serilog;
 
 namespace DotNetTwitchBot.Bot.Markov
 {
@@ -18,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Markov
 
         // Chain containing the model data. The key is the N number of
         // previous words and value is a list of possible outcomes, given that key
-        public MarkovChain Chain { get; set; } = new MarkovChain(scopeFactory);
+        public MarkovChain Chain { get; set; } = new MarkovChain(scopeFactory, logger);
 
         /// <summary>
         /// Used for defining a strategy to select the next value when calling Walk()
@@ -53,8 +52,9 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }
+
             // For every sentence, learn it
-            await Parallel.ForEachAsync(phrases,async (phrase, ct) =>
+            await Parallel.ForEachAsync(phrases, async (phrase, ct) =>
             {
                 await Learn(phrase);
             });
@@ -70,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Markov
             }
 
             // Ignore particularly short phrases
-            if (SplitTokens(phrase).Count() < Level)
+            if (SplitTokens(phrase).Count() < Level + 1)
             {
                 logger.LogDebug("Phrase {phrase} too short - skipped", phrase);
                 return;
@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 }
 
                 // create the composite key based on previous tokens
-                var key = new NgramContainer(previousCol.ToArray());
+                var key = new NgramContainer([.. previousCol]);
 
                 // add the current token to the markov model at the composite key
                 await Chain.AddOrCreate(key, current);
@@ -155,10 +155,7 @@ namespace DotNetTwitchBot.Bot.Markov
         /// <returns></returns>
         public async Task<string> Walk(string? seed = default)
         {
-            if (seed == null)
-            {
-                seed = RebuildPhrase([""]);
-            }
+            seed ??= RebuildPhrase([""]);
             return await WalkLine(seed);
         }
 
@@ -223,7 +220,7 @@ namespace DotNetTwitchBot.Bot.Markov
         // Used when providing a seed sentence or word for generation
         private string[] PadArrayLow(string[]? input)
         {
-            input ??= new List<string>().ToArray();
+            input ??= [];
 
             var splitCount = input.Length;
             if (splitCount > Level)

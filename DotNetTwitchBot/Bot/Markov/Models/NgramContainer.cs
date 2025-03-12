@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
 
         public override string ToString()
         {
-            return JsonConvert.SerializeObject(Ngrams);
+            return JsonSerializer.Serialize(Ngrams);
         }
     }
 }

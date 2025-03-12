@@ -1,16 +1,12 @@
 ﻿namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 {
-    public class StringMarkov : GenericMarkov
+    public class StringMarkov(ILogger<StringMarkov> logger, IServiceScopeFactory scopeFactory) : GenericMarkov(logger, scopeFactory)
     {
-        public StringMarkov(ILogger<StringMarkov> logger, IServiceScopeFactory scopeFactory)
-            : base(logger, scopeFactory)
-        { }
-
         public override IEnumerable<string> SplitTokens(string input)
         {
             if (input == null)
             {
-                return new List<string> { "" };
+                return [""];
             }
 
             input = input.Trim();
