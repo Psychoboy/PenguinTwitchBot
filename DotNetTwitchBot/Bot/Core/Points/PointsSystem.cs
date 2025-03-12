@@ -615,23 +615,25 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         private Task StreamStarted(object? sender, EventArgs _)
         {
-            {
-                var labels = NumberOfPoints.GetAllLabelValues();
-                foreach (var label in labels)
-                {
-                    NumberOfPoints.RemoveLabelled(label);
-                }
-            }
-            {
-                var labels = NumberOfPointsByGame.GetAllLabelValues();
-                foreach (var label in labels)
-                {
-                    NumberOfPointsByGame.RemoveLabelled(label);
-                }
-            }
-
-
+            ClearAllGaugeLabels(NumberOfPoints);
+            ClearAllGaugeLabels(NumberOfPointsByGame);
             return Task.CompletedTask;
+        }
+        private void ClearAllGaugeLabels(Prometheus.Gauge gauge)
+        {
+            try
+            {
+                var labels = gauge.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    gauge.RemoveLabelled(label);
+                }
+                logger.LogInformation("Successfully cleared all labels for gauge {gaugeName}", gauge.Name);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error clearing labels for gauge {gaugeName}", gauge.Name);
+            }
         }
     }
 }
