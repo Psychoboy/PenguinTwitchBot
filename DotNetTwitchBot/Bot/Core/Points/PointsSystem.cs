@@ -3,11 +3,9 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using System.Reflection.Metadata.Ecma335;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -23,6 +21,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
+        private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
+        private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
         public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
             try
@@ -51,6 +51,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 {
                     userPoints.Points += points;
                     db.UserPoints.Update(userPoints);
+                }
+                try
+                {
+                    NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error updating metric");
                 }
                 await db.SaveChangesAsync();
                 return userPoints.Points;
@@ -133,6 +141,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await CreateInitialDataIfNeeded();
             await SetupSpecialServices();
             await Register();
+            ServiceBackbone.StreamStarted += StreamStarted;
             logger.LogInformation("Started {module}", nameof(PointsSystem));
         }
 
@@ -159,6 +168,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Stopped {module}", nameof(PointsSystem));
+            ServiceBackbone.StreamStarted -= StreamStarted;
             return Task.CompletedTask;
         }
 
@@ -298,6 +308,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.UserPoints.Update(userPoints);
             await db.SaveChangesAsync();
+            try
+            {
+                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return true;
         }
 
@@ -327,24 +345,56 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await RemovePointsFromUserByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await RemovePointsFromUserByUsername(username, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await AddPointsByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await AddPointsByUsername(username, pointType.GetId(), points);
         }
 
@@ -602,6 +652,37 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var points = await db.UserPoints.Find(x => x.PointTypeId == pointType.Id).ToListAsync();
             db.UserPoints.RemoveRange(points);
             await db.SaveChangesAsync();
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Set(0);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
+        }
+
+        private Task StreamStarted(object? sender, EventArgs _)
+        {
+            ClearAllGaugeLabels(NumberOfPoints);
+            ClearAllGaugeLabels(NumberOfPointsByGame);
+            return Task.CompletedTask;
+        }
+        private void ClearAllGaugeLabels(Prometheus.Gauge gauge)
+        {
+            try
+            {
+                var labels = gauge.GetAllLabelValues();
+                foreach (var label in labels)
+                {
+                    gauge.RemoveLabelled(label);
+                }
+                logger.LogInformation("Successfully cleared all labels for gauge {gaugeName}", gauge.Name);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error clearing labels for gauge {gaugeName}", gauge.Name);
+            }
         }
     }
 }

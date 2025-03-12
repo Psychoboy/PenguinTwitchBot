@@ -73,6 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("pointname");
             CommandTags.Add("channelname");
             CommandTags.Add("uptime");
+            CommandTags.Add("customapitext");
             CommandTags.Add("customapinoresponse");
             CommandTags.Add("GiveawayPrize");
             CommandTags.Add("target");
