@@ -21,8 +21,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
-        private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", new string[] { "username", "pointTypeId" });
-        private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", new string[] { "game", "pointTypeId" });
+        private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
+        private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
         public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
             try
@@ -52,7 +52,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     userPoints.Points += points;
                     db.UserPoints.Update(userPoints);
                 }
-                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
+                try
+                {
+                    NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error updating metric");
+                }
                 await db.SaveChangesAsync();
                 return userPoints.Points;
             }
@@ -301,7 +308,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.UserPoints.Update(userPoints);
             await db.SaveChangesAsync();
-            NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
+            try
+            {
+                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return true;
         }
 
@@ -331,28 +345,56 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await RemovePointsFromUserByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await RemovePointsFromUserByUsername(username, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await AddPointsByUserId(userId, pointType.GetId(), points);
         }
 
         public async Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Inc(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
             return await AddPointsByUsername(username, pointType.GetId(), points);
         }
 
@@ -610,7 +652,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var points = await db.UserPoints.Find(x => x.PointTypeId == pointType.Id).ToListAsync();
             db.UserPoints.RemoveRange(points);
             await db.SaveChangesAsync();
-            NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Set(0);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Set(0);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
         }
 
         private Task StreamStarted(object? sender, EventArgs _)
