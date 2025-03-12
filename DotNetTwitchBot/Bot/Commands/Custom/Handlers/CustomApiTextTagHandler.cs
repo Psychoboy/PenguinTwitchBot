@@ -16,7 +16,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             };
             httpRequest.Headers.Add("Accept", "text/plain");
             var result = await httpClient.SendAsync(httpRequest, cancellationToken);
-            return new CustomCommandResult(await result.Content.ReadAsStringAsync(cancellationToken));
+            var message = await result.Content.ReadAsStringAsync(cancellationToken);
+            return new CustomCommandResult();
         }
     }
 }
