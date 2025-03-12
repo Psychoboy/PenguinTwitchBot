@@ -3,32 +3,22 @@ using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace DotNetTwitchBot.Bot.Markov.Models
 {
-    public class MarkovChain
+    public class MarkovChain(IServiceScopeFactory scopeFactory, ILogger<GenericMarkov> logger)
     {
-        public MarkovChain()
+        internal async Task Clear()
         {
-            ChainDictionary = new ConcurrentDictionary<NgramContainer, List<string>>();
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await db.MarkovValues.ExecuteDeleteAsync();
+            await db.SaveChangesAsync();
         }
 
-        internal void Clear()
+        internal async Task<bool> Contains(NgramContainer key)
         {
-            lock (_lockObj)
-            {
-                ChainDictionary.Clear();
-            }
-        }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await db.MarkovValues.AnyAsync(a => a.KeyIndex == key.ToString());
 
-        internal ConcurrentDictionary<NgramContainer, List<string>> ChainDictionary { get; }
-        private readonly object _lockObj = new object();
-
-        /// <summary>
-        /// The number of states in the chain
-        /// </summary>
-        public int Count => ChainDictionary.Count;
-
-        internal bool Contains(NgramContainer key)
-        {
-            return ChainDictionary.ContainsKey(key);
         }
 
         /// <summary>
@@ -36,25 +26,36 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         /// <param name="key">The composite key under which to add the TGram value</param>
         /// <param name="value">The value to add to the store</param>
-        internal void AddOrCreate(NgramContainer key, string? value)
+        internal async Task AddOrCreate(NgramContainer key, string? value)
         {
-            if (value == null) return;
-            lock (_lockObj)
+            try
             {
-                if (!ChainDictionary.ContainsKey(key))
-                {
-                    ChainDictionary.TryAdd(key, new List<string> { value });
-                }
-                else
-                {
-                    ChainDictionary[key].Add(value);
-                }
+                if (value == null) return;
+                if(key.Ngrams.Length == 0) return;
+                if(key.Ngrams.Length > 1 && string.IsNullOrEmpty(key.Ngrams[0]) && string.IsNullOrEmpty(key.Ngrams[1])) return;
+                var keyValue = key.ToString();
+                if(keyValue.Length > 255) return;
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await db.MarkovValues.AddAsync(new MarkovValue { KeyIndex = keyValue, Value = value });
+                await db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to add value to markov chain {chain}", key.ToString());
             }
         }
 
-        internal List<string> GetValuesForKey(NgramContainer key)
+        internal async Task<List<string>> GetValuesForKey(NgramContainer key)
         {
-            return ChainDictionary[key];
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var result = await db.MarkovValues.Where(a => a.KeyIndex == key.ToString()).Select(a => a.Value).ToListAsync();
+            if(result == null)
+            {
+                return [];
+            }
+            return result;
         }
     }
 }
