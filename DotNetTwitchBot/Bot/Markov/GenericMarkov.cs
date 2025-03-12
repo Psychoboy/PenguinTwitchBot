@@ -188,7 +188,7 @@ namespace DotNetTwitchBot.Bot.Markov
             while (built.Count < 25)
             {
                 // Choose a new token to add from the model
-                var key = new NgramContainer(q.Cast<string>().ToArray());
+                var key = new NgramContainer([.. q.Cast<string>()]);
                 if (await Chain.Contains(key))
                 {
                     string chosen;
@@ -205,6 +205,7 @@ namespace DotNetTwitchBot.Bot.Markov
                     {
                         break;
                     }
+
                     q.Dequeue();
                     q.Enqueue(chosen);
                     built.Add(chosen);
