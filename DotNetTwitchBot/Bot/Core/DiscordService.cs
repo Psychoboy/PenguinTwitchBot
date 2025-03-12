@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Net;
+using Discord.Rest;
 using Discord.WebSocket;
 using DotNetTwitchBot.Application.Discord;
 using DotNetTwitchBot.Bot.Commands.Custom;
@@ -20,6 +21,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IMediator _mediator;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly DiscordSettings _settings;
         private bool isReady = false;
 
@@ -30,6 +32,7 @@ namespace DotNetTwitchBot.Bot.Core
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
             IMediator mediator,
+            ILoggerFactory loggerFactory,
             IConfiguration configuration)
         {
             _logger = logger;
@@ -39,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Core
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
             _mediator = mediator;
+            _loggerFactory = loggerFactory;
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
@@ -79,6 +83,11 @@ namespace DotNetTwitchBot.Bot.Core
 
         }
 
+        private SocketGuild GetGuild()
+        {
+            return _client.GetGuild(_settings.DiscordServerId);
+        }
+
         private async Task AnnounceLive()
         {
             try
@@ -86,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Core
                 _logger.LogInformation("[DISCORD] Waiting 30 seconds to do announcement");
                 await Task.Delay(30000); //Delay to generate thumbnail
                 _logger.LogInformation("[DISCORD] Doing announcement");
-                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                IGuild guild = GetGuild();
 
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var imageUrl = await _twitchService.GetStreamThumbnail();
@@ -122,13 +131,13 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents()
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            IGuild guild = GetGuild();
             return guild.GetEventsAsync();
         }
 
         public Task<IGuildScheduledEvent> GetEvent(ulong id)
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            IGuild guild = GetGuild();
             return guild.GetEventAsync(id);
         }
 
@@ -162,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Core
         public async Task<ulong> CreateScheduledEvent(ScheduledStream scheduledStream)
         {
             //1033836361653964851
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            IGuild guild = GetGuild();
             var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: "https://twitch.tv/superpenguintv");
             scheduledStream.DiscordEventId = evt.Id;
             return evt.Id;
@@ -170,7 +179,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task<string> GetInviteLinkForSchedule()
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            IGuild guild = GetGuild();
             var channel = (ITextChannel)await guild.GetChannelAsync(1033836361653964851);
             var invites = await channel.GetInvitesAsync();
             var existingInvite = invites.Where(x => x.ExpiresAt== null).FirstOrDefault();
@@ -186,7 +195,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                IGuild guild = GetGuild();
                 var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
                 await channel.DeleteMessageAsync(id);
             } catch (Exception ex)
@@ -199,7 +208,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             try
             {
-                IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+                IGuild guild = GetGuild();
                 var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
                 var embed = await GenerateScheduleEmbed(scheduledStreams);
                 await channel.ModifyMessageAsync(id, x =>
@@ -237,7 +246,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams)
         {
-            IGuild guild = _client.GetGuild(_settings.DiscordServerId);
+            IGuild guild = GetGuild();
             var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             var embed = await GenerateScheduleEmbed(scheduledStreams);
             var msg = await channel.SendMessageAsync("", embed: embed);
@@ -426,7 +435,9 @@ namespace DotNetTwitchBot.Bot.Core
                 LogSeverity.Debug => LogLevel.Debug,
                 _ => LogLevel.Information
             };
-            _logger.Log(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
+            //_logger.Log(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
+            ILogger logger = _loggerFactory.CreateLogger<DiscordSocketClient>();
+            logger.Log(severity, message.Exception, "[{Source}] {Message}", message.Source, message.Message);
             await Task.CompletedTask;
         }
 
@@ -580,6 +591,50 @@ namespace DotNetTwitchBot.Bot.Core
             }
             await SendEmbedToAuditChannel(guild, embed);
         }
+
+
+        private  Task GuildScheduledEventUpdated(Cacheable<SocketGuildEvent, ulong> cacheable, SocketGuildEvent @event)
+        {
+            try
+            {
+                _logger.LogInformation("Event Updated: {EventName}", @event.Name);
+            }
+            catch (Exception)
+            { }
+            return Task.CompletedTask;
+        }
+
+        private Task GuildScheduledEventUserRemove(Cacheable<SocketUser, RestUser, IUser, ulong> cacheable, SocketGuildEvent @event)
+        {
+            try
+            {
+                _logger.LogInformation("Event User Removed: {EventName}", @event.Name);
+            }
+            catch (Exception)
+            {
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task GuildScheduledEventUserAdd(Cacheable<SocketUser, Discord.Rest.RestUser, IUser, ulong> arg1, SocketGuildEvent arg2)
+        {
+            try
+            {
+                _logger.LogInformation("Event User Added: {EventName}", arg2.Name);
+            }
+            catch (Exception)
+            {
+            }
+            return Task.CompletedTask;
+        }
+
+
+        private Task InviteCreated(SocketInvite invite)
+        {
+            _logger.LogInformation("Invite Created: {InviteCode}", invite.Code);
+            return Task.CompletedTask;
+        }
+
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting Discord Service.");
@@ -596,9 +651,12 @@ namespace DotNetTwitchBot.Bot.Core
             _client.UserUpdated += UserUpdated;
             _client.MessageUpdated += MessageUpdated;
             _client.MessageDeleted += MessageDeleted;
+            _client.GuildScheduledEventUserAdd += GuildScheduledEventUserAdd;
+            _client.GuildScheduledEventUserRemove += GuildScheduledEventUserRemove;
+            _client.GuildScheduledEventUpdated += GuildScheduledEventUpdated;
+            _client.InviteCreated += InviteCreated;
             await Initialize(_settings.DiscordToken);
         }
-
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
