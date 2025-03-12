@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Markov
 
             logger.LogDebug("Reached final key for phrase {phrase}", phrase);
             var finalKey = new NgramContainer([.. lastCol]);
-            Chain.AddOrCreate(finalKey, null);
+            Chain.AddOrCreate(finalKey, "\n\n");
         }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Markov
             while (built.Count < 25)
             {
                 // Choose a new token to add from the model
-                var key = new NgramContainer(q.Cast<string>().ToArray());
+                var key = new NgramContainer([.. q.Cast<string>()]);
                 if (Chain.Contains(key))
                 {
                     string chosen;
@@ -197,6 +197,10 @@ namespace DotNetTwitchBot.Bot.Markov
                     else
                     {
                         chosen = UnigramSelector.SelectUnigram(Chain.GetValuesForKey(key));
+                    }
+                    if(chosen == "\n\n")
+                    {
+                        break;
                     }
 
                     q.Dequeue();
