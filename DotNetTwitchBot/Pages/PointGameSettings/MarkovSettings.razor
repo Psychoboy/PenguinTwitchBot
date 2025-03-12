@@ -6,8 +6,9 @@
     <MudText Typo="Typo.h5">Markov Settings</MudText>
     <MudDivider Class="mb-2 mt-2" />
     <MudNumericField Label="Level" @bind-Value="level" HelperText="The level of the Markov chain (Starting message)" />
+    <MudNumericField Label="Number of Months" @bind-Value="numberOfMonths" HelperText="Number of months to look back for messages" />
     <MudTextField Label="Exclude Bots" @bind-Value="excludeBots" HelperText="Comma separated list of bots to exclude" />
-    <MudText>Recommended to re-learn or restart bot after saving</MudText>
+    <MudText>Recommended to re-learn if changing anything here</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="Relearn">Relearn</MudButton>
 </MudPaper>
@@ -21,6 +22,7 @@
     private IMarkovChat markovChat { get; set; } = null!;
     private string excludeBots { get; set; } = null!;
     private int level { get; set; } = 2;
+    private int numberOfMonths { get; set; } = 3;
 
     protected override async Task OnInitializedAsync()
     {
@@ -29,12 +31,15 @@
                     "streamelements,streamlabs,nightbot,moobot,ankhbot,phantombot,wizebot,super_waffle_bot,defbott,drinking_buddy_bot,dixperbot,lumiastream"
         );
         level = await gameSettingsService.GetIntSetting(MarkovChat.GAMENAME, MarkovChat.LEVEL, 2);
+        numberOfMonths = await gameSettingsService.GetIntSetting(MarkovChat.GAMENAME, MarkovChat.NUMBER_OF_MONTHS, 3);
+
     }
 
     private async Task SaveSettings()
     {
         await gameSettingsService.SetStringSetting(MarkovChat.GAMENAME, MarkovChat.EXCLUDE_BOTS, excludeBots);
         await gameSettingsService.SetIntSetting(MarkovChat.GAMENAME, MarkovChat.LEVEL, level);
+        await gameSettingsService.SaveSetting(MarkovChat.GAMENAME, MarkovChat.NUMBER_OF_MONTHS, numberOfMonths);
         await markovChat.UpdateBots();
         Snackbar.Add("Markov settings saved.", Severity.Success);
     }

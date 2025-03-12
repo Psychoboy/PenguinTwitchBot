@@ -22,6 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         public static readonly string GAMENAME = "MarkovChat";
         public static readonly string EXCLUDE_BOTS = "bots";
         public static readonly string LEVEL = "level";
+        public static readonly string NUMBER_OF_MONTHS = "months";
 
         private List<string> Bots = [];
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -35,12 +36,12 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     args = Regex.Replace(args, @"[^\u0000-\u00FF]+", string.Empty).Trim();
                     if (!string.IsNullOrWhiteSpace(args))
                     {
-                        var message = markov.Walk(args);
+                        var message = await markov.Walk(args);
                         await CheckAndSendMessage(message, args);
                     }
                     else
                     {
-                        var message = markov.Walk();
+                        var message = await markov.Walk();
                         await CheckAndSendMessage(message, args);
                     }
                 }
@@ -73,7 +74,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             await RegisterDefaultCommand("g", this, GAMENAME);
         }
 
-        public void LearnMessage(ChatMessageEventArgs e)
+        public async Task LearnMessage(ChatMessageEventArgs e)
         {
             if (markov != null)
             {
@@ -82,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     && e.FromOwnChannel 
                     && e.Message.Contains("http") == false)
                 {
-                    markov.Learn([e.Message]);
+                    await markov.Learn([e.Message]);
                 }
             }
         }
@@ -90,28 +91,32 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         public async Task Relearn()
         {
             await UpdateBots();
-            markov.Chain.Clear();
+            await markov.Chain.Clear();
             await Learn();
             
         }
 
         private async Task Learn()
         {
+            var numberOfMonths = await gameSettingsService.GetIntSetting(GAMENAME, NUMBER_OF_MONTHS, 3);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var bannedUsers = db.BannedViewers.GetAll().Select(x => x.Username.ToLower()).ToList();
             var messages = await db.ViewerChatHistories
-                .Find(x => x.Message.StartsWith("!") == false &&
-                Bots.Contains(x.Username.ToLower()) == false &&
-                bannedUsers.Contains(x.Username.ToLower()) == false && 
-                x.Message.Contains("http") == false)
+                .Find(x => 
+                    !x.Message.StartsWith("!") &&
+                    !Bots.Contains(x.Username.ToLower()) &&
+                    !bannedUsers.Contains(x.Username.ToLower()) && 
+                    !x.Message.Contains("http") &&
+                    x.CreatedAt > DateTime.Now.AddMonths(-numberOfMonths)
+                )
                 .Select(x => x.Message).ToListAsync();
 
             markov.Level = await gameSettingsService.GetIntSetting(GAMENAME, LEVEL, 2);
 
             if (messages != null)
             {
-                markov.Learn(messages);
+                await markov.Learn(messages);
             }
             else
             {
@@ -141,9 +146,6 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
             logger.LogInformation("Starting MarkovChat");
             logger.LogInformation("Teaching MarkovChat");
             await UpdateBots();
-
-
-            await Learn();
 
             await Register();
         }

@@ -4,7 +4,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
 {
     public interface IMarkovChat
     {
-        void LearnMessage(ChatMessageEventArgs e);
+        Task LearnMessage(ChatMessageEventArgs e);
         Task UpdateBots();
         Task Relearn();
     }
