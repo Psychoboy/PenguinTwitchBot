@@ -64,6 +64,19 @@ else
                     }
                 </MudSelect>
                 <MudTextField Label="Specific User Only" @bind-Value="defaultCommand.SpecificUserOnly" />
+                <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
+                <MudTable Items="@defaultCommand.SpecificUsersOnly" Context="specificUsersContext">
+                    <HeaderContent>
+                        <MudTh>Specific Users</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@specificUsersContext</MudTd>
+                        <MudTd>
+                            <MudFab Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveUser(specificUsersContext)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
                 <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
                     @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                     {
@@ -88,6 +101,7 @@ else
     IEnumerable<Rank> ranks = new HashSet<Rank>();
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private string SpecificUsersOnly { get; set; } = "";
     protected override async void OnParametersSet()
     {
         defaultCommand = await CommandHandler.GetDefaultCommandById(id);
@@ -130,5 +144,19 @@ else
             return pointType.Name;
         }
         return "";
+    }
+
+    private void AddSpecificUser()
+    {
+        if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
+        {
+            defaultCommand.SpecificUsersOnly.Add(SpecificUsersOnly);
+            SpecificUsersOnly = "";
+        }
+    }
+
+    private void RemoveUser(string user)
+    {
+        defaultCommand.SpecificUsersOnly.Remove(user);
     }
 }
