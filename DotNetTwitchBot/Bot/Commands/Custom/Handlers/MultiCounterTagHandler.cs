@@ -81,23 +81,23 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                         counter.Amount--;
                     }
                 }
-                else if (modifier.Equals("set"))
+                else if (modifier.Equals("set") &&
+                    eventArgs.Args.Count >= 2 &&
+                    Int32.TryParse(eventArgs.Args[1], out var newAmount))
                 {
-                    if (eventArgs.Args.Count >= 2 && Int32.TryParse(eventArgs.Args[1], out var newAmount))
+                    if (minValue.HasValue && newAmount < minValue.Value)
                     {
-                        if (minValue.HasValue && newAmount < minValue.Value)
-                        {
-                            counter.Amount = minValue.Value;
-                        }
-                        else if (maxValue.HasValue && newAmount > maxValue.Value)
-                        {
-                            counter.Amount = maxValue.Value;
-                        }
-                        else
-                        {
-                            counter.Amount = newAmount;
-                        }
+                        counter.Amount = minValue.Value;
                     }
+                    else if (maxValue.HasValue && newAmount > maxValue.Value)
+                    {
+                        counter.Amount = maxValue.Value;
+                    }
+                    else
+                    {
+                        counter.Amount = newAmount;
+                    }
+                    
                 }
                 db.Counters.Update(counter);
                 await db.SaveChangesAsync();

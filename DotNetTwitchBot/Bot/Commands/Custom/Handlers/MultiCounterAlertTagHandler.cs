@@ -11,7 +11,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
         public async Task<CustomCommandResult> Handle(MultiCounterAlertTag request, CancellationToken cancellationToken)
         {
             var args = request.Args;
-            var eventArgs = request.CommandEventArgs;
             var match = CustomCommand.CounterRegex().Match(args);
             var counterName = "";
             var counterAlert = "";
