@@ -6,98 +6,107 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class MultiCounterTagHandler(IServiceScopeFactory scopeFactory, IMediator mediator) : IRequestHandler<MultiCounterTag, CustomCommandResult>
+    public class MultiCounterTagHandler(IServiceScopeFactory scopeFactory, ILogger<MultiCounterTagHandler> logger) : IRequestHandler<MultiCounterTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(MultiCounterTag request, CancellationToken cancellationToken)
         {
-            var args = request.Args;
+            
             var eventArgs = request.CommandEventArgs;
-            var match = CustomCommand.CounterRegex().Match(args);
+            var args = request.Args.Split(" ");
             var counterName = "";
-            var counterAlert = "";
+            if(args.Length == 0)
+            {
+                logger.LogWarning("Missing parameters for MultiCounterTag");
+                return new CustomCommandResult();
+            }
 
-            if (match.Groups.Count > 0)
+            counterName = args[0];
+            if(string.IsNullOrEmpty(counterName))
             {
-                counterName = match.Groups[1].Value;
-                counterAlert = match.Groups[2].Value;
+                logger.LogWarning("Missing parameters for MultiCounterTag");
+                return new CustomCommandResult();
             }
-            else
+
+            int? minValue = null;
+            int? maxValue = null;
+            if (args.Length > 1)
             {
-                counterName = args;
-            }
-            var amount = 0;
-            //Fix counter here for alerts!
-            await using (var scope = scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var counter = await db.Counters.Find(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync();
-                if (counter == null)
+                if (Int32.TryParse(args[1], out var min))
                 {
-                    counter = new Counter()
-                    {
-                        CounterName = counterName,
-                        Amount = 0
-                    };
-                    await db.Counters.AddAsync(counter);
+                    minValue = min;
                 }
-
-                // TODO: Make this customizable
-                if (eventArgs.Args.Count > 0 && (eventArgs.IsBroadcaster || eventArgs.IsMod))
+                if (args.Length > 2 && Int32.TryParse(args[2], out var max))
                 {
-                    var modifier = eventArgs.Args[0];
-                    int? minValue = null;
-                    if (eventArgs.Args.Count > 1)
-                    {
-                        if (int.TryParse(eventArgs.Args[1], out var min))
-                        {
-                            minValue = min;
-                        }
-                    }
+                    maxValue = max;
+                }
+            }
 
-                    if (modifier.Equals("reset"))
+            var amount = 0;
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var counter = await db.Counters.Find(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync(cancellationToken);
+            counter ??= new Counter()
+                {
+                    CounterName = counterName,
+                    Amount = 0
+                };
+
+            // TODO: Make this customizable
+            if (eventArgs.Args.Count > 0 && (eventArgs.IsBroadcaster || eventArgs.IsMod))
+            {
+                var modifier = eventArgs.Args[0];
+                if (modifier.Equals("reset"))
+                {
+                    counter.Amount = 0;
+                }
+                else if (modifier.Equals("+"))
+                {
+                    if (maxValue.HasValue && counter.Amount + 1 > maxValue.Value)
                     {
-                        counter.Amount = 0;
+                        counter.Amount = maxValue.Value;
                     }
-                    else if (modifier.Equals("+"))
+                    else
                     {
                         counter.Amount++;
                     }
-                    else if (modifier.Equals("-"))
-                    {
-                        if (minValue.HasValue && counter.Amount - 1 < minValue.Value)
-                        {
-                            counter.Amount = minValue.Value;
-                        }
-                        else
-                        {
-                            counter.Amount--;
-                        }
-                    }
-                    else if (modifier.Equals("set"))
-                    {
-                        if (eventArgs.Args.Count >= 2)
-                        {
-                            if (Int32.TryParse(eventArgs.Args[1], out var newAmount))
-                            {
-                                counter.Amount = newAmount;
-                            }
-                        }
-                    }
-                    await db.SaveChangesAsync();
-                    await WriteCounterFile(counterName, counter.Amount);
                 }
-                amount = counter.Amount;
+                else if (modifier.Equals("-"))
+                {
+                    if (minValue.HasValue && counter.Amount - 1 < minValue.Value)
+                    {
+                        counter.Amount = minValue.Value;
+                    }
+                    else
+                    {
+                        counter.Amount--;
+                    }
+                }
+                else if (modifier.Equals("set") &&
+                    eventArgs.Args.Count >= 2 &&
+                    Int32.TryParse(eventArgs.Args[1], out var newAmount))
+                {
+                    if (minValue.HasValue && newAmount < minValue.Value)
+                    {
+                        counter.Amount = minValue.Value;
+                    }
+                    else if (maxValue.HasValue && newAmount > maxValue.Value)
+                    {
+                        counter.Amount = maxValue.Value;
+                    }
+                    else
+                    {
+                        counter.Amount = newAmount;
+                    }
+                    
+                }
+                db.Counters.Update(counter);
+                await db.SaveChangesAsync();
+                await WriteCounterFile(counterName, counter.Amount);
             }
-            counterAlert = counterAlert.Replace("\\(totalcount\\)", amount.ToString());
-            if (!string.IsNullOrWhiteSpace(counterAlert))
-            {
-                var alertImage = new AlertImage();
-                await mediator.Publish(new QueueAlert(alertImage.Generate(counterAlert)));
-            }
-
-            return new CustomCommandResult(amount.ToString());
+            amount = counter.Amount;
+            return new CustomCommandResult(amount.ToString("N0"));
         }
-        private async Task WriteCounterFile(string counterName, int amount)
+        private static async Task WriteCounterFile(string counterName, int amount)
         {
             if (!Directory.Exists("Data/counters"))
             {

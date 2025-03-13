@@ -69,9 +69,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("offlineonly");
             CommandTags.Add("followage");
             CommandTags.Add("multicounter");
-            CommandTags.Add("price");
-            CommandTags.Add("pointname");
-            CommandTags.Add("channelname");
+            CommandTags.Add("multicounteralert");
             CommandTags.Add("uptime");
             CommandTags.Add("customapitext");
             CommandTags.Add("customapinoresponse");
@@ -516,6 +514,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 "offlineonly" => _mediator.Send(new OfflineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
                 "followage" => _mediator.Send(new FollowAgeTag { CommandEventArgs = eventArgs, Args = args }),
                 "multicounter" => _mediator.Send(new MultiCounterTag { CommandEventArgs = eventArgs, Args = args }),
+                "multicounteralert" => _mediator.Send(new MultiCounterAlertTag { CommandEventArgs = eventArgs, Args = args }),
                 "uptime" => _mediator.Send(new UptimeTag { CommandEventArgs = eventArgs, Args = args }),
                 "customapitext" => _mediator.Send(new CustomApiTextTag { CommandEventArgs = eventArgs, Args = args }),
                 "customapinoresponse" => _mediator.Send(new CustomApiNoResponseTag { CommandEventArgs = eventArgs, Args = args }),
