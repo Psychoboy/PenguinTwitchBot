@@ -150,13 +150,13 @@ else
     {
         if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
         {
-            defaultCommand.SpecificUsersOnly.Add(SpecificUsersOnly);
+            defaultCommand?.SpecificUsersOnly.Add(SpecificUsersOnly);
             SpecificUsersOnly = "";
         }
     }
 
     private void RemoveUser(string user)
     {
-        defaultCommand.SpecificUsersOnly.Remove(user);
+        defaultCommand?.SpecificUsersOnly.Remove(user);
     }
 }

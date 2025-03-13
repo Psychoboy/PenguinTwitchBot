@@ -139,13 +139,13 @@ else
     {
         if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
         {
-            customCommand.SpecificUsersOnly.Add(SpecificUsersOnly);
+            customCommand?.SpecificUsersOnly.Add(SpecificUsersOnly);
             SpecificUsersOnly = "";
         }
     }
 
     private void RemoveUser(string user)
     {
-        customCommand.SpecificUsersOnly.Remove(user);
+        customCommand?.SpecificUsersOnly.Remove(user);
     }
 }

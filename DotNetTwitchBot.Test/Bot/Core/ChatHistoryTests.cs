@@ -32,9 +32,9 @@ namespace DotNetTwitchBot.Test.Bot.Core
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
 
-            _scopeFactory.CreateAsyncScope().Returns(scope);
+            _scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
-            serviceProvider.GetService<IUnitOfWork>().Returns(_unitOfWork);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
             _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, _logger);
         }
