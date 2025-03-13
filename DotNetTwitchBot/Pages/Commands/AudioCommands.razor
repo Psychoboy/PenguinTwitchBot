@@ -79,6 +79,19 @@
                             }
                         </MudSelect>
                         <MudTextField Label="Specific User Only" @bind-Value="audioCommand.SpecificUserOnly" />
+                        <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
+                        <MudTable Items="@audioCommand.SpecificUsersOnly" Context="specificUsersContext">
+                            <HeaderContent>
+                                <MudTh>Specific Users</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@specificUsersContext</MudTd>
+                                <MudTd>
+                                    <MudFab Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveUser(specificUsersContext)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
                         <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
                             {
@@ -104,6 +117,7 @@
     private AudioCommand? audioCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
+    private string SpecificUsersOnly { get; set; } = "";
     protected override Task OnInitializedAsync()
     {
         audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
@@ -154,5 +168,19 @@
             await AudioCommand.DeleteAudioCommand(item);
             ReloadCommands();
         }            
+    }
+
+    private void AddSpecificUser()
+    {
+        if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
+        {
+            audioCommand?.SpecificUsersOnly.Add(SpecificUsersOnly);
+            SpecificUsersOnly = "";
+        }
+    }
+
+    private void RemoveUser(string user)
+    {
+        audioCommand?.SpecificUsersOnly.Remove(user);
     }
 }

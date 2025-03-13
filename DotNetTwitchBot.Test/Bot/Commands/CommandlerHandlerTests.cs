@@ -1,524 +1,350 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Moderation;
-using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MockQueryable.NSubstitute;
+using MockQueryable;
+using Moq;
 using NSubstitute;
+using Xunit;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
 {
     public class CommandHandlerTests
     {
-        [Fact]
-        public void GetCommand_Should_ReturnCommand_IfExists()
+        private readonly Mock<ILogger<CommandHandler>> _loggerMock;
+        private readonly Mock<IServiceScopeFactory> _scopeFactoryMock;
+        private readonly Mock<IKnownBots> _knownBotsMock;
+        private readonly CommandHandler _commandHandler;
+
+        public CommandHandlerTests()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand" }, commandService);
-
-            // Act
-            var result = commandHandler.GetCommand("testCommand");
-
-            // Assert
-            Assert.NotNull(result);
+            _loggerMock = new Mock<ILogger<CommandHandler>>();
+            _scopeFactoryMock = new Mock<IServiceScopeFactory>();
+            _knownBotsMock = new Mock<IKnownBots>();
+            _commandHandler = new CommandHandler(_loggerMock.Object, _scopeFactoryMock.Object, _knownBotsMock.Object);
         }
 
         [Fact]
-        public void GetCommandDefaultName_Should_ReturnCommand_IfExists()
+        public void AddCommand_ShouldAddCommand()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var commandProperties = new BaseCommandProperties
+            {
+                CommandName = "testCommand"
+            };
+            var commandServiceMock = new Mock<IBaseCommandService>();
 
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
 
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            commandHandler.AddCommand(new DefaultCommand { CustomCommandName = "testCommand", CommandName = "testcommand" }, commandService);
-
-            // Act
-            var result = commandHandler.GetCommandDefaultName("testCommand");
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal("testcommand", result);
-        }
-
-        [Fact]
-        public void GetCommandDefaultName_Should_ReturnEmpty()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var knownBots = Substitute.For<IKnownBots>();
-            // commandService.ExecuteAsync().Returns(Task.CompletedTask);
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-
-
-            // Act
-            var result = commandHandler.GetCommandDefaultName("testCommand");
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal("", result);
-        }
-
-        [Fact]
-        public void GetCommand_Should_ReturnNull_IfNotExists()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-
-            // Act
-            var result = commandHandler.GetCommand("nonExistentCommand");
-
-            // Assert
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void AddCommand_Should_AddCommand_WithDefaultProperties()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-
-            // Act
-            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
-
-            // Assert
-            var result = commandHandler.GetCommand("testCommand");
-            Assert.NotNull(result);
-            Assert.Equal("testCommand", result.CommandProperties.CommandName);
-        }
-
-        [Fact]
-        public void AddCommand_Should_AddCommand_WithNoneDefaultProperties()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-
-            // Act
-            commandHandler.AddCommand(new BaseCommandProperties { CommandName = "testCommand" }, commandService);
-
-            // Assert
-            var result = commandHandler.GetCommand("testCommand");
-            Assert.NotNull(result);
-            Assert.Equal("testCommand", result.CommandProperties.CommandName);
-        }
-
-        [Fact]
-        public void UpdateCommandName_ShouldReplaceOldName()
-        {
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
-
-            //Act
-            commandHandler.UpdateCommandName("testCommand", "newCommand");
-
-            Assert.NotNull(commandHandler.GetCommand("newCommand"));
-            Assert.Null(commandHandler.GetCommand("testCommand"));
-
+            var command = _commandHandler.GetCommand("testCommand");
+            Assert.NotNull(command);
+            Assert.Equal(commandProperties, command.CommandProperties);
         }
 
         [Fact]
         public void RemoveCommand_ShouldRemoveCommand()
         {
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var commandService = Substitute.For<IBaseCommandService>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            commandHandler.AddCommand(new DefaultCommand { CommandName = "testCommand", CustomCommandName = "testCommand" }, commandService);
-
-            //Act
-            commandHandler.RemoveCommand("testCommand");
-
-            Assert.Null(commandHandler.GetCommand("testCommand"));
-        }
-
-
-
-        [Fact]
-        public async Task UpdateDefaultCommand_Should_UpdateDefaultCommand()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "newCommand", CommandName = "testCommand" };
-            var testCommand = new DefaultCommand { Id = 1, CommandName = "testCommand", CustomCommandName = "testCommand" };
-            commandHandler.AddCommand(testCommand, commandService);
-            var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-
-
-            // Act
-            await commandHandler.UpdateDefaultCommand(defaultCommand);
-
-            // Assert
-            dbContext.DefaultCommands.Received(1).Update(defaultCommand);
-        }
-
-
-        [Fact]
-        public async Task UpdateDefaultCommand_ShouldNot_UpdateDefaultCommand_NoId()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { CustomCommandName = "newCommand", CommandName = "testCommand" };
-            var testCommand = new DefaultCommand { Id = 1, CommandName = "testCommand", CustomCommandName = "testCommand" };
-            commandHandler.AddCommand(testCommand, commandService);
-            var queryable = new List<DefaultCommand> { testCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-
-
-            // Act
-            await commandHandler.UpdateDefaultCommand(defaultCommand);
-
-            // Assert
-            dbContext.DefaultCommands.Received(0).Update(defaultCommand);
-        }
-
-
-        [Fact]
-        public async Task UpdateDefaultCommand_ShouldNot_UpdateDefaultCommand_NotAdded()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "newCommand", CommandName = "testCommand" };
-
-            var queryable = new List<DefaultCommand> { }.AsQueryable().BuildMockDbSet();
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-            // Act
-            await commandHandler.UpdateDefaultCommand(defaultCommand);
-
-            // Assert
-            dbContext.DefaultCommands.Received(0).Update(defaultCommand);
-        }
-
-        [Fact]
-        public async Task GetDefaultCommandFromDb_ShouldReturnCorrectCommand()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var knownBots = Substitute.For<IKnownBots>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
-
-            var queryable = new List<DefaultCommand> { defaultCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-            // Act
-            var result = await commandHandler.GetDefaultCommandFromDb("testCommand");
-
-            // Assert
-            Assert.Equal(defaultCommand, result);
-        }
-
-        [Fact]
-        public async Task GetDefaultCommandById_ShouldReturnCorrectCommand()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
-
-            var queryable = new List<DefaultCommand> { defaultCommand }.AsQueryable().BuildMockDbSet();
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
-
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-            // Act
-            var result = await commandHandler.GetDefaultCommandById(1);
-
-            // Assert
-            Assert.Equal(defaultCommand, result);
-        }
-
-        [Fact]
-        public async Task GetDefaultCommandsFromDb_ShouldReturnListOfCommands()
-        {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var commandService = Substitute.For<IBaseCommandService>();
-
-
-            var defaultCommand = new DefaultCommand { Id = 1, CustomCommandName = "testCommand", CommandName = "testCommand" };
-            var commands = new List<DefaultCommand>
+            var commandProperties = new BaseCommandProperties
             {
-                new DefaultCommand { Id = 1, CommandName = "cmd1" },
-                new DefaultCommand { Id = 2, CommandName = "cmd2" }
+                CommandName = "testCommand"
             };
-            var queryable = commands.AsQueryable().BuildMockDbSet();
+            var commandServiceMock = new Mock<IBaseCommandService>();
 
-            dbContext.DefaultCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
+            _commandHandler.RemoveCommand("testCommand");
 
-
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-            var expectedCommands =
-            dbContext.DefaultCommands.GetAllAsync().Returns(commands);
-
-            // Act
-            var result = await commandHandler.GetDefaultCommandsFromDb();
-
-            // Assert
-            Assert.Equal(commands, result);
+            var command = _commandHandler.GetCommand("testCommand");
+            Assert.Null(command);
         }
 
         [Fact]
-        public async Task GetExternalCommands_ShouldReturnCommands()
+        public void UpdateCommandName_ShouldUpdateCommandName()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
-
-            var dbContext = Substitute.For<IUnitOfWork>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
-
-            scopeFactory.CreateScope().Returns(scope);
-
-
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-
-            var commands = new List<ExternalCommands>
+            var commandProperties = new BaseCommandProperties
             {
-                new ExternalCommands { Id = 1, CommandName = "cmd1" },
-                new ExternalCommands { Id = 2, CommandName = "cmd2" }
+                CommandName = "oldCommandName"
             };
-            var queryable = commands.AsQueryable().BuildMockDbSet();
+            var commandServiceMock = new Mock<IBaseCommandService>();
 
-            dbContext.ExternalCommands.GetAllAsync().Returns(commands);
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
+            _commandHandler.UpdateCommandName("oldCommandName", "newCommandName");
 
-            // Act
-            var result = await commandHandler.GetExternalCommands();
+            var oldCommand = _commandHandler.GetCommand("oldCommandName");
+            var newCommand = _commandHandler.GetCommand("newCommandName");
 
-            // Assert
-            Assert.Equal(commands, result);
+            Assert.Null(oldCommand);
+            Assert.NotNull(newCommand);
+            Assert.Equal(commandProperties, newCommand.CommandProperties);
         }
 
         [Fact]
-        public async Task GetExternalCommand_ShouldReturnCommand()
+        public async Task IsCoolDownExpired_ShouldReturnTrue_WhenNoCooldown()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
+            var scopeMock = new Mock<IServiceScope>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            scopeMock.Setup(s => s.ServiceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWorkMock.Object);
+            _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
-            var dbContext = Substitute.For<IUnitOfWork>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
+            var testCooldown = new List<CurrentCooldowns> { };
+            var queryable = testCooldown.AsQueryable().BuildMock();
 
-            scopeFactory.CreateScope().Returns(scope);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.UserName.Equals("testUser"))).Returns(queryable);
 
 
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
+            var result = await _commandHandler.IsCoolDownExpired("testUser", "testCommand");
 
-            dbContext.ExternalCommands.GetByIdAsync(1).Returns(testCommand);
-
-            // Act
-            var result = await commandHandler.GetExternalCommand(1);
-
-            // Assert
-            Assert.Equal(testCommand, result);
+            Assert.True(result);
         }
 
         [Fact]
-        public async Task AddOrUpdateExternalCommand_ShouldUpdate()
+        public async Task IsCoolDownExpired_ShouldReturnFalse_WhenGlobalCooldownNotExpired()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
+            var commandProperties = new BaseCommandProperties
+            {
+                CommandName = "testCommand"
+            };
+            var commandServiceMock = new Mock<IBaseCommandService>();
+            var scopeMock = new Mock<IServiceScope>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            scopeMock.Setup(s => s.ServiceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWorkMock.Object);
+            _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
-            var dbContext = Substitute.For<IUnitOfWork>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
+            var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MaxValue, NextUserCooldownTime = DateTime.MaxValue } };
+            var queryable = testCooldown.AsQueryable().BuildMock();
 
-            scopeFactory.CreateScope().Returns(scope);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
+            await _commandHandler.AddGlobalCooldown("testCommand", DateTime.Now.AddMinutes(1));
 
+            var result = await _commandHandler.IsCoolDownExpired("testUser", "testCommand");
 
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
-
-            // Act
-            await commandHandler.AddOrUpdateExternalCommand(testCommand);
-
-            // Assert
-            dbContext.ExternalCommands.Received().Update(testCommand);
-            await dbContext.Received().SaveChangesAsync();
+            Assert.False(result);
         }
 
         [Fact]
-        public async Task DeleteExternalCommand_ShouldDelete()
+        public async Task IsCoolDownExpired_ShouldReturnFalse_WhenUserCooldownNotExpired()
         {
-            // Arrange
-            var logger = Substitute.For<ILogger<CommandHandler>>();
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var knownBots = Substitute.For<IKnownBots>();
+            var commandProperties = new BaseCommandProperties
+            {
+                CommandName = "testCommand"
+            };
+            var commandServiceMock = new Mock<IBaseCommandService>();
+            var scopeMock = new Mock<IServiceScope>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            scopeMock.Setup(s => s.ServiceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWorkMock.Object);
+            _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
-            var dbContext = Substitute.For<IUnitOfWork>();
-            var serviceProvider = Substitute.For<IServiceProvider>();
-            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-            var scope = Substitute.For<IServiceScope>();
-            scope.ServiceProvider.Returns(serviceProvider);
+            var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MaxValue, NextUserCooldownTime = DateTime.MaxValue } };
+            var queryable = testCooldown.AsQueryable().BuildMock();
 
-            scopeFactory.CreateScope().Returns(scope);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.UserName.Equals("testUser"))).Returns(queryable);
 
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
+            await _commandHandler.AddCoolDown("testUser", "testCommand", DateTime.Now.AddMinutes(1));
 
-            var commandHandler = new CommandHandler(logger, scopeFactory, knownBots);
-            var testCommand = new ExternalCommands { Id = 1, CommandName = "cmd1" };
+            var result = await _commandHandler.IsCoolDownExpired("testUser", "testCommand");
 
-            // Act
-            await commandHandler.DeleteExternalCommand(testCommand);
-
-            // Assert
-            dbContext.ExternalCommands.Received().Remove(testCommand);
-            await dbContext.Received().SaveChangesAsync();
+            Assert.False(result);
         }
 
+        [Fact]
+        public async Task IsCoolDownExpired_ShouldReturnTrue_WhenCooldownExpired()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                CommandName = "testCommand"
+            };
+            var commandServiceMock = new Mock<IBaseCommandService>();
+            var scopeMock = new Mock<IServiceScope>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            scopeMock.Setup(s => s.ServiceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWorkMock.Object);
+            _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
+
+            var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MinValue, NextUserCooldownTime = DateTime.MinValue } };
+            var queryable = testCooldown.AsQueryable().BuildMock();
+
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);
+            unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.UserName.Equals("testUser"))).Returns(queryable);
+
+            _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
+            await _commandHandler.AddCoolDown("testUser", "testCommand", DateTime.Now.AddSeconds(-1));
+
+            var result = await _commandHandler.IsCoolDownExpired("testUser", "testCommand");
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldPass_ForViewer()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser"
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldFail_ForNonFollower()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Follower
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser"
+            };
+
+            var viewerFeatureMock = new Mock<DotNetTwitchBot.Bot.Commands.Features.IViewerFeature>();
+            viewerFeatureMock.Setup(v => v.IsFollowerByUsername(It.IsAny<string>())).ReturnsAsync(false);
+
+            var scopeMock = new Mock<IServiceScope>();
+            scopeMock.Setup(s => s.ServiceProvider.GetService(typeof(DotNetTwitchBot.Bot.Commands.Features.IViewerFeature))).Returns(viewerFeatureMock.Object);
+            _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldPass_ForSubscriber()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Subscriber
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser",
+                IsSub = true
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldFail_ForNonSpecificUser()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificUserOnly = "specificuser"
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser"
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldPass_ForSpecificUser()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificUserOnly = "specificuser"
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "specificuser"
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldFail_ForNonSpecificRank()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificRanks = new List<Rank> { Rank.Moderator }
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser",
+                IsMod = false
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldPass_ForSpecificRank()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificRanks = new List<Rank> { Rank.Moderator }
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser",
+                IsMod = true
+            };
+
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldPass_ForSpecificUsers()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificUsersOnly = new List<string> { "specificuser1", "specificuser2" }
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "specificuser1"
+            };
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CheckPermission_ShouldFail_ForSpecificUsers()
+        {
+            var commandProperties = new BaseCommandProperties
+            {
+                MinimumRank = Rank.Viewer,
+                SpecificUsersOnly = new List<string> { "specificuser1", "specificuser2" }
+            };
+            var eventArgs = new CommandEventArgs
+            {
+                Name = "testuser"
+            };
+            var result = await _commandHandler.CheckPermission(commandProperties, eventArgs);
+            Assert.False(result);
+        }
     }
 }
