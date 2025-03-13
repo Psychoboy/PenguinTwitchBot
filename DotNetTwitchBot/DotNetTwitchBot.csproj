@@ -51,7 +51,7 @@
     <PackageReference Include="linq2db" Version="5.4.1" />
     <PackageReference Include="linq2db.EntityFrameworkCore" Version="9.0.0" />
 	<PackageReference Include="MediatR" Version="12.4.1" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.3" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.2">
