@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
             }
 
             input = input.Trim();
-            return Regex.Split(input, pattern).Where(s => !string.IsNullOrWhiteSpace(s));
+            return Regex.Split(input, pattern, RegexOptions.None, TimeSpan.FromSeconds(1)).Where(s => !string.IsNullOrWhiteSpace(s));
         }
 
         public override string RebuildPhrase(IEnumerable<string> tokens)
