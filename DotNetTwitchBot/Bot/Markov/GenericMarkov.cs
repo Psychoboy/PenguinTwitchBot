@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 return;
             }
-
+            phrase = phrase.Replace("@", "");
             // Ignore particularly short phrases
             if (SplitTokens(phrase).Count() < Level + 1)
             {
@@ -156,6 +156,7 @@ namespace DotNetTwitchBot.Bot.Markov
         public async Task<string> Walk(string? seed = default)
         {
             seed ??= RebuildPhrase([""]);
+            seed = seed.Replace("@", "");
             return await WalkLine(seed);
         }
 
