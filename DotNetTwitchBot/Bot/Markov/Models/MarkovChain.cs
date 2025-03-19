@@ -32,7 +32,6 @@ namespace DotNetTwitchBot.Bot.Markov.Models
             {
                 if (value == null) return;
                 if(key.Ngrams.Length == 0) return;
-                if(key.Ngrams.Length > 1 && string.IsNullOrEmpty(key.Ngrams[0]) && string.IsNullOrEmpty(key.Ngrams[1])) return;
                 var keyValue = key.ToString();
                 if(keyValue.Length > 255) return;
                 await using var scope = scopeFactory.CreateAsyncScope();
