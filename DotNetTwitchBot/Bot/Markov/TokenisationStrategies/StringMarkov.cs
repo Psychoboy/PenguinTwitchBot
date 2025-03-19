@@ -33,7 +33,6 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
                     token[0].Equals('?') )
                 {
                     result.Add(token);
-                    result.Add(" ");
                 }
                 else
                 {
