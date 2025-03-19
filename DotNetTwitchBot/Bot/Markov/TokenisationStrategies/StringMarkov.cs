@@ -19,7 +19,6 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 
         public override string RebuildPhrase(IEnumerable<string> tokens)
         {
-            //return string.Join(" ", tokens);
             var result = new List<string>();
             foreach (var token in tokens)
             {
@@ -28,10 +27,10 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
                     continue;
                 }
 
-                if (token.Equals('!') ||
-                    token.Equals('.') ||
-                    token.Equals(',') ||
-                    token.Equals('?') )
+                if (token[0].Equals('!') ||
+                    token[0].Equals('.') ||
+                    token[0].Equals(',') ||
+                    token[0].Equals('?') )
                 {
                     result.Add(token);
                     result.Add(" ");
