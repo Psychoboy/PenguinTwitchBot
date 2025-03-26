@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     public interface ITwitchWebsocketHostedService : IHostedService
     {
         Task AdBreak(AdBreakStartEventArgs e);
-        Task ForceReconnect();
+        Task Reconnect();
         Task StreamOffline();
         Task StreamOnline();
     }

@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.ServiceTools
             if (serviceType == typeof(ITwitchWebsocketHostedService))
             {
                 var wsService = (ITwitchWebsocketHostedService)service;
-                await wsService.ForceReconnect();
+                await wsService.Reconnect();
                 return;
             }
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
