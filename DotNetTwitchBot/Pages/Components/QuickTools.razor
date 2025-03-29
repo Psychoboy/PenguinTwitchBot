@@ -43,7 +43,7 @@
 
     private async Task Reconnect()
     {
-        await TwitchWebsocketHostedService.ForceReconnect();
+        await TwitchWebsocketHostedService.Reconnect();
     }
 
     private async Task ForceOnline()
