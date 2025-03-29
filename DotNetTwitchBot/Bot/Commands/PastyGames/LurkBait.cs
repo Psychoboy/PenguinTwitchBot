@@ -16,7 +16,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 lbtrigger.CatchRating, 
                 lbtrigger.CatchRarity?.Replace(Environment.NewLine, ""));
 
-            await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * lbtrigger.CatchRating * 10);
+            switch(lbtrigger.CatchRating)
+            {
+                case 3:
+                    await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * 10000);
+                    break;
+                case 2:
+                    await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * 5000);
+                    break;
+                default:
+                    await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * 1000);
+                    break;
+            }
         }
     }
 }
