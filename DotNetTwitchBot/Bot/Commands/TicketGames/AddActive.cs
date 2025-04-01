@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IGameSettingsService gameSettingsService
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        protected readonly Timer _pointsToActiveCommandTimer = new(3000);
+        protected readonly Timer _pointsToActiveCommandTimer = new(1000);
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.Now;
 
@@ -69,19 +69,31 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public async Task SendTickets()
         {
-            var delay = await gameSettingsService.GetIntSetting(ModuleName, DELAY, 5);
-            if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
+            _pointsToActiveCommandTimer.Stop();
+            try
             {
-                var pointType = await pointSystem.GetPointTypeForGame(ModuleName);
-                await pointSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
+                var delay = await gameSettingsService.GetIntSetting(ModuleName, DELAY, 5);
+                if (_pointsToGiveOut > 0 && _lastPointsGivenOut.AddSeconds(delay) < GetDateTime())
+                {
+                    var pointType = await pointSystem.GetPointTypeForGame(ModuleName);
+                    await pointSystem.AddPointsToActiveUsers(pointType.Id.GetValueOrDefault(), _pointsToGiveOut);
 
-                var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
-                message = message
-                    .Replace("{Amount}", _pointsToGiveOut.ToString("n0"), StringComparison.OrdinalIgnoreCase)
-                    .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, MESSAGE, "Sending {Amount} {PointType} to all active users.");
+                    message = message
+                        .Replace("{Amount}", _pointsToGiveOut.ToString("n0"), StringComparison.OrdinalIgnoreCase)
+                        .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
 
-                await ServiceBackbone.SendChatMessage(message);
-                _pointsToGiveOut = 0;
+                    await ServiceBackbone.SendChatMessage(message);
+                    _pointsToGiveOut = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error sending tickets");
+            }
+            finally
+            {
+                _pointsToActiveCommandTimer.Start();
             }
         }
 
