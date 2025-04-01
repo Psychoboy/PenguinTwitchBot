@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
-        private bool Reconnecting = false;
+        private volatile bool Reconnecting = false;
 
         private async Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
@@ -457,7 +457,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
-            logger.LogDebug(e.Exception, "Websocket error occured: {message}", e.Message);
+            logger.LogInformation(e.Exception, "Websocket error occured: {message}", e.Message);
 
             await Reconnect();
         }
@@ -486,7 +486,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     try
                     {
                         logger.LogWarning("Attempting to reconnect to Twitch Websocket");
-                        if (await eventSubWebsocketClient.ReconnectAsync()) return;
+                        //if (await eventSubWebsocketClient.ReconnectAsync()) return;
+                        var reconnectTask = eventSubWebsocketClient.ReconnectAsync();
+                        if(reconnectTask.Wait(5000))
+                        {
+                            if (reconnectTask.Result) return;
+                        }
                     }
                     catch (Exception)
                     {
