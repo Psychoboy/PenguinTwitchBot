@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IGameSettingsService gameSettingsService
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
     {
-        protected readonly Timer _pointsToActiveCommandTimer = new(1000);
+        protected readonly Timer _pointsToActiveCommandTimer = new(3000);
         private long _pointsToGiveOut = 0;
         private DateTime _lastPointsGivenOut = DateTime.Now;
 
@@ -97,6 +97,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             logger.LogInformation("Stopped {moduledname}", ModuleName);
             _pointsToActiveCommandTimer.Elapsed -= OnActiveCommandTimerElapsed;
+            _pointsToActiveCommandTimer.Stop();
             return Task.CompletedTask;
         }
     }
