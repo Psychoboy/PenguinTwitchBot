@@ -324,7 +324,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             }
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
-            cache.Set($"{gameName}-PointType", (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals("PointTypeId"))).FirstOrDefault());
+            cache.Remove($"{gameName}-PointType");
+            cache.Set($"{gameName}-PointType", await GetPointTypeForGame(gameName));
         }
     }
 }
