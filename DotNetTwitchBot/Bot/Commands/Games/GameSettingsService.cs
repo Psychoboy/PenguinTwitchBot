@@ -227,12 +227,11 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
         private async Task SaveSetting(GameSetting setting)
         {
-            cache.Set($"{setting.GameName}-{setting.SettingName}", setting);
-
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
+            cache.Set($"{setting.GameName}-{setting.SettingName}", await GetSetting(setting.GameName, setting.SettingName));
         }
 
         private PointType? GetCachedPointTypeForGame(string gameName)
