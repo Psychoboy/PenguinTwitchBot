@@ -2,12 +2,14 @@
 using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DotNetTwitchBot.Bot.Commands.Games
 {
     public class GameSettingsService(
         ILogger<GameSettingsService> logger,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        IMemoryCache cache
         ) : IGameSettingsService
     {
 
@@ -211,27 +213,50 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
         private async Task<GameSetting?> GetSetting(string gameName, string settingName)
         {
+            if(cache.TryGetValue($"{gameName}-{settingName}", out GameSetting? setting))
+            {
+                return setting;
+            }
+
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(settingName))).FirstOrDefault();
+            setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(settingName))).FirstOrDefault();
+            cache.Set($"{gameName}-{settingName}", setting);
+            return setting;
         }
 
         private async Task SaveSetting(GameSetting setting)
         {
+            cache.Set($"{setting.GameName}-{setting.SettingName}", setting);
+
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
         }
 
+        private PointType? GetCachedPointTypeForGame(string gameName)
+        {
+            if (cache.TryGetValue($"{gameName}-PointType", out PointType? pointType))
+            {
+                return pointType;
+            }
+            return null;
+        }
+
         public async Task<PointType> GetPointTypeForGame(string gameName)
         {
+            var pointType = GetCachedPointTypeForGame(gameName);
+            if (pointType != null)
+            {
+                return pointType;
+            }
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals("PointTypeId"))).FirstOrDefault();
             if(setting != null)
             {
-                var pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
+                pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
                 if(pointType != null)
                     return pointType;
             }
@@ -298,6 +323,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             }
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
+            cache.Set($"{gameName}-PointType", await dbContext.PointTypes.GetByIdAsync(pointTypeId));
         }
     }
 }
