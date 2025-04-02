@@ -221,6 +221,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(settingName))).FirstOrDefault();
+            cache.Remove($"{gameName}-{settingName}");
             cache.Set($"{gameName}-{settingName}", setting);
             return setting;
         }
@@ -231,6 +232,7 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
+            cache.Remove($"{setting.GameName}-{setting.SettingName}");
             cache.Set($"{setting.GameName}-{setting.SettingName}", await GetSetting(setting.GameName, setting.SettingName));
         }
 
