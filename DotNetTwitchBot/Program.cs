@@ -166,6 +166,7 @@ internal class Program
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.KnownProxies.Add(IPAddress.Parse("192.168.1.128"));
+            options.KnownProxies.Add(IPAddress.Parse("192.168.1.245"));
             options.RequireHeaderSymmetry = false;
             options.ForwardLimit = null;
         });
