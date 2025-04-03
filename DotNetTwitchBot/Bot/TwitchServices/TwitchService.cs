@@ -1,3 +1,4 @@
+using NetTopologySuite.Algorithm;
 using System.Collections.Concurrent;
 using System.Timers;
 using TwitchLib.Api;
@@ -7,6 +8,7 @@ using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using TwitchLib.Api.Helix.Models.EventSub;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using Timer = System.Timers.Timer;
@@ -955,9 +957,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             await ValidateAndRefreshToken();
             var userId = await GetBroadcasterUserId();
-            if (userId == null) return;
+            if (userId == null) {
+                _logger.LogError("Error getting broadcaster id.");
+                throw new Exception("Error getting broadcaster id.");
+            }
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            var response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.chat.message", "1",
                 new Dictionary<string, string>{
                     {"broadcaster_user_id", userId},
@@ -967,7 +972,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            ValidateEventSubscription(response, "channel.chat.message");
+
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.follow", "2",
                 new Dictionary<string, string>{
                     {"broadcaster_user_id", userId},
@@ -977,7 +984,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            ValidateEventSubscription(response, "channel.follow");
+
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscribe", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
@@ -985,39 +994,45 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            ValidateEventSubscription(response, "channel.subscribe");
+
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.end", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.subscription.end");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.gift", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.subscription.gift");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.message", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.subscription.message");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.cheer", "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
                 },
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.cheer");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -1025,8 +1040,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.channel_points_custom_reward_redemption.add");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "stream.offline",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -1034,8 +1050,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "stream.offline");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "stream.online",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -1043,8 +1060,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "stream.online");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.raid",
                 "1",
                 new Dictionary<string, string>{{"to_broadcaster_user_id", userId},
@@ -1052,8 +1070,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                 sessionId, accessToken: _configuration["twitchAccessToken"]
             );
+            ValidateEventSubscription(response, "channel.raid");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                "channel.ban",
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -1061,8 +1080,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
+            ValidateEventSubscription(response, "channel.ban");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                "channel.unban",
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
@@ -1070,17 +1090,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
            );
+            ValidateEventSubscription(response, "channel.unban");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                "channel.ad_break.begin",
                "1",
                new Dictionary<string, string>{{"broadcaster_user_id", userId},
                },
                EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
-           );
+            );
+            ValidateEventSubscription(response, "channel.ad_break.begin");
 
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.suspicious_user.message",
                 "1",
                 new Dictionary<string, string>{
@@ -1090,7 +1112,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
                 );
-            await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            ValidateEventSubscription(response, "channel.suspicious_user.message");
+            
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.chat.message_delete",
                 "1",
                 new Dictionary<string, string>{
@@ -1100,8 +1124,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 EventSubTransportMethod.Websocket,
                sessionId, accessToken: _configuration["twitchAccessToken"]
                 );
+            ValidateEventSubscription(response, "channel.chat.message_delete");
 
 
+        }
+
+        private void ValidateEventSubscription(CreateEventSubSubscriptionResponse response, string eventName)
+        {
+            if (response == null)
+            {
+                _logger.LogError("Error creating event subscription for {eventName}", eventName);
+                throw new Exception("Error creating event subscription");
+            }
+            if (response.Subscriptions.Length == 0 || response.Subscriptions.First().Status != "enabled")
+            {
+                _logger.LogError("Event subscription for {eventName} is not enabled", eventName);
+                throw new Exception("Event subscription is not enabled");
+            }
         }
 
         public async Task ValidateAndRefreshToken()
