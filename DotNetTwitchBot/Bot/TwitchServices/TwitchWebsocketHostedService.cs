@@ -486,16 +486,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     try
                     {
                         logger.LogWarning("Attempting to reconnect to Twitch Websocket");
-                        //if (await eventSubWebsocketClient.ReconnectAsync()) return;
-                        var reconnectTask = eventSubWebsocketClient.ReconnectAsync();
-                        if(reconnectTask.Wait(5000))
-                        {
-                            if (reconnectTask.Result) return;
-                        }
+                        if (await eventSubWebsocketClient.ReconnectAsync()) return;
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        //Ignore
+                        logger.LogError(ex, "Error reconnecting to Twitch Websocket");
                     }
                     delayCounter *= 2;
                     if (delayCounter > 60) delayCounter = 60;
@@ -620,8 +615,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage -= ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete -= ChannelChatMessageDelete;
-            //eventSubWebsocketClient.Mod
-
         }
 
         [GeneratedRegex(@"[^\u0000-\u00FF]+")]
