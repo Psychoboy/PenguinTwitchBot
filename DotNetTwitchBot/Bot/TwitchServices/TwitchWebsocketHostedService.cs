@@ -491,7 +491,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                             logger.LogWarning("Twitch Websocket Reconnected");
                             return;
                         }
-                        ;
                         logger.LogWarning("Twitch Websocket Reconnect failed");
                     }
                     catch (Exception ex)
