@@ -488,7 +488,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         logger.LogWarning("Attempting to reconnect to Twitch Websocket");
                         if (await eventSubWebsocketClient.ReconnectAsync())
                         {
-                            logger.LogWarning("Twitch Websocket Reconnected");
+                            logger.LogInformation("Twitch Websocket Reconnected");
                             return;
                         }
                         logger.LogWarning("Twitch Websocket Reconnect failed");
