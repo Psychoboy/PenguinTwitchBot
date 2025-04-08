@@ -108,12 +108,19 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
         public async Task RunCommand(CommandEventArgs e)
         {
             if (Commands.ContainsKey(e.Command) == false) return;
-            if (Commands[e.Command].Disabled) return;
+            var command = Commands[e.Command];
+            if (command.Disabled) return;
 
             if (Bot.Commands.CommandHandler.CheckToRunBroadcasterOnly(e, Commands[e.Command]) == false) return;
 
-            var isCooldownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-            if (isCooldownExpired == false) return;
+            if (command.SayCooldown)
+            {
+                if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
+            }
+            else
+            {
+                if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
+            }
 
             if (await CommandHandler.CheckPermission(Commands[e.Command], e) == false)
             {

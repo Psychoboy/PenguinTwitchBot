@@ -313,25 +313,33 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                 }
 
-                var isCoolDownExpired = await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command);
-                if (isCoolDownExpired == false) return;
-                if (Commands[e.Command].Cost > 0 && Commands[e.Command].PointType != null)
+                var command = Commands[e.Command];
+                if (command.SayCooldown)
                 {
-                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, Commands[e.Command].PointTypeId ?? 0, Commands[e.Command].Cost)) == false)
+                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
+                }
+                else
+                {
+                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
+                }
+
+                if (command.Cost > 0 && command.PointType != null)
+                {
+                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
                     {
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough {Commands[e.Command].PointType?.Name}, that command costs {Commands[e.Command].Cost}.");
+                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
                         return;
                     }
                 }
 
-                await ProcessTagsAndSayMessage(e, Commands[e.Command].Response, Commands[e.Command].RespondAsStreamer);
-                if (Commands[e.Command].GlobalCooldown > 0)
+                await ProcessTagsAndSayMessage(e, command.Response, command.RespondAsStreamer);
+                if (command.GlobalCooldown > 0)
                 {
-                    await CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                    await CommandHandler.AddGlobalCooldown(e.Command, command.GlobalCooldown);
                 }
-                if (Commands[e.Command].UserCooldown > 0)
+                if (command.UserCooldown > 0)
                 {
-                    await CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                    await CommandHandler.AddCoolDown(e.Name, e.Command, command.UserCooldown);
                 }
             }
             finally

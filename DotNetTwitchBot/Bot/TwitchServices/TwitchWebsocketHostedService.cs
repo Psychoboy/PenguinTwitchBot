@@ -500,7 +500,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Exception when trying to reconnect after being disconnectedgi");
+                logger.LogError(ex, "Exception when trying to reconnect after being disconnected");
             }
             finally
             {
