@@ -7,6 +7,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
 {
     public class Schedule(ITwitchService twitchService, IDiscordService discordService, IServiceScopeFactory scopeFactory, ILogger<Schedule> logger) : ISchedule
     {
+        private static readonly string LastPostedSchedule = "LastPostedSchedule";
         public async Task<List<ScheduledStream>> GetNextStreams()
         {
             var result = await twitchService.GetStreamSchedule();
@@ -116,7 +117,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             logger.LogInformation("Updating posted schedule.");
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var lastSchedule = await db.Settings.Find(x => x.Name.Equals("LastPostedSchedule")).FirstOrDefaultAsync();
+            var lastSchedule = await db.Settings.Find(x => x.Name.Equals(LastPostedSchedule)).FirstOrDefaultAsync();
             if (lastSchedule == null)
             {
                 logger.LogError("Last posted schedule not found.");
@@ -133,7 +134,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
             var id = await discordService.PostSchedule(streams);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var lastSchedule = await db.Settings.Find(x => x.Name.Equals("LastPostedSchedule")).FirstOrDefaultAsync();
+            var lastSchedule = await db.Settings.Find(x => x.Name.Equals(LastPostedSchedule)).FirstOrDefaultAsync();
             if (lastSchedule != null)
             {
                 if (ulong.TryParse(lastSchedule.StringSetting, out var lastId))

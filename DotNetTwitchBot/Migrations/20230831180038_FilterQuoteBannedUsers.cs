@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"create VIEW `filteredquotes` as SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM (SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM quotes WHERE createdby NOT IN (SELECT username FROM bannedviewers)) t");
+            migrationBuilder.Sql(@"create VIEW `FilteredQuotes` as SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM (SELECT  `Id`,`CreatedOn`,`CreatedBy`,`Game`,`QUOTE` FROM Quotes WHERE createdby NOT IN (SELECT username FROM BannedViewers)) t");
         }
 
         /// <inheritdoc />
