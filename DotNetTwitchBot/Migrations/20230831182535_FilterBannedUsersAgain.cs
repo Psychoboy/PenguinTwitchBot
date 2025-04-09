@@ -38,9 +38,9 @@ namespace DotNetTwitchBot.Migrations
                 nullable: false,
                 defaultValue: false);
 
-            migrationBuilder.Sql(@"alter  VIEW `viewerticketwithranks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from viewertickets WHERE banned = false) t ");
+            migrationBuilder.Sql(@"alter  VIEW `ViewerTicketWithRanks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from ViewerTickets WHERE banned = false) t ");
             migrationBuilder.Sql(@"alter  VIEW `ViewerMessageCountWithRanks` AS select id, username, MessageCount, ranking from ( select id, username, MessageCount, rank() over (order by MessageCount desc) as ranking from ViewerMessageCounts WHERE banned = false) t ");
-            migrationBuilder.Sql(@"alter  VIEW `viewerpointwithranks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from viewerpoints WHERE  banned = false) t ");
+            migrationBuilder.Sql(@"alter  VIEW `ViewerPointsWithRanks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from ViewerPoints WHERE  banned = false) t ");
             migrationBuilder.Sql(@"alter  VIEW `ViewersTimeWithRank` AS select id, username, Time, ranking from ( select id, username, Time, rank() over (order by Time desc) as ranking from ViewersTime WHERE  banned = false) t ");
         }
 

@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Migrations
                     table.PrimaryKey("PK_SongRequestHistories", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            migrationBuilder.Sql("CREATE VIEW `songrequesthistorywithrank` AS select songid, title, duration, requestedcount, ranking, LastRequestDate from(select songid, title, duration, COUNT(SongId) AS requestedCount, rank() over (order by requestedcount desc) as ranking,MAX(RequestDate) AS LastRequestDate from songrequesthistories WHERE RequestDate >= (CURDATE() - INTERVAL 1 MONTH) GROUP BY SongId) t");
+            migrationBuilder.Sql("CREATE VIEW `SongRequestHistoryWithRank` AS select songid, title, duration, requestedcount, ranking, LastRequestDate from(select songid, title, duration, COUNT(SongId) AS requestedCount, rank() over (order by requestedcount desc) as ranking,MAX(RequestDate) AS LastRequestDate from SongRequestHistories WHERE RequestDate >= (CURDATE() - INTERVAL 1 MONTH) GROUP BY SongId) t");
         }
 
         /// <inheritdoc />

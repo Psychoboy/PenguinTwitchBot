@@ -29,6 +29,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private Song? NextSong = null;
         private readonly List<string> SkipVotes = [];
         private readonly TimeLeft timeLeft = new();
+
+        private static readonly string LastSongList = "LastSongList";
         enum PlayerState
         {
             UnStarted = -1,
@@ -133,7 +135,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals("LastSongList")).FirstOrDefaultAsync();
+                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
                 if (lastPlaylist != null)
                 {
                     var playList = (await db.Playlists.GetAsync(filter: x => x.Id == lastPlaylist.IntSetting, includeProperties: "Songs")).FirstOrDefault();
@@ -559,10 +561,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     return;
                 }
                 BackupPlaylist = playList;
-                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals("LastSongList")).FirstOrDefaultAsync();
+                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
                 lastPlaylist ??= new Setting
                 {
-                    Name = "LastSongList"
+                    Name = LastSongList
                 };
                 lastPlaylist.IntSetting = playList.Id ?? default;
 

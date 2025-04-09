@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"CREATE VIEW `viewerpointwithranks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from viewerpoints) t ");
+            migrationBuilder.Sql(@"CREATE VIEW `ViewerPointsWithRanks` AS select id, username, points, ranking from ( select id, username, points, rank() over (order by Points desc) as ranking from ViewerPoints) t ");
         }
 
         /// <inheritdoc />
