@@ -953,9 +953,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task SubscribeToAllTheStuffs(string sessionId)
+        public async Task<bool> SubscribeToAllTheStuffs(string sessionId)
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                _logger.LogError("Failed to refresh token");
+                return false;
+            }
             var userId = await GetBroadcasterUserId();
             if (userId == null) {
                 _logger.LogError("Error getting broadcaster id.");
@@ -1126,7 +1130,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 );
             ValidateEventSubscription(response, "channel.chat.message_delete");
 
-
+            return true;
         }
 
         private void ValidateEventSubscription(CreateEventSubSubscriptionResponse response, string eventName)
@@ -1143,7 +1147,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task ValidateAndRefreshToken()
+        public async Task<bool> ValidateAndRefreshToken()
         {
             await semaphoreSlim.WaitAsync();
             try
@@ -1187,6 +1191,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 semaphoreSlim.Release();
             }
+            return serviceUp;
         }
 
 

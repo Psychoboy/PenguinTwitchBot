@@ -36,9 +36,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task RaidStreamer(string userId);
         Task<ShoutoutResponseEnum> ShoutoutStreamer(string userId);
         Task<DateTime> StreamStartedAt();
-        Task SubscribeToAllTheStuffs(string sessionId);
+        Task<bool> SubscribeToAllTheStuffs(string sessionId);
         Task TimeoutUser(string name, string reason, int? length);
-        Task ValidateAndRefreshToken();
+        Task<bool> ValidateAndRefreshToken();
         Task<List<BannedUserEvent>> GetAllBannedViewers();
         bool IsServiceUp();
         Task<IEnumerable<Chatter>> GetCurrentChatters();

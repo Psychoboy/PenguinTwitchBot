@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
         /// </summary>
         /// <param name="key">The composite key under which to add the TGram value</param>
         /// <param name="value">The value to add to the store</param>
-        internal async Task AddOrCreate(NgramContainer key, string? value)
+        internal async Task AddOrCreate(NgramContainer key, string? value, ApplicationDbContext db)
         {
             try
             {
@@ -34,10 +34,10 @@ namespace DotNetTwitchBot.Bot.Markov.Models
                 if(key.Ngrams.Length == 0) return;
                 var keyValue = key.ToString();
                 if(keyValue.Length > 255) return;
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                //await using var scope = scopeFactory.CreateAsyncScope();
+                //var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await db.MarkovValues.AddAsync(new MarkovValue { KeyIndex = keyValue, Value = value });
-                await db.SaveChangesAsync();
+                //await db.SaveChangesAsync();
             }
             catch (Exception e)
             {

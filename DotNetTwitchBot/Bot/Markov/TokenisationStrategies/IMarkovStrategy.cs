@@ -11,8 +11,6 @@ namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 
         Task Learn(IEnumerable<string> phrases);
 
-        Task Learn(string phrase);
-
         Task<string> Walk(string? seed = default);
     }
 }
