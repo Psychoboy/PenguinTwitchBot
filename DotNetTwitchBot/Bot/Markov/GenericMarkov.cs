@@ -52,16 +52,20 @@ namespace DotNetTwitchBot.Bot.Markov
             {
                 logger.LogInformation("Learning {count} lines", phrases.Count());
             }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             // For every sentence, learn it
-            await Parallel.ForEachAsync(phrases, async (phrase, ct) =>
+            foreach (var phrase in phrases)
             {
-                await Learn(phrase);
-            });
+                await Learn(phrase, db);
+            }
+
+            await db.SaveChangesAsync();
 
         }
 
-        public async Task Learn(string phrase)
+        public async Task Learn(string phrase, ApplicationDbContext db)
         {
             logger.LogDebug("Learning phrase: '{phrase}'", phrase);
             if (phrase == null || phrase.Equals(default))
@@ -79,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Markov
             // Split the sentence to an array of words
             var tokens = SplitTokens(phrase).ToArray();
 
-            await LearnTokens(tokens);
+            await LearnTokens(tokens, db);
 
             var lastCol = new List<string>();
             for (var j = Level; j > 0; j--)
@@ -101,14 +105,14 @@ namespace DotNetTwitchBot.Bot.Markov
 
             logger.LogDebug("Reached final key for phrase {phrase}", phrase);
             var finalKey = new NgramContainer([.. lastCol]);
-            await Chain.AddOrCreate(finalKey, "\n\n");
+            await Chain.AddOrCreate(finalKey, "\n\n", db);
         }
 
         /// <summary>
         /// Iterate over a list of TGrams and store each of them in the model at a composite key genreated from its prior [Level] number of TGrams
         /// </summary>
         /// <param name="tokens"></param>
-        private async Task LearnTokens(string[] tokens)
+        private async Task LearnTokens(string[] tokens, ApplicationDbContext db)
         {
             for (var i = 0; i < tokens.Length; i++)
             {
@@ -144,7 +148,7 @@ namespace DotNetTwitchBot.Bot.Markov
                 var key = new NgramContainer([.. previousCol]);
 
                 // add the current token to the markov model at the composite key
-                await Chain.AddOrCreate(key, current);
+                await Chain.AddOrCreate(key, current, db);
             }
         }
 
