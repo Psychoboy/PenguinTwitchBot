@@ -34,10 +34,7 @@ namespace DotNetTwitchBot.Bot.Markov.Models
                 if(key.Ngrams.Length == 0) return;
                 var keyValue = key.ToString();
                 if(keyValue.Length > 255) return;
-                //await using var scope = scopeFactory.CreateAsyncScope();
-                //var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await db.MarkovValues.AddAsync(new MarkovValue { KeyIndex = keyValue, Value = value });
-                //await db.SaveChangesAsync();
             }
             catch (Exception e)
             {

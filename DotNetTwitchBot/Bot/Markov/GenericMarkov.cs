@@ -56,10 +56,6 @@ namespace DotNetTwitchBot.Bot.Markov
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             // For every sentence, learn it
-            //await Parallel.ForEachAsync(phrases, async (phrase, ct) =>
-            //{
-            //    await Learn(phrase, db);
-            //});
             foreach (var phrase in phrases)
             {
                 await Learn(phrase, db);
