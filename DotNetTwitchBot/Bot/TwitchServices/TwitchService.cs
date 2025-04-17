@@ -119,6 +119,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(!await ValidateAndRefreshToken())
             {
+                _logger.LogError("Failed to refresh token");
                 throw new BadParameterException("Failed to refresh token");
             }
             var broadcasterId = await GetBroadcasterUserId();
@@ -281,6 +282,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(!await ValidateAndRefreshToken())
             {
+                _logger.LogError("Failed to refresh token");
                 throw new BadParameterException("Failed to refresh token");
             }
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
@@ -306,6 +308,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(!await ValidateAndRefreshToken())
             {
+                _logger.LogError("Failed to refresh token");
                 throw new BadParameterException("Failed to refresh token");
             }    
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
@@ -975,6 +978,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(!await ValidateAndRefreshToken())
             {
+                _logger.LogError("Failed to refresh token");
                 throw new BadParameterException("Failed to refresh token");
             }
             var userId = await GetBroadcasterUserId();
