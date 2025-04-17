@@ -111,12 +111,16 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken()) _logger.LogError("Failed to refresh token");
+    
         }
 
         public async Task<IEnumerable<Chatter>> GetCurrentChatters()
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                throw new BadParameterException("Failed to refresh token");
+            }
             var broadcasterId = await GetBroadcasterUserId();
             var after = "";
             List<Chatter> chatters = [];
@@ -145,7 +149,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<CustomReward?> GetCustomReward(string id)
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                _logger.LogError("Failed to refresh token");
+                return null;
+            }
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
@@ -163,7 +171,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<bool> WillBePermittedByAutomod(string message)
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                _logger.LogError("Failed to refresh token");
+                return false;
+            }
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
@@ -267,7 +279,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<List<Subscription>> GetAllSubscriptions()
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                throw new BadParameterException("Failed to refresh token");
+            }
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
             List<Subscription> subs = [];
             var after = "";
@@ -289,7 +304,10 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task<List<BannedUserEvent>> GetAllBannedViewers()
         {
-            await ValidateAndRefreshToken();
+            if(!await ValidateAndRefreshToken())
+            {
+                throw new BadParameterException("Failed to refresh token");
+            }    
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
             var after = "";
             List<BannedUserEvent> curBannedUsers = [];
@@ -957,8 +975,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(!await ValidateAndRefreshToken())
             {
-                _logger.LogError("Failed to refresh token");
-                return false;
+                throw new BadParameterException("Failed to refresh token");
             }
             var userId = await GetBroadcasterUserId();
             if (userId == null) {
