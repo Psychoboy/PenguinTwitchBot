@@ -1,3 +1,5 @@
+using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
+using MediatR;
 using NetTopologySuite.Algorithm;
 using System.Collections.Concurrent;
 using System.Timers;
@@ -28,14 +30,17 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         readonly Timer _timer;
         private readonly SettingsFileManager _settingsFileManager;
         private readonly ChatMessageIdTracker _messageIdTracker;
+        private readonly IMediator _mediator;
         private bool serviceUp = false;
         private string? broadcasterId = string.Empty;
         private string? botId = string.Empty;
+        private bool lastRefreshFailed = false;
 
         public TwitchService(
             ILogger<TwitchService> logger,
             IConfiguration configuration,
             SettingsFileManager settingsFileManager,
+            IMediator mediator,
             ChatMessageIdTracker messageIdTracker)
         {
 
@@ -50,6 +55,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
             _messageIdTracker = messageIdTracker;
+            _mediator = mediator;
 
             foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
             {
@@ -1212,6 +1218,18 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 semaphoreSlim.Release();
             }
+
+            if (serviceUp && lastRefreshFailed)
+            {
+                _logger.LogInformation("Twitch service is up");
+                await _mediator.Publish(new ServiceRestored());
+                lastRefreshFailed = false;
+            }
+            else if (!serviceUp && !lastRefreshFailed)
+            {
+                lastRefreshFailed = true;
+            }
+
             return serviceUp;
         }
 
