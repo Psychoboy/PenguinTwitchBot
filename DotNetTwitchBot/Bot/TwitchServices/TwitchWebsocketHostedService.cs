@@ -485,6 +485,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 {
                     try
                     {
+                        if(!await twitchService.ValidateAndRefreshToken()) throw new Exception("Failed to refresh token");
+
                         logger.LogWarning("Attempting to reconnect to Twitch Websocket");
                         if (await eventSubWebsocketClient.ReconnectAsync())
                         {
