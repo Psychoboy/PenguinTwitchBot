@@ -599,7 +599,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (LastMessageReceived + (KeepAliveTimer * 2) < timeProvider.GetLocalNow() &&
                     twitchService.IsServiceUp())
                 {
-                    logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds);
+                    logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds * 2);
                     await Reconnect();
                 }
             }
