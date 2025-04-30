@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices.Handlers
     {
         public async Task Handle(ServiceRestored request, CancellationToken cancellationToken)
         {
-            Thread.Sleep(3000); // Wait for 3 seconds before reconnecting to Twitch WebSocket to ensure the service is fully restored
+            await Task.Delay(3000, cancellationToken); // Wait for 3 seconds before reconnecting to Twitch WebSocket to ensure the service is fully restored
             await twitchWebsocket.Reconnect();
         }
     }

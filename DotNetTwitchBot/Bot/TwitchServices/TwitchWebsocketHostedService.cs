@@ -491,7 +491,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogWarning("Already reconnecting, ignoring");
                 return;
             }
-            ;
+            
             Reconnecting = true;
             try
             {
