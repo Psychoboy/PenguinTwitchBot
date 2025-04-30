@@ -595,8 +595,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 if (KeepAliveTimer == TimeSpan.MinValue) return;
-                //Add 5 seconds for buffer
-                if (LastMessageReceived + KeepAliveTimer + TimeSpan.FromSeconds(5) < timeProvider.GetLocalNow() &&
+                //Double the time, the library should handle it before then
+                if (LastMessageReceived + (KeepAliveTimer * 2) < timeProvider.GetLocalNow() &&
                     twitchService.IsServiceUp())
                 {
                     logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds);
