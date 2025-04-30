@@ -462,7 +462,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private Task MessageReceived(object sender, MessageReceivedEventArgs args)
         {
-            LastMessageReceived = DateTimeOffset.Now;
+            LastMessageReceived = timeProvider.GetLocalNow();
             return Task.CompletedTask;
         }
 
@@ -593,7 +593,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         {
             if(KeepAliveTimer == TimeSpan.MinValue) return;
             //Add 5 seconds for buffer
-            if(LastMessageReceived + KeepAliveTimer + TimeSpan.FromSeconds(5) < DateTimeOffset.Now &&
+            if(LastMessageReceived + KeepAliveTimer + TimeSpan.FromSeconds(5) < timeProvider.GetLocalNow() &&
                 twitchService.IsServiceUp())
             {
                 logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds);
