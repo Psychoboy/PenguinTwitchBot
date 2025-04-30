@@ -589,7 +589,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        private void CheckWebsocketStatus(object? state)
+        // async void cause timer does not support Tasks
+        private async void CheckWebsocketStatus(object? state)
         {
             if(KeepAliveTimer == TimeSpan.MinValue) return;
             //Add 5 seconds for buffer
@@ -597,8 +598,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 twitchService.IsServiceUp())
             {
                 logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds);
-                var task = Reconnect();
-                task.Wait(TimeSpan.FromSeconds(30)); //30 seconds to reconnect... Otherwise get it next time
+                await Reconnect();
             }
         }
 
