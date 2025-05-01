@@ -1222,8 +1222,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             if (serviceUp && lastRefreshFailed)
             {
                 _logger.LogInformation("Twitch service is up");
-                await _mediator.Publish(new ServiceRestored());
                 lastRefreshFailed = false;
+                await _mediator.Publish(new ServiceRestored());
             }
             else if (!serviceUp && !lastRefreshFailed)
             {

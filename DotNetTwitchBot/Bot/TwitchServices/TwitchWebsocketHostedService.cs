@@ -24,11 +24,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         ChatMessageIdTracker messageIdTracker,
         IMemoryCache memoryCache,
         ITwitchService twitchService,
+        TimeProvider timeProvider,
         IMediator mediator) : ITwitchWebsocketHostedService
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
         private volatile bool Reconnecting = false;
+        private TimeSpan KeepAliveTimer = TimeSpan.MinValue;
+        private ITimer? JoinTimer;
+        private DateTimeOffset LastMessageReceived = DateTimeOffset.MinValue;
 
         private async Task ChannelChatMessage(object sender, ChannelChatMessageArgs args)
         {
@@ -455,6 +459,13 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+
+        private Task MessageReceived(object sender, MessageReceivedEventArgs args)
+        {
+            LastMessageReceived = timeProvider.GetLocalNow();
+            return Task.CompletedTask;
+        }
+
         private async Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
         {
             logger.LogInformation(e.Exception, "Websocket error occured: {message}", e.Message);
@@ -475,7 +486,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         public async Task Reconnect()
         {
-            if (Reconnecting) return;
+            if (Reconnecting)
+            {
+                logger.LogWarning("Already reconnecting, ignoring");
+                return;
+            }
+            
             Reconnecting = true;
             try
             {
@@ -556,6 +572,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (await twitchService.SubscribeToAllTheStuffs(eventSubWebsocketClient.SessionId))
                 {
                     logger.LogInformation("Subscribed to events");
+                    KeepAliveTimer = e.KeepAliveTimeout;
+                    JoinTimer?.Dispose();
+                    JoinTimer = timeProvider.CreateTimer(CheckWebsocketStatus, this, KeepAliveTimer, KeepAliveTimer);
                 }
                 else
                 {
@@ -567,6 +586,26 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 logger.LogError(ex, "Error subscribing to the events");
                 await Reconnect();
+            }
+        }
+
+        // async void cause timer does not support Tasks
+        private async void CheckWebsocketStatus(object? state)
+        {
+            try
+            {
+                if (KeepAliveTimer == TimeSpan.MinValue) return;
+                //Double the time, the library should handle it before then
+                if (LastMessageReceived + (KeepAliveTimer * 2) < timeProvider.GetLocalNow() &&
+                    twitchService.IsServiceUp())
+                {
+                    logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds * 2);
+                    await Reconnect();
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error checking websocket status");
             }
         }
 
@@ -596,11 +635,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage += ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete += ChannelChatMessageDelete;
+            eventSubWebsocketClient.MessageReceived += MessageReceived;
             eventService.IsOnline = await twitchService.IsStreamOnline();
             await Connect();
         }
 
-        
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
