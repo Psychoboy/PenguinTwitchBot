@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                 }
 
                 var clips = await twitchService.GetClips(streamer);
-                if(clip != null && clips.Count > 0)
+                if(clip == null && clips.Count > 0)
                 {
                     clip = GetValidClip(clips);
                 }
