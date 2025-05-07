@@ -8,28 +8,38 @@
     <MudPaper Class="align-start d-flex">
 
         <MudText Typo="Typo.h5" class="mud-contrast-text">@Title</MudText>
-            
+
         @if(IsPreview)
         {
             <MudSpacer />
             <MudLink Href="songrequests">Details</MudLink>
         }
-        
+
     </MudPaper>
     <MudDivider class="mb-2" />
-    <MudTable Items="@songRequests" Dense="true" Hover="true" Elevation="0">
-        <HeaderContent>
+    @if (!dataLoaded)
+    {
+        <MudSkeleton Height="100px" />
+        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </MudOverlay>
+    }
+    else
+    {
+        <MudTable Items="@songRequests" Dense="true" Hover="true" Elevation="0">
+            <HeaderContent>
             <MudTh>Title</MudTh>
             <MudTh>Length</MudTh>
             <MudTh>Requested By</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name">@context.Title</MudTd>
-            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Title</MudTd>
+                <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
 
-        </RowTemplate>
-    </MudTable>
+            </RowTemplate>
+        </MudTable>
+    }
 </MudPaper>
 @code {
     private List<Song> songRequests = new();
@@ -43,6 +53,8 @@
 
     [Parameter]
     public bool IsPreview { get; set; } = false;
+
+    private bool dataLoaded = false;
 
     protected override void OnInitialized()
     {
@@ -76,6 +88,8 @@
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning(ex, "Failed to connect to hub");
         }
+        dataLoaded = true;
+        StateHasChanged();
     }
 
     private void UpdateSongList(List<Song> songs)

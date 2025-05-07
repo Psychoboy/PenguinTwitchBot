@@ -9,38 +9,50 @@
     <MudPaper Class="align-start d-flex">
         <MudText Typo="Typo.h5" class="mud-contrast-text">Bonus Tickets</MudText>
     </MudPaper>
-    <MudDivider class="mb-2" />
-    <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
-    <AuthorizeView>
-        <Authorized>
-            <center>
+    @if (!dataLoaded)
+    {
+        <MudDivider class="mb-2" />
+        <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
+        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </MudOverlay>
+    }
+    else 
+    {
+        
+        <MudDivider class="mb-2" />
+        <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
+        <AuthorizeView>
+            <Authorized>
+                <center>
                 
-                @if(disabled || StreamOnline == false)
-                {
-                    @if (StreamOnline == false)
+                    @if(disabled || StreamOnline == false)
                     {
-                        <MudAlert Severity="Severity.Warning" Dense="true">
-                            Stream is currently offline.
-                        </MudAlert>
-                    }
-                    else
+                        @if (StreamOnline == false)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true">
+                                Stream is currently offline.
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true">
+                                Your stream bonus has been claimed.
+                            </MudAlert>
+                        }
+                    } else
                     {
-                        <MudAlert Severity="Severity.Success" Dense="true">
-                            Your stream bonus has been claimed.
-                        </MudAlert>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" Disabled="@disabled" @onclick="() => ClaimBonus()">
+                            Get Bonus Tickets
+                        </MudButton>
                     }
-                } else
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" Disabled="@disabled" @onclick="() => ClaimBonus()">
-                        Get Bonus Tickets
-                    </MudButton>
-                }
-            </center>
-        </Authorized>
-        <NotAuthorized>
-            <MudText><MudLink Href="/signin">Sign In</MudLink>  with Twitch to get bonus tickets.</MudText>
-        </NotAuthorized>
-    </AuthorizeView>
+                </center>
+            </Authorized>
+            <NotAuthorized>
+                <MudText><MudLink Href="/signin">Sign In</MudLink>  with Twitch to get bonus tickets.</MudText>
+            </NotAuthorized>
+        </AuthorizeView>
+    }
 </MudPaper>
 @code {
 
@@ -48,6 +60,7 @@
     private string Username = "";
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
+    private bool dataLoaded = false;
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider
@@ -77,6 +90,8 @@
             await hubConnection.StartAsync();
         }
         finally { }
+        dataLoaded = true;
+        StateHasChanged();
     }
 
     private async Task ClaimBonus()

@@ -19,49 +19,60 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 <MudLayout>
-    <MudAppBar>
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+    @if(!dataLoaded)
+    {
+        <MudMainContent>
+        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </MudOverlay>
+        </MudMainContent>
+    }
+    else 
+    {
+        <MudAppBar>
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@((e) => DrawerToggle())" />
-        Super Waffle Bot
-        <MudSpacer />
-        @if(StreamOnline)
-        {
-            <MudAlert Severity="Severity.Success" NoIcon="true">Stream is Online</MudAlert>
-        }
-        else
-        {
-            <MudAlert Severity="Severity.Error" NoIcon="true">Stream is Offline</MudAlert>
-        }
-        <div id="components-reconnect-modal" class="components-reconnect-hide">
-            
-            <div class="show">
-                <MudSpacer />
-                <MudAlert Severity="Severity.Warning" NoIcon="true">Attempting to reconnect or manually refresh.</MudAlert>
+            Super Waffle Bot
+            <MudSpacer />
+            @if(StreamOnline)
+            {
+                <MudAlert Severity="Severity.Success" NoIcon="true">Stream is Online</MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Error" NoIcon="true">Stream is Offline</MudAlert>
+            }
+            <div id="components-reconnect-modal" class="components-reconnect-hide">
+
+                <div class="show">
+                    <MudSpacer />
+                    <MudAlert Severity="Severity.Warning" NoIcon="true">Attempting to reconnect or manually refresh.</MudAlert>
+                </div>
+                <div class="rejected failed">
+                    <MudSpacer />
+                    <MudAlert Severity="Severity.Warning" NoIcon="true">Reconnect failed. Please refresh.</MudAlert>
+                </div>
             </div>
-            <div class="rejected failed">
-                <MudSpacer />
-                <MudAlert Severity="Severity.Warning" NoIcon="true">Reconnect failed. Please refresh.</MudAlert>
-            </div>
-        </div>
-        <MudSpacer />
-        <AuthorizeView>
-            <Authorized Context="Auth">
-                <MudImage Width="48" Src="@ProfileImage" />
-                <MudMenu Label="@Username" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter">
-                    <MudMenuItem OnClick="Signout">Sign out</MudMenuItem>
-                </MudMenu>
-            </Authorized>
-            <NotAuthorized>
-                <MudLink OnClick="Signin">Sign In</MudLink>
-            </NotAuthorized>
-         </AuthorizeView>
-    </MudAppBar>
-    <MudDrawer @bind-Open="@_drawerOpen" Elevation="1">
-        <NavMenu />
-    </MudDrawer>
-    <MudMainContent>
-        @Body
-    </MudMainContent>
+            <MudSpacer />
+            <AuthorizeView>
+                <Authorized Context="Auth">
+                    <MudImage Width="48" Src="@ProfileImage" />
+                    <MudMenu Label="@Username" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter">
+                        <MudMenuItem OnClick="Signout">Sign out</MudMenuItem>
+                    </MudMenu>
+                </Authorized>
+                <NotAuthorized>
+                    <MudLink OnClick="Signin">Sign In</MudLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </MudAppBar>
+        <MudDrawer @bind-Open="@_drawerOpen" Elevation="1">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent>
+            @Body
+        </MudMainContent>
+    }
 </MudLayout>
 @code {
     bool _drawerOpen = true;
@@ -71,6 +82,8 @@
     private HubConnection? hubConnection;
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
+
+    private bool dataLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,7 +143,8 @@
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning(ex, "Failed to connect to hub");
         }
-
+        dataLoaded = true;
+        StateHasChanged();
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)

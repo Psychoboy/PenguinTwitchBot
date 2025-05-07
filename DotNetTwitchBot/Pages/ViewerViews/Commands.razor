@@ -12,6 +12,14 @@
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
+        @if(!dataLoaded)
+        {
+            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudOverlay>
+        }
+        else
+        {
         <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Commands</MudText>
@@ -47,6 +55,7 @@
                 <MudTablePager />
             </PagerContent>
         </MudTable>
+        }
     </MudPaper>
 </MudContainer>
 
@@ -57,6 +66,7 @@
     private string searchString1 = "";
     //MudChip[]? selected;
     private IReadOnlyCollection<string> _selected = [];
+    private bool dataLoaded = false;
 
     public class CommandModel
     {
@@ -243,5 +253,12 @@
     private string SplitModuleName(string moduleName)
     {
         return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        dataLoaded = true;
+        await InvokeAsync(StateHasChanged);
     }
 }
