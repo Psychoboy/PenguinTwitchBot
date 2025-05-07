@@ -5,24 +5,42 @@
         <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
     </MudPaper>
     <MudDivider class="mb-2" />
-    <MudTable Items="@scheduledStreams" Elevation="0">
-        <HeaderContent>
-            <MudTh>Title</MudTh>
-            <MudTh>Start</MudTh>
-            <MudTh>End</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.Title</MudTd>
-            <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-            <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-        </RowTemplate>
-    </MudTable>
+    @if (!dataLoaded)
+    {
+        <MudSkeleton Height="100px" />
+        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </MudOverlay>
+    }
+    else
+    {
+        <MudTable Items="@scheduledStreams" Elevation="0">
+            <HeaderContent>
+                <MudTh>Title</MudTh>
+                <MudTh>Start</MudTh>
+                <MudTh>End</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Title</MudTd>
+                <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+                <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
 </MudPaper>
 @code {
     private List<ScheduledStream> scheduledStreams = new();
+    private bool dataLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
         scheduledStreams = (await schedule.GetNextStreams()).Take(5).ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        dataLoaded = true;
+        await InvokeAsync(StateHasChanged);
     }
 }
