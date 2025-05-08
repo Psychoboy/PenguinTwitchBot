@@ -48,18 +48,29 @@ internal class Program
            .Enrich.WithSpan()
            .Enrich.FromLogContext();
         builder.Logging.ClearProviders();
+
+        //TODO: Add a check to make this configurable
+        builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
         builder.Logging.AddOpenTelemetry(options =>
         {
             options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("DotNetTwitchBot"));
+            options.AddOtlpExporter(otlp =>
+            {
+                otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+            });
         });
-        builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
 
 
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService("DotNetTwitchBot"))
             .WithTracing(tracing => tracing
-                .AddAspNetCoreInstrumentation())
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddOtlpExporter(otlp =>
+                {
+                    otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                }))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation());
 
