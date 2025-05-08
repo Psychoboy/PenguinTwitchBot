@@ -16,12 +16,18 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor;
 using MudBlazor.Services;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Prometheus;
 using Prometheus.DotNetRuntime;
 using Quartz;
 using Quartz.AspNetCore;
 using Serilog;
+using Serilog.Enrichers.Span;
 using System.Collections;
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using TwitchLib.EventSub.Websockets.Extensions;
@@ -36,18 +42,31 @@ internal class Program
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? throw new Exception("Invalid file configuration");
         builder.Configuration.AddJsonFile(secretsFileLocation);
-
+        Activity.DefaultIdFormat = System.Diagnostics.ActivityIdFormat.W3C;
         var loggerConfiguration = new LoggerConfiguration()
            .ReadFrom.Configuration(builder.Configuration)
+           .Enrich.WithSpan()
            .Enrich.FromLogContext();
         builder.Logging.ClearProviders();
+        builder.Logging.AddOpenTelemetry(options =>
+        {
+            options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("DotNetTwitchBot"));
+        });
         builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
+
+
+        // Add OpenTelemetry data to json logs
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService("DotNetTwitchBot"))
+            .WithTracing(tracing => tracing
+                .AddAspNetCoreInstrumentation())
+            .WithMetrics(metrics => metrics
+                .AddAspNetCoreInstrumentation());
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
         builder.Services.AddSingleton<SettingsFileManager>();
         builder.Services.AddSingleton<ILanguage, Language>();
-        //builder.Services.AddSingleton<IDiscordService, DiscordService>();
 
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie();
