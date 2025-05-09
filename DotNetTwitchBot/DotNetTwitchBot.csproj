@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <PackageReference Include="BlazorTime" Version="1.0.3" />
-    <PackageReference Include="Discord.Net" Version="3.17.1" />
+    <PackageReference Include="Discord.Net" Version="3.17.4" />
     <PackageReference Include="EFCore.BulkExtensions" Version="9.0.1" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.69.0.3707" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.10.0" />
