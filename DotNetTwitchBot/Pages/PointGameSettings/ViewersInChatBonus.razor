@@ -1,0 +1,35 @@
+﻿@using DotNetTwitchBot.Bot.Commands.Features;
+@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature ticketsFeature;
+
+<MudPaper Class="pa-4" Elevation="0">
+    <MudText Typo="Typo.h5">Viewers in Chat Bonus</MudText>
+    <MudText>Every 15 minutes this adds points for the "TicketsFeature" accordingly to settings here.</MudText>
+    <MudDivider Class="mb-2 mt-2" />
+    <MudNumericField Min="1" @bind-Value="pointsForEveryone" Label="Points for Everyone" HelperText="Points for everyone in chat" />
+    <MudNumericField Min="1" @bind-Value="pointsForActive" Label="Points for Active" HelperText="Points for viewers who are active/subs in chat" />
+    <MudNumericField Min="1" @bind-Value="pointsForSubs" Label="Points for Subs" HelperText="Bonus points for subs in chat" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveSettings">Save</MudButton>
+</MudPaper>
+
+@code {
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+    private int pointsForEveryone { get; set; }
+    private int pointsForActive { get; set; }
+    private int pointsForSubs { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
+        pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
+        pointsForSubs = await ticketsFeature.GetPointsForSubs();
+    }
+
+    private async Task SaveSettings()
+    {
+        await ticketsFeature.SetPointsForEveryone(pointsForEveryone);
+        await ticketsFeature.SetPointsForActiveUsers(pointsForActive);
+        await ticketsFeature.SetPointsForSubs(pointsForSubs);
+        Snackbar.Add("Viewers in Chat Bonus settings saved", Severity.Success);
+    }
+}

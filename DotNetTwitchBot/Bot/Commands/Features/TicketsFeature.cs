@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -18,11 +19,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly IPointsSystem _pointsSystem;
         private static readonly Prometheus.Gauge NumberOfTicketsGained = Prometheus.Metrics.CreateGauge("number_of_tickets_gained", "Number of Tickets gained since last stream start", labelNames: new[] { "viewer" });
         private readonly IServiceBackbone _serviceBackbone;
+        private readonly IGameSettingsService _gameSettings;
 
         public TicketsFeature(
             ILogger<TicketsFeature> logger,
             IServiceBackbone serviceBackbone,
             IPointsSystem pointsSystem,
+            IGameSettingsService gameSettingsService,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler)
             : base(serviceBackbone, commandHandler, "TicketsFeature")
@@ -36,7 +39,38 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             _autoPointsTimer.Start();
             _serviceBackbone = serviceBackbone;
             _serviceBackbone.StreamStarted += StreamStarted;
+            _gameSettings = gameSettingsService;
 
+        }
+
+        public async Task<int> GetPointsForEveryone()
+        {
+            return await _gameSettings.GetIntSetting(ModuleName, "PointsForEveryone", 1);
+        }
+
+        public async Task SetPointsForEveryone(int points)
+        {
+            await _gameSettings.SetIntSetting(ModuleName, "PointsForEveryone", points);
+        }
+
+        public async Task<int> GetPointsForActiveUsers()
+        {
+            return await _gameSettings.GetIntSetting(ModuleName, "PointsForActiveUsers", 5);
+        }
+
+        public async Task SetPointsForActiveUsers(int points)
+        {
+            await _gameSettings.SetIntSetting(ModuleName, "PointsForActiveUsers", points);
+        }
+
+        public async Task<int> GetPointsForSubs()
+        {
+            return await _gameSettings.GetIntSetting(ModuleName, "PointsForSubs", 6);
+        }
+
+        public async Task SetPointsForSubs(int points)
+        {
+            await _gameSettings.SetIntSetting(ModuleName, "PointsForSubs", points);
         }
 
         private Task StreamStarted(object? sender, EventArgs _)
@@ -118,26 +152,6 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 return 0;
             }
             if (ServiceBackbone.IsKnownBot(viewer.Username)) return 0;
-            //ViewerTicket? viewerPoints;
-            //await using (var scope = _scopeFactory.CreateAsyncScope())
-            //{
-            //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            //    viewerPoints = await db.ViewerTickets.Find(x => x.UserId.Equals(userid)).FirstOrDefaultAsync();
-            //}
-            //viewerPoints ??= new ViewerTicket
-            //{
-            //    UserId = userid,
-            //    Points = 0
-            //};
-            //var viewerPoints = await _pointsSystem.GetUserPointsByUserIdAndGame(userid, ModuleName);
-            //viewerPoints.Username = viewer.Username;
-            //viewerPoints.Points += amount;
-            //await using (var scope = _scopeFactory.CreateAsyncScope())
-            //{
-            //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            //    db.ViewerTickets.Update(viewerPoints);
-            //    await db.SaveChangesAsync();
-            //}
             await _pointsSystem.AddPointsByUserIdAndGame(userid, ModuleName, amount);
             if (amount > 0)
             {
@@ -151,75 +165,28 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (ServiceBackbone.IsOnline)
             {
+                var pointsForEveryone = await GetPointsForEveryone();
+                var pointsForActiveUsers = await GetPointsForActiveUsers();
+                var pointsForSubs = await GetPointsForSubs();
+
                 _logger.LogInformation("Starting to give  out tickets");
-                await GiveTicketsToActiveAndSubsOnlineWithBonus(5, 4);
-                await GiveTicketsToAllOnlineViewersWithBonus(1, 2);
+                await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
+                await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
             }
         }
 
-        //private async Task SayViewerTickets(CommandEventArgs e)
-        //{
-        //    var tickets = await GetViewerTicketsWithRank(e.Name);
-        //    if (tickets == null)
-        //    {
-        //        await ServiceBackbone.SendChatMessage(e.DisplayName, "You currently don't have any tickets, hang around and you will start getting some.");
-        //    }
-        //    else
-        //    {
-        //        await ServiceBackbone.SendChatMessage(
-        //            string.Format("@{0}, you have {1} tickets. You are currently ranked #{2}. Use !enter AMOUNT to enter your tickets.",
-        //            e.DisplayName, tickets.Points, tickets.Ranking
-        //            ));
-        //    }
-        //}
 
         public override async Task Register()
         {
             var moduleName = "TicketsFeature";
-            //await RegisterDefaultCommand("tickets", this, moduleName);
-            //await RegisterDefaultCommand("givetickets", this, moduleName, Rank.Streamer);
-            //await RegisterDefaultCommand("resettickets", this, moduleName, Rank.Streamer);
             await _pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            //var command = CommandHandler.GetCommandDefaultName(e.Command);
-            //switch (command)
-            //{
-            //    case "tickets":
-            //        {
-            //            await SayViewerTickets(e);
-            //            break;
-            //        }
-            //    case "givetickets":
-            //        {
-            //            if (Int64.TryParse(e.Args[1], out long amount))
-            //            {
-            //                var userId = await _viewerFeature.GetViewerId(e.TargetUser);
-            //                if (userId == null) return;
-            //                var totalPoints = await GiveTicketsToViewerByUserId(userId, amount);
-            //                await ServiceBackbone.SendChatMessage(string.Format("Gave {0} {1} tickets, {0} now has {2} tickets.", await _viewerFeature.GetDisplayNameByUsername(e.TargetUser), amount, totalPoints));
-            //            }
-            //            break;
-            //        }
-            //    case "resettickets":
-            //        {
-            //            await ResetAllPoints();
-            //        }
-            //        break;
-            //}
             return Task.CompletedTask;
         }
-
-        //public async Task ResetAllPoints()
-        //{
-        //    await using var scope = _scopeFactory.CreateAsyncScope();
-        //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //    await db.ViewerTickets.ExecuteDeleteAllAsync();
-        //    await db.SaveChangesAsync();
-        //}
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
