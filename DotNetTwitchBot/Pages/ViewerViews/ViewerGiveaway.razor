@@ -8,6 +8,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject DotNetTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
+@inject DotNetTwitchBot.Bot.Commands.Features.ITicketsFeature ticketsFeature;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
@@ -98,10 +99,10 @@
                     <MudText>@BitsPerTicket tickets per 100 bits</MudText>
                     <MudDivider class="my-2" />
                     <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
-                    <MudText>+1 Ticket for everyone</MudText>
-                    <MudText>+5 Tickets for Active Viewers</MudText>
-                    <MudText>+6 Tickets for Subscribers</MudText>
-                    <MudText>so every 5 minutes a subscriber gets 12 tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
+                    <MudText>+@pointsForEveryone Ticket for everyone</MudText>
+                    <MudText>+@pointsForActive Tickets for Active Viewers</MudText>
+                    <MudText>+@pointsForSubs Tickets for Subscribers</MudText>
+                    <MudText>so every 5 minutes a subscriber gets @(pointsForActive + pointsForEveryone + pointsForSubs) tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
                     <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
                 </MudPaper>
             </Bookmark>
@@ -141,6 +142,9 @@
     private bool isSubmitting;
     private int TicketsPerSub;
     private int BitsPerTicket;
+    private int pointsForEveryone { get; set; }
+    private int pointsForActive { get; set; }
+    private int pointsForSubs { get; set; }
 
     private EnterTicketsForm model = new();
 
@@ -168,6 +172,9 @@
         entrants = await GiveawayFeature.GetEntrantsCount();
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
         BitsPerTicket = await twitchEventsBonus.GetBitsPerPoint();
+        pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
+        pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
+        pointsForSubs = await ticketsFeature.GetPointsForSubs();
         if (BitsPerTicket > 0) BitsPerTicket = 100 / BitsPerTicket;
     }
 
