@@ -358,12 +358,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
-                if(e.Notification.Payload.Event.UserId == null ||
-                    e.Notification.Payload.Event.UserName == null)
-                {
-                    logger.LogWarning("OnChannelSubscriptionGift: {UserLogin} - {UserId} - Missing data", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
-                    return;
-                }
                 await eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
