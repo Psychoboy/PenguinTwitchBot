@@ -224,7 +224,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool DidProcessMessage(EventSubMetadata metadata)
         {
-            if (memoryCache.TryGetValue(metadata.MessageId, out var messageId))
+            if (memoryCache.TryGetValue(metadata.MessageId, out var _))
             {
                 logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
