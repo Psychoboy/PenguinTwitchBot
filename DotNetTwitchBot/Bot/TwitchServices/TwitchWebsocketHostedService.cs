@@ -224,7 +224,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool DidProcessMessage(EventSubMetadata metadata)
         {
-            if (memoryCache.TryGetValue(metadata.MessageId, out var messageId))
+            if (memoryCache.TryGetValue(metadata.MessageId, out var _))
             {
                 logger.LogWarning("Already processed message: {MessageId} - {MessageType} - {MessageTimestamp}", metadata.MessageId, metadata.MessageType, metadata.MessageTimestamp);
                 return true;
@@ -358,6 +358,12 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 if (DidProcessMessage(e.Notification.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", e.Notification.Payload.Event.UserLogin);
+                if(e.Notification.Payload.Event.UserId == null ||
+                    e.Notification.Payload.Event.UserName == null)
+                {
+                    logger.LogWarning("OnChannelSubscriptionGift: {UserLogin} - {UserId} - Missing data", e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
+                    return;
+                }
                 await eventService.OnSubscriptionGift(new Events.SubscriptionGiftEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
