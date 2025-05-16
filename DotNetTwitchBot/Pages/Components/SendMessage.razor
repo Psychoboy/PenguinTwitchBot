@@ -1,29 +1,31 @@
-﻿<CascadingAuthenticationState> 
-    <AuthorizeView Roles="Streamer">
-        <Authorized>
-            <MudContainer Class="pa-4">
+﻿@attribute [Authorize(Roles = "Streamer")]
+<MudContainer Class="pa-4">
+    <EditForm Model="MessageModel" OnSubmit="SendChatMessage">
+        <MudSelect Label="Send As" @bind-Value="MessageModel.SendAs">
+            <MudSelectItem Value="SendAsType.Streamer">Streamer</MudSelectItem>
+            <MudSelectItem Value="SendAsType.Bot">Bot</MudSelectItem>
+        </MudSelect>
+        <MudTextField @ref="textField" @bind-Value="MessageModel.Message" Label="Message" />
+        <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
+    </EditForm>
+</MudContainer>
 
-                <MudSelect Label="Send As" @bind-Value="@SendAs">
-                    <MudSelectItem Value="SendAsType.Streamer">Streamer</MudSelectItem>
-                    <MudSelectItem Value="SendAsType.Bot">Bot</MudSelectItem>
-                </MudSelect>
-                <MudTextField @bind-Value="@Message" Label="Message" />
-                <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
-            </MudContainer>
-        </Authorized>
-        <NotAuthorized>
-        </NotAuthorized>
-    </AuthorizeView>
-</CascadingAuthenticationState>
 
 @code {
-    private string Message { get; set; } = string.Empty;
-    private SendAsType SendAs { get; set; } = SendAsType.Streamer;
+
+    public class SendMessageModel
+    {
+        public string Message { get; set; } = string.Empty;
+        public SendAsType SendAs { get; set; } = SendAsType.Streamer;
+    }
+    private SendMessageModel MessageModel { get; set; } = new SendMessageModel();
 
     [Inject]
     private DotNetTwitchBot.Bot.TwitchServices.ITwitchService twitchService { get; set; } = default!;
     [Inject]
     private DotNetTwitchBot.Bot.TwitchServices.ITwitchChatBot twitchChatBot { get; set; } = default!;
+
+    MudTextField<string>? textField;
     public enum SendAsType
     {
         Streamer,
@@ -32,20 +34,23 @@
 
     private async Task SendChatMessage()
     {
-        if (string.IsNullOrWhiteSpace(Message))
+        if (string.IsNullOrWhiteSpace(MessageModel.Message))
         {
             return;
         }
 
-        if (SendAs == SendAsType.Streamer)
+
+
+        if (MessageModel.SendAs == SendAsType.Streamer)
         {
-            await twitchService.SendMessage(Message);
+            await twitchService.SendMessage(MessageModel.Message);
         }
         else
         {
-            await twitchChatBot.SendMessage(Message);
+            await twitchChatBot.SendMessage(MessageModel.Message);
         }
-        Message = string.Empty;
+        MessageModel.Message = string.Empty;
+        textField?.Clear();
         
         await InvokeAsync(StateHasChanged);
     }
