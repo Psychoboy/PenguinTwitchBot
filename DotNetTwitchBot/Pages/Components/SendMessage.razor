@@ -1,0 +1,52 @@
+﻿<CascadingAuthenticationState> 
+    <AuthorizeView Roles="Streamer">
+        <Authorized>
+            <MudContainer Class="pa-4">
+
+                <MudSelect Label="Send As" @bind-Value="@SendAs">
+                    <MudSelectItem Value="SendAsType.Streamer">Streamer</MudSelectItem>
+                    <MudSelectItem Value="SendAsType.Bot">Bot</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="@Message" Label="Message" />
+                <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
+            </MudContainer>
+        </Authorized>
+        <NotAuthorized>
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+@code {
+    private string Message { get; set; } = string.Empty;
+    private SendAsType SendAs { get; set; } = SendAsType.Streamer;
+
+    [Inject]
+    private DotNetTwitchBot.Bot.TwitchServices.ITwitchService twitchService { get; set; } = default!;
+    [Inject]
+    private DotNetTwitchBot.Bot.TwitchServices.ITwitchChatBot twitchChatBot { get; set; } = default!;
+    public enum SendAsType
+    {
+        Streamer,
+        Bot
+    }
+
+    private async Task SendChatMessage()
+    {
+        if (string.IsNullOrWhiteSpace(Message))
+        {
+            return;
+        }
+
+        if (SendAs == SendAsType.Streamer)
+        {
+            await twitchService.SendMessage(Message);
+        }
+        else
+        {
+            await twitchChatBot.SendMessage(Message);
+        }
+        Message = string.Empty;
+        
+        await InvokeAsync(StateHasChanged);
+    }
+}

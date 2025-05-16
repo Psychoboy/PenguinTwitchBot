@@ -9,6 +9,7 @@
 <CascadingAuthenticationState> 
     <AuthorizeView Roles="Streamer">
         <Authorized>
+            <MudContainer Class="pa-4">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PauseAlerts">Pause Alerts</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeAlerts">Resume Alerts</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reconnect">Reconnect</MudButton>
@@ -17,6 +18,7 @@
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdateSchedule">Update Events</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="UpdatePostedSchedule">Update Schedule</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateEditors">Update Editors</MudButton>
+            </MudContainer>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>

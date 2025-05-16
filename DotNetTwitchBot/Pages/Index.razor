@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using DotNetTwitchBot.Models
+@using DotNetTwitchBot.Pages.Components
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot;
 @using DotNetTwitchBot.Pages.ViewerViews.Components;
@@ -22,6 +23,18 @@
                 <BonusTickets/>
                 <GiveawayPreview/>
             </MudItem>
+            <AuthorizeView Roles="Streamer">
+                <Authorized>
+                    <MudItem sm="6">
+                        <MudPaper Class="pa-4" Elevation="0">
+                            <QuickTools />
+                            <MudDivider />
+                            <SendMessage />
+                        </MudPaper>
+                    </MudItem>
+                </Authorized>
+                <NotAuthorized/>
+            </AuthorizeView>
             <MudItem sm="6">
                 <StreamSchedule />
             </MudItem>
