@@ -8,7 +8,7 @@
                     <MudSelectItem Value="SendAsType.Bot">Bot</MudSelectItem>
                 </MudSelect>
                 <MudTextField @bind-Value="@Message" Label="Message" />
-                <MudButton onclick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
+                <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
             </MudContainer>
         </Authorized>
         <NotAuthorized>
