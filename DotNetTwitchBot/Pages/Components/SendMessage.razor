@@ -43,7 +43,7 @@
 
         if (MessageModel.SendAs == SendAsType.Streamer)
         {
-            await twitchService.SendMessage(MessageModel.Message);
+            await twitchService.SendMesssageAsStreamer(MessageModel.Message);
         }
         else
         {

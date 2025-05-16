@@ -75,6 +75,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             return serviceUp;
         }
 
+        public async Task SendMesssageAsStreamer(string message)
+        {
+            try
+            {
+                var broadcasterId = await GetBroadcasterUserId();
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                if (result.Data.First().IsSent == false)
+                {
+                    _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send message.");
+            }
+        }
+
         public async Task SendMessage(string message)
         {
             try
