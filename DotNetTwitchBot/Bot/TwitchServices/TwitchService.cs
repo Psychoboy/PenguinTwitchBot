@@ -948,6 +948,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 await _twitchApi.Helix.Chat.SendChatAnnouncementAsync(broadcasterId, broadcasterId, message);
+                _logger.LogInformation("Announcement sent: {message}", message);
             }
             catch (Exception ex)
             {
