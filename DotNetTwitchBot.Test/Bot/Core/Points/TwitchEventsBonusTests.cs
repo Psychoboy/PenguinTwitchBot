@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
                 IsAnonymous = false
             };
 
-            _gameSettingsService.GetIntSetting("TwitchEventBonus", "BitsPerPoint", 1).Returns(1);
+            _gameSettingsService.GetDoubleSetting("TwitchEventBonus", "BitsPerPoint", 1.0).Returns(1.0);
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
             await _twitchEventsBonus.StartAsync(default);
 
@@ -137,19 +137,19 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         [Fact]
         public async Task SetBitsPerPoint_ShouldSaveSetting()
         {
-            await _twitchEventsBonus.SetBitsPerPoint(10);
+            await _twitchEventsBonus.SetBitsPerPoint(10.0);
 
-            await _gameSettingsService.Received(1).SaveSetting("TwitchEventBonus", "BitsPerPoint", 10);
+            await _gameSettingsService.Received(1).SaveSetting("TwitchEventBonus", "BitsPerPoint", 10.0);
         }
 
         [Fact]
         public async Task GetBitsPerPoint_ShouldReturnSetting()
         {
-            _gameSettingsService.GetIntSetting("TwitchEventBonus", "BitsPerPoint", 1).Returns(10);
+            _gameSettingsService.GetDoubleSetting("TwitchEventBonus", "BitsPerPoint", 1.0).Returns(10.0);
 
             var result = await _twitchEventsBonus.GetBitsPerPoint();
 
-            Assert.Equal(10, result);
+            Assert.Equal(10.0, result);
         }
 
         [Fact]

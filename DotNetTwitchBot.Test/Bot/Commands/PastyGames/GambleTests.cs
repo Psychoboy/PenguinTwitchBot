@@ -118,6 +118,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 Args = new List<string> { "100" }
             };
 
+            _serviceBackbone.IsOnline.Returns(true);
+
             _commandHandler.GetCommand("gamble").Returns(new Command(new BaseCommandProperties { CommandName = "gamble" }, _gamble));
 
             _pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>())
@@ -140,6 +142,39 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             // Assert
             await _twitchService.Received(1).Announcement(Arg.Any<string>());
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("123", Gamble.GAMENAME, Arg.Any<long>());
+        }
+
+        [Fact]
+        public async Task HandleGamble_WhenWinngJackpotWhileOffline_ShouldAwardPoints()
+        {
+            // Arrange
+            var eventArgs = new CommandEventArgs
+            {
+                Command = "gamble",
+                DisplayName = "TestUser",
+                UserId = "123",
+                Args = new List<string> { "100" }
+            };
+
+            _serviceBackbone.IsOnline.Returns(false);
+
+            _commandHandler.GetCommand("gamble").Returns(new Command(new BaseCommandProperties { CommandName = "gamble" }, _gamble));
+
+            _pointsSystem.RemovePointsFromUserByUserIdAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>())
+                .Returns(true);
+
+            _gameSettingsService.GetIntSetting(Gamble.GAMENAME, Gamble.MINIMUM_FOR_WIN, 48).Returns(48);
+            _gameSettingsService.GetIntSetting(Gamble.GAMENAME, Gamble.WINNING_MULTIPLIER, 2).Returns(2);
+            _tools.Next(1, 101).Returns(69); // Winning roll
+
+            _pointsSystem.GetPointTypeForGame(Gamble.GAMENAME).Returns(new PointType { Name = "Points" });
+
+            // Act
+            await _gamble.OnCommand(this, eventArgs);
+
+            // Assert
+            await _twitchService.Received(0).Announcement(Arg.Any<string>());
+            await _pointsSystem.Received(1).AddPointsByUserIdAndGame("123", Gamble.GAMENAME, 200);
         }
 
         [Fact]

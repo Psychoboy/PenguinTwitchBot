@@ -125,7 +125,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var value = tools.Next(1, 100 + 1);
 
             //Checks to see if they hit the jackpot
-            if (value == jackpotNumber)
+            if (value == jackpotNumber && ServiceBackbone.IsOnline) 
             {
                 var jackpotWinnings = jackpot * (amount / LoyaltyFeature.MaxBet);
                 var winnings = amount * winningMultiplier;
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await LaunchFireworks();
             }
             //If not jackpot see if they win at all
-            else if (value > winRange)
+            else if (value > winRange || value == jackpotNumber)
             {
                 var winnings = amount * winningMultiplier;
                 var winMessage = await gameSettingsService.GetStringSetting(ModuleName, WIN_MESSAGE, "{Name} rolled {Rolled} and won {Points} {PointType}!");
@@ -158,6 +158,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(winMessage);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
+                if (value == jackpotNumber)
+                {
+                    await ServiceBackbone.SendChatMessage(e.DisplayName, "You hit the jackpot! But the stream is offline so just normal win :(");
+                }
             }
             //Otherwise they lose
             else

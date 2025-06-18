@@ -96,7 +96,7 @@
                     <MudDivider class="mb-2" />
                     <MudText>@TicketsPerSub tickets for every sub</MudText>
                     <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
-                    <MudText>@BitsPerTicket tickets per 100 bits</MudText>
+                    <MudText>  @((int)@BitsPerPoint) tickets per 100 bits</MudText>
                     <MudDivider class="my-2" />
                     <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
                     <MudText>+@pointsForEveryone Ticket for everyone</MudText>
@@ -141,7 +141,7 @@
     private MudBlazor.Severity AlertSeverity = Severity.Info;
     private bool isSubmitting;
     private int TicketsPerSub;
-    private int BitsPerTicket;
+    private double BitsPerPoint;
     private int pointsForEveryone { get; set; }
     private int pointsForActive { get; set; }
     private int pointsForSubs { get; set; }
@@ -171,11 +171,11 @@
         entries = await GiveawayFeature.GetEntriesCount();
         entrants = await GiveawayFeature.GetEntrantsCount();
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
-        BitsPerTicket = await twitchEventsBonus.GetBitsPerPoint();
+        BitsPerPoint = await twitchEventsBonus.GetBitsPerPoint();
         pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
         pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
         pointsForSubs = await ticketsFeature.GetPointsForSubs();
-        if (BitsPerTicket > 0) BitsPerTicket = 100 / BitsPerTicket;
+        if (BitsPerPoint > 0) BitsPerPoint = 100 * BitsPerPoint;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
