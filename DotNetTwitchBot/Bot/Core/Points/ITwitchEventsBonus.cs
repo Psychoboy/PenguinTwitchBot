@@ -4,10 +4,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
 {
     public interface ITwitchEventsBonus
     {
-        Task<int> GetBitsPerPoint();
+        Task<double> GetBitsPerPoint();
         Task<int> GetPointsPerSub();
         Task<PointType> GetPointType();
-        Task SetBitsPerPoint(int numberOfBitsPerSub);
+        Task SetBitsPerPoint(double numberOfPointsPerBit);
         Task SetPointsPerSub(int numberOfPointsPerSub);
         Task SetPointType(PointType pointType);
     }

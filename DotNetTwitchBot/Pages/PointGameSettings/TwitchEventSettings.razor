@@ -9,7 +9,7 @@
 
 <MudCard>
     <MudCardContent>
-        <MudNumericField Label="Points per 100 bits" Required="true" @bind-Value="@pointsPer100" />
+        <MudNumericField Label="Points per bit" Required="true" @bind-Value="@pointsPerBit" />
         <MudNumericField Label="Points per Sub" Required="true" @bind-Value="@pointsPerSub" />
         <MudSelect Label="Point Type" @bind-Value="pointType" ToStringFunc="@ConvertFunction">
             @foreach (var pointType in PointTypes)
@@ -25,7 +25,7 @@
 </MudCard>
 
 @code {
-    private int pointsPer100 { get; set; }
+    private double pointsPerBit { get; set; }
     private int pointsPerSub { get; set; }
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
@@ -34,8 +34,7 @@
     protected override async Task OnInitializedAsync()
     {
         pointsPerSub = await twitchEventsBonus.GetPointsPerSub();
-        var BitsPerTicket = await twitchEventsBonus.GetBitsPerPoint();
-        if (BitsPerTicket > 0) pointsPer100 = 100 / BitsPerTicket;
+        pointsPerBit = await twitchEventsBonus.GetBitsPerPoint();
         PointTypes = await pointSystem.GetPointTypes();
         pointType = await twitchEventsBonus.GetPointType();
     }
@@ -43,8 +42,7 @@
     protected async void OnLoyaltySubmit()
     {
         await twitchEventsBonus.SetPointsPerSub(pointsPerSub);
-        var BitsPerTicket = 100 / pointsPer100;
-        await twitchEventsBonus.SetBitsPerPoint(BitsPerTicket);
+        await twitchEventsBonus.SetBitsPerPoint(pointsPerBit);
         await twitchEventsBonus.SetPointType(pointType);
     }
 

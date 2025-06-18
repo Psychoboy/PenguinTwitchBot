@@ -26,6 +26,7 @@ using Quartz;
 using Quartz.AspNetCore;
 using Serilog;
 using Serilog.Enrichers.Span;
+using Serilog.Sinks.OpenTelemetry;
 using System.Collections;
 using System.Diagnostics;
 using System.Net;
@@ -36,6 +37,8 @@ internal class Program
     private static ILogger<Program>? logger;
     private static async Task Main(string[] args)
     {
+        Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
+        Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "DotNetTwitchBot");
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
         server.Start();
         var builder = WebApplication.CreateBuilder(args);
@@ -46,20 +49,24 @@ internal class Program
         var loggerConfiguration = new LoggerConfiguration()
            .ReadFrom.Configuration(builder.Configuration)
            .Enrich.WithSpan()
-           .Enrich.FromLogContext();
+           .Enrich.FromLogContext()
+           .WriteTo.OpenTelemetry(options =>
+           {
+               options.Endpoint = "http://localhost:4318"; // Adjust the endpoint as needed
+               options.Protocol = Serilog.Sinks.OpenTelemetry.OtlpProtocol.HttpProtobuf; // Use the appropriate protocol
+               options.IncludedData = IncludedData.MessageTemplateTextAttribute |
+                                      IncludedData.TraceIdField | IncludedData.SpanIdField |
+                                      IncludedData.SpecRequiredResourceAttributes; 
+               options.ResourceAttributes = new Dictionary<string, object>
+               {
+                   { "service.name", "DotNetTwitchBot" },
+                   { "service.environment", builder.Environment.EnvironmentName }
+               };
+           });
+
         builder.Logging.ClearProviders();
 
-        //TODO: Add a check to make this configurable
         builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
-        builder.Logging.AddOpenTelemetry(options =>
-        {
-            options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("DotNetTwitchBot"));
-            options.AddOtlpExporter(otlp =>
-            {
-                otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-            });
-        });
-
 
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()

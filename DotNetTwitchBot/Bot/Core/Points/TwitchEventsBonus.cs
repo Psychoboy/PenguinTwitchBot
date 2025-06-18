@@ -44,14 +44,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return await gameSettingsService.GetIntSetting(ModuleName, "PointsPerSub", 500);
         }
 
-        public async Task SetBitsPerPoint(int numberOfBitsPerSub)
+        public async Task SetBitsPerPoint(double numberOfPointsPerBit)
         {
-            await gameSettingsService.SaveSetting(ModuleName, "BitsPerPoint", numberOfBitsPerSub);
+            await gameSettingsService.SaveSetting(ModuleName, "BitsPerPoint", numberOfPointsPerBit);
         }
 
-        public async Task<int> GetBitsPerPoint()
+        public async Task<double> GetBitsPerPoint()
         {
-            return await gameSettingsService.GetIntSetting(ModuleName, "BitsPerPoint", 1);
+            return await gameSettingsService.GetDoubleSetting(ModuleName, "BitsPerPoint", 1.0);
         }
 
         public async Task SetPointType(PointType pointType)
@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var bitsPerPoint = await GetBitsPerPoint();
                 if (bitsPerPoint > 0)
                 {
-                    var pointsToAward = (int)Math.Floor((double)e.Amount / bitsPerPoint);
+                    var pointsToAward = (int)Math.Floor((double)e.Amount * bitsPerPoint);
                     if (pointsToAward < 1) return;
                     var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                     logger.LogInformation("Gave {name} {points} {PointType} for cheering.", e.Name, pointsToAward, pointType.Name);
