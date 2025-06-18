@@ -485,7 +485,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 case PointCommandType.Add:
                     {
-                        if (Int64.TryParse(e.Args[1], out long amount))
+                        var args = e.Args[1];
+                        args = string.IsNullOrWhiteSpace(args) ? "" : args .Split(".")[0]; // Remove any additional arguments after the first period
+                        if (Int64.TryParse(args, out long amount))
                         {
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
@@ -500,7 +502,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     }
                 case PointCommandType.Remove:
                     {
-                        if (Int64.TryParse(e.Args[1], out long amount))
+                        var args = e.Args[1];
+                        args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
+                        if (Int64.TryParse(args, out long amount))
                         {
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
