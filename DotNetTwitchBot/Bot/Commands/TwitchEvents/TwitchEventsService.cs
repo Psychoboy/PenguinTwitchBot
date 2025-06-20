@@ -86,7 +86,10 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                 }
                 if (string.IsNullOrWhiteSpace(adEvent.Message) == false)
                 {
-                    await ServiceBackbone.SendChatMessage(adEvent.Message);
+                    var message = adEvent.Message.Replace("(length)", e.Length.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("(automatic)", e.Automatic.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("(startdate)", e.StartedAt.ToString(), StringComparison.OrdinalIgnoreCase);
+                    await ServiceBackbone.SendChatMessage(message);
                 }
             }
         }
