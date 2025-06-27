@@ -39,10 +39,9 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
-                <MudTd DataLabel="Name">@context.Title</MudTd>
+                <MudTd DataLabel="Title"><MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink></MudTd>
                 <MudTd DataLabel="Duration">@context.Duration</MudTd>
                 <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
-                <MudTd DataLabel="ytlink"><MudLink Href=@GetYoutubeLink(context.SongId) Target="_blank">Video</MudLink></MudTd>
             </RowTemplate>
             <NoRecordsContent>
                 <MudText>No matching records found</MudText>

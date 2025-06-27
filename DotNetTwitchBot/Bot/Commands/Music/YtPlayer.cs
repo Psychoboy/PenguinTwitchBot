@@ -22,11 +22,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
-        private ConcurrentQueue<Song> UnplayedSongs = new();
+        private readonly ConcurrentQueue<Song> UnplayedSongs = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
         private Song? NextSong = null;
+        private readonly List<Song> RecentlyPlayedSongs = [];
         private readonly List<string> SkipVotes = [];
         private readonly TimeLeft timeLeft = new();
 
@@ -83,6 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         public async Task<string> GetNextSong()
         {
             Song? song = null;
+            List<Song> recentlyPlayedSongs = [];
             try
             {
                 await _semaphoreSlim.WaitAsync();
@@ -91,6 +93,15 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     song = Requests.First();
                     Requests.RemoveAt(0);
                     LastSong = CurrentSong?.CreateDeepCopy();
+                    if(LastSong != null)
+                    {
+                        RecentlyPlayedSongs.Add(LastSong.CreateDeepCopy());
+                        if (RecentlyPlayedSongs.Count > 10)
+                        {
+                            RecentlyPlayedSongs.RemoveAt(0);
+                        }
+                        recentlyPlayedSongs = [.. RecentlyPlayedSongs];
+                    }
                     CurrentSong = song?.CreateDeepCopy();
                     NextSong = Requests.FirstOrDefault()?.CreateDeepCopy();
                     SkipVotes.Clear();
@@ -105,6 +116,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 await UpdateRequestedSongsState();
                 await _hubContext.Clients.All.SendAsync("CurrentSongUpdate", CurrentSong);
+                await SendLastPlayedSongs(recentlyPlayedSongs);
                 return song.SongId;
             }
 
@@ -116,6 +128,24 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             SongsInBackupQueueMetric.DecTo(UnplayedSongs.Count);
             randomSong.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
             LastSong = CurrentSong?.CreateDeepCopy();
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                if (LastSong != null)
+                {
+                    RecentlyPlayedSongs.Add(LastSong.CreateDeepCopy());
+                    if (RecentlyPlayedSongs.Count > 10)
+                    {
+                        RecentlyPlayedSongs.RemoveAt(0);
+                    }
+                    recentlyPlayedSongs = [.. RecentlyPlayedSongs];
+                }
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
+            }
+            await SendLastPlayedSongs(recentlyPlayedSongs);
             CurrentSong = randomSong.CreateDeepCopy();
             NextSong = null;
             SkipVotes.Clear();
@@ -269,7 +299,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await db.Playlists.GetAllAsync()).ToList();
+            return [.. await db.Playlists.GetAllAsync()];
         }
 
         public async Task<MusicPlaylist> GetPlayList(int id)
@@ -835,12 +865,24 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return null;
         }
 
-        public List<Song> GetRequestedSongs()
+        public async Task<List<Song>> GetRequestedSongs()
         {
             try
             {
-                _semaphoreSlim.Wait();
+                await _semaphoreSlim.WaitAsync();
                 return [.. Requests];
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        public async Task<List<Song>> GetRecentlyPlayedSongs()
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                List<Song> songs = [.. RecentlyPlayedSongs.Select(x => x.CreateDeepCopy())];
+                songs.Reverse();
+                return songs;
             }
             finally { _semaphoreSlim.Release(); }
         }
@@ -898,6 +940,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private async Task SendSongRequests(List<Song> requests)
         {
             await _hubContext.Clients.All.SendAsync("CurrentSongRequests", requests);
+        }
+
+        private Task SendLastPlayedSongs(List<Song> songs)
+        {
+            return _hubContext.Clients.All.SendAsync("LastPlayedSongs", songs);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
