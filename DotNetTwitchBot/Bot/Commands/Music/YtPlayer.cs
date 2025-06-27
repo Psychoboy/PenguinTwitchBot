@@ -865,21 +865,21 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             return null;
         }
 
-        public List<Song> GetRequestedSongs()
+        public async Task<List<Song>> GetRequestedSongs()
         {
             try
             {
-                _semaphoreSlim.Wait();
+                await _semaphoreSlim.WaitAsync();
                 return [.. Requests];
             }
             finally { _semaphoreSlim.Release(); }
         }
 
-        public List<Song> GetRecentlyPlayedSongs()
+        public async Task<List<Song>> GetRecentlyPlayedSongs()
         {
             try
             {
-                _semaphoreSlim.Wait();
+                await _semaphoreSlim.WaitAsync();
                 List<Song> songs = [.. RecentlyPlayedSongs.Select(x => x.CreateDeepCopy())];
                 songs.Reverse();
                 return songs;
