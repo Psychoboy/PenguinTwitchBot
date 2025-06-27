@@ -56,10 +56,10 @@
 
     private bool dataLoaded = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        songRequests = YtPlayer.GetRequestedSongs();
-        UpdateSongList(YtPlayer.GetRequestedSongs());
+        songRequests = await YtPlayer.GetRequestedSongs();
+        UpdateSongList(await YtPlayer.GetRequestedSongs());
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
