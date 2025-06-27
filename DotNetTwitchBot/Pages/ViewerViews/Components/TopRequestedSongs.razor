@@ -39,7 +39,7 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
-                <MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink>
+                <MudTd DataLabel="Title"><MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink></MudTd>
                 <MudTd DataLabel="Duration">@context.Duration</MudTd>
                 <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
             </RowTemplate>
