@@ -35,9 +35,9 @@
     private HubConnection? hubConnection;
     private List<Song> recentlyPlayedSongs = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        recentlyPlayedSongs = YtPlayer.GetRecentlyPlayedSongs();
+        recentlyPlayedSongs = await YtPlayer.GetRecentlyPlayedSongs();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

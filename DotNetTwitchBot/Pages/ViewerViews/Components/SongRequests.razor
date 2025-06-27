@@ -58,7 +58,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        songRequests = await YtPlayer.GetRequestedSongs();
         UpdateSongList(await YtPlayer.GetRequestedSongs());
     }
 

@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private readonly List<Song> Requests = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private MusicPlaylist BackupPlaylist = new();
-        private ConcurrentQueue<Song> UnplayedSongs = new();
+        private readonly ConcurrentQueue<Song> UnplayedSongs = new();
         private PlayerState State = PlayerState.UnStarted;
         private Song? LastSong = null;
         private Song? CurrentSong = null;
@@ -299,7 +299,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return (await db.Playlists.GetAllAsync()).ToList();
+            return [.. await db.Playlists.GetAllAsync()];
         }
 
         public async Task<MusicPlaylist> GetPlayList(int id)
