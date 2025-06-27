@@ -1,0 +1,82 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-4" Elevation="0">
+    <MudPaper Class="align-start d-flex">
+        <MudText Typo="Typo.h5" class="mud-contrast-text">Recently Played Songs</MudText>
+    </MudPaper>
+    <MudDivider class="mb-2" />
+    @if (recentlyPlayedSongs.Count == 0)
+    {
+        <MudText>No recently played songs.</MudText>
+    }
+    else
+    {
+        <MudTable Items="@recentlyPlayedSongs" Dense="true" Hover="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>Title</MudTh>
+                <MudTh>Requested By</MudTh>
+                <MudTh>Duration</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Title">
+                    <MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink>
+                </MudTd>
+                <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                <MudTd DataLabel="Duration">@context.Duration</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<Song> recentlyPlayedSongs = new();
+
+    protected override void OnInitialized()
+    {
+        recentlyPlayedSongs = YtPlayer.GetRecentlyPlayedSongs();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+
+        hubConnection = new HubConnectionBuilder()
+            .WithAutomaticReconnect()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"))
+            .Build();
+
+        hubConnection.On<List<Song>>("LastPlayedSongs", (songs) =>
+        {
+            recentlyPlayedSongs = songs;
+            InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception)
+        { }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
