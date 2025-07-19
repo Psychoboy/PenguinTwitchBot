@@ -1,9 +1,11 @@
 @page "/viewers"
+@using DotNetTwitchBot.Bot.Models.Giveaway
 @using DotNetTwitchBot.Bot.Models.IpLogs
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject DotNetTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject DotNetTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
+@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 
 <PageTitle>SPTV Twitch Bot - Viewers</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
@@ -56,6 +58,7 @@
                     <MudTh>Name</MudTh>
                     <MudTh>Ip</MudTh>
                     <MudTh>Count</MudTh>
+                    <MudTh>Excluded</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">
@@ -70,6 +73,7 @@
                     </MudTd>
                     <MudTd DataLabel="Ip">@context.Ip</MudTd>
                     <MudTd DataLabel="Count">@context.Count</MudTd>
+                    <MudTd DataLabel="Excluded">@context.IsGiveawayExclusion</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>No matching records found</MudText>
@@ -87,7 +91,22 @@
 @code {
     private List<Viewer>? viewers = new();
     private SearchForm model = new();
-    private MudTable<IpLogUsersWithSameIp>? logsTable;
+    private MudTable<DupeIps>? logsTable;
+    private List<GiveawayExclusion> giveawayExclusions = new();
+
+    public class DupeIps
+    {
+        public string User1 { get; set; } = "";
+        public string User2 { get; set; } = "";
+        public string Ip { get; set; } = "";
+        public int Count { get; set; }
+        public bool IsGiveawayExclusion { get; set; } = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
+    }
 
     public class SearchForm
     {
@@ -96,10 +115,20 @@
         public string Username { get; set; } = "";
     }
 
-    private async Task<TableData<IpLogUsersWithSameIp>> LogsReload(TableState state, CancellationToken _token)
+    private async Task<TableData<DupeIps>> LogsReload(TableState state, CancellationToken _token)
     {
         var response = await ipLogFeature.GetAllDuplicateIps(state.Page, state.PageSize);
-        return new TableData<IpLogUsersWithSameIp> { TotalItems = response.TotalItems, Items = response.Data };
+        var data = response.Data
+            .Select(x => new DupeIps
+                {
+                    User1 = x.User1,
+                    User2 = x.User2,
+                    Ip = x.Ip,
+                    Count = x.Count,
+                    IsGiveawayExclusion = giveawayExclusions.Any(g => g.Username == x.User1 || g.Username == x.User2)
+                })
+            .ToList();
+        return new TableData<DupeIps> { TotalItems = response.TotalItems, Items = data };
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)
