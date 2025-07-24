@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly string PrizeSettingName = "GiveawayPrize";
         private readonly string ImageSettingName = "GiveawayPrizeImage";
         private readonly string PrizeTierName = "GiveawayPrizeTier";
+        private readonly string GiveawayAdditionalDetailsSettingName = "GiveawayAdditionalDetails";
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
@@ -194,12 +195,40 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return prize;
         }
 
+        private async Task<Setting?> GetCurrentPrizeAdditionalDetails()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var prize = await db.Settings.Find(x => x.Name.Equals(GiveawayAdditionalDetailsSettingName)).FirstOrDefaultAsync();
+            return prize;
+        }
+
         public async Task<string> GetPrizeTier()
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var prize = await db.Settings.Find(x => x.Name.Equals(PrizeTierName)).FirstOrDefaultAsync();
             return prize != null ? prize.StringSetting : "";
+        }
+
+        public async Task<string> GetPrizeAdditionalDetails()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var prize = await db.Settings.Find(x => x.Name.Equals(GiveawayAdditionalDetailsSettingName)).FirstOrDefaultAsync();
+            return prize != null ? prize.StringSetting : "";
+        }
+
+        public async Task SetPrizeAdditionalDetails(string? arg)
+        {
+            var prize = await GetCurrentPrizeAdditionalDetails();
+            prize ??= new Setting()
+            {
+                Name = GiveawayAdditionalDetailsSettingName
+            };
+            prize.StringSetting = arg ?? "";
+            await AddOrUpdatePrize(prize);
+            await hubContext.Clients.All.SendAsync("PrizeAdditionalDetails", arg);
         }
 
         public async Task SetPrizeTier(string? arg)
