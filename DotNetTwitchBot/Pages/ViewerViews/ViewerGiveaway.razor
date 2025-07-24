@@ -33,6 +33,10 @@
                     <MudDivider class="mb-2" />
                     <MudText Typo="Typo.h5">@prize</MudText>
                     <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
+                    @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
+                    {
+                        <MudText>@RenderMultiline(@prizeAdditionalDetails)</MudText>
+                    }
                 </center>
             </MudPaper>
         </MudItem>
@@ -118,7 +122,8 @@
             </MudPaper>
             <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">Terms</MudText>
-                <MudText>Winner(s) will be whispered via Twitch and only Twitch. Winner(s) must respond within 48 hours. Once the prize is sent the winner has 1 week to collect otherwise will be cancelled.</MudText>
+                <MudText>Winner(s) must whisper me on Twitch within 48hrs to claim Prize. Winners are announced Live on stream and in <MudLink Href="https://discord.gg/vrbaE6f" Target="_blank">Discord</MudLink> in the #giveaway-winners channel.</MudText>
+                <MudText>Subscribers auto claim and will be whispered directly.</MudText>
                 <MudText>Right to change giveaway at any time. Giveaways illegal where it is not legal. Must be 18+ to participate.</MudText>
                 <MudText>Giveaways can change at any time without reason.</MudText>
             </MudPaper>
@@ -132,6 +137,7 @@
     private List<GiveawayWinner> winners = new List<GiveawayWinner>();
     private string prize = "";
     private string? imageUrl;
+    private string prizeAdditionalDetails = "";
     private int entries;
     private int entrants;
     private long userTickets;
@@ -168,6 +174,7 @@
         }
         prize = await GiveawayFeature.GetPrize();
         imageUrl = await GiveawayFeature.GetImageUrl();
+        prizeAdditionalDetails = (await GiveawayFeature.GetPrizeAdditionalDetails()).Trim();
         entries = await GiveawayFeature.GetEntriesCount();
         entrants = await GiveawayFeature.GetEntrantsCount();
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
@@ -193,6 +200,11 @@
             prize = Prize;
             InvokeAsync(StateHasChanged);
         });
+        hubConnection.On<string>("PrizeAdditionalDetails", (PrizeAdditionalDetails) =>
+        {
+            prizeAdditionalDetails = PrizeAdditionalDetails.Trim();
+            InvokeAsync(StateHasChanged);
+        });
         hubConnection.On<int, int>("UpdateTickets", (curEntries, curEntrants) =>
         {
             entries = curEntries;
@@ -213,6 +225,15 @@
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
             logger.LogWarning(ex, "Failed to connect to hub");
         }
+    }
+
+    private static MarkupString RenderMultiline(string textWithLineBreaks)
+    {
+        var encodedLines = (textWithLineBreaks ?? string.Empty)
+            .Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => System.Web.HttpUtility.HtmlEncode(line))
+            .ToArray();
+        return (MarkupString)string.Join("<br />", encodedLines);
     }
 
     private async Task EnterTickets()
