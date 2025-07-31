@@ -1,0 +1,132 @@
+﻿@page "/acommands"
+@inject AuthenticationStateProvider AuthenticationStateProvider;
+
+<PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudPaper>
+        @if (!dataLoaded)
+        {
+            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudOverlay>
+        }
+        else
+        {
+            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Audio Commands</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Command</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Cost</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Command">@context.Command</MudTd>
+                    <MudTd DataLabel="Category">@context.Category</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Rank">@context.Rank.ToString()</MudTd>
+                    <MudTd DataLabel="Cost">@context.Cost</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+
+        }
+    </MudPaper>
+</MudContainer>
+@code {
+    private List<CommandModel> commands = new();
+    private string searchString1 = "";
+    private bool dataLoaded = false;
+
+    [Inject]
+    private DotNetTwitchBot.Bot.Commands.AudioCommand.AudioCommands AudioCommandService { get; set; } = default!;
+
+    public class CommandModel
+    {
+        public string Command { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int GlobalCooldown { get; set; }
+        public Rank Rank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string? SpecificUser { get; set; } = "";
+        public List<string> SpecificUsers { get; set; } = new List<string>();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        var tempCommands = new List<CommandModel>();
+        var audioCommands = AudioCommandService.GetAudioCommands();
+        foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.Value.CommandName,
+                    UserCooldown = command.Value.UserCooldown,
+                    GlobalCooldown = command.Value.GlobalCooldown,
+                    Rank = command.Value.MinimumRank,
+                    Cost = command.Value.Cost,
+                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
+                });
+        }
+
+        if (user.Identity is not null)
+        {
+            tempCommands = tempCommands.Where(x =>
+                 string.IsNullOrWhiteSpace(x.SpecificUser) ||
+                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase) ||
+                    x.SpecificUsers.Any(s => s.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+        else
+        {
+            tempCommands = tempCommands.Where(x => string.IsNullOrWhiteSpace(x.SpecificUser) || x.SpecificUsers.Count == 0).ToList();
+        }
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
+        {
+            commands = tempCommands.OrderBy(x => x.Command).ToList();
+        }
+        else
+        {
+            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
+        }
+
+        commands = commands.DistinctBy(x => x.Command).ToList();
+    }
+
+    private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
+
+    private bool FilterFunc(CommandModel element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        dataLoaded = true;
+        await InvokeAsync(StateHasChanged);
+    }
+}
