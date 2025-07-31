@@ -20,41 +20,42 @@
         }
         else
         {
-        <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Commands</MudText>
-                <MudChipSet T="string" SelectedValuesChanged="e => ChipsChanged(e)" SelectionMode="SelectionMode.MultiSelection" CheckMark=true>
-                    <MudChip Text="Giveaway"></MudChip>
-                    <MudChip Text="HFX"></MudChip>
-                    <MudChip Text="Sounds"></MudChip>
-                    <MudChip Text="Ticket Games"></MudChip>
-                    <MudChip Text="Pasties & Games"></MudChip>
-                </MudChipSet>
-                <MudSpacer />
-                <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
-            </ToolBarContent>
-            <HeaderContent >
-                <MudTh>Command</MudTh>
-                <MudTh>Category</MudTh>
-                <MudTh>Description</MudTh>
-                <MudTh>Rank</MudTh>
-                <MudTh>Cost</MudTh>
-                <MudTh>User Cooldown</MudTh>
-                <MudTh>Global Cooldown</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Command">@context.Command</MudTd>
-                <MudTd DataLabel="Category">@context.Category</MudTd>
-                <MudTd DataLabel="Description">@context.Description</MudTd>
-                <MudTd DataLabel="Rank">@context.Rank</MudTd>
-                <MudTd DataLabel="Cost">@context.Cost</MudTd>
-                <MudTd DataLabel="UserCooldown">@context.UserCooldown</MudTd>
-                <MudTd DataLabel="GlobalCooldown">@context.GlobalCooldown</MudTd>
-            </RowTemplate>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
+            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Commands</MudText>
+                    <MudChipSet T="string" SelectedValuesChanged="e => ChipsChanged(e)" SelectionMode="SelectionMode.MultiSelection" CheckMark=true>
+                        <MudChip Text="Giveaway"></MudChip>
+                        <MudChip Text="HFX"></MudChip>
+                        <MudChip Text="Sounds"></MudChip>
+                        <MudChip Text="Ticket Games"></MudChip>
+                        <MudChip Text="Pasties & Games"></MudChip>
+                        <MudChip Text="Include Aliases"></MudChip>
+                    </MudChipSet>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent >
+                    <MudTh>Command</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Cost</MudTh>
+                    <MudTh>User Cooldown</MudTh>
+                    <MudTh>Global Cooldown</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Command">@context.Command</MudTd>
+                    <MudTd DataLabel="Category">@context.Category</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Cost">@context.Cost</MudTd>
+                    <MudTd DataLabel="UserCooldown">@context.UserCooldown</MudTd>
+                    <MudTd DataLabel="GlobalCooldown">@context.GlobalCooldown</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
         }
     </MudPaper>
 </MudContainer>
@@ -77,6 +78,9 @@
         public int Cost { get; set; }
         public string Description { get; set; } = "";
         public string Category { get; set; } = "";
+        public bool isAlias { get; set; } = false;
+        public string? SpecificUser { get; set; } = "";
+        public List<string> SpecificUsers { get; set; } = new List<string>();
 
     }
 
@@ -88,8 +92,7 @@
         var defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
         var tempCommands = new List<CommandModel>();
         foreach(var command in defaultCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
-        {
-            tempCommands.Add(new CommandModel
+        {            tempCommands.Add(new CommandModel
                 {
                     Command = "!" + command.CustomCommandName,
                     UserCooldown = command.UserCooldown,
@@ -98,7 +101,8 @@
                     Cost = command.Cost,
                     Description = string.IsNullOrWhiteSpace(command.Description) ? SplitModuleName(command.ModuleName) : command.Description,
                     Category = string.IsNullOrWhiteSpace(command.Category) ? SplitModuleName(command.ModuleName) : command.Category,
-
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
                 });
         }
 
@@ -113,24 +117,26 @@
                     Rank = command.Value.MinimumRank,
                     Cost = command.Value.Cost,
                     Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.Response : command.Value.Description,
-                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Custom" : command.Value.Category
+                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Custom" : command.Value.Category,
+                    SpecificUser = command.Value.SpecificUserOnly,
+                    SpecificUsers = command.Value.SpecificUsersOnly
                 });
         }
 
-        var audioCommands = AudioCommands.GetAudioCommands();
-        foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
-        {
-            tempCommands.Add(new CommandModel
-                {
-                    Command = "!" + command.Value.CommandName,
-                    UserCooldown = command.Value.UserCooldown,
-                    GlobalCooldown = command.Value.GlobalCooldown,
-                    Rank = command.Value.MinimumRank,
-                    Cost = command.Value.Cost,
-                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
-                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
-                });
-        }
+        // var audioCommands = AudioCommands.GetAudioCommands();
+        // foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
+        // {
+        //     tempCommands.Add(new CommandModel
+        //         {
+        //             Command = "!" + command.Value.CommandName,
+        //             UserCooldown = command.Value.UserCooldown,
+        //             GlobalCooldown = command.Value.GlobalCooldown,
+        //             Rank = command.Value.MinimumRank,
+        //             Cost = command.Value.Cost,
+        //             Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+        //             Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
+        //         });
+        // }
 
         var externalCommands = await CommandHandler.GetExternalCommands();
         foreach (var command in externalCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
@@ -143,7 +149,9 @@
                     Rank = command.MinimumRank,
                     Cost = command.Cost,
                     Description = command.Description,
-                    Category = command.Category
+                    Category = command.Category,
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
                 });
         }
 
@@ -153,15 +161,32 @@
             var tempCommand = tempCommands.Where(x => x.Command.Equals("!" + command.CommandName)).FirstOrDefault();
             if (tempCommand == null) continue;
             tempCommands.Add(new CommandModel
-            {
-                Command = "!" + command.AliasName,
-                UserCooldown = tempCommand.UserCooldown,
-                GlobalCooldown = tempCommand.GlobalCooldown,
-                Rank = tempCommand.Rank,
-                Cost = tempCommand.Cost,
-                Description = tempCommand.Description,
-                Category = tempCommand.Category
-            });
+                {
+                    Command = "!" + command.AliasName,
+                    UserCooldown = tempCommand.UserCooldown,
+                    GlobalCooldown = tempCommand.GlobalCooldown,
+                    Rank = tempCommand.Rank,
+                    Cost = tempCommand.Cost,
+                    Description = tempCommand.Description,
+                    Category = tempCommand.Category,
+                    SpecificUser = tempCommand.SpecificUser,
+                    SpecificUsers = tempCommand.SpecificUsers,
+                    isAlias = true
+                });
+        }
+
+        // Filter out commands that are not applicable to the user
+        if(user.Identity is not null)
+        {
+            tempCommands = tempCommands.Where(x =>
+                 string.IsNullOrWhiteSpace(x.SpecificUser) ||
+                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase) ||
+                    x.SpecificUsers.Any(s => s.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+        else
+        {
+            tempCommands = tempCommands.Where(x => string.IsNullOrWhiteSpace(x.SpecificUser) || x.SpecificUsers.Count == 0).ToList();
         }
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
@@ -171,18 +196,25 @@
         {
             commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
         }
-        originalCommands = commands.DistinctBy(x => x.Command).ToList();
 
+        originalCommands = commands.DistinctBy(x => x.Command).ToList();
+        commands = commands.Where(x => x.isAlias == false).ToList();
     }
 
     private void ChipsChanged(IEnumerable<string> selected)
     {
-        
+        var includeAliases = selected.Where(x => x.Equals("Include Aliases")).Any();
         if (selected.Count() == 0)
+        {
+            commands = originalCommands.Where(x => x.isAlias == false).OrderBy(x => x.Command).ToList();
+            return;
+        }
+        else if (selected.Count() == 1 && includeAliases)
         {
             commands = originalCommands.OrderBy(x => x.Command).ToList();
             return;
         }
+
         commands = new();
         if (selected.Where(x => x.Equals("Giveaway")).Any())
         {
@@ -230,6 +262,12 @@
                 x.Category.Contains("Loyalty")
             ));
         }
+
+        if (!includeAliases)
+        {
+            commands = commands.Where(x => x.isAlias == false).ToList();
+        };
+
         commands = commands.DistinctBy(x => x.Command).OrderBy(x => x.Command).ToList();
     }
 
