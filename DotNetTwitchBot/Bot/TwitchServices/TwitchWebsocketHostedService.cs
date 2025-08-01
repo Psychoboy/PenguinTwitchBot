@@ -297,22 +297,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
                 , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
+                //if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
+                //{
+                //    logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
+                //    return;
+                //}
 
-                if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
-                {
-                    logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
-                    return;
-                }
+                //await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
-                if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+                //if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
 
                 await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
                     UserId = e.Notification.Payload.Event.UserId,
                     DisplayName = e.Notification.Payload.Event.UserName,
-                    IsGift = e.Notification.Payload.Event.IsGift
+                    IsGift = e.Notification.Payload.Event.IsGift,
+                    HadPreviousSub = await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin)
                 });
             }
             catch (Exception ex)
@@ -334,7 +335,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", e.Notification.Payload.Event.UserLogin);
                 await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
-                if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+                //if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
                 await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
                     Name = e.Notification.Payload.Event.UserLogin,
@@ -343,7 +344,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     Count = e.Notification.Payload.Event.CumulativeMonths,
                     Streak = e.Notification.Payload.Event.StreakMonths,
                     IsRenewal = true,
-                    Message = e.Notification.Payload.Event.Message?.Text
+                    Message = e.Notification.Payload.Event.Message?.Text,
+                    HadPreviousSub = await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin)
                 });
             }
             catch (Exception ex)

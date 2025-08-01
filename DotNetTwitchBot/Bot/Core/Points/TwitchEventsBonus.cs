@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Models.Points;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -14,6 +15,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IPointsSystem pointsSystem
         ) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventBonus"), IHostedService, ITwitchEventsBonus
     {
+        private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
+        static readonly SemaphoreSlim _subscriptionLock = new(1);
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.CompletedTask;
@@ -112,16 +115,47 @@ namespace DotNetTwitchBot.Bot.Core.Points
             }
         }
 
+        private bool CheckIfExistsAndAddSubCache(string name)
+        {
+            try
+            {
+                _subscriptionLock.Wait();
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    logger.LogWarning("Subscriber name was null or white space");
+                    return false;
+                }
+                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
+                {
+                    logger.LogWarning("{name} Subscriber already in sub cache", name);
+                    return true;
+                }
+                SubCache[name] = DateTime.Now;
+                return false;
+            }
+            finally
+            {
+                _subscriptionLock.Release();
+            }
+        }
+
         private async Task OnSubscription(object sender, SubscriptionEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(e.Name) || string.IsNullOrWhiteSpace(e.UserId)) return;
             if (e.IsGift) return;
             try
             {
-                var subPoints = await GetPointsPerSub();
-                var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
-                logger.LogInformation("Gave {name} {points} {PointType} for subscribing.", e.Name, subPoints, pointType.Name);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, subPoints);
+                if (!CheckIfExistsAndAddSubCache(e.UserId))
+                {
+                    var subPoints = await GetPointsPerSub();
+                    var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
+                    logger.LogInformation("Gave {name} {points} {PointType} for subscribing.", e.Name, subPoints, pointType.Name);
+                    await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, subPoints);
+                }
+
+                if (!e.IsRenewal && e.HadPreviousSub) return;
+                
                 var message = $"{e.DisplayName} just subscribed";
                 if (e.Count != null && e.Count > 0)
                 {
