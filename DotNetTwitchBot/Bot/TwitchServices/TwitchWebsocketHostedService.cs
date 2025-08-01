@@ -305,7 +305,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
                 //await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
-                if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
+                //if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
 
                 await eventService.OnSubscription(new Events.SubscriptionEventArgs
                 {
