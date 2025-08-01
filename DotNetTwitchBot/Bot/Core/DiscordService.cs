@@ -528,11 +528,11 @@ namespace DotNetTwitchBot.Bot.Core
 
             if (string.IsNullOrWhiteSpace(newSocketMessage.Content.Trim())) return;
 
-            if (string.IsNullOrWhiteSpace(oldMessage)) {
-                _logger.LogInformation("User {username} updated message: {newMessage}", newSocketMessage.Author.Username, newSocketMessage.Content);
-            } else {
-                _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
-            }
+            if (string.IsNullOrWhiteSpace(oldMessage)) 
+                return;
+
+            _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
+
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
             {

@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Bot.Events
         public string Tier { get; set; } = null!;
         public bool IsGift { get; set; } = false;
         public bool IsRenewal { get; set; } = false;
+        public bool HadPreviousSub { get; set; } = false;
         public string? Message { get; set; }
     }
 }
