@@ -297,13 +297,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Type: {SubscriptionType} Tier- {Tier}"
                 , e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.IsGift, e.Notification.Metadata.SubscriptionType, e.Notification.Payload.Event.Tier);
 
-                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
                 if (await CheckIfPreviousSub(e.Notification.Payload.Event.UserLogin))
                 {
                     logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Notification.Payload.Event.UserLogin);
                     return;
                 }
+
+                await subscriptionHistory.AddOrUpdateSubHistory(e.Notification.Payload.Event.UserLogin, e.Notification.Payload.Event.UserId);
 
                 if (CheckIfExistsAndAddSubCache(e.Notification.Payload.Event.UserLogin)) return;
 
