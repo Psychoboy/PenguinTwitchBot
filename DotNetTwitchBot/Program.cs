@@ -108,7 +108,7 @@ internal class Program
             config.SnackbarConfiguration.ShowTransitionDuration = 500;
             config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
         });
-
+        builder.Services.AddMudMarkdownServices();
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddTwitchLibEventSubWebsockets();

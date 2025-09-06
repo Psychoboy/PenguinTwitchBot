@@ -35,7 +35,7 @@
                     <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
                     @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
                     {
-                        <MudText>@RenderMultiline(@prizeAdditionalDetails)</MudText>
+                        <MudMarkdown Value="@prizeAdditionalDetails" />
                     }
                 </center>
             </MudPaper>
