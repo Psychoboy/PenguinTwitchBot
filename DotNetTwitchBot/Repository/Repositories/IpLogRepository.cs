@@ -41,6 +41,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                             Ip = p1.Ip
                         };
 
+
+
+            var seen = new HashSet<string>();
             query = query.GroupBy(g => new
             {
                 g.User1,
@@ -52,7 +55,10 @@ namespace DotNetTwitchBot.Repository.Repositories
                 User2 = x.Key.User2,
                 Ip = x.Key.Ip,
                 Count = x.Count()
-            }).OrderBy(x => x.User1);
+            })
+            .OrderBy(x => x.User1);
+
+            
 
             if (offset != null)
             {

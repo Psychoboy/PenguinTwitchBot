@@ -31,5 +31,17 @@ namespace DotNetTwitchBot.Bot.Admin
                 Data = await query.Skip(offset * limit).Take(limit).ToListAsync(),
             };
         }
+
+        public async Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var query = unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
+            return new PagedDataResponse<IpLogUsersWithSameIp>
+            {
+                TotalItems = await query.CountAsync(),
+                Data = await query.ToListAsync(),
+            };
+        }
     }
 }
