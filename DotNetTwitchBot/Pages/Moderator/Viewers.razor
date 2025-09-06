@@ -56,7 +56,8 @@
                 <HeaderContent>
                     <MudTh>Name</MudTh>
                     <MudTh>Name</MudTh>
-                    <MudTh>Excluded</MudTh>
+                    <MudTh>Excluded 1</MudTh>
+                    <MudTh>Excluded 2</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">
@@ -69,7 +70,8 @@
                             @context.User2
                         </MudLink>
                     </MudTd>
-                    <MudTd DataLabel="Excluded">@context.IsGiveawayExclusion</MudTd>
+                    <MudTd DataLabel="Excluded1">@context.IsGiveawayExclusion1</MudTd>
+                    <MudTd DataLabel="Excluded2">@context.IsGiveawayExclusion2</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>No matching records found</MudText>
@@ -96,7 +98,8 @@
         public string User2 { get; set; } = "";
         public string Ip { get; set; } = "";
         public int Count { get; set; }
-        public bool IsGiveawayExclusion { get; set; } = false;
+        public bool IsGiveawayExclusion1 { get; set; } = false;
+        public bool IsGiveawayExclusion2 { get; set; } = false;
     }
 
     protected override async Task OnInitializedAsync()
@@ -113,17 +116,27 @@
 
     private async Task<TableData<DupeIps>> LogsReload(TableState state, CancellationToken _token)
     {
-        var response = await ipLogFeature.GetAllDuplicateIps(state.Page, state.PageSize);
+        var response = await ipLogFeature.GetAllDuplicateIps();
         var data = response.Data
             .Select(x => new DupeIps
                 {
                     User1 = x.User1,
                     User2 = x.User2,
-                    IsGiveawayExclusion = giveawayExclusions.Any(g => g.Username == x.User1 || g.Username == x.User2)
+                    IsGiveawayExclusion1 = giveawayExclusions.Any(g => g.Username.Equals(x.User1, StringComparison.OrdinalIgnoreCase)),
+                    IsGiveawayExclusion2 = giveawayExclusions.Any(g => g.Username.Equals(x.User2, StringComparison.OrdinalIgnoreCase)),
                 })
-            .Distinct()
             .ToList();
-        return new TableData<DupeIps> { TotalItems = response.TotalItems, Items = data };
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        data = data.Where(x =>
+        {
+            var isNew = !seen.Contains(x.User1) || !seen.Contains(x.User2);
+            seen.Add(x.User1);
+            seen.Add(x.User2);
+            return isNew;
+        }).ToList();
+
+        return new TableData<DupeIps> { TotalItems = data.Count, Items = data };
     }
 
     private void Edit(DotNetTwitchBot.Bot.Models.Viewer item)

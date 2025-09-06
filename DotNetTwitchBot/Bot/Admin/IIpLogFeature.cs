@@ -8,5 +8,6 @@ namespace DotNetTwitchBot.Bot.Admin
         Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username);
         Task<List<IpLogEntry>> GetIpLogsForUser(string username);
         Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps(int offset, int limit);
+        Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps();
     }
 }
