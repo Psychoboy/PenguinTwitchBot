@@ -47,43 +47,47 @@
             </MudTable>
         </MudPaper>
     </MudItem>
-        <MudItem xs="12">
-            <MudTable ServerData="LogsReload" @ref=logsTable
-                      Dense="true" Hover="true">
-                <ToolBarContent>
-                    <MudText Class="pa-4" Typo="Typo.h6">Users Matching Ip</MudText>
-                </ToolBarContent>
-                <HeaderContent>
-                    <MudTh>Name</MudTh>
-                    <MudTh>Name</MudTh>
-                    <MudTh>Excluded 1</MudTh>
-                    <MudTh>Excluded 2</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Name">
-                        <MudLink Href=@LinkBuilder("/editviewer/", context.User1)>
-                            @context.User1
-                        </MudLink>
-                    </MudTd>
-                    <MudTd DataLabel="Name">
-                        <MudLink Href=@LinkBuilder("/editviewer/", context.User2)>
-                            @context.User2
-                        </MudLink>
-                    </MudTd>
-                    <MudTd DataLabel="Excluded1">@context.IsGiveawayExclusion1</MudTd>
-                    <MudTd DataLabel="Excluded2">@context.IsGiveawayExclusion2</MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText>No matching records found</MudText>
-                </NoRecordsContent>
-                <LoadingContent>
-                    <MudText>Loading...</MudText>
-                </LoadingContent>
-                <PagerContent>
-                    <MudTablePager />
-                </PagerContent>
-            </MudTable>
-        </MudItem>
+    <AuthorizeView Roles="Streamer, Editor" Context="authContext">
+        <Authorized>
+            <MudItem xs="12">
+                <MudTable ServerData="LogsReload" @ref=logsTable
+                            Dense="true" Hover="true">
+                    <ToolBarContent>
+                        <MudText Class="pa-4" Typo="Typo.h6">Users Matching Ip</MudText>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Excluded 1</MudTh>
+                        <MudTh>Excluded 2</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudLink Href=@LinkBuilder("/editviewer/", context.User1)>
+                                @context.User1
+                            </MudLink>
+                        </MudTd>
+                        <MudTd DataLabel="Name">
+                            <MudLink Href=@LinkBuilder("/editviewer/", context.User2)>
+                                @context.User2
+                            </MudLink>
+                        </MudTd>
+                        <MudTd DataLabel="Excluded1">@context.IsGiveawayExclusion1</MudTd>
+                        <MudTd DataLabel="Excluded2">@context.IsGiveawayExclusion2</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No matching records found</MudText>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudText>Loading...</MudText>
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudItem>
+     </Authorized>
+    </AuthorizeView>
 </MudGrid>
 </MudContainer>
 @code {
