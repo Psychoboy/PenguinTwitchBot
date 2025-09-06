@@ -56,8 +56,6 @@
                 <HeaderContent>
                     <MudTh>Name</MudTh>
                     <MudTh>Name</MudTh>
-                    <MudTh>Ip</MudTh>
-                    <MudTh>Count</MudTh>
                     <MudTh>Excluded</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -71,8 +69,6 @@
                             @context.User2
                         </MudLink>
                     </MudTd>
-                    <MudTd DataLabel="Ip">@context.Ip</MudTd>
-                    <MudTd DataLabel="Count">@context.Count</MudTd>
                     <MudTd DataLabel="Excluded">@context.IsGiveawayExclusion</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -123,10 +119,9 @@
                 {
                     User1 = x.User1,
                     User2 = x.User2,
-                    Ip = x.Ip,
-                    Count = x.Count,
                     IsGiveawayExclusion = giveawayExclusions.Any(g => g.Username == x.User1 || g.Username == x.User2)
                 })
+            .Distinct()
             .ToList();
         return new TableData<DupeIps> { TotalItems = response.TotalItems, Items = data };
     }

@@ -205,10 +205,9 @@ internal class Program
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.RequireHeaderSymmetry = false;
             options.ForwardLimit = null;
-            foreach(var network in GetNetworks(NetworkInterfaceType.Ethernet))
-            {
-                options.KnownNetworks.Add(network);
-            }
+            options.KnownNetworks.Add(Microsoft.AspNetCore.HttpOverrides.IPNetwork.Parse("10.0.0.0/8"));
+            options.KnownNetworks.Add(Microsoft.AspNetCore.HttpOverrides.IPNetwork.Parse("172.16.0.0/12"));
+            options.KnownNetworks.Add(Microsoft.AspNetCore.HttpOverrides.IPNetwork.Parse("192.168.0.0/16"));
         });
 
         var app = builder.Build();
@@ -222,9 +221,6 @@ internal class Program
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             dbContext.Database.Migrate();
         }
-
-        //Loads all the command stuff into memory
-        //app.Services.GetRequiredService<IDiscordService>();
 
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
