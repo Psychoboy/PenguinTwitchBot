@@ -79,7 +79,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
 
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "WINNER", Arg.Any<string>()).Returns("(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
-            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notvalue", Arg.Any<string>()).Returns("please use a number or max/all when entering.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.success", Arg.Any<string>()).Returns("you have bought (amount) entries.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notenough", Arg.Any<string>()).Returns("you do not have enough or that many tickets to enter.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "GiveawayPrize", Arg.Any<string>()).Returns("No Prize");
@@ -87,6 +86,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.minus", Arg.Any<string>()).Returns("don't be dumb.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "help.enter", Arg.Any<string>()).Returns("To enter tickets, please use !enter AMOUNT/MAX/ALL");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.max", Arg.Any<string>()).Returns("Max entries is (maxallowed), so entering (amount) instead to max you out.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notvalid", Arg.Any<string>()).Returns("please use a number or max/all when entering.");
         }
 
 
