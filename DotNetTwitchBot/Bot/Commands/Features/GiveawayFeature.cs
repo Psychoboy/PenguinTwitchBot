@@ -333,11 +333,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     .Replace("(chance)", chance.ToString("0.00"), StringComparison.OrdinalIgnoreCase)
                     ;
 #if DEBUG
-                logger.LogInformation("DEBUG MODE: {message}", message);
-#else
+                message = "[DEBUG] " + message;
+#endif
                 logger.LogInformation("Drawing a ticket: {message}", message);
                 await ServiceBackbone.SendChatMessage(message);
-#endif
                 await AddWinner(viewer, isFollower);
             }
             catch (Exception ex)

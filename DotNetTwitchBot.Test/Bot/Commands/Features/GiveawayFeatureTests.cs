@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -40,6 +41,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly GiveawayWinner testPastWinners;
         private readonly DbSet<GiveawayWinner> pastWinnersQueryable;
         private readonly GiveawayFeature giveawayFeature;
+        private readonly IGameSettingsService gameSettingsService;
 
         public GiveawayFeatureTests()
         {
@@ -52,6 +54,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             commandHandler = Substitute.For<ICommandHandler>();
             pointsSystem = Substitute.For<IPointsSystem>();
             viewerFeature = Substitute.For<IViewerFeature>();
+            gameSettingsService = Substitute.For<IGameSettingsService>();
             hubContext = Substitute.For<IHubContext<MainHub>>();
 
             scopeFactory.CreateScope().Returns(scope);
@@ -72,8 +75,18 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
 
-            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, commandHandler, new Language());
+            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, commandHandler, gameSettingsService);
 
+
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "WINNER", Arg.Any<string>()).Returns("(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notvalue", Arg.Any<string>()).Returns("please use a number or max/all when entering.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.success", Arg.Any<string>()).Returns("you have bought (amount) entries.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notenough", Arg.Any<string>()).Returns("you do not have enough or that many tickets to enter.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "GiveawayPrize", Arg.Any<string>()).Returns("No Prize");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.failure", Arg.Any<string>()).Returns("failed to enter giveaway. Please try again.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.minus", Arg.Any<string>()).Returns("don't be dumb.");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "help.enter", Arg.Any<string>()).Returns("To enter tickets, please use !enter AMOUNT/MAX/ALL");
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.max", Arg.Any<string>()).Returns("Max entries is (maxallowed), so entering (amount) instead to max you out.");
         }
 
 
