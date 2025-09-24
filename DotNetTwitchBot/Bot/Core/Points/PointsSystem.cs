@@ -619,6 +619,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
             if (userPoints != null)
             {
                 await SendChatMessage(e.Name, $"You are ranked #{userPoints.Ranking} and have {userPoints.Points:N0} {userPointType?.Name}");
+            } 
+            else
+            {
+                await SendChatMessage(e.Name, $"You are ranked #N/A and have 0 {userPointType?.Name}");
             }
         }
 

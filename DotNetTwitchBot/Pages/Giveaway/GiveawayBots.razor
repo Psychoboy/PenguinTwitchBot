@@ -19,7 +19,11 @@
                             <MudTh></MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Username</MudTd>
+                            <MudTd DataLabel="Name">
+                                <MudLink Href=@LinkBuilder("/editviewer/", context.Username)>
+                                    @context.Username
+                                </MudLink>
+                            </MudTd>
                             <MudTd DataLabel="Expiration">
                                 @if(context.ExpireDateTime == null)
                                 {
@@ -95,5 +99,9 @@
             giveawayExclusions = (await GiveawayFeature.GetAllExclusions()).ToList();
             StateHasChanged();
         }
+    }
+    private string LinkBuilder(string _route, string _parameter)
+    {
+        return _route + _parameter;
     }
 }
