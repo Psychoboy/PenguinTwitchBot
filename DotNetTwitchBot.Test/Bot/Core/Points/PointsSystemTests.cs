@@ -518,5 +518,25 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             Assert.Equal(max, result);
         }
 
+        [Fact]
+        public async Task RunCommand_Get_ShouldRespondIfUserDoesNotExist()
+        {
+            await _pointsSystem.RunCommand(new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
+            {
+                Name = "nonexistentuser",
+                UserId = "nonexistentuserid",
+                DisplayName = "NonExistentUser",
+                Arg = "!points",
+                IsMod = false,
+                IsBroadcaster = false
+            }, new PointCommand
+            {
+                PointType = new PointType { Id = 1 },
+                CommandType = PointCommandType.Get,
+            });
+
+            await _serviceBackbone.Received(1).SendChatMessage("NonExistentUser", Arg.Is<string>(s => s.Contains("You are ranked #N/A and have 0 ")));
+        }
+
     }
 }

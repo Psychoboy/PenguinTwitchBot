@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -6,6 +7,7 @@ using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Microsoft.AspNetCore.SignalR;
+using System.Text;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Features
@@ -18,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         IHubContext<MainHub> hubContext,
         IServiceScopeFactory scopeFactory,
         ICommandHandler commandHandler,
-        ILanguage language
+        IGameSettingsService gameSettingsService
             ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature"), IHostedService
     {
         private readonly List<string> Tickets = new();
@@ -65,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         if (e.Args.Count == 0)
                         {
-                            await ServiceBackbone.SendChatMessage(e.Name, language.Get("giveawayfeature.help.enter"));
+                            await ServiceBackbone.SendChatMessage(e.Name, await gameSettingsService.GetStringSetting(ModuleName, "help.enter", "To enter tickets, please use !enter AMOUNT/MAX/ALL"));
                             throw new SkipCooldownException();
                         }
                         await Enter(e.Name, e.Args.First());
@@ -314,15 +316,26 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             }
             try
             {
+                var entries = await GetEntries();
                 var winningTicket = Tickets.RandomElementOrDefault(logger);
                 var viewer = await viewerFeature.GetViewerByUserName(winningTicket);
                 var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);
                 var prize = await GetPrize();
-                var message = language.Get("giveawayfeature.draw.winner")
+
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "WINNER", "(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
+                var winningEntry = entries.Where(x => x.Username.Equals(winningTicket, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                var chance = winningEntry != null && entries.Sum(x => x.Tickets) > 0 ? (decimal)winningEntry.Tickets / (decimal)entries.Sum(x => x.Tickets) * 100 : 0;
+
+                message = message
                     .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.OrdinalIgnoreCase)
                     .Replace("(prize)", prize, StringComparison.OrdinalIgnoreCase)
                     .Replace("(isFollowingCheck)", isFollower ? "is" : "is not", StringComparison.OrdinalIgnoreCase)
+                    .Replace("(chance)", chance.ToString("0.00"), StringComparison.OrdinalIgnoreCase)
                     ;
+#if DEBUG
+                message = "[DEBUG] " + message;
+#endif
+                logger.LogInformation("Drawing a ticket: {message}", message);
                 await ServiceBackbone.SendChatMessage(message);
                 await AddWinner(viewer, isFollower);
             }
@@ -402,14 +415,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
                 {
-                    var message = language.Get("giveawayfeature.enter.notvalid");
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
                     if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                     throw new SkipCooldownException(message);
                 }
                 if (points == 0 || points > viewerPoints)
                 {
-                    var message = language.Get("giveawayfeature.enter.notenough");
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
                     if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                     throw new SkipCooldownException(message);
@@ -417,7 +430,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
                 if (points < 0)
                 {
-                    var message = language.Get("giveawayfeature.enter.minus");
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb."); //language.Get("giveawayfeature.enter.minus");
                     await ServiceBackbone.SendChatMessage(displayName, message);
                     throw new SkipCooldownException(message);
                 }
@@ -426,7 +439,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if (points + enteredTickets > 1000000)
                 {
                     points = 1000000 - points;
-                    var message = language.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.max", "Max entries is (maxallowed), so entering (amount) instead to max you out."); //language.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
+                    message = message.Replace("(maxallowed)", "1,000,000", StringComparison.OrdinalIgnoreCase).Replace("(amount)", points.ToString(), StringComparison.OrdinalIgnoreCase);
                     if (!fromUi)
                     {
                         await ServiceBackbone.SendChatMessage(displayName, message);
@@ -441,7 +455,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 //if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
                 if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
                 {
-                    var message = language.Get("giveawayfeature.enter.failure");
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
                     if (!fromUi)
                     {
                         await ServiceBackbone.SendChatMessage(displayName, message);
@@ -464,7 +478,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
                 NumberOfTicketsEntered.WithLabels(sender).Inc(points);
                 {
-                    var message = language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries."); //language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
+                    message = message.Replace("(amount)", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                     if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
                     return message;
                 }

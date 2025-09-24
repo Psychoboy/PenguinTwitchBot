@@ -494,3 +494,5 @@ DotNetTwitchBot/Bot/Commands/Misc/DailyCounter.cs
 /DotNetTwitchBot/wwwroot/tts
 /DotNetTwitchBot/Data/counters
 /DotNetTwitchBot/wheelspins.txt
+/DotNetTwitchBot/giveaway_results.csv
+/DotNetTwitchBot/giveaway_results.xlsx
