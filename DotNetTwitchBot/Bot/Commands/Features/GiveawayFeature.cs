@@ -416,7 +416,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
                 {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalue", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
                     if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                     throw new SkipCooldownException(message);
