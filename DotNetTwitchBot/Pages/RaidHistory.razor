@@ -21,7 +21,7 @@
             <MudTh>Remove</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.DisplayName</MudTd>
+            <MudTd DataLabel="Name"><MudLink Href=@LinkBuilder(context.DisplayName) Target="_blank">@context.DisplayName</MudLink></MudTd>
             <MudTd DataLabel="Is Online">@context.IsOnline</MudTd>
             <MudTd DataLabel="Game">@context.LastGame</MudTd>
             <MudTd DataLabel="Incoming">@context.TotalIncomingRaids</MudTd>
@@ -80,5 +80,11 @@
         }
         catch (Exception)
         { }
+    }
+
+
+    private string LinkBuilder(string _parameter)
+    {
+        return "https://twitch.tv/" + _parameter;
     }
 }
