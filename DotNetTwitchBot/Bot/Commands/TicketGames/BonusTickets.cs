@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IPointsSystem pointSystem,
         IMediator mediator, 
         IServiceBackbone serviceBackbone, 
+        IViewerFeature viewerFeature,
         ILogger<BonusTickets> logger) : IBonusTickets
     {
         private static readonly List<string> ClaimedBonuses = [];
@@ -33,6 +34,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await _semaphoreSlim.WaitAsync();
             try
             {
+                var viewer = viewerFeature.GetViewerByUserName(username);
+                if (viewer == null)
+                {
+                    logger.LogWarning("Could not find viewer {username} when trying to redeem bonus tickets.", username);
+                    return;
+                }
+
                 if (ClaimedBonuses.Contains(username))
                 {
                     logger.LogWarning("{username} tried to claim tickets twice.", username);
