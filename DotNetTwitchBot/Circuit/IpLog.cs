@@ -64,9 +64,7 @@ namespace DotNetTwitchBot.Circuit
                     }
                     else
                     {
-                        var prefixes = new List<string>();
-                        prefixes.AddRange(GetIPv6Prefixes(ipAddress, 48));
-                        prefixes.AddRange(GetIPv6Prefixes(ipAddress, 64));
+                        var prefixes = [..GetIPv6Prefixes(ipAddress, 48), ..GetIPv6Prefixes(ipAddress, 64)];
                         var tasks = new List<Task>();
                         foreach (var prefix in prefixes)
                         {
