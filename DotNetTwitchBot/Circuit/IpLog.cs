@@ -64,11 +64,12 @@ namespace DotNetTwitchBot.Circuit
                     }
                     else
                     {
-                        var prefixes = [..GetIPv6Prefixes(ipAddress, 48), ..GetIPv6Prefixes(ipAddress, 64)];
+                        var prefixes = new List<string> { GetIPv6Prefixes(ipAddress, 48), GetIPv6Prefixes(ipAddress, 64) };
                         var tasks = new List<Task>();
                         foreach (var prefix in prefixes)
                         {
-                            tasks.Add(AddOrUpdateIpEntry(username, prefix));
+                            if (!string.IsNullOrEmpty(prefix))
+                                tasks.Add(AddOrUpdateIpEntry(username, prefix));
                         }
                         await Task.WhenAll(tasks);
                     }
@@ -76,14 +77,14 @@ namespace DotNetTwitchBot.Circuit
             }
         }
 
-        private HashSet<string> GetIPv6Prefixes(string ipv6Address, int prefixLength)
+        private string GetIPv6Prefixes(string ipv6Address, int prefixLength)
         {
             if (prefixLength < 0 || prefixLength > 128)
             {
                 throw new ArgumentOutOfRangeException(nameof(prefixLength), "Prefix length must be between 0 and 128.");
             }
 
-            HashSet<string> prefixes = [];
+            string prefix = "";
 
             if (IPAddress.TryParse(ipv6Address, out IPAddress? ipAddress))
             {
@@ -107,7 +108,7 @@ namespace DotNetTwitchBot.Circuit
                     // Create a new IPAddress from the prefix bytes and add it to the set
                     // This creates a "network address" representation of the prefix
                     IPAddress prefixAddress = new(prefixBytes);
-                    prefixes.Add($"{prefixAddress}/{prefixLength}");
+                    prefix = $"{prefixAddress}/{prefixLength}";
                 }
             }
             else
@@ -115,7 +116,7 @@ namespace DotNetTwitchBot.Circuit
                 logger.LogWarning("Warning: Invalid IPv6 address format: {addressString}", ipv6Address);
             }
             
-            return prefixes;
+            return prefix;
         }
     }
 }
