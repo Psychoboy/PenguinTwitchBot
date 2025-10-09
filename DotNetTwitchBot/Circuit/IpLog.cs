@@ -65,8 +65,8 @@ namespace DotNetTwitchBot.Circuit
                     else
                     {
                         var prefixes = new List<string>();
-                        prefixes.AddRange(GetIPv6Prefixes([ipAddress], 48));
-                        prefixes.AddRange(GetIPv6Prefixes([ipAddress], 64));
+                        prefixes.AddRange(GetIPv6Prefixes(ipAddress, 48));
+                        prefixes.AddRange(GetIPv6Prefixes(ipAddress, 64));
                         var tasks = new List<Task>();
                         foreach (var prefix in prefixes)
                         {
@@ -75,15 +75,10 @@ namespace DotNetTwitchBot.Circuit
                         await Task.WhenAll(tasks);
                     }
                 }
-                else
-                {
-                    // It's already an IPv4 address; no action needed
-                    return;
-                }
             }
         }
 
-        private HashSet<string> GetIPv6Prefixes(List<string> ipv6Addresses, int prefixLength)
+        private HashSet<string> GetIPv6Prefixes(string ipv6Address, int prefixLength)
         {
             if (prefixLength < 0 || prefixLength > 128)
             {
@@ -92,38 +87,36 @@ namespace DotNetTwitchBot.Circuit
 
             HashSet<string> prefixes = [];
 
-            foreach (string addressString in ipv6Addresses)
+            if (IPAddress.TryParse(ipv6Address, out IPAddress? ipAddress))
             {
-                if (IPAddress.TryParse(addressString, out IPAddress? ipAddress))
+                if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6)
                 {
-                    if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6)
+                    byte[] addressBytes = ipAddress.GetAddressBytes();
+                    byte[] prefixBytes = new byte[16]; // IPv6 addresses are 16 bytes
+
+                    // Copy the prefix portion
+                    int bytesToCopy = prefixLength / 8;
+                    Array.Copy(addressBytes, 0, prefixBytes, 0, bytesToCopy);
+
+                    // Handle partial last byte if prefixLength is not a multiple of 8
+                    if (prefixLength % 8 != 0)
                     {
-                        byte[] addressBytes = ipAddress.GetAddressBytes();
-                        byte[] prefixBytes = new byte[16]; // IPv6 addresses are 16 bytes
-
-                        // Copy the prefix portion
-                        int bytesToCopy = prefixLength / 8;
-                        Array.Copy(addressBytes, 0, prefixBytes, 0, bytesToCopy);
-
-                        // Handle partial last byte if prefixLength is not a multiple of 8
-                        if (prefixLength % 8 != 0)
-                        {
-                            int lastByteIndex = bytesToCopy;
-                            byte mask = (byte)(0xFF << (8 - (prefixLength % 8)));
-                            prefixBytes[lastByteIndex] = (byte)(addressBytes[lastByteIndex] & mask);
-                        }
-
-                        // Create a new IPAddress from the prefix bytes and add it to the set
-                        // This creates a "network address" representation of the prefix
-                        IPAddress prefixAddress = new(prefixBytes);
-                        prefixes.Add($"{prefixAddress}/{prefixLength}");
+                        int lastByteIndex = bytesToCopy;
+                        byte mask = (byte)(0xFF << (8 - (prefixLength % 8)));
+                        prefixBytes[lastByteIndex] = (byte)(addressBytes[lastByteIndex] & mask);
                     }
-                }
-                else
-                {
-                    logger.LogWarning("Warning: Invalid IPv6 address format: {addressString}", addressString);
+
+                    // Create a new IPAddress from the prefix bytes and add it to the set
+                    // This creates a "network address" representation of the prefix
+                    IPAddress prefixAddress = new(prefixBytes);
+                    prefixes.Add($"{prefixAddress}/{prefixLength}");
                 }
             }
+            else
+            {
+                logger.LogWarning("Warning: Invalid IPv6 address format: {addressString}", ipv6Address);
+            }
+            
             return prefixes;
         }
     }
