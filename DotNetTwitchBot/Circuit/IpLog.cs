@@ -83,7 +83,7 @@ namespace DotNetTwitchBot.Circuit
             }
         }
 
-        private static HashSet<string> GetIPv6Prefixes(List<string> ipv6Addresses, int prefixLength)
+        private HashSet<string> GetIPv6Prefixes(List<string> ipv6Addresses, int prefixLength)
         {
             if (prefixLength < 0 || prefixLength > 128)
             {
@@ -121,7 +121,7 @@ namespace DotNetTwitchBot.Circuit
                 }
                 else
                 {
-                    Console.WriteLine($"Warning: Invalid IPv6 address format: {addressString}");
+                    logger.LogWarning("Warning: Invalid IPv6 address format: {addressString}", addressString);
                 }
             }
             return prefixes;
