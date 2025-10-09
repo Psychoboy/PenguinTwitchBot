@@ -10,8 +10,10 @@ namespace DotNetTwitchBot.Circuit
         public async Task AddLogEntry(string username, string ipAddress)
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
-           await AddOrUpdatedIpEntry(username, ipAddress);
-           await CheckForIPv6AndUpdateEntries(username, ipAddress);
+            await Task.WhenAll(
+                AddOrUpdatedIpEntry(username, ipAddress),
+                CheckForIPv6AndUpdateEntries(username, ipAddress)
+            );
         }
 
         public async Task CleanupOldIpLogs()
