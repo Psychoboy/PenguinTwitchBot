@@ -72,8 +72,24 @@
                                 @context.User2
                             </MudLink>
                         </MudTd>
-                        <MudTd DataLabel="Excluded1">@context.IsGiveawayExclusion1</MudTd>
-                        <MudTd DataLabel="Excluded2">@context.IsGiveawayExclusion2</MudTd>
+                        <MudTd DataLabel="Excluded1">@if (context.IsGiveawayExclusion1)
+                                {
+                                    <MudText>true</MudText>
+                                } else
+                                {
+                                    <MudText Color="Color.Error">false</MudText>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Excluded2">
+                                @if (context.IsGiveawayExclusion2)
+                                {
+                                    <MudText>true</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Color="Color.Error">false</MudText>
+                                }
+                            </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
                         <MudText>No matching records found</MudText>
