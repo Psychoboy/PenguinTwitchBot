@@ -193,7 +193,8 @@ namespace DotNetTwitchBot.Controllers
                     new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) || botName.Equals(user.Login) ? "Streamer": "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName),
-                    new Claim("UserId", user.Id)
+                    new Claim("UserId", user.Id),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id)
                 };
 
 
