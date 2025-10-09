@@ -542,7 +542,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var onlineViewers = viewerFeature.GetCurrentViewers();
                 foreach (var viewer in onlineViewers)
                 {
-                    if (!activeViewers.Contains(viewer) && await viewerFeature.IsSubscriber(viewer))
+                    if (!activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) && await viewerFeature.IsSubscriber(viewer))
                     {
                         activeViewers.Add(viewer);
                     }

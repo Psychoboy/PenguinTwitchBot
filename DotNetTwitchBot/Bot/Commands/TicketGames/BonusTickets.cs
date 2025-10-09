@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IPointsSystem pointSystem,
         IMediator mediator, 
         IServiceBackbone serviceBackbone, 
+        IViewerFeature viewerFeature,
         ILogger<BonusTickets> logger) : IBonusTickets
     {
         private static readonly List<string> ClaimedBonuses = [];
@@ -33,6 +34,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await _semaphoreSlim.WaitAsync();
             try
             {
+                var viewer = viewerFeature.GetViewerByUserName(username);
+                if (viewer == null)
+                {
+                    logger.LogWarning("Could not find viewer {username} when trying to redeem bonus tickets.", username);
+                    return;
+                }
+
                 if (ClaimedBonuses.Contains(username))
                 {
                     logger.LogWarning("{username} tried to claim tickets twice.", username);
@@ -46,6 +54,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
                 var amount = await pointSystem.AddPointsByUsernameAndGame(username, "bonus", ticketsWon);
+                if(amount == 0)
+                {
+                    logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);
+                    await mediator.Publish(new SendBotMessage($"{username}, something went wrong when trying to give you bonus tickets. Please contact a moderator."));
+                    return;
+                }
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",

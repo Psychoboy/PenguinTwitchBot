@@ -37,6 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             serviceBackbone.SubscriptionEndEvent += OnSubscriptionEnd;
             serviceBackbone.CheerEvent += OnCheer;
             serviceBackbone.FollowEvent += OnFollow;
+            serviceBackbone.ChannelPointRedeemEvent += OnChannelPointRedeem;
 
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
@@ -50,6 +51,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 GetCurrentViewers();
             });
         }
+
+        
 
         private async void OnChatterUpdaterTimerElapsed(object? sender, ElapsedEventArgs e)
         {
@@ -141,6 +144,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             UpdateLastActive(e.Username);
         }
 
+        private async Task OnChannelPointRedeem(object sender, ChannelPointRedeemEventArgs args)
+        {
+            UpdateLastActive(args.Sender);
+            await Task.CompletedTask;
+        }
+
         public async Task<bool> IsFollowerByUsername(string username)
         {
             var follower = await GetFollowerAsync(username);
@@ -177,7 +186,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
             ActiveViewers.Set(activeViewers.Count);
             var lurkers = _lurkers.Where(x => x.Value > DateTime.Now.AddHours(-1)).Select(x => x.Key);
-            activeViewers.AddRange(lurkers.Where(x => activeViewers.Contains(x) == false));
+            activeViewers.AddRange(lurkers.Where(x => activeViewers.Contains(x, StringComparer.OrdinalIgnoreCase) == false));
             return activeViewers;
         }
 
@@ -186,7 +195,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var users = _users.ToList();
             CurrentViewers.Set(users.Count);
             var activeViewers = GetActiveViewers();
-            users.AddRange(activeViewers.Where(x => users.Contains(x) == false));
+            users.AddRange(activeViewers.Where(x => users.Contains(x, StringComparer.OrdinalIgnoreCase) == false));
             return [.. users];
         }
 
