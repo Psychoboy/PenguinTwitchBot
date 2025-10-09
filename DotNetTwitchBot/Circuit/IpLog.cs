@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Circuit
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
             await Task.WhenAll(
-                AddOrUpdatedIpEntry(username, ipAddress),
+                AddOrUpdateIpEntry(username, ipAddress),
                 CheckForIPv6AndUpdateEntries(username, ipAddress)
             );
         }
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Circuit
             logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries.", removedLogs);
         }
 
-        private async Task AddOrUpdatedIpEntry(string username, string ipAddress)
+        private async Task AddOrUpdateIpEntry(string username, string ipAddress)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Circuit
                     if (address.IsIPv4MappedToIPv6)
                     {
                         var ipv4Address = address.MapToIPv4();
-                        await AddOrUpdatedIpEntry(username, ipv4Address.ToString());
+                        await AddOrUpdateIpEntry(username, ipv4Address.ToString());
                     }
                     else
                     {
@@ -69,14 +69,13 @@ namespace DotNetTwitchBot.Circuit
                         var tasks = new List<Task>();
                         foreach (var prefix in prefixes48)
                         {
-                            tasks.Add(AddOrUpdatedIpEntry(username, prefix));
+                            tasks.Add(AddOrUpdateIpEntry(username, prefix));
                         }
                         foreach (var prefix in prefixes64)
                         {
-                            tasks.Add(AddOrUpdatedIpEntry(username, prefix));
+                            tasks.Add(AddOrUpdateIpEntry(username, prefix));
                         }
                         await Task.WhenAll(tasks);
-                        return;
                     }
                 }
                 else
