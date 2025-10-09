@@ -90,7 +90,7 @@
         if(autoShoutouts == null)
         {
             autoShoutouts = new List<DotNetTwitchBot.Bot.Models.AutoShoutout>();
-        })
+        }
         if(autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)) && autoShoutout.Id == 0)
         {
             await DialogService.ShowMessageBox("Error", "A shoutout with that name already exists!");
