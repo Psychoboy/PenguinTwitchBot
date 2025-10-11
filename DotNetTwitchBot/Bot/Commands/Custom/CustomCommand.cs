@@ -255,7 +255,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 if (match)
                 {
-                    if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
+                    if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) break;
                     var commandEventArgs = new CommandEventArgs
                     {
                         Arg = e.Message,
