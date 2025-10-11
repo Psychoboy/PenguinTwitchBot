@@ -232,7 +232,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         //To check for keywords
         public async Task ReceivedChatMessage(ChatMessageEventArgs e)
         {
-            if (e.Message.StartsWith('!')) return; //Ignore commands
+            if (e.Message.StartsWith("!")) return; //Ignore commands
             bool match = false;
             foreach (var keyword in Keywords)
             {
