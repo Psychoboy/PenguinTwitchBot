@@ -232,10 +232,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         //To check for keywords
         public async Task ReceivedChatMessage(ChatMessageEventArgs e)
         {
+            if (e.Message.StartsWith('!')) return; //Ignore commands
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
+                
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -254,6 +255,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 }
                 if (match)
                 {
+                    if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
                     var commandEventArgs = new CommandEventArgs
                     {
                         Arg = e.Message,
