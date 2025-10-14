@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
                     .Replace("{Points}", (winnings + jackpotWinnings).ToString("N0"), StringComparison.OrdinalIgnoreCase)
-                    .Replace("{PointType", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
+                    .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await twitchServices.Announcement(jackpotWin);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings + jackpotWinnings);
                 await LaunchFireworks();
