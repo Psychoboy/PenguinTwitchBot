@@ -480,7 +480,7 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithThumbnailUrl(message.Value.Author.GetDisplayAvatarUrl())
                 .WithTitle(message.Value.Author.GlobalName)
                 .WithDescription(message.Value.Author.Mention + " deleted message")
-                .AddField("Deleted Message", string.IsNullOrWhiteSpace(message.Value.Content) == false ? message.Value.Content : "No Content")
+                .AddField("Deleted Message", !string.IsNullOrWhiteSpace(message.Value.Content) ? message.Value.Content : "No Content")
                 .WithCurrentTimestamp()
                 .WithFooter(message.Id.ToString())
                 .Build();
