@@ -551,9 +551,8 @@ namespace DotNetTwitchBot.Bot.Core
 
             if(!string.IsNullOrEmpty(oldMessage))
             {
-                if(oldMessage == newSocketMessage.Content) return;
+                if (oldMessage.Equals(newSocketMessage.Content.Trim())) return;
                 embedBuilder.AddField("Old Message", oldMessage);
-                if(oldMessage.Equals(newSocketMessage.Content)) return;
             }
             var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
 
