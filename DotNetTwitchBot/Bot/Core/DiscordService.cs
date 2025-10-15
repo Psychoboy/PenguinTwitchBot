@@ -480,7 +480,7 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithThumbnailUrl(message.Value.Author.GetDisplayAvatarUrl())
                 .WithTitle(message.Value.Author.GlobalName)
                 .WithDescription(message.Value.Author.Mention + " deleted message")
-                .AddField("Deleted Message", message.Value.Content != null ? message.Value.Content : "No Message")
+                .AddField("Deleted Message", !string.IsNullOrWhiteSpace(message.Value.Content) ? message.Value.Content : "No Content")
                 .WithCurrentTimestamp()
                 .WithFooter(message.Id.ToString())
                 .Build();
@@ -547,9 +547,9 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithCurrentTimestamp()
                 .WithFooter(newSocketMessage.Author.Id.ToString());
 
-            if(!string.IsNullOrEmpty(oldMessage))
+            if(!string.IsNullOrWhiteSpace(oldMessage))
             {
-                if(oldMessage == newSocketMessage.Content) return;
+                if (oldMessage.Equals(newSocketMessage.Content.Trim())) return;
                 embedBuilder.AddField("Old Message", oldMessage);
             }
             var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
