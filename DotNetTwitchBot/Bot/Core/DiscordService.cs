@@ -547,8 +547,6 @@ namespace DotNetTwitchBot.Bot.Core
                 .WithCurrentTimestamp()
                 .WithFooter(newSocketMessage.Author.Id.ToString());
 
-
-
             if(!string.IsNullOrEmpty(oldMessage))
             {
                 if (oldMessage.Equals(newSocketMessage.Content.Trim())) return;
