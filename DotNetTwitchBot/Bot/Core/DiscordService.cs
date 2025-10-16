@@ -521,7 +521,7 @@ namespace DotNetTwitchBot.Bot.Core
         private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
         {
             var oldMessage = "";
-            if(oldMessageCache.HasValue && oldMessageCache.Value != null && !string.IsNullOrEmpty(oldMessageCache.Value.Content.Trim()))
+            if(oldMessageCache.HasValue && oldMessageCache.Value != null && !string.IsNullOrWhiteSpace(oldMessageCache.Value.Content.Trim()))
             {
                 oldMessage = oldMessageCache.Value.Content.Trim();
             }
@@ -531,7 +531,8 @@ namespace DotNetTwitchBot.Bot.Core
             if (string.IsNullOrWhiteSpace(oldMessage)) 
                 return;
 
-            _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
+            if(!oldMessage.Equals(newSocketMessage.Content.Trim())) 
+                _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
 
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
@@ -549,10 +550,9 @@ namespace DotNetTwitchBot.Bot.Core
 
             if(!string.IsNullOrWhiteSpace(oldMessage))
             {
-                if (oldMessage.Equals(newSocketMessage.Content.Trim())) return;
                 embedBuilder.AddField("Old Message", oldMessage);
             }
-            var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
+            var embed = embedBuilder.AddField("New Message", newSocketMessage.Content).Build();
 
             await SendEmbedToAuditChannel(guild, embed);
         }
