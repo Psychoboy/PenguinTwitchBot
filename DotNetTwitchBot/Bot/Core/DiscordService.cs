@@ -521,7 +521,7 @@ namespace DotNetTwitchBot.Bot.Core
         private async Task MessageUpdated(Cacheable<IMessage, ulong> oldMessageCache, SocketMessage newSocketMessage, ISocketMessageChannel channel)
         {
             var oldMessage = "";
-            if(oldMessageCache.HasValue && oldMessageCache.Value != null && !string.IsNullOrEmpty(oldMessageCache.Value.Content.Trim()))
+            if(oldMessageCache.HasValue && oldMessageCache.Value != null && !string.IsNullOrWhiteSpace(oldMessageCache.Value.Content.Trim()))
             {
                 oldMessage = oldMessageCache.Value.Content.Trim();
             }
@@ -531,7 +531,8 @@ namespace DotNetTwitchBot.Bot.Core
             if (string.IsNullOrWhiteSpace(oldMessage)) 
                 return;
 
-            _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
+            if(!oldMessage.Equals(newSocketMessage.Content.Trim())) 
+                _logger.LogInformation("User {username} updated old Message: {oldMessage} new message: {newMessage}", newSocketMessage.Author.Username, oldMessage, newSocketMessage.Content);
 
             var guild = _client.Guilds.FirstOrDefault();
             if (guild == null)
@@ -549,10 +550,9 @@ namespace DotNetTwitchBot.Bot.Core
 
             if(!string.IsNullOrWhiteSpace(oldMessage))
             {
-                if (oldMessage.Equals(newSocketMessage.Content.Trim())) return;
                 embedBuilder.AddField("Old Message", oldMessage);
             }
-            var embed = embedBuilder.AddField("New NewMessage", newSocketMessage.Content).Build();
+            var embed = embedBuilder.AddField("New Message", newSocketMessage.Content).Build();
 
             await SendEmbedToAuditChannel(guild, embed);
         }
@@ -635,31 +635,17 @@ namespace DotNetTwitchBot.Bot.Core
             return Task.CompletedTask;
         }
 
-        private async Task UserVoiceStateUpdated(SocketUser user, SocketVoiceState state1, SocketVoiceState state2)
+        private Task UserVoiceStateUpdated(SocketUser user, SocketVoiceState state1, SocketVoiceState state2)
         {
             if (state2.VoiceChannel != null)
             {
                 _logger.LogInformation("User {username} joined voice channel {channelName}", user.Username, state2.VoiceChannel.Name);
-                var embed = new EmbedBuilder()
-                    .WithColor(Color.Green)
-                    .WithThumbnailUrl(user.GetDisplayAvatarUrl())
-                    .WithTitle(user.GlobalName)
-                    .WithDescription(user.Mention + " joined voice channel " + state2.VoiceChannel.Name)
-                    .WithCurrentTimestamp()
-                    .WithFooter(user.Id.ToString())
-                    .Build();
-                var guild = _client.Guilds.FirstOrDefault();
-                if (guild == null)
-                {
-                    _logger.LogWarning("Guild was null when got UserVoiceStateUpdated.");
-                    return;
-                }
-                await SendEmbedToAuditChannel(guild, embed);
             }
             else
             {
                 _logger.LogInformation("User {username} left voice channel", user.Username);
             }
+            return Task.CompletedTask;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
