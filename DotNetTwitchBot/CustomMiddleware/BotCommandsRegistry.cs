@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Admin;
+using DotNetTwitchBot.Bot.Commands.Ai;
 using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -93,6 +94,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<IWheelService, WheelService>();
             services.AddHostedApiService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>();
             services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
+
+            services.AddHostedApiService<ScAi>();
 
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();

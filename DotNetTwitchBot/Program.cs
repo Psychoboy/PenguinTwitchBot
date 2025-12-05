@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor;
 using MudBlazor.Services;
+using OpenAI;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -191,6 +192,15 @@ internal class Program
 
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
+        var openAiConf = builder.Configuration.GetRequiredSection("OpenAI").Get<OpenAiSettings>();
+        if(openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
+        {
+            builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
+            {
+               return new OpenAIClient(openAiConf.ApiKey);
+            });
+            builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IStarCitizenAI, DotNetTwitchBot.Bot.Ai.StarCitizenAI>();
+        }
 
         builder.Services.AddHealthChecks()
             .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
@@ -293,7 +303,9 @@ internal class Program
             }
         }
         catch (Exception) { }
+
         LinqToDBForEFTools.Initialize();
+
         await app.RunAsync(); //Start in future to read input
 
     }

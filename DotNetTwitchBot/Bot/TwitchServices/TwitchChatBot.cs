@@ -65,6 +65,32 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        public async Task ReplyToMessage(string messageId, string message)
+        {
+            if (message.Length == 0)
+            {
+                logger.LogWarning("Message is empty, not sending");
+                return;
+            }
+            try
+            {
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message, messageId);
+                messageIdTracker.AddMessageId(result.Data.First().MessageId);
+                if (!result.Data.First().IsSent)
+                {
+                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                }
+                else
+                {
+                    logger.LogInformation("BOTCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send message. {message}", message);
+            }
+        }
+
         private async Task<bool> ValidateAndRefreshToken()
         {
             await semaphoreSlim.WaitAsync();
