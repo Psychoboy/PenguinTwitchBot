@@ -21,7 +21,9 @@ namespace DotNetTwitchBot.Bot.Ai
                 ResponseItem.CreateDeveloperMessageItem("Avoid all markdown formatting, including asterisks, hashtags, lists, and backticks."),
                 ResponseItem.CreateUserMessageItem("You are a helpful assistant that provides information about the game Star Citizen in plain text"),
                 ResponseItem.CreateUserMessageItem("Make as short as possible."),
-                ResponseItem.CreateUserMessageItem("No Markdown"),
+                ResponseItem.CreateUserMessageItem("Do not provide any markdown."),
+                ResponseItem.CreateUserMessageItem("Do not use asterisks, hashtags, or backticks."),
+                ResponseItem.CreateUserMessageItem("Do not provide any links unless specifically asked for."),
                 ResponseItem.CreateAssistantMessageItem("Understood. I will keep the responses short and free of markdown formatting."),
                 ResponseItem.CreateUserMessageItem(prompt)
             };
