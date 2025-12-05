@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             {
                 var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message, messageId);
                 messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                if (result.Data.First().IsSent == false)
+                if (!result.Data.First().IsSent)
                 {
                     logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
                 }

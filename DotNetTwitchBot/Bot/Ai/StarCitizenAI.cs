@@ -10,12 +10,17 @@ namespace DotNetTwitchBot.Bot.Ai
 
         public async Task<string> GetResponseFromPrompt(string prompt)
         {
+            if(string.IsNullOrWhiteSpace(prompt))
+            {
+                return "Prompt cannot be empty.";
+            }
+
             var respClient = client.GetOpenAIResponseClient("gpt-5.1");
             var responseItems = new List<ResponseItem>
             {
                 ResponseItem.CreateDeveloperMessageItem("Avoid all markdown formatting, including asterisks, hashtags, lists, and backticks."),
                 ResponseItem.CreateUserMessageItem("You are a helpful assistant that provides information about the game Star Citizen in plain text"),
-                ResponseItem.CreateUserMessageItem("Make as short as possible."),
+                ResponseItem.CreateDeveloperMessageItem("Make as short as possible."),
                 ResponseItem.CreateUserMessageItem("No Markdown"),
                 ResponseItem.CreateAssistantMessageItem("Understood. I will keep the responses short and free of markdown formatting."),
                 ResponseItem.CreateUserMessageItem(prompt)
@@ -39,14 +44,13 @@ namespace DotNetTwitchBot.Bot.Ai
                 ServiceTier = "flex",
             });
 
-            foreach (var output in response.Value.OutputItems)
+
+            foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
             {
-                if (output is MessageResponseItem messageItem)
+                if (output is MessageResponseItem messageItem &&
+                    messageItem.Content != null && messageItem.Content.Count > 0)
                 {
-                    if (messageItem.Content != null && messageItem.Content.Count > 0)
-                    {
-                        return messageItem.Content.First().Text;
-                    }
+                    return messageItem.Content.First().Text;
                 }
             }
             return "";

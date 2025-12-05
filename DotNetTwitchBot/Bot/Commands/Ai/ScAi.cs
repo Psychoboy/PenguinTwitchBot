@@ -32,6 +32,19 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 logger.LogError("StarCitizenAI service is not available.");
                 return;
             }
+
+            if(string.IsNullOrWhiteSpace(e.MessageId))
+            {
+                logger.LogWarning("MessageId is null or empty in command event args.");
+                return;
+            }
+
+            if(string.IsNullOrEmpty(e.Arg))
+            {
+                await mediator.Publish(new ReplyToMessage(e.MessageId, "Please provide a question or prompt for SCAI."));
+                return;
+            }
+
             try
             {
                 var response = await scAi.GetResponseFromPrompt(e.Arg);
@@ -46,6 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error getting response from StarCitizenAI.");
+                await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
                 return;
             }
         }
