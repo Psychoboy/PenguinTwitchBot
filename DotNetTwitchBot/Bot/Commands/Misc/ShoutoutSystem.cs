@@ -117,9 +117,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 {
                     message = autoShoutout.CustomMessage;
                 }
+            } else
+            {
+                message = message.Trim() + " https://twitch.tv/(name)";
             }
 
-            message = message.Replace("(name)", name).Replace("(game)", game);
+                message = message.Replace("(name)", name).Replace("(game)", game);
             await ServiceBackbone.SendChatMessage(message);
             if(playClip) await _clipService.PlayRandomClipForStreamer(name);
             
