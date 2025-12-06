@@ -53,6 +53,8 @@
                                     @bind-Value="autoShoutout.Name" />
                                     <MudTextField Label="Message" Lines="3" Required="false" @bind-Value="autoShoutout.CustomMessage" />
                                     <MudSwitch Label="Auto Play Clip" @bind-Value="autoShoutout.AutoPlayClip" />
+                                    <MudSwitch Label="User Ai?" @bind-Value="autoShoutout.UseAi" />
+                                    <MudTextField Label="Additional Prompt" Lines="3" Required="false" @bind-Value="autoShoutout.AdditionalPrompt" />
                                     <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                                         Class="ml-auto">
                                         Submit

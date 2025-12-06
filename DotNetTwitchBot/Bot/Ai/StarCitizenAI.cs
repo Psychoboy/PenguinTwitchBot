@@ -1,11 +1,15 @@
 ﻿using OpenAI;
 using OpenAI.Responses;
+using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Ai
 {
-    public class StarCitizenAI(OpenAIClient openAIClient) : IStarCitizenAI
+    public partial class StarCitizenAI(OpenAIClient openAIClient) : IStarCitizenAI
     {
         private readonly OpenAIClient client = openAIClient;
+        [GeneratedRegex(@"\(\s*\[[^\]]+\]\([^)]+\)\s*\)",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+        private static partial Regex LinkPatternRegex();
 #pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
         public async Task<string> GetResponseFromPrompt(string prompt)
@@ -52,7 +56,10 @@ namespace DotNetTwitchBot.Bot.Ai
                 if (output is MessageResponseItem messageItem &&
                     messageItem.Content != null && messageItem.Content.Count > 0)
                 {
-                    return messageItem.Content.First().Text;
+                    var result = messageItem.Content.First().Text;
+                    result = LinkPatternRegex().Replace(result, "").Trim();
+                    result = result.ReplaceLineEndings(" ");
+                    return result;
                 }
             }
             return "";

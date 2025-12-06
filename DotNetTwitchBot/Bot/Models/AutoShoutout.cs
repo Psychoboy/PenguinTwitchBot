@@ -19,5 +19,8 @@ namespace DotNetTwitchBot.Bot.Models
         public DateTime LastShoutout {get;set;} = DateTime.MinValue;
         public bool AutoPlayClip { get; set; } = false;
 
+        public bool UseAi { get; set; } = true;
+        public string AdditionalPrompt { get; set; } = "";
+
     }
 }

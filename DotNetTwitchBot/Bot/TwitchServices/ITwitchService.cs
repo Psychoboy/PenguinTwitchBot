@@ -61,5 +61,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task<List<ChannelEditor>> GetEditors();
         Task DeleteMessage(string messageId);
         Task SendMesssageAsStreamer(string message);
+        Task<string> GetUserBio(string userId);
+        Task<string> GetUserStreamTitle(string userId);
     }
 }

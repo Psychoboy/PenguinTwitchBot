@@ -200,6 +200,7 @@ internal class Program
                return new OpenAIClient(openAiConf.ApiKey);
             });
             builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IStarCitizenAI, DotNetTwitchBot.Bot.Ai.StarCitizenAI>();
+            builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IShoutoutAi, DotNetTwitchBot.Bot.Ai.ShoutoutAi>();
         }
 
         builder.Services.AddHealthChecks()

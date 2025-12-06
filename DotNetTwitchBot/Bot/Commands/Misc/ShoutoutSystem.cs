@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Ai;
 using DotNetTwitchBot.Bot.Commands.Shoutout;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -76,7 +77,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        private async Task Shoutout(string name, bool playClip)
+        private async Task Shoutout(string name, bool playClip, bool useAi = true)
         {
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -86,18 +87,37 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
 
             await UpdateLastShoutout(autoShoutout);
-
-            var message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";
-            if (autoShoutout != null && !string.IsNullOrWhiteSpace(autoShoutout.CustomMessage))
-            {
-                message = autoShoutout.CustomMessage;
-            }
-
             var userId = await _twitchService.GetUserId(name);
             if (userId == null) return;
 
             var game = await _twitchService.GetCurrentGame(userId);
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
+
+            var message = "";
+            if(autoShoutout != null && autoShoutout.UseAi && useAi)
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                if (userId != null)
+                {
+                    var streamTitle = await _twitchService.GetUserStreamTitle(userId);
+                    var bio = await _twitchService.GetUserBio(userId);
+                    var shoutoutAi = scope.ServiceProvider.GetService<IShoutoutAi>();
+                    if (shoutoutAi != null)
+                    {
+                        message = await shoutoutAi.GetShoutoutForStreamer(name, game ?? "Unknown Game", streamTitle ?? "No Title", bio ?? "No Bio", autoShoutout.AdditionalPrompt);
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(message))
+            {
+
+                message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";
+                if (autoShoutout != null && !string.IsNullOrWhiteSpace(autoShoutout.CustomMessage))
+                {
+                    message = autoShoutout.CustomMessage;
+                }
+            }
 
             message = message.Replace("(name)", name).Replace("(game)", game);
             await ServiceBackbone.SendChatMessage(message);
