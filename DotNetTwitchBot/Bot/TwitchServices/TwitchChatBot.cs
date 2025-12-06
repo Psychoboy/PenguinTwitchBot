@@ -1,4 +1,5 @@
-﻿using TwitchLib.Api;
+﻿using DotNetTwitchBot.Extensions;
+using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using Timer = System.Timers.Timer;
 
@@ -46,17 +47,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogWarning("Message is empty, not sending");
                 return;
             }
+            
             try
             {
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message);
-                messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                if (result.Data.First().IsSent == false)
+                var chunks = message.SplitInParts(450);
+                foreach (var chunk in chunks)
                 {
-                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
-                }
-                else
-                {
-                    logger.LogInformation("BOTCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
+                    var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), chunk);
+                    messageIdTracker.AddMessageId(result.Data.First().MessageId);
+                    if (result.Data.First().IsSent == false)
+                    {
+                        logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                        return;
+                    }
+                    else
+                    {
+                        logger.LogInformation("BOTCHATMSG: {message}", chunk.Replace(Environment.NewLine, ""));
+                    }
                 }
             }
             catch (Exception ex)
@@ -72,17 +79,23 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogWarning("Message is empty, not sending");
                 return;
             }
+            
             try
             {
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), message, messageId);
-                messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                if (!result.Data.First().IsSent)
+                var chunks = message.SplitInParts(450);
+                foreach (var chunk in chunks)
                 {
-                    logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
-                }
-                else
-                {
-                    logger.LogInformation("BOTCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
+                    var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), chunk, messageId);
+                    messageIdTracker.AddMessageId(result.Data.First().MessageId);
+                    if (result.Data.First().IsSent == false)
+                    {
+                        logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                        return;
+                    }
+                    else
+                    {
+                        logger.LogInformation("BOTCHATMSG: {message}", chunk.Replace(Environment.NewLine, ""));
+                    }
                 }
             }
             catch (Exception ex)

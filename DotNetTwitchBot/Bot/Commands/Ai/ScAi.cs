@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
+﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Ai;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -33,12 +34,6 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 return;
             }
 
-            if(string.IsNullOrWhiteSpace(e.MessageId))
-            {
-                logger.LogWarning("MessageId is null or empty in command event args.");
-                return;
-            }
-
             if(string.IsNullOrEmpty(e.Arg))
             {
                 await mediator.Publish(new ReplyToMessage(e.MessageId, "Please provide a question or prompt for SCAI."));
@@ -51,16 +46,32 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 if(string.IsNullOrWhiteSpace(response))
                 {
                     logger.LogWarning("Received empty response from StarCitizenAI.");
-                    await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, I couldn't get a response right now."));
+                    await ResponseWithMessage(e, "Sorry, I couldn't get a response right now.");
+                    //await mediator.Publish(new ReplyToMessage(e.MessageId, ));
                     return;
                 }
-                await mediator.Publish(new ReplyToMessage(e.MessageId, response));
+                //await mediator.Publish(new ReplyToMessage(e.MessageId, response));
+                await ResponseWithMessage(e, response);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error getting response from StarCitizenAI.");
-                await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
+                //await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
+                await ResponseWithMessage(e, "Sorry, there was an error processing your request.");
                 return;
+            }
+        }
+
+        private async Task ResponseWithMessage(CommandEventArgs e, string v)
+        {
+            if (string.IsNullOrWhiteSpace(e.MessageId))
+            {
+                var response = $"@{e.DisplayName} {v}";
+                await mediator.Publish(new SendBotMessage(response));
+            }
+            else
+            {
+                await mediator.Publish(new ReplyToMessage(e.MessageId, v));
             }
         }
 

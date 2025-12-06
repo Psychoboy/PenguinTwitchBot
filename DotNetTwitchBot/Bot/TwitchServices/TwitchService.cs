@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
 using MediatR;
 using NetTopologySuite.Algorithm;
+using Serilog.Configuration;
 using System.Collections.Concurrent;
 using System.Timers;
 using TwitchLib.Api;
@@ -728,6 +729,52 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 _logger.LogError("Error doing GetChannelInfo(): {error}", error);
             }
             return null;
+        }
+
+        public async Task<string> GetUserBio(string userId)
+        {
+            try
+            {
+                var user = await GetUserById(userId);
+                if (user != null)
+                {
+                    return user.Description;
+                }
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Getting user bio: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserBio(): {error}", error);
+            }
+            return "";
+        }
+
+        public async Task<string> GetUserStreamTitle(string userId)
+        {
+            try
+            {
+                var channelInfo = await GetChannelInformation(userId);
+                if (channelInfo.Data.Length > 0)
+                {
+                    return channelInfo.Data[0].Title;
+                }
+            }
+            catch (HttpResponseException ex)
+            {
+                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                _logger.LogError("Error doing Getting user stream title: {error}", error);
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                _logger.LogError("Error doing GetUserStreamTitle(): {error}", error);
+            }
+            return "";
         }
 
         public async Task<TwitchLib.Api.Helix.Models.Games.Game?> GetGameInfo(string gameId)
