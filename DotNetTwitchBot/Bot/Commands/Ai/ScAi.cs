@@ -62,16 +62,21 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
             }
         }
 
-        private async Task ResponseWithMessage(CommandEventArgs e, string v)
+        private async Task ResponseWithMessage(CommandEventArgs e, string message)
         {
+            if (message.StartsWith("!"))
+            {
+                message = message.Substring(1).Trim();
+            }
+
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
-                var response = $"@{e.DisplayName} {v}";
+                var response = $"@{e.DisplayName} {message}";
                 await mediator.Publish(new SendBotMessage(response));
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.MessageId, v));
+                await mediator.Publish(new ReplyToMessage(e.MessageId, message));
             }
         }
 
