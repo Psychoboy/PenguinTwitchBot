@@ -64,10 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
 
         private async Task ResponseWithMessage(CommandEventArgs e, string message)
         {
-            if (message.StartsWith("!"))
-            {
-                message = message.Substring(1).Trim();
-            }
+            message = message.TrimStart('!').Trim();
 
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
