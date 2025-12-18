@@ -3,11 +3,13 @@
 @using DotNetTwitchBot.Bot.Commands;
 @using DotNetTwitchBot.Bot.Commands.Custom;
 @using DotNetTwitchBot.Bot.Commands.Alias;
+@using DotNetTwitchBot.Bot.Models.Points;
 @inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject ICommandHandler CommandHandler;
 @inject DotNetTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand;
 @inject DotNetTwitchBot.Bot.Commands.AudioCommand.AudioCommands AudioCommands;
+@inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem;
 
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -104,6 +106,47 @@
                     SpecificUser = command.SpecificUserOnly,
                     SpecificUsers = command.SpecificUsersOnly
                 });
+        }
+
+        var pointTypes = await PointsSystem.GetPointTypes();
+        foreach (var pointType in pointTypes)
+        {
+            var pointCommands = pointType.PointCommands;
+            var pointName = pointType.Name;
+            foreach (var command in pointCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+            {
+                var pointCommand = new CommandModel
+                    {
+                        Command = "!" + command.CommandName,
+                        UserCooldown = command.UserCooldown,
+                        GlobalCooldown = command.GlobalCooldown,
+                        Rank = command.MinimumRank,
+                        Cost = command.Cost,
+                        Description = "",
+                        Category = pointName,
+                        SpecificUser = command.SpecificUserOnly,
+                        SpecificUsers = command.SpecificUsersOnly
+                    };
+                switch(command.CommandType)
+                {
+                    case PointCommandType.Set:
+                        pointCommand.Description = $"Sets {pointName} to a specific amount for a viewer.";
+                        break;
+                    case PointCommandType.Add:
+                        pointCommand.Description = $"Adds a specific amount of {pointName} for a viewer.";
+                        break;
+                    case PointCommandType.Remove:
+                        pointCommand.Description = $"Removes a specific amount of {pointName} from a viewer.";
+                        break;
+                    case PointCommandType.Get:
+                        pointCommand.Description = $"Checks your {pointName} balance.";
+                        break;
+                    case PointCommandType.AddActive:
+                        pointCommand.Description = $"Adds a specific amount of {pointName} to all active viewers.";
+                        break;
+                }
+                tempCommands.Add(pointCommand);
+            }
         }
 
         var customCommands = CustomCommand.GetCustomCommands();
