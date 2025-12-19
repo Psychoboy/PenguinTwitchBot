@@ -42,13 +42,13 @@
         </MudItem>
         <MudItem sm="6">
             <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Total Entrants</MudText>
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Entrants</MudText>
                 <MudDivider />
                 <MudText Typo="Typo.h4">@entrants</MudText>
             </MudPaper>
 
             <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Total Entries</MudText>
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Tickets Entered</MudText>
                 <MudDivider />
                 <MudText Typo="Typo.h4">@entries</MudText>
             </MudPaper>
@@ -59,17 +59,17 @@
                         <MudDivider />
                         <MudText Typo="Typo.h4">@userTickets</MudText>
                     </MudPaper>
-                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+                    @* <MudPaper Class="pa-4" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Your Entries</MudText>
                         <MudDivider />
                         <MudText Typo="Typo.h4">@userEntries</MudText>
-                    </MudPaper>
+                    </MudPaper> *@
                     <MudPaper Class=" pa-4 flex-wrap-reverse" Outlined="false" Elevation="0">
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Enter Tickets</MudText>
                         <MudDivider />
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
-                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" />
+                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" />
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                             Class="ml-auto" Disabled=@isSubmitting>
                                 Enter
@@ -144,6 +144,7 @@
     private long userEntries;
     private string Username = "";
     private string AlertText = "";
+    private string userEntriesText = "";
     private MudBlazor.Severity AlertSeverity = Severity.Info;
     private bool isSubmitting;
     private int TicketsPerSub;
@@ -171,6 +172,7 @@
             Username = user.Identity.Name;
             userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
+            userEntriesText = $"You are participating with {userEntries} tickets.";
         }
         prize = await GiveawayFeature.GetPrize();
         imageUrl = await GiveawayFeature.GetImageUrl();
@@ -209,6 +211,7 @@
         {
             entries = curEntries;
             entrants = curEntrants;
+            userEntriesText = $"You are participating with {userEntries} tickets.";
             InvokeAsync(StateHasChanged);
         });
         try
@@ -249,6 +252,7 @@
             AlertSeverity = Severity.Success;
             userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
+            userEntriesText = $"You are participating with {userEntries} tickets.";
         } catch (SkipCooldownException ex)
         {
             AlertText = ex.Message;
