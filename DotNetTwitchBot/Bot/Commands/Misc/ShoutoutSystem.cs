@@ -102,7 +102,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var shoutoutAi = scope.ServiceProvider.GetService<IShoutoutAi>();
                 if (shoutoutAi != null)
                 {
-                    message = await shoutoutAi.GetShoutoutForStreamer(name, game ?? "Unknown Game", streamTitle ?? "No Title", bio ?? "No Bio", autoShoutout.AdditionalPrompt);
+                    message = await shoutoutAi.GetShoutoutForStreamer(
+                        name,
+                        game ?? "Unknown Game",
+                        streamTitle ?? "No Title",
+                        bio ?? "No Bio",
+                        autoShoutout?.AdditionalPrompt ?? string.Empty
+                    );
                 }
             }
 
