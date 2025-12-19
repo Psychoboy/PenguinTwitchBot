@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
 
             var message = "";
-            if(autoShoutout != null && autoShoutout.UseAi && useAi)
+            if((autoShoutout != null && autoShoutout.UseAi) || useAi)
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var streamTitle = await _twitchService.GetUserStreamTitle(userId);
@@ -102,7 +102,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var shoutoutAi = scope.ServiceProvider.GetService<IShoutoutAi>();
                 if (shoutoutAi != null)
                 {
-                    message = await shoutoutAi.GetShoutoutForStreamer(name, game ?? "Unknown Game", streamTitle ?? "No Title", bio ?? "No Bio", autoShoutout.AdditionalPrompt);
+                    message = await shoutoutAi.GetShoutoutForStreamer(
+                        name,
+                        game ?? "Unknown Game",
+                        streamTitle ?? "No Title",
+                        bio ?? "No Bio",
+                        autoShoutout?.AdditionalPrompt ?? string.Empty
+                    );
                 }
             }
 
