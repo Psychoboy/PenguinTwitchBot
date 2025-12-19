@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (string.IsNullOrWhiteSpace(game)) game = "Some boring game";
 
             var message = "";
-            if(autoShoutout != null && autoShoutout.UseAi && useAi)
+            if((autoShoutout != null && autoShoutout.UseAi) || useAi)
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var streamTitle = await _twitchService.GetUserStreamTitle(userId);
