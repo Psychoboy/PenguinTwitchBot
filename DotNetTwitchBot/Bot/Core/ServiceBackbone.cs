@@ -121,7 +121,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.MessageId, message));
+                await mediator.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message));
             }
         }
 
