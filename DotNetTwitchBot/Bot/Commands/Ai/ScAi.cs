@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
 
             if(string.IsNullOrEmpty(e.Arg))
             {
-                await ResponseWithMessage(e, "Please provide a question or prompt for SCAI.");
+                await RespondWithMessage(e, "Please provide a question or prompt for SCAI.");
                 return;
             }
 
@@ -46,18 +46,18 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 if(string.IsNullOrWhiteSpace(response))
                 {
                     logger.LogWarning("Received empty response from StarCitizenAI.");
-                    await ResponseWithMessage(e, "Sorry, I couldn't get a response right now.");
+                    await RespondWithMessage(e, "Sorry, I couldn't get a response right now.");
                     //await mediator.Publish(new ReplyToMessage(e.MessageId, ));
                     return;
                 }
                 //await mediator.Publish(new ReplyToMessage(e.MessageId, response));
-                await ResponseWithMessage(e, response);
+                await RespondWithMessage(e, response);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error getting response from StarCitizenAI.");
                 //await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
-                await ResponseWithMessage(e, "Sorry, there was an error processing your request.");
+                await RespondWithMessage(e, "Sorry, there was an error processing your request.");
                 return;
             }
         }

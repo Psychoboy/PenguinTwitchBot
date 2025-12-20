@@ -89,7 +89,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             Roulette.GAMENAME,
                             Roulette.NO_ARGS,
                             "To roulette please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
-                            await ResponseWithMessage(e, noArgs);
+                            await RespondWithMessage(e, noArgs);
                             throw new SkipCooldownException();
                         }
                         var amount = e.Args[0];
@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 Roulette.BAD_ARGS,
                                 "The amount must be a number, max, or all"
                             );
-                            await ResponseWithMessage(e, badArgs);
+                            await RespondWithMessage(e, badArgs);
                             throw new SkipCooldownException();
                         }
 
@@ -117,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             Roulette.GAMENAME,
                             Roulette.LESS_THAN_ZERO,
                             "The amount needs to be greater then 0");
-                            await ResponseWithMessage(e, lessThanZero);
+                            await RespondWithMessage(e, lessThanZero);
                             throw new SkipCooldownException();
                         }
 
@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 Roulette.NOT_ENOUGH,
                                 "You don't have that many."
                             );
-                            await ResponseWithMessage(e, notEnough);
+                            await RespondWithMessage(e, notEnough);
                             throw new SkipCooldownException();
                         }
 
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 reachedLimit = reachedLimit
                                     .Replace("{MaxAmount}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                     .Replace("{PointsName}", pointType.Name, StringComparison.OrdinalIgnoreCase);
-                                await ResponseWithMessage(e, reachedLimit);
+                                await RespondWithMessage(e, reachedLimit);
                                 throw new SkipCooldownException();
                             }
                             if (userTotalGambled + amountToBet > MaxAmount)

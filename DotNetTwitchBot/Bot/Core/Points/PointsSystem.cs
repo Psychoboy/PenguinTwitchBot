@@ -444,7 +444,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 .Replace("{Points}", points.Points.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{MessagesRank}", messages.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
                 .Replace("{Messages}", messages.MessageCount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
-            await ResponseWithMessage(e, loyaltyMessage);
+            await RespondWithMessage(e, loyaltyMessage);
         }
 
         public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
@@ -495,7 +495,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());    
-                            await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
+                            await RespondWithMessage(e, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
                             
                             logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 
@@ -620,11 +620,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
             if (userPoints != null)
             {
-                await ResponseWithMessage(e, $"You are ranked #{userPoints.Ranking} and have {userPoints.Points:N0} {userPointType?.Name}");
+                await RespondWithMessage(e, $"You are ranked #{userPoints.Ranking} and have {userPoints.Points:N0} {userPointType?.Name}");
             } 
             else
             {
-                await ResponseWithMessage(e, $"You are ranked #N/A and have 0 {userPointType?.Name}");
+                await RespondWithMessage(e, $"You are ranked #N/A and have 0 {userPointType?.Name}");
             }
         }
 

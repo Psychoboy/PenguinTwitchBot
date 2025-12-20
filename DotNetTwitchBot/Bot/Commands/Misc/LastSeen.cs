@@ -41,11 +41,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)
             {
                 var seconds = Convert.ToInt32((DateTime.Now - viewer.LastSeen).TotalSeconds);
-                await ResponseWithMessage(e, $"{viewer.NameWithTitle()} was last seen {StaticTools.ConvertToCompoundDuration(seconds)} ago");
+                await RespondWithMessage(e, $"{viewer.NameWithTitle()} was last seen {StaticTools.ConvertToCompoundDuration(seconds)} ago");
             }
             else
             {
-                await ResponseWithMessage(e, string.Format("Have never seen {0}", e.Arg));
+                await RespondWithMessage(e, string.Format("Have never seen {0}", e.Arg));
             }
         }
 

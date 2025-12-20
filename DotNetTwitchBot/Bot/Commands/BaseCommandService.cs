@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands
             await ServiceBackbone.SendChatMessage(name, message);
         }
 
-        public async Task ResponseWithMessage(CommandEventArgs e, string message)
+        public async Task RespondWithMessage(CommandEventArgs e, string message)
         {
             message = message.TrimStart('!').Trim();
 

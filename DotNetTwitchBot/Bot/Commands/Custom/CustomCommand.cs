@@ -328,7 +328,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
                     {
-                        await ResponseWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
+                        await RespondWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
                         return;
                     }
                 }
