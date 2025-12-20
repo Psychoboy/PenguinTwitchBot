@@ -10,6 +10,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public string Message { get; private set; } = "";
         public bool Cancel { get; private set; } = false;
 
+        public bool ReplyToMessage { get; set; } = false;
+
         public CustomCommandResult()
         {
 
@@ -28,6 +30,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             Message = message;
             Cancel = cancel;
+        }
+
+        public CustomCommandResult(string message, bool cancel, bool replyToMessage)
+        {
+            Message = message;
+            Cancel = cancel;
+            ReplyToMessage = replyToMessage;
         }
     }
 }

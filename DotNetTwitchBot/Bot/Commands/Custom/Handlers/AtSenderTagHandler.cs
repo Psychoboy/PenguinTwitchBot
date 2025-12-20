@@ -12,12 +12,15 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             if (request.CommandEventArgs.IsDiscord)
             {
                 result = request.CommandEventArgs.DiscordMention;
+                return Task.FromResult(new CustomCommandResult(result));
             }
             else
             {
-                result = string.Format("@{0}, ", request.CommandEventArgs.DisplayName);
-            }
-            return Task.FromResult(new CustomCommandResult(result));
+                //result = string.Format("@{0}, ", request.CommandEventArgs.DisplayName);
+                
+                return Task.FromResult(new CustomCommandResult { ReplyToMessage = true });
+        }
+            
         }
     }
 }
