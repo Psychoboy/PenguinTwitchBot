@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -13,8 +14,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<LastSeen> logger,
             IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
+            IMediator mediator,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "LastSeen")
+            ) : base(serviceBackbone, commandHandler, "LastSeen", mediator)
         {
             _viewerFeature = viewerFeature;
             _logger = logger;
@@ -39,11 +41,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)
             {
                 var seconds = Convert.ToInt32((DateTime.Now - viewer.LastSeen).TotalSeconds);
-                await SendChatMessage(e.DisplayName, $"{viewer.NameWithTitle()} was last seen {StaticTools.ConvertToCompoundDuration(seconds)} ago");
+                await ResponseWithMessage(e, $"{viewer.NameWithTitle()} was last seen {StaticTools.ConvertToCompoundDuration(seconds)} ago");
             }
             else
             {
-                await SendChatMessage(e.DisplayName, string.Format("Have never seen {0}", e.Arg));
+                await ResponseWithMessage(e, string.Format("Have never seen {0}", e.Arg));
             }
         }
 

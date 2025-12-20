@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             await Assert.ThrowsAsync<SkipCooldownException>(() => _defuse.OnCommand(null, commandEventArgs));
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "you need to choose one of these wires to cut: red, blue, yellow");
+            await _serviceBackbone.Received(1).ResponseWithMessage(commandEventArgs, "you need to choose one of these wires to cut: red, blue, yellow");
         }
 
         [Fact]
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             await Assert.ThrowsAsync<SkipCooldownException>(() => _defuse.OnCommand(null, commandEventArgs));
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "Sorry it costs 500 Points to defuse the bomb which you do not have.");
+            await _serviceBackbone.Received(1).ResponseWithMessage(commandEventArgs, "Sorry it costs 500 Points to defuse the bomb which you do not have.");
         }
 
         [Fact]

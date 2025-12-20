@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             ITwitchService twitchService,
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands")
+            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands", mediator)
         {
             _mediator = mediator;
             _scopeFactory = scopeFactory;
@@ -328,7 +328,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
                     {
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
+                        await ResponseWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
                         return;
                     }
                 }

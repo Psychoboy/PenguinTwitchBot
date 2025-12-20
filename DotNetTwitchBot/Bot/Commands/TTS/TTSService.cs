@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
         IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService"), IHostedService, ITTSService
+        ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", mediator), IHostedService, ITTSService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {

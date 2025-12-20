@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Metrics
 {
@@ -8,8 +9,9 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
+        IMediator mediator,
         ILogger<SongRequests> logger
-            ) : BaseCommandService(serviceBackbone, commandHandler, "SongRequestsMeetrics"), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "SongRequestsMeetrics", mediator), IHostedService
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {

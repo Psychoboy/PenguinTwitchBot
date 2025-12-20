@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
@@ -32,8 +33,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             IPointsSystem pointsSystem,
             IGameSettingsService gameSettingsService,
             ICommandHandler commandHandler,
+            IMediator mediator,
             ILogger<Roulette> logger
-        ) : base(serviceBackbone, commandHandler, GAMENAME)
+        ) : base(serviceBackbone, commandHandler, GAMENAME, mediator)
         {
             _pointsSystem = pointsSystem;
             ServiceBackbone.StreamStarted += OnStreamStarted;
@@ -87,7 +89,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             Roulette.GAMENAME,
                             Roulette.NO_ARGS,
                             "To roulette please do !roulette Amount/All/Max replacing amount with how many you would like to risk.");
-                            await SendChatMessage(e.DisplayName, noArgs);
+                            await ResponseWithMessage(e, noArgs);
                             throw new SkipCooldownException();
                         }
                         var amount = e.Args[0];
@@ -105,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 Roulette.BAD_ARGS,
                                 "The amount must be a number, max, or all"
                             );
-                            await SendChatMessage(e.DisplayName, badArgs);
+                            await ResponseWithMessage(e, badArgs);
                             throw new SkipCooldownException();
                         }
 
@@ -115,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             Roulette.GAMENAME,
                             Roulette.LESS_THAN_ZERO,
                             "The amount needs to be greater then 0");
-                            await SendChatMessage(e.DisplayName, lessThanZero);
+                            await ResponseWithMessage(e, lessThanZero);
                             throw new SkipCooldownException();
                         }
 
@@ -126,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 Roulette.NOT_ENOUGH,
                                 "You don't have that many."
                             );
-                            await SendChatMessage(e.DisplayName, notEnough);
+                            await ResponseWithMessage(e, notEnough);
                             throw new SkipCooldownException();
                         }
 
@@ -145,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 reachedLimit = reachedLimit
                                     .Replace("{MaxAmount}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                     .Replace("{PointsName}", pointType.Name, StringComparison.OrdinalIgnoreCase);
-                                await SendChatMessage(e.DisplayName, reachedLimit);
+                                await ResponseWithMessage(e, reachedLimit);
                                 throw new SkipCooldownException();
                             }
                             if (userTotalGambled + amountToBet > MaxAmount)

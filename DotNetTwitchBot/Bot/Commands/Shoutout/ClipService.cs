@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         ILogger<ClipService> logger,
         ITwitchService twitchService,
         IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout"), IHostedService, IClipService
+        ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", mediator), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; } = new HttpClient();
 

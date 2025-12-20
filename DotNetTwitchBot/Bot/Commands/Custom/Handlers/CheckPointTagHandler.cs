@@ -44,11 +44,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             if (target == null)
             {
                 logger.LogWarning("Invalid target for custom command of 'checkpoints' type.");
-                await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"User {target} not found.");
+                await serviceBackbone.ResponseWithMessage(eventArgs, $"User {target} not found.");
                 return new CustomCommandResult();
             }
             var points = await pointsSystem.GetUserPointsByUserId(target.UserId, pointTypeId);
-            await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"{target.DisplayName} has {points.Points:N0} {pointSystem.Name}.");
+            await serviceBackbone.ResponseWithMessage(eventArgs, $"{target.DisplayName} has {points.Points:N0} {pointSystem.Name}.");
             return new CustomCommandResult();
         }
     }

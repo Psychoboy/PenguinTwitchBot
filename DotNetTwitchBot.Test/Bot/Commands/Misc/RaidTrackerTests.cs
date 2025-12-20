@@ -2,8 +2,9 @@
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -23,6 +24,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -33,7 +35,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable();
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchService>(), Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchService>(), Substitute.For<IServiceBackbone>(), mediatorSubstitute, Substitute.For<ICommandHandler>());
             //Act
             var result = await raidTracker.GetHistory();
 
@@ -49,6 +51,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -62,7 +65,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var twitchService = Substitute.For<ITwitchService>();
             twitchService.GetUserByName("").ReturnsNull();
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), mediatorSubstitute, Substitute.For<ICommandHandler>());
             //Act
 
 
@@ -78,6 +81,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -92,7 +96,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             twitchService.GetUserByName("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(false);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), mediatorSubstitute, Substitute.For<ICommandHandler>());
             //Act
 
 
@@ -109,6 +113,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -122,7 +127,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             twitchService.GetUserByName("").Returns(new User());
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, mediatorSubstitute, Substitute.For<ICommandHandler>());
             //Act
             await raidTracker.Raid("");
 
@@ -142,6 +147,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var twitchService = Substitute.For<ITwitchService>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -150,7 +156,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             twitchService.GetUserId(Arg.Any<string>()).Returns("");
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, mediatorSubstitute, Substitute.For<ICommandHandler>());
 
             //Act
             await raidTracker.OnIncomingRaid(new DotNetTwitchBot.Bot.Events.RaidEventArgs());
@@ -171,6 +177,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var twitchService = Substitute.For<ITwitchService>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -186,7 +193,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             serviceBackbone.IsOnline = true;
 
             twitchService.AreStreamsOnline(Arg.Any<List<string>>()).ReturnsForAnyArgs([new()]);
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, mediatorSubstitute, Substitute.For<ICommandHandler>());
 
             //Act
             await raidTracker.UpdateOnlineStatus();
@@ -206,6 +213,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -221,7 +229,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
             commandHandler.GetCommandDefaultName("raid").Returns("raid");
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, commandHandler);
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, mediatorSubstitute, commandHandler);
             //Act
             await raidTracker.OnCommand(null, new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
             {

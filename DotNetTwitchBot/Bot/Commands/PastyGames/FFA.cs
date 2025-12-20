@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -47,8 +48,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<FFA> logger,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
+            IMediator mediator,
             IGameSettingsService gameSettingsService
-            ) : base(serviceBackbone, commandHandler, GAMENAME)
+            ) : base(serviceBackbone, commandHandler, GAMENAME, mediator)
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _pointsSystem = pointsSystem;
@@ -119,14 +121,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (GameState == State.Finishing)
             {
                 var late = await _gameSettingsService.GetStringSetting(ModuleName, LATE, "The FFA has already started, you are to late to join this one.");
-                await ServiceBackbone.SendChatMessage(e.DisplayName, late);
+                await ServiceBackbone.ResponseWithMessage(e, late);
                 throw new SkipCooldownException();
             }
 
             if (Entered.Contains(e.Name))
             {
                 var alreadyJoined = await _gameSettingsService.GetStringSetting(ModuleName, ALREADY_JOINED, "You have already joined the FFA!");
-                await ServiceBackbone.SendChatMessage(e.DisplayName, alreadyJoined);
+                await ServiceBackbone.ResponseWithMessage(e, alreadyJoined);
                 throw new SkipCooldownException();
             }
 
@@ -138,7 +140,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 notEnoughPoints = notEnoughPoints
                     .Replace("{Cost}", cost.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await _pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, notEnoughPoints);
+                await ServiceBackbone.ResponseWithMessage(e, notEnoughPoints);
                 throw new SkipCooldownException();
             }
 

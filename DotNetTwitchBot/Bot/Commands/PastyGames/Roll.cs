@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -11,8 +12,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         //ILoyaltyFeature loyaltyFeature,
         IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
+        IMediator mediator,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Roll"), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Roll", mediator), IHostedService
     {
         private readonly List<string> WinMessages = LoadWinMessages();
         private readonly List<string> LostMessages = LoadLostMessages();

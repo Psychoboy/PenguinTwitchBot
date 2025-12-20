@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -27,8 +28,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IPointsSystem pointsSystem,
             IGameSettingsService gameSettingsService,
             IViewerFeature viewerFeature,
+            IMediator mediator,
             ICommandHandler commandHandler)
-            : base(serviceBackbone, commandHandler, "TicketsFeature")
+            : base(serviceBackbone, commandHandler, "TicketsFeature", mediator)
         {
             _logger = logger;
 

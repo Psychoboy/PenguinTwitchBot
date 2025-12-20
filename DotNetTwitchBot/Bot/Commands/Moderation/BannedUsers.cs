@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
@@ -13,7 +14,8 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         private readonly ITwitchService _twitchService;
         private readonly ILogger<BannedUsers> _logger;
 
-        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchService twitchService) : base(serviceBackbone, commandHandler, "BannedUsers")
+        public BannedUsers(ILogger<BannedUsers> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone, ICommandHandler commandHandler, ITwitchService twitchService, IMediator mediator) : 
+            base(serviceBackbone, commandHandler, "BannedUsers", mediator)
         {
             _twitchService = twitchService;
             _logger = logger;

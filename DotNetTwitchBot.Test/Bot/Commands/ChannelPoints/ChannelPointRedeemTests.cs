@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -26,6 +27,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
+        private readonly IMediator _mediatorSubstitute;
         private readonly DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem _channelPointRedeem;
         private readonly IUnitOfWork _unitOfWork;
 
@@ -35,6 +37,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             _scopeFactory = Substitute.For<IServiceScopeFactory>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
+            _mediatorSubstitute = Substitute.For<IMediator>();
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -44,7 +47,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
-            _channelPointRedeem = new DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem(_logger, _scopeFactory, _serviceBackbone, _commandHandler);
+            _channelPointRedeem = new DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem(_logger, _scopeFactory, _serviceBackbone, _mediatorSubstitute, _commandHandler);
         }
 
         [Fact]

@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -9,8 +10,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IServiceBackbone eventService,
         IPointsSystem pointsSystem,
         ICommandHandler commandHandler,
+        IMediator mediator,
         ILogger<PancakeRaffle> logger
-        ) : BaseRaffle(eventService, pointsSystem, commandHandler, "sptvPancake", "!pancake", "pancake", logger)
+        ) : BaseRaffle(eventService, pointsSystem, commandHandler, "sptvPancake", "!pancake", "pancake", mediator, logger)
     {
         public override async Task Register()
         {

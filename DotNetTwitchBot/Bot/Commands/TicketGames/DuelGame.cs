@@ -3,17 +3,18 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Duel;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class DuelGame(
         IServiceBackbone serviceBackbone,
-        //ITicketsFeature ticketsFeature,
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         ICommandHandler commandHandler,
+        IMediator mediator,
         ILogger<DuelGame> logger
-            ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame"), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", mediator), IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
@@ -52,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if ((await CheckIfAlreadyInDuel(e.Name)) == false)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have any pending duels.");
+                await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels.");
                 return;
             }
 
@@ -62,7 +63,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 var existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name)).FirstOrDefault();
                 if (existingDuel == null)
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have any pending duels targeting you.");
+                    await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels targeting you.");
 
                 }
                 else
@@ -81,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if ((await CheckIfAlreadyInDuel(e.Name)) == false)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have any pending duels.");
+                await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels.");
                 return;
             }
             PendingDuel? existingDuel;
@@ -91,7 +92,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name)).FirstOrDefault();
                 if (existingDuel == null)
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have any pending duels targeting you.");
+                    await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels targeting you.");
                     return;
                 }
 
@@ -152,30 +153,30 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if (string.IsNullOrWhiteSpace(e.TargetUser))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You need to specify a target.");
+                await ServiceBackbone.ResponseWithMessage(e, "You need to specify a target.");
                 throw new SkipCooldownException();
             }
             if (e.Args.Count < 2)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "To use duel, !duel target amount");
+                await ServiceBackbone.ResponseWithMessage(e, "To use duel, !duel target amount");
                 throw new SkipCooldownException();
             }
 
             if (long.TryParse(e.Args[1], out long amount) == false)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "Please enter a proper amount. !duel target amount");
+                await ServiceBackbone.ResponseWithMessage(e, "Please enter a proper amount. !duel target amount");
                 throw new SkipCooldownException();
             }
 
             if (amount < 1 || amount > 100)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "To duel you must choose an amount between 1 and 100");
+                await ServiceBackbone.ResponseWithMessage(e, "To duel you must choose an amount between 1 and 100");
                 throw new SkipCooldownException();
             }
             var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
             if (attackerTickets.Points < amount)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You don't have that much.");
+                await ServiceBackbone.ResponseWithMessage(e, "You don't have that much.");
                 throw new SkipCooldownException();
             }
             var existingDuel = await GetExistingDuel(e.Name);
@@ -183,31 +184,31 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 if (existingDuel.Attacker.Equals(e.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, "You are already attacking someone, wait for that one to timeout or the defender to !accept/!deny it");
+                    await ServiceBackbone.ResponseWithMessage(e, "You are already attacking someone, wait for that one to timeout or the defender to !accept/!deny it");
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, $"You already have a pending duel with {existingDuel.Attacker}, !accept or !deny it.");
+                    await ServiceBackbone.ResponseWithMessage(e, $"You already have a pending duel with {existingDuel.Attacker}, !accept or !deny it.");
                 }
                 throw new SkipCooldownException();
             }
             var defender = await viewerFeature.GetViewerByUserName(e.TargetUser);
             if (defender == null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "Could not find that viewer");
+                await ServiceBackbone.ResponseWithMessage(e, "Could not find that viewer");
                 throw new SkipCooldownException();
             }
             existingDuel = await GetExistingDuel(defender.Username);
             if (existingDuel != null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out.");
+                await ServiceBackbone.ResponseWithMessage(e, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out.");
                 throw new SkipCooldownException();
             }
 
             var defenderTickets = await pointsSystem.GetUserPointsByUsernameAndGame(defender.Username, ModuleName);
             if (defenderTickets.Points < amount)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "They don't have that many tickets.");
+                await ServiceBackbone.ResponseWithMessage(e, "They don't have that many tickets.");
                 throw new SkipCooldownException();
             }
 

@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -22,8 +23,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<AutoTimers> logger,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
+            IMediator mediator,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "Timers")
+            ) : base(serviceBackbone, commandHandler, "Timers", mediator)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;

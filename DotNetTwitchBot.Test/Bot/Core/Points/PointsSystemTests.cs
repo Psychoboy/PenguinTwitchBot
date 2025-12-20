@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -30,6 +31,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
         private readonly IBonusTickets _bonusTickets;
+        private readonly IMediator mediatorSubstitute;
         private readonly PointsSystem _pointsSystem;
 
         public PointsSystemTests()
@@ -44,6 +46,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _bonusTickets = Substitute.For<IBonusTickets>();
+            mediatorSubstitute = Substitute.For<IMediator>();
 
             _scopeFactoryMock.CreateScope().Returns(_scopeMock);
             _scopeMock.ServiceProvider.Returns(_serviceProviderMock);
@@ -56,6 +59,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
                 _scopeFactoryMock,
                 _gameSettingsServiceMock,
                 _serviceBackbone,
+                mediatorSubstitute,
                 _commandHandler
             );
         }
@@ -521,7 +525,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         [Fact]
         public async Task RunCommand_Get_ShouldRespondIfUserDoesNotExist()
         {
-            await _pointsSystem.RunCommand(new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
+            var eventArgs = new DotNetTwitchBot.Bot.Events.Chat.CommandEventArgs
             {
                 Name = "nonexistentuser",
                 UserId = "nonexistentuserid",
@@ -529,13 +533,14 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
                 Arg = "!points",
                 IsMod = false,
                 IsBroadcaster = false
-            }, new PointCommand
+            };
+            await _pointsSystem.RunCommand(eventArgs, new PointCommand
             {
                 PointType = new PointType { Id = 1 },
                 CommandType = PointCommandType.Get,
             });
 
-            await _serviceBackbone.Received(1).SendChatMessage("NonExistentUser", Arg.Is<string>(s => s.Contains("You are ranked #N/A and have 0 ")));
+            await _serviceBackbone.Received(1).SendChatMessage("NonExistentUser", Arg.Is<string>(s => s.Contains("You are ranked #N/A and have 0")));
         }
 
     }

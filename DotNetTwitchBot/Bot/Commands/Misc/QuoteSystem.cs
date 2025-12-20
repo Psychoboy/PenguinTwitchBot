@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -15,8 +16,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ILogger<QuoteSystem> logger,
+            IMediator mediator,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "QuoteSystem")
+            ) : base(serviceBackbone, commandHandler, "QuoteSystem", mediator)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -64,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             if (e.Args.Count == 0)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the ID you want to delete.");
+                await ServiceBackbone.ResponseWithMessage(e, "you forgot to include the ID you want to delete.");
                 throw new SkipCooldownException();
             }
             if (Int32.TryParse(e.Args[0], out var id))
@@ -74,16 +76,16 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var quote = await db.Quotes.Find(x => x.Id == id).FirstOrDefaultAsync();
                 if (quote == null)
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't find that id.");
+                    await ServiceBackbone.ResponseWithMessage(e, "couldn't find that id.");
                     throw new SkipCooldownException();
                 }
                 db.Quotes.Remove(quote);
                 await db.SaveChangesAsync();
-                await ServiceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} removed.");
+                await ServiceBackbone.ResponseWithMessage(e, $"Quote #{quote.Id} removed.");
             }
             else
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't figure out which id you meant.");
+                await ServiceBackbone.ResponseWithMessage(e, "couldn't figure out which id you meant.");
                 throw new SkipCooldownException();
             }
         }
@@ -92,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             if (string.IsNullOrWhiteSpace(e.Arg))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "you forgot to include the quote.");
+                await ServiceBackbone.ResponseWithMessage(e, "you forgot to include the quote.");
                 throw new SkipCooldownException();
             }
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -105,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 Quote = e.Arg
             };
             quote = await AddQuote(quote);
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"Quote #{quote.Id} added.");
+            await ServiceBackbone.ResponseWithMessage(e, $"Quote #{quote.Id} added.");
         }
 
         public async Task<QuoteType> AddQuote(QuoteType quote)

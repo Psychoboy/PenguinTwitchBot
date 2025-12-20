@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
         IServiceScopeFactory scopeFactory,
         ILogger<ScAi> logger,
         IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "ScAi"), IHostedService
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ScAi", mediator), IHostedService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
 
             if(string.IsNullOrEmpty(e.Arg))
             {
-                await mediator.Publish(new ReplyToMessage(e.MessageId, "Please provide a question or prompt for SCAI."));
+                await ResponseWithMessage(e, "Please provide a question or prompt for SCAI.");
                 return;
             }
 
@@ -59,21 +59,6 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 //await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
                 await ResponseWithMessage(e, "Sorry, there was an error processing your request.");
                 return;
-            }
-        }
-
-        private async Task ResponseWithMessage(CommandEventArgs e, string message)
-        {
-            message = message.TrimStart('!').Trim();
-
-            if (string.IsNullOrWhiteSpace(e.MessageId))
-            {
-                var response = $"@{e.DisplayName} {message}";
-                await mediator.Publish(new SendBotMessage(response));
-            }
-            else
-            {
-                await mediator.Publish(new ReplyToMessage(e.MessageId, message));
             }
         }
 

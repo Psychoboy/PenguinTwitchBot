@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -16,8 +17,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             IServiceBackbone eventService,
             ILogger<First> logger,
             IPointsSystem pointsSystem,
+            IMediator mediator,
             ICommandHandler commandHandler
-        ) : base(eventService, commandHandler, "First")
+        ) : base(eventService, commandHandler, "First", mediator)
         {
             _pointsSystem = pointsSystem;
             _logger = logger;
