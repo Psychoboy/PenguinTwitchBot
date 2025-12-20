@@ -465,6 +465,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 if (string.IsNullOrWhiteSpace(message)) return new CustomCommandResult();
                 var cancel = false;
+                var replyToMessage = false;
                 while (true)
                 {
                     var matches = MatchTagNames().Matches(message);
@@ -487,6 +488,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                                 break;
                             }
 
+                            if (result.ReplyToMessage)
+                            {
+                                replyToMessage = true;
+                            }
+
                             message = ReplaceFirstOccurrence(message, wholeMatch.Value, result.Message);
                         }
                         if (!thisTagFound)
@@ -497,7 +503,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     if (cancel) return new CustomCommandResult(cancel);
                 }
-                return new CustomCommandResult(message);
+                return new CustomCommandResult(message, cancel, replyToMessage);
             }
             catch (Exception ex)
             {
@@ -567,6 +573,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     if (respondAsStreamer)
                     {
                         await _twitchService.SendMessage(message);
+                    }
+                    else if (result.ReplyToMessage)
+                    {
+                        await ServiceBackbone.ResponseWithMessage(eventArgs, message);
                     }
                     else
                     {

@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task ReplyToMessage(string messageId, string message)
+        public async Task ReplyToMessage(string name, string messageId, string message)
         {
             if (message.Length == 0)
             {
@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     }
                     else
                     {
-                        logger.LogInformation("BOTCHATMSG: {message}", chunk.Replace(Environment.NewLine, ""));
+                        logger.LogInformation("BOTREPLYCHATMSG: {name} - {message}", name, chunk.Replace(Environment.NewLine, ""));
                     }
                 }
             }

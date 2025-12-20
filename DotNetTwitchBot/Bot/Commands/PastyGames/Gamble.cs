@@ -158,7 +158,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
                     .Replace("{Points}", winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(winMessage);
+                await ServiceBackbone.ResponseWithMessage(e, winMessage);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
                 if (value == jackpotNumber)
                 {
@@ -176,7 +176,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
                     .Replace("{Points}", amount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(loseMessage);
+                await ServiceBackbone.ResponseWithMessage(e, loseMessage);
             }
         }
 
