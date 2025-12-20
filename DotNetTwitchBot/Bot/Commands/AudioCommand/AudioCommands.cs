@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,
         ILanguage language,
-        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks"), IHostedService
+        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks", mediator), IHostedService
     {
         readonly ConcurrentDictionary<string, Models.Commands.AudioCommand> Commands = [];
 

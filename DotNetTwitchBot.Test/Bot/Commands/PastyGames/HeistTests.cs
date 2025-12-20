@@ -1,20 +1,21 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Points;
-using DotNetTwitchBot.Bot.Models;
+using MediatR;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
-using Xunit;
 using Microsoft.Extensions.Time.Testing;
-using DotNetTwitchBot.Bot;
+using NSubstitute;
 using NSubstitute.Core;
 using TwitchLib.Api.Helix.Models.Charity;
+using Xunit;
 
 namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
 {
@@ -28,6 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly FakeTimeProvider _timeProvider;
         private readonly Heist _heist;
         private readonly ITools _tools;
+        private readonly IMediator mediatorSubstitute;
 
         public HeistTests()
         {
@@ -38,6 +40,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _commandHandler = Substitute.For<ICommandHandler>();
             _timeProvider = new FakeTimeProvider();
             _tools = Substitute.For<ITools>();
+            mediatorSubstitute = Substitute.For<IMediator>();
 
             _heist = new Heist(
                 _pointsSystem,
@@ -46,6 +49,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 _logger,
                 _commandHandler,
                 _timeProvider,
+                mediatorSubstitute,
                 _tools
             );
         }
@@ -78,7 +82,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             // Act & Assert
             await Assert.ThrowsAsync<SkipCooldownException>(() =>
                 _heist.OnCommand(this, eventArgs));
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "you can not join the heist now.");
+            await _serviceBackbone.Received(1).ResponseWithMessage(eventArgs, "you can not join the heist now.");
         }
 
         [Fact]

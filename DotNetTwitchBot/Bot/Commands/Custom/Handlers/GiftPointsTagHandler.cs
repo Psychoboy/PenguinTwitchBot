@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             if (eventArgs.Args.Count < 2)
             {
                 logger.LogWarning("Missing required args for custom command of 'giftpoints' type. Requires 2");
-                await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"{eventArgs.Command} Requires amount and target");
+                await serviceBackbone.ResponseWithMessage(eventArgs, $"{eventArgs.Command} Requires amount and target");
                 return new CustomCommandResult();
             }
 
@@ -66,7 +66,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             if (amount <= 0)
             {
                 logger.LogWarning("Invalid amount for custom command of 'giftpoints' type.");
-                await serviceBackbone.SendChatMessage(eventArgs.DisplayName, "Invalid amount for custom command of 'gift' type. Must be greater than 0.");
+                await serviceBackbone.ResponseWithMessage(eventArgs, "Invalid amount for custom command of 'gift' type. Must be greater than 0.");
                 return new CustomCommandResult();
             }
 
@@ -74,18 +74,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             if (target == null)
             {
                 logger.LogWarning("Invalid target for custom command of 'giftpoints' type.");
-                await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"User {targetName} not found.");
+                await serviceBackbone.ResponseWithMessage(eventArgs, $"User {targetName} not found.");
                 return new CustomCommandResult();
             }
 
             if (await pointsSystem.RemovePointsFromUserByUserId(eventArgs.UserId, pointTypeId, amount) == false)
             {
                 logger.LogWarning("Not enough points for custom command of 'giftpoints' type.");
-                await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"You don't have enough {pointSystem.Name} to gift {amount} to {targetName}.");
+                await serviceBackbone.ResponseWithMessage(eventArgs, $"You don't have enough {pointSystem.Name} to gift {amount} to {targetName}.");
                 return new CustomCommandResult();
             }
             await pointsSystem.AddPointsByUserId(target.UserId, pointTypeId, amount);
-            await serviceBackbone.SendChatMessage(eventArgs.DisplayName, $"You have gifted {amount:N0} {pointSystem.Name} to {target.DisplayName}.");
+            await serviceBackbone.ResponseWithMessage(eventArgs, $"You have gifted {amount:N0} {pointSystem.Name} to {target.DisplayName}.");
             return new CustomCommandResult();
         }
     }

@@ -111,6 +111,20 @@ namespace DotNetTwitchBot.Bot.Core
             return mediator.Publish(new SendBotMessage(message));
         }
 
+        public async Task ResponseWithMessage(CommandEventArgs e, string message)
+        {
+            message = message.TrimStart('!').Trim();
+
+            if (string.IsNullOrWhiteSpace(e.MessageId))
+            {
+                await SendChatMessage(e.DisplayName, message);
+            }
+            else
+            {
+                await mediator.Publish(new ReplyToMessage(e.MessageId, message));
+            }
+        }
+
         public async Task SendChatMessage(string name, string message)
         {
             await SendChatMessage(string.Format("@{0}, {1}", name, message));

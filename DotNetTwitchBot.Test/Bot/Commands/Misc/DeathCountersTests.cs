@@ -4,8 +4,9 @@ using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
         private readonly ILogger<DeathCounters> logger;
         private readonly ICommandHandler commandHandler;
         private readonly IViewerFeature viewerFeature;
+        private readonly IMediator mediatorSubstitute;
         private readonly DeathCounter testCounter;
         private readonly DbSet<DeathCounter> counterQueryable;
         private readonly DeathCounters deathCounters;
@@ -40,6 +42,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             logger = Substitute.For<ILogger<DeathCounters>>();
             commandHandler = Substitute.For<ICommandHandler>();
             viewerFeature = Substitute.For<IViewerFeature>();
+            mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -48,7 +51,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             testCounter = new DeathCounter { Amount = 10, Game = "Star Citizen" };
             counterQueryable = new List<DeathCounter> { testCounter }.AsQueryable().BuildMockDbSet();
 
-            deathCounters = new DeathCounters(twitchService, logger, serviceBackbone, viewerFeature, scopeFactory, commandHandler);
+            deathCounters = new DeathCounters(twitchService, logger, serviceBackbone, viewerFeature, scopeFactory, mediatorSubstitute, commandHandler);
 
 
             commandHandler.GetCommandDefaultName("death").Returns("death");

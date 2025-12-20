@@ -1,15 +1,16 @@
-﻿using DotNetTwitchBot.Bot.Commands;
-using DotNetTwitchBot.Bot;
+﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Points;
-using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -25,6 +26,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly ITwitchService _twitchService;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
+        private readonly IMediator mediatorSubstitute;
         private readonly ITools _tools;
         private readonly MaxBetCalculator _maxBetCalculator;
         private readonly Gamble _gamble;
@@ -37,6 +39,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _twitchService = Substitute.For<ITwitchService>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
+            mediatorSubstitute = Substitute.For<IMediator>();
             _tools = Substitute.For<ITools>();
             _maxBetCalculator = new MaxBetCalculator(_pointsSystem);
 
@@ -47,6 +50,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 _twitchService,
                 _serviceBackbone,
                 _commandHandler,
+                mediatorSubstitute,
                 _tools,
                 _maxBetCalculator
             );
@@ -83,7 +87,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             await _gamble.OnCommand(this, eventArgs);
 
             // Assert
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", "The current jackpot is 5,000 Points");
+            await _serviceBackbone.Received(1).ResponseWithMessage(eventArgs, "The current jackpot is 5,000 Points");
         }
 
         [Fact]
@@ -103,7 +107,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
 
             // Act & Assert
             await Assert.ThrowsAsync<SkipCooldownException>(() => _gamble.OnCommand(this, eventArgs));
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser", Arg.Any<string>());
+            await _serviceBackbone.Received(1).ResponseWithMessage(eventArgs, Arg.Any<string>());
         }
 
         [Fact]

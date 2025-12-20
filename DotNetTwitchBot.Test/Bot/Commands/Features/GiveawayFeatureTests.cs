@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IPointsSystem pointsSystem;
         private readonly IViewerFeature viewerFeature;
         private readonly IHubContext<MainHub> hubContext;
+        private readonly IMediator mediatorSubstitute;
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Setting testPrize;
@@ -56,6 +58,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerFeature = Substitute.For<IViewerFeature>();
             gameSettingsService = Substitute.For<IGameSettingsService>();
             hubContext = Substitute.For<IHubContext<MainHub>>();
+            mediatorSubstitute = Substitute.For<IMediator>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -75,7 +78,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
 
-            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, commandHandler, gameSettingsService);
+            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, mediatorSubstitute, commandHandler, gameSettingsService);
 
 
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "WINNER", Arg.Any<string>()).Returns("(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
@@ -360,7 +363,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             await Assert.ThrowsAsync<SkipCooldownException>(async () => await giveawayFeature.OnCommand(new object(), commandEvent));
-            await serviceBackbone.Received(1).SendChatMessage("user", "To enter tickets, please use !enter AMOUNT/MAX/ALL");
+            await serviceBackbone.Received(1).ResponseWithMessage(commandEvent, "To enter tickets, please use !enter AMOUNT/MAX/ALL");
         }
 
         [Fact]

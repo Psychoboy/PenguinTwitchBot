@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.YouTube.v3;
+using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using System.Collections.Concurrent;
@@ -54,8 +55,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
+            IMediator mediator,
             ICommandHandler commandHandler
-        ) : base(serviceBackbone, commandHandler, "YtPlayer")
+        ) : base(serviceBackbone, commandHandler, "YtPlayer", mediator)
         {
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
@@ -476,10 +478,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 await RemoveSongRequest(song);
                 await UpdateRequestedSongsState();
-                await ServiceBackbone.SendChatMessage(e.DisplayName, $"Song {song.Title} was removed");
+                await ServiceBackbone.ResponseWithMessage(e, $"Song {song.Title} was removed");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, "No songs founds");
+            await ServiceBackbone.ResponseWithMessage(e, "No songs founds");
             throw new SkipCooldownException();
         }
 
@@ -534,10 +536,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var nextSong = NextSong?.CreateDeepCopy();
             if (nextSong == null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no next song requested.");
+                await ServiceBackbone.ResponseWithMessage(e, "There currently is no next song requested.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId} it has been requested {await GetSongRequestedCount(nextSong)} times");
+            await ServiceBackbone.ResponseWithMessage(e, $"The next song is [{nextSong.Title}] requested by {nextSong.RequestedBy} from https://youtu.be/{nextSong.SongId} it has been requested {await GetSongRequestedCount(nextSong)} times");
         }
 
         private async Task SaySong(CommandEventArgs e)
@@ -545,10 +547,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var currentSong = CurrentSong?.CreateDeepCopy();
             if (currentSong == null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no current song.");
+                await ServiceBackbone.ResponseWithMessage(e, "There currently is no current song.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The current song is [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId} it has been requested {await GetSongRequestedCount(currentSong)} times");
+            await ServiceBackbone.ResponseWithMessage(e, $"The current song is [{currentSong.Title}] requested by {currentSong.RequestedBy} from https://youtu.be/{currentSong.SongId} it has been requested {await GetSongRequestedCount(currentSong)} times");
         }
 
         private async Task SayLastSong(CommandEventArgs e)
@@ -556,10 +558,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var lastSong = LastSong?.CreateDeepCopy();
             if (lastSong == null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "There currently is no known last song.");
+                await ServiceBackbone.ResponseWithMessage(e, "There currently is no known last song.");
                 return;
             }
-            await ServiceBackbone.SendChatMessage(e.DisplayName, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId} it has been requested {await GetSongRequestedCount(lastSong)} times");
+            await ServiceBackbone.ResponseWithMessage(e, $"The last song was [{lastSong.Title}] requested by {lastSong.RequestedBy} from https://youtu.be/{lastSong.SongId} it has been requested {await GetSongRequestedCount(lastSong)} times");
         }
 
         private async Task LoadPlaylist(CommandEventArgs e)
@@ -715,11 +717,11 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (foundSong != null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("{0} was moved to next song.", foundSong.Title));
+                await ServiceBackbone.ResponseWithMessage(e, string.Format("{0} was moved to next song.", foundSong.Title));
             }
             else
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "couldn't find a song to prioritize for ya.");
+                await ServiceBackbone.ResponseWithMessage(e, "couldn't find a song to prioritize for ya.");
                 throw new SkipCooldownException();
             }
         }
@@ -735,13 +737,13 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             finally { _semaphoreSlim.Release(); }
             if (songsInQueue >= 30)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "You already have your quota(30) of songs in the queue.");
+                await ServiceBackbone.ResponseWithMessage(e, "You already have your quota(30) of songs in the queue.");
                 throw new SkipCooldownException();
             }
             var searchResult = await GetSongId(e.Arg);
             if (string.IsNullOrWhiteSpace(searchResult))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "Could not get or had an issue finding your song request");
+                await ServiceBackbone.ResponseWithMessage(e, "Could not get or had an issue finding your song request");
                 throw new SkipCooldownException();
             }
             Song? songInQueue = null;
@@ -759,7 +761,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             if (songInQueue != null)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, $"That song is already in the queue.");
+                await ServiceBackbone.ResponseWithMessage(e, $"That song is already in the queue.");
                 throw new SkipCooldownException();
             }
 
@@ -770,7 +772,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (song.Duration > new TimeSpan(0, 10, 0) || song.Duration == new TimeSpan(0, 0, 0))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("Your song is to long or is live. Max is 10 minutes and yours is: {0:c}", song.Duration));
+                await ServiceBackbone.ResponseWithMessage(e, string.Format("Your song is to long or is live. Max is 10 minutes and yours is: {0:c}", song.Duration));
                 return;
             }
 

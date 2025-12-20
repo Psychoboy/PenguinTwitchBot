@@ -2,17 +2,18 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class Steal(
         ILogger<Steal> logger,
-        //ILoyaltyFeature loyaltyFeature,
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         IServiceBackbone serviceBackbone,
+        IMediator mediator,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Steal"), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Steal", mediator), IHostedService
     {
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;
@@ -32,20 +33,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (!command.CommandProperties.CommandName.Equals("steal")) return;
             if (string.IsNullOrWhiteSpace(e.TargetUser) || e.Name.Equals(e.TargetUser))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "to steal from someone the command is !steal TARGETNAME");
+                await ServiceBackbone.ResponseWithMessage(e, "to steal from someone the command is !steal TARGETNAME");
                 throw new SkipCooldownException();
             }
 
             if (!ServiceBackbone.IsOnline)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, "you can't steal from someone when the stream is offline");
+                await ServiceBackbone.ResponseWithMessage(e, "you can't steal from someone when the stream is offline");
                 throw new SkipCooldownException();
             }
 
             var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
             if (userPasties.Points < StealMax)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
+                await ServiceBackbone.ResponseWithMessage(e, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
                 throw new SkipCooldownException();
             }
 
@@ -59,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var amount = StaticTools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName,
+                await ServiceBackbone.ResponseWithMessage(e,
                 string.Format("{0} is to poor for you to steal from them, instead you give them {1} pasties.", targetDisplayName, amount.ToString("N0")));
                 await MovePoints(e.Name, e.TargetUser, amount);
                 return;

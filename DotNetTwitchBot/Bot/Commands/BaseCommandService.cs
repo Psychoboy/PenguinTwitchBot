@@ -1,6 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Core;
+﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -9,12 +12,15 @@ namespace DotNetTwitchBot.Bot.Commands
         protected ICommandHandler CommandHandler { get; }
         public string ModuleName { get; private set; }
 
-        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName)
+        protected IMediator mediator;
+
+        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName, IMediator mediator)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
             CommandHandler = commandHandler;
             ModuleName = moduleName;
+            this.mediator = mediator;
         }
 
         protected IServiceBackbone ServiceBackbone { get; }
@@ -27,6 +33,20 @@ namespace DotNetTwitchBot.Bot.Commands
         public async Task SendChatMessage(string name, string message)
         {
             await ServiceBackbone.SendChatMessage(name, message);
+        }
+
+        public async Task RespondWithMessage(CommandEventArgs e, string message)
+        {
+            message = message.TrimStart('!').Trim();
+
+            if (string.IsNullOrWhiteSpace(e.MessageId))
+            {
+                await ServiceBackbone.SendChatMessage(e.DisplayName, message);
+            }
+            else
+            {
+                await mediator.Publish(new ReplyToMessage(e.MessageId, message));
+            }
         }
 
         public abstract Task OnCommand(object? sender, CommandEventArgs e);

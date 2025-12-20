@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Alias
         IMediator mediator,
         IServiceBackbone serviceBackbone,
         ILogger<Alias> logger,
-        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias"), IAlias, IHostedService
+        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias", mediator), IAlias, IHostedService
     {
         public async Task<List<AliasModel>> GetAliasesAsync()
         {

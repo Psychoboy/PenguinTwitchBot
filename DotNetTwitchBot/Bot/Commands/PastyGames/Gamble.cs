@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -15,9 +16,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ITwitchService twitchServices,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
+        IMediator mediator,
         ITools tools,
         MaxBetCalculator maxBetCalculator
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
     {
         public static readonly string GAMENAME = "Gamble";
         
@@ -65,7 +67,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         .Replace("{jackpot}", jackpot.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                         .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
 
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, jackpotMessage);
+                    await ServiceBackbone.ResponseWithMessage(e, jackpotMessage);
                     break;
             }
         }
@@ -76,7 +78,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_ARGS, "To gamble, do !{Command} amount to specify amount or do !{Command} max or all to do the max bet. You can also do it by percentage like !{Command} 50%");
                 errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
+                await ServiceBackbone.ResponseWithMessage(e, errorMessage);
                 throw new SkipCooldownException();
             }
             var minBet = await gameSettingsService.GetIntSetting(ModuleName, MINIMUM_BET, 5);
@@ -92,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     {
                         var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, INCORRECT_ARGS, "To gamble, do !{Command} amount to specify amount or do !{Command} max or all to do the max bet. You can also do it by percentage like !{Command} 50%");
                         errorMessage = errorMessage.Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase);
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
+                        await ServiceBackbone.ResponseWithMessage(e, errorMessage);
                         throw new SkipCooldownException();
                     }
 
@@ -105,14 +107,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                             .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                             .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                             .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
+                        await ServiceBackbone.ResponseWithMessage(e, errorMessage);
                         throw new SkipCooldownException();
                     }
 
                 case MaxBet.ParseResult.NotEnough:
                     {
                         var errorMessage = await gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH, "You don't have enough to gamble with.");
-                        await ServiceBackbone.SendChatMessage(e.DisplayName, errorMessage);
+                        await ServiceBackbone.ResponseWithMessage(e, errorMessage);
                         throw new SkipCooldownException();
                     }
             }
@@ -160,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
                 if (value == jackpotNumber)
                 {
-                    await ServiceBackbone.SendChatMessage(e.DisplayName, "You hit the jackpot! But the stream is offline so just normal win :(");
+                    await ServiceBackbone.ResponseWithMessage(e, "You hit the jackpot! But the stream is offline so just normal win :(");
                 }
             }
             //Otherwise they lose

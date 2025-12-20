@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IMediator mediator,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
     {
         //For Game Settings
         public static readonly string GAMENAME = "Defuse";
@@ -54,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var noArgMessage = await gameSettingsService.GetStringSetting(GAMENAME, NO_ARGS, "you need to choose one of these wires to cut: {Wires}");
                 noArgMessage = await ReplaceVariables(noArgMessage, e.Name, "", 0, wires);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, noArgMessage);
+                await ServiceBackbone.ResponseWithMessage(e, noArgMessage);
                 throw new SkipCooldownException();
             }
 
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var notEnough = await gameSettingsService.GetStringSetting(GAMENAME, NOT_ENOUGH, "Sorry it costs {Cost} {PointType} to defuse the bomb which you do not have.");
                 notEnough = await ReplaceVariables(notEnough, e.Name, "", cost, wires);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, notEnough);
+                await ServiceBackbone.ResponseWithMessage(e, notEnough);
                 throw new SkipCooldownException();
             }
             await RunGame(e, wires, cost);

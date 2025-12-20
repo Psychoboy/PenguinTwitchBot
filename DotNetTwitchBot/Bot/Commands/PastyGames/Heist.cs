@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -13,8 +14,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ILogger<Heist> logger,
         ICommandHandler commandHandler,
         TimeProvider timeProvider,
+        IMediator mediator,
         ITools tools
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
     {
         private readonly List<Participant> Entered = [];
         private readonly List<Participant> Survivors = [];
@@ -79,20 +81,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (GameState == State.Finishing)
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, GAMEFINISHING, "you can not join the heist now.");
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message); //GAMEFINISHING
+                await ServiceBackbone.ResponseWithMessage(e, message); //GAMEFINISHING
                 throw new SkipCooldownException();
             }
 
             if (Entered.Exists(x => x.Name.Equals(e.Name)))
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, ALREADYJOINED, "you have already joined the heist.");
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message); //ALREADYJOINED
+                await ServiceBackbone.ResponseWithMessage(e, message); //ALREADYJOINED
                 throw new SkipCooldownException();
             }
 
             if (e.Args.Count == 0)
             {
-                await SendInvalidArgsMessage(e.DisplayName, e.Command);
+                await SendInvalidArgsMessage(e, e.Command);
                 throw new SkipCooldownException();
             }
 
@@ -110,20 +112,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     var result = new Percentage(amountStr);
                     if (result.Value <= 0 || result.Value > 100)
                     {
-                        await SendInvalidArgsMessage(e.DisplayName, e.Command);
+                        await SendInvalidArgsMessage(e, e.Command);
                         throw new SkipCooldownException();
                     }
                     amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet) * result.Value);
                 }
                 catch
                 {
-                    await SendInvalidArgsMessage(e.DisplayName, e.Command);
+                    await SendInvalidArgsMessage(e, e.Command);
                     throw new SkipCooldownException();
                 }
             }
             else if (!Int64.TryParse(amountStr, out amount))
             {
-                await SendInvalidArgsMessage(e.DisplayName, e.Command);
+                await SendInvalidArgsMessage(e, e.Command);
                 throw new SkipCooldownException();
             }
             var pointType = await pointsSystem.GetPointTypeForGame(GAMENAME);
@@ -135,7 +137,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{MaxBet}", LoyaltyFeature.MaxBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{MinBet}", minBet.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message); //INVALIDBET
+                await ServiceBackbone.ResponseWithMessage(e, message); //INVALIDBET
                 throw new SkipCooldownException();
             }
 
@@ -143,7 +145,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, NOTENOUGHPOINTS, "sorry you don't have that amount of {PointType} to enter the heist.");
                 message = message.Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message); //NOTENOUGHPOINTS
+                await ServiceBackbone.ResponseWithMessage(e, message); //NOTENOUGHPOINTS
                 throw new SkipCooldownException();
             }
 
@@ -176,11 +178,11 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             }
         }
 
-        private async Task SendInvalidArgsMessage(string displayName, string command)
+        private async Task SendInvalidArgsMessage(CommandEventArgs e, string command)
         {
             var message = await gameSettingsService.GetStringSetting(GAMENAME, INVALIDARGS, "To Enter/Start a heist do !{Command} AMOUNT/ALL/MAX/%");
             message = message.Replace("{Command}", command, StringComparison.OrdinalIgnoreCase);
-            await ServiceBackbone.SendChatMessage(displayName, message); //INVALIDARGS
+            await ServiceBackbone.ResponseWithMessage(e, message); //INVALIDARGS
         }
 
         private async void JoinTimerCallback(object? state)

@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -12,8 +13,9 @@ namespace DotNetTwitchBot.Bot.Core
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         ITwitchService twitchService,
+        IMediator mediator,
         ILogger<ChatHistory> logger
-        ) : BaseCommandService(serviceBackbone, commandHandler, "ChatHistory"), IChatHistory, IHostedService
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ChatHistory", mediator), IChatHistory, IHostedService
     {
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
         private readonly IServiceBackbone _serviceBackbone = serviceBackbone;

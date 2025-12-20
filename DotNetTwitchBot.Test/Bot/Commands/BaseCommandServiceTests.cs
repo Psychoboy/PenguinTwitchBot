@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
+using MediatR;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
@@ -14,8 +15,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
-            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
             // Act
             await baseCommandService.SendChatMessage("Test Message");
@@ -30,11 +32,12 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
             var defaultCommandSubstitute = new DefaultCommand { CommandName = "testCommand" };
 
             commandHandlerSubstitute.GetDefaultCommandFromDb("testCommand").Returns(defaultCommandSubstitute);
 
-            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
             // Act
             var result = await baseCommandService.RegisterDefaultCommand(defaultCommandSubstitute);
@@ -52,6 +55,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
             var defaultCommandSubstitute = new DefaultCommand { CommandName = "testCommand" };
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
@@ -59,7 +63,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             commandHandlerSubstitute.AddDefaultCommand(defaultCommandSubstitute).Returns(defaultCommandSubstitute);
 
-            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
             // Act
             var result = await baseCommandService.RegisterDefaultCommand(defaultCommandSubstitute);
@@ -75,8 +79,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
-            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
             // Act
             await baseCommandService.SendChatMessage("Test Message");
@@ -91,8 +96,9 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
+            var mediatorSubstitute = Substitute.For<IMediator>();
 
-            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute);
+            var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
             // Act
             await baseCommandService.SendChatMessage("TestName", "Test Message");
@@ -104,8 +110,8 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
     internal class TestCommandService : BaseCommandService
     {
-        public TestCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler)
-            : base(serviceBackbone, commandHandler, "Roulette")
+        public TestCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, IMediator mediator)
+            : base(serviceBackbone, commandHandler, "Roulette", mediator)
         {
         }
 

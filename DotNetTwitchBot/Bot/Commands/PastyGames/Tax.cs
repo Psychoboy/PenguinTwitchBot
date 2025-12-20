@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -19,8 +20,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
+            IMediator mediator,
             IPointsSystem pointsSystem
-            ) : base(serviceBackbone, commandHandler, "Tax")
+            ) : base(serviceBackbone, commandHandler, "Tax", mediator)
         {
             _taxTimer = new Timer(TimeSpan.FromMinutes(30).TotalMilliseconds);
             _taxTimer.Elapsed += Elapsed;
