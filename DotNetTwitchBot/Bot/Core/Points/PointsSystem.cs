@@ -495,7 +495,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());    
-                            await RespondWithMessage(e, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
+                            await SendChatMessage(e.DisplayName, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
                             
                             logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 
