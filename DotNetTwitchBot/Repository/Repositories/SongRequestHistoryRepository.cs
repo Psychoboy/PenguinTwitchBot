@@ -20,28 +20,36 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Title = g.Key.Title,
                     SongId = g.Key.SongId,
                     RequestedCount = g.Count()
-                }).OrderByDescending(o => o.RequestedCount)
-                .AsAsyncEnumerable()
-                .Select((r, i) => new SongRequestHistoryWithRank
+                })
+                .OrderByDescending(o => o.RequestedCount)
+                .AsAsyncEnumerable();
+
+            var result = new List<SongRequestHistoryWithRank>();
+            int index = 0;
+
+            await foreach (var r in query)
+            {
+                result.Add(new SongRequestHistoryWithRank
                 {
                     Duration = r.Duration,
-                    Title= r.Title,
+                    Title = r.Title,
                     SongId = r.SongId,
                     RequestedCount = r.RequestedCount,
-                    Ranking = i+1
+                    Ranking = ++index
                 });
+            }
 
             if (offset != null)
             {
-                query = query.Skip((int)offset);
+                result = [.. result.Skip((int)offset)];
             }
 
             if (limit != null)
             {
-                query = query.Take((int)limit);
+                result = [.. result.Take((int)limit)];
             }
 
-            return await query.ToListAsync();
+            return result;
         }
     }
 }
