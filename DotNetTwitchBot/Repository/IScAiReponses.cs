@@ -1,6 +1,6 @@
 ﻿namespace DotNetTwitchBot.Repository
 {
-    public interface IScAiReponsesRepository : IGenericRepository<ScAiResponseCodes>
+    public interface IScAiResponsesRepository : IGenericRepository<ScAiResponseCodes>
     {
     }
 }
