@@ -57,6 +57,7 @@ namespace DotNetTwitchBot.Repository
             PointTypes = new PointTypesRepository(_context);
             UserPoints = new UserPointsRepository(_context);
             PointCommands = new PointCommandsRepository(_context);
+            ScAiResponses = new ScAiResponsesRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -107,6 +108,7 @@ namespace DotNetTwitchBot.Repository
         public IPointTypesRepository PointTypes { get; private set; }
         public IUserPointsRepository UserPoints { get; private set; }
         public IPointCommandsRepository PointCommands { get; private set; }
+        public IScAiResponsesRepository ScAiResponses { get; private set; }
 
         public void Dispose()
         {

@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
 
             try
             {
-                var response = await scAi.GetResponseFromPrompt(e.Arg);
+                var response = await scAi.GetResponseFromPrompt(e.UserId, e.Arg);
                 if(string.IsNullOrWhiteSpace(response))
                 {
                     logger.LogWarning("Received empty response from StarCitizenAI.");

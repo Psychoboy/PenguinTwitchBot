@@ -50,6 +50,7 @@
         IPointTypesRepository PointTypes { get; }
         IUserPointsRepository UserPoints { get; }
         IPointCommandsRepository PointCommands { get; }
+        IScAiResponsesRepository ScAiResponses { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
