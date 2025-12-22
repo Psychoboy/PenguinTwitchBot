@@ -5,11 +5,11 @@
 
 version: 2
 updates:
-  - package-ecosystem: "dotnet-sdk" # See documentation for possible values
+  - package-ecosystem: "nuget" # See documentation for possible values
     directory: "/DotNetTwitchBot" # Location of package manifests
     schedule:
       interval: "weekly"
-  - package-ecosystem: "dotnet-sdk" # See documentation for possible values
+  - package-ecosystem: "nuget" # See documentation for possible values
     directory: "/DotNetTwitchBot.Test" # Location of package manifests
     schedule:
       interval: "weekly"
