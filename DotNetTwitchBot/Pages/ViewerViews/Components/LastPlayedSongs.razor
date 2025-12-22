@@ -51,7 +51,8 @@
 
         hubConnection.On<List<Song>>("LastPlayedSongs", (songs) =>
         {
-            recentlyPlayedSongs = songs;
+            recentlyPlayedSongs = songs.ToList();
+            recentlyPlayedSongs.Reverse();
             InvokeAsync(StateHasChanged);
         });
 
