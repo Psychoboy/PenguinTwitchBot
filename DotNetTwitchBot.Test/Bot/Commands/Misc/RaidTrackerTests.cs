@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.BuildMockDbSet().AsQueryable();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();
@@ -152,7 +152,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<RaidHistoryEntry> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<RaidHistoryEntry> { }.BuildMockDbSet().AsQueryable();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             twitchService.GetUserId(Arg.Any<string>()).Returns("");
@@ -186,8 +186,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             {
                 UserId = "123"
             };
-            var queryable = new List<RaidHistoryEntry> { testRaidHistory }.AsQueryable().BuildMockDbSet();
-            var emptyQueryable = new List<RaidHistoryEntry> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<RaidHistoryEntry> { testRaidHistory }.BuildMockDbSet().AsQueryable();
+            var emptyQueryable = new List<RaidHistoryEntry> { }.BuildMockDbSet().AsQueryable();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable, emptyQueryable);
 
             serviceBackbone.IsOnline = true;
@@ -220,7 +220,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
 
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.BuildMockDbSet().AsQueryable();
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var twitchService = Substitute.For<ITwitchService>();

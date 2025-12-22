@@ -43,7 +43,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(mediator, scopeFactory,
@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
             var audioCommand = new AudioCommand { CommandName = "testCommand" };
-            var queryable = new List<AudioCommand> { audioCommand }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { audioCommand }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(mediator, scopeFactory,
@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(mediator, scopeFactory,
@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Tests
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var audiCommand = new AudioCommand { Id = 1, CommandName = "TestCommand" };
-            var queryable = new List<AudioCommand> { audiCommand }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { audiCommand }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
             var audioCommands = new AudioCommands(mediator, scopeFactory,
@@ -174,7 +174,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
@@ -218,7 +218,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
@@ -260,7 +260,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
@@ -302,7 +302,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 
@@ -344,7 +344,7 @@ namespace DotNetTwitchBot.Tests
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var queryable = new List<AudioCommand> { }.AsQueryable().BuildMockDbSet();
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
 
 

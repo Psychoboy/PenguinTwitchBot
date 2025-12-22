@@ -33,15 +33,15 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Setting testPrize;
-        private readonly DbSet<Setting> prizeQueryable;
-        private readonly DbSet<Setting> emptyPrizeQueryable;
+        private readonly IQueryable<Setting> prizeQueryable;
+        private readonly IQueryable<Setting> emptyPrizeQueryable;
         private readonly GiveawayEntry testGiveawayEntriesA;
         private readonly GiveawayEntry testGiveawayEntriesB;
-        private readonly DbSet<GiveawayEntry> testGiveawayEntriesQueryable;
-        private readonly DbSet<GiveawayEntry> emptyTestGiveawayEntriesQueryable;
-        private readonly DbSet<GiveawayExclusion> testGiveawayExclusionQueryable;
+        private readonly IQueryable<GiveawayEntry> testGiveawayEntriesQueryable;
+        private readonly IQueryable<GiveawayEntry> emptyTestGiveawayEntriesQueryable;
+        private readonly IQueryable<GiveawayExclusion> testGiveawayExclusionQueryable;
         private readonly GiveawayWinner testPastWinners;
-        private readonly DbSet<GiveawayWinner> pastWinnersQueryable;
+        private readonly IQueryable<GiveawayWinner> pastWinnersQueryable;
         private readonly GiveawayFeature giveawayFeature;
         private readonly IGameSettingsService gameSettingsService;
 
@@ -65,18 +65,18 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             testPrize = new Setting { Name = "GiveawayPrize", StringSetting = "Test Prize", Id = 1 };
-            prizeQueryable = new List<Setting> { testPrize }.AsQueryable().BuildMockDbSet();
-            emptyPrizeQueryable = new List<Setting> { }.AsQueryable().BuildMockDbSet();
+            prizeQueryable = new List<Setting> { testPrize }.BuildMockDbSet().AsQueryable();
+            emptyPrizeQueryable = new List<Setting> { }.BuildMockDbSet().AsQueryable();
 
             testGiveawayEntriesA = new GiveawayEntry { Username = "UserA", Tickets = 10 };
             testGiveawayEntriesB = new GiveawayEntry { Username = "UserB", Tickets = 100 };
-            testGiveawayEntriesQueryable = new List<GiveawayEntry> { testGiveawayEntriesA, testGiveawayEntriesB }.AsQueryable().BuildMockDbSet();
-            emptyTestGiveawayEntriesQueryable = new List<GiveawayEntry> { }.AsQueryable().BuildMockDbSet();
+            testGiveawayEntriesQueryable = new List<GiveawayEntry> { testGiveawayEntriesA, testGiveawayEntriesB }.BuildMockDbSet().AsQueryable();
+            emptyTestGiveawayEntriesQueryable = new List<GiveawayEntry> { }.BuildMockDbSet().AsQueryable();
 
-            testGiveawayExclusionQueryable = new List<GiveawayExclusion> { }.AsQueryable().BuildMockDbSet();
+            testGiveawayExclusionQueryable = new List<GiveawayExclusion> { }.BuildMockDbSet().AsQueryable();
 
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
-            pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.AsQueryable().BuildMockDbSet();
+            pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.BuildMockDbSet().AsQueryable();
 
             giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, mediatorSubstitute, commandHandler, gameSettingsService);
 

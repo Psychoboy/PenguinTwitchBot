@@ -18,6 +18,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using MockQueryable;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
 {
@@ -120,8 +121,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             };
 
             var redeems = new List<DotNetTwitchBot.Bot.Models.ChannelPointRedeem> { redeem };
-            var queryable = redeems.AsQueryable().BuildMockDbSet();
-            _unitOfWork.ChannelPointRedeems.Find(x => x.Name == "TestRedeem").ReturnsForAnyArgs(queryable);
+            var mockQueryable = redeems.BuildMockDbSet().AsQueryable();
+
+            _unitOfWork.ChannelPointRedeems.Find(Arg.Any<System.Linq.Expressions.Expression<Func<DotNetTwitchBot.Bot.Models.ChannelPointRedeem, bool>>>())
+                .Returns(mockQueryable);
 
             var eventArgs = new ChannelPointRedeemEventArgs
             {
