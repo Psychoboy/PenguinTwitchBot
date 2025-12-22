@@ -206,7 +206,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         {
             var songList = BackupPlaylist.Songs.ToList();
             songList.Shuffle();
-
+            UnplayedSongs.Clear();
             foreach (var nextSong in songList)
             {
                 UnplayedSongs.Enqueue(nextSong);
@@ -603,6 +603,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 db.Settings.Update(lastPlaylist);
                 await db.SaveChangesAsync();
             }
+            UpdateUnplayedSongs();
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
         }
 
@@ -644,6 +645,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     };
                 }
 
+                var totalSongs = songLinks.Length;
+                var importedSongs = 0;
+
                 foreach (var songLink in songLinks)
                 {
                     var song = await GetSongByLinkOrId(songLink);
@@ -656,6 +660,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                         continue;
                     }
                     song.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
+                    importedSongs++;
+                    _logger.LogInformation("Imported {importedSongs}/{totalSongs} songs", importedSongs, totalSongs);
                     playList.Songs.Add(song);
                 }
 
