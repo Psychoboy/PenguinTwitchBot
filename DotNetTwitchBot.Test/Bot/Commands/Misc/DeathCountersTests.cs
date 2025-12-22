@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
         private readonly IViewerFeature viewerFeature;
         private readonly IMediator mediatorSubstitute;
         private readonly DeathCounter testCounter;
-        private readonly DbSet<DeathCounter> counterQueryable;
+        private readonly IQueryable<DeathCounter> counterQueryable;
         private readonly DeathCounters deathCounters;
 
         public DeathCountersTests()
@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             testCounter = new DeathCounter { Amount = 10, Game = "Star Citizen" };
-            counterQueryable = new List<DeathCounter> { testCounter }.AsQueryable().BuildMockDbSet();
+            counterQueryable = new List<DeathCounter> { testCounter }.BuildMockDbSet().AsQueryable();
 
             deathCounters = new DeathCounters(twitchService, logger, serviceBackbone, viewerFeature, scopeFactory, mediatorSubstitute, commandHandler);
 

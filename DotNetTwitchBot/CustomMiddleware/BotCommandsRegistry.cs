@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.CustomMiddleware
     {
         public static IServiceCollection AddBotCommands(this IServiceCollection services)
         {
-            services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+            
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
             services.AddTransient<ISchedule, Schedule>();

@@ -29,8 +29,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Viewer testViewer;
-        private readonly DbSet<Viewer> viewerQueryable;
-        private readonly DbSet<Viewer> emptyViewerQueryable;
+        private readonly IQueryable<Viewer> viewerQueryable;
+        private readonly IQueryable<Viewer> emptyViewerQueryable;
         private readonly ViewerFeature viewerFeature;
 
         public ViewerFeatureTests()
@@ -50,8 +50,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             testViewer = new Viewer { Id = 1, Username = "test", DisplayName = "Test", Title = "Test Title" };
-            viewerQueryable = new List<Viewer> { testViewer }.AsQueryable().BuildMockDbSet();
-            emptyViewerQueryable = new List<Viewer> { }.AsQueryable().BuildMockDbSet();
+            viewerQueryable = new List<Viewer> { testViewer }.BuildMockDbSet().AsQueryable();
+            emptyViewerQueryable = new List<Viewer> { }.BuildMockDbSet().AsQueryable();
 
             viewerFeature = new ViewerFeature(logger, serviceBackbone, twitchService, scopeFactory, mediatorSubstitute, commandHandler);
         }

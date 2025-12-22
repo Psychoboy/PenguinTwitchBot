@@ -19,18 +19,7 @@ namespace DotNetTwitchBot.Bot.Ai
                 return "Prompt cannot be empty.";
             }
 
-            var respClient = client.GetOpenAIResponseClient("gpt-5.1");
-            var responseItems = new List<ResponseItem>
-            {
-                ResponseItem.CreateDeveloperMessageItem("Avoid all markdown formatting, including asterisks, hashtags, lists, and backticks."),
-                ResponseItem.CreateUserMessageItem("You are a helpful assistant that provides information about the game Star Citizen in plain text"),
-                ResponseItem.CreateUserMessageItem("Make as short as possible."),
-                ResponseItem.CreateUserMessageItem("Do not provide any markdown."),
-                ResponseItem.CreateUserMessageItem("Do not use asterisks, hashtags, or backticks."),
-                ResponseItem.CreateUserMessageItem("Do not provide any links unless specifically asked for."),
-                ResponseItem.CreateAssistantMessageItem("Understood. I will keep the responses short and free of markdown formatting."),
-                ResponseItem.CreateUserMessageItem(prompt)
-            };
+            var respClient = client.GetResponsesClient("gpt-5.1");
 
             var webSearchTool = ResponseTool.CreateWebSearchTool(null, null, new WebSearchToolFilters
             {
@@ -43,12 +32,22 @@ namespace DotNetTwitchBot.Bot.Ai
                     ]
             });
 
-            var response = await respClient.CreateResponseAsync(responseItems, new ResponseCreationOptions
+            var responseOptions = new CreateResponseOptions
             {
                 Tools = { webSearchTool },
                 MaxOutputTokenCount = 200,
                 ServiceTier = "flex",
-            });
+                Instructions = "You are a helpful assistant that provides information about the game Star Citizen in plain text." +
+                "Use the provided tools to gather accurate information about Star Citizen when necessary. " +
+                "Avoid all markdown formatting, including asterisks, hashtags, lists, and backticks." +
+                "Make as short as possible." +
+                "Do not provide any markdown." +
+                "Do not use asterisks, hashtags, or backticks." +
+                "Do not provide any links unless specifically asked for.",
+
+            };
+            responseOptions.InputItems.Add(ResponseItem.CreateUserMessageItem(prompt));
+            var response = await respClient.CreateResponseAsync(responseOptions);
 
 
             foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))

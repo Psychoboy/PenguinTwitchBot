@@ -7,6 +7,7 @@ using DotNetTwitchBot.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
+using MockQueryable.NSubstitute;
 using Moq;
 using NSubstitute;
 using Xunit;
@@ -89,7 +90,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
             var testCooldown = new List<CurrentCooldowns> { };
-            var queryable = testCooldown.AsQueryable().BuildMock();
+            var queryable = testCooldown.BuildMockDbSet().AsQueryable(); ;
 
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);
@@ -115,7 +116,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
             var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MaxValue, NextUserCooldownTime = DateTime.MaxValue } };
-            var queryable = testCooldown.AsQueryable().BuildMock();
+            var queryable = testCooldown.BuildMockDbSet().AsQueryable(); ;
 
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
             _commandHandler.AddCommand(commandProperties, commandServiceMock.Object);
@@ -140,7 +141,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
             var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MaxValue, NextUserCooldownTime = DateTime.MaxValue } };
-            var queryable = testCooldown.AsQueryable().BuildMock();
+            var queryable = testCooldown.BuildMockDbSet().AsQueryable(); ;
 
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);
@@ -168,7 +169,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
             var testCooldown = new List<CurrentCooldowns> { new CurrentCooldowns { NextGlobalCooldownTime = DateTime.MinValue, NextUserCooldownTime = DateTime.MinValue } };
-            var queryable = testCooldown.AsQueryable().BuildMock();
+            var queryable = testCooldown.BuildMockDbSet().AsQueryable();
 
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == true)).Returns(queryable);
             unitOfWorkMock.Setup(x => x.Cooldowns.Find(y => y.CommandName.Equals("testCommand") && y.IsGlobal == false)).Returns(queryable);

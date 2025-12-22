@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Controllers
         //     {
         //         var tracker = scope.ServiceProvider.GetRequiredService<Bot.Core.SubscriptionTracker>();
         //         var records = csv.GetRecords<PhantomImport>().ToList();
-        //         var names = records.Select(x => x.variable).ToList(); ;
+        //         var names = records.Select(x => x.variable).ToList();
         //         var missingNames = await tracker.MissingSubs(names);
         //         foreach (var missingName in missingNames)
         //         {
