@@ -78,6 +78,7 @@
     bool _drawerOpen = true;
     private string Username = "";
     private string ProfileImage = "";
+    private string UserId = "";
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
     [Inject]
@@ -103,9 +104,13 @@
             {
                 ProfileImage = user.Claims.Where(x => x.Type.Equals("ProfilePicture")).First().Value;
             }
+            if (user.HasClaim(x => x.Type.Equals("UserId")))
+            {
+                UserId = user.Claims.Where(x => x.Type.Equals("UserId")).First().Value;
+            }
         }
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
-        await UserService.Connect(handler.CircuitId, Username, BlazorAppContext?.CurrentUserIP);
+        await UserService.Connect(handler.CircuitId, Username, UserId, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
         StreamOnline = serviceBackbone.IsOnline;

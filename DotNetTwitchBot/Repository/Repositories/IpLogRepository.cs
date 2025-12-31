@@ -33,32 +33,16 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             var query = from p1 in _context.IpLogEntrys
                         join p2 in _context.IpLogEntrys on p1.Ip equals p2.Ip
-                        where p1.Username.Equals(p2.Username) == false
+                        where p1.Username.CompareTo(p2.Username) < 0
                         select new IpLogUsersWithSameIp
                         {
                             User1 = p1.Username,
-                            User2 = p2.Username,
-                            Ip = p1.Ip
+                            User2 = p2.Username
                         };
 
+            query = query.Distinct();
+            query = query.OrderBy(x => x.User1).ThenBy(x => x.User2);
 
-
-            var seen = new HashSet<string>();
-            query = query.GroupBy(g => new
-            {
-                g.User1,
-                g.User2,
-                g.Ip
-            }).Select(x => new IpLogUsersWithSameIp
-            {
-                User1 = x.Key.User1,
-                User2 = x.Key.User2,
-                Ip = x.Key.Ip,
-                Count = x.Count()
-            })
-            .OrderBy(x => x.User1);
-
-            
 
             if (offset != null)
             {
