@@ -7,12 +7,12 @@ namespace DotNetTwitchBot.Circuit
 {
     public class IpLog(ILogger<IpLog> logger, IServiceScopeFactory scopeFactory)
     {
-        public async Task AddLogEntry(string username, string ipAddress)
+        public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
             await Task.WhenAll(
-                AddOrUpdateIpEntry(username, ipAddress),
-                CheckForIPv6AndUpdateEntries(username, ipAddress)
+                AddOrUpdateIpEntry(username, userId, ipAddress),
+                CheckForIPv6AndUpdateEntries(username, userId, ipAddress)
             );
         }
 
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Circuit
             logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries.", removedLogs);
         }
 
-        private async Task AddOrUpdateIpEntry(string username, string ipAddress)
+        private async Task AddOrUpdateIpEntry(string username, string userId, string ipAddress)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -36,6 +36,10 @@ namespace DotNetTwitchBot.Circuit
             if (existingEntry != null)
             {
                 existingEntry.ConnectedDate = DateTime.Now;
+                if(string.IsNullOrEmpty(existingEntry.UserId) && !string.IsNullOrEmpty(userId))
+                {
+                    existingEntry.UserId = userId;
+                }
                 existingEntry.Count++;
                 db.IpLogs.Update(existingEntry);
             }
@@ -44,13 +48,14 @@ namespace DotNetTwitchBot.Circuit
                 await db.IpLogs.AddAsync(new IpLogEntry
                 {
                     Username = username,
-                    Ip = ipAddress
+                    Ip = ipAddress,
+                    UserId = userId
                 });
             }
             await db.SaveChangesAsync();
         }
 
-        private async Task CheckForIPv6AndUpdateEntries(string username, string ipAddress)
+        private async Task CheckForIPv6AndUpdateEntries(string username, string userId, string ipAddress)
         {
             if (IPAddress.TryParse(ipAddress, out IPAddress? address))
             {
@@ -60,7 +65,7 @@ namespace DotNetTwitchBot.Circuit
                     if (address.IsIPv4MappedToIPv6)
                     {
                         var ipv4Address = address.MapToIPv4();
-                        await AddOrUpdateIpEntry(username, ipv4Address.ToString());
+                        await AddOrUpdateIpEntry(username, userId, ipv4Address.ToString());
                     }
                     else
                     {
@@ -69,7 +74,7 @@ namespace DotNetTwitchBot.Circuit
                         foreach (var prefix in prefixes)
                         {
                             if (!string.IsNullOrEmpty(prefix))
-                                tasks.Add(AddOrUpdateIpEntry(username, prefix));
+                                tasks.Add(AddOrUpdateIpEntry(username, userId, prefix));
                         }
                         await Task.WhenAll(tasks);
                     }
