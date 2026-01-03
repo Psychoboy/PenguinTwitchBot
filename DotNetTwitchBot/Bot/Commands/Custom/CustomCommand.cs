@@ -267,6 +267,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsVip = e.IsVip,
                         IsBroadcaster = e.IsBroadcaster,
                     };
+
+                    if(await CommandHandler.CheckPermission(keyword.Keyword, commandEventArgs) == false)
+                    {
+                        return;
+                    }
+
                     await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response, false);
 
                     if (keyword.Keyword.GlobalCooldown > 0)
