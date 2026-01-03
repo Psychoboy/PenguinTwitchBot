@@ -9,14 +9,7 @@ namespace DotNetTwitchBot.Controllers
         [HttpGet("/streamstatus")]
         public ActionResult GetStreamStatus()
         {
-            if (serviceBackbone.IsOnline)
-            {
-                return Ok(true);
-            }
-            else
-            {
-                return Ok(false);
-            }
+            return Ok(serviceBackbone.IsOnline);
         }
     }
 }
