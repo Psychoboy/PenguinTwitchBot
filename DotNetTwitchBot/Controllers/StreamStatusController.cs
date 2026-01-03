@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Controllers
     public class StreamStatusController(IServiceBackbone serviceBackbone) : Controller
     {
         [HttpGet("/streamstatus")]
-        public async Task<ActionResult> GetStreamStatus()
+        public ActionResult GetStreamStatus()
         {
             if (serviceBackbone.IsOnline)
             {
