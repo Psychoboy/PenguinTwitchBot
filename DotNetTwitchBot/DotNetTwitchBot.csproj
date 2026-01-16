@@ -45,7 +45,7 @@
     <PackageReference Include="BlazorTime" Version="1.0.3" />
     <PackageReference Include="Discord.Net" Version="3.18.0" />
     <PackageReference Include="EFCore.BulkExtensions" Version="10.0.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.73.0.3981" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.73.0.4029" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.17.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
     <PackageReference Include="linq2db" Version="6.1.0" />
@@ -88,7 +88,7 @@
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
-    <PackageReference Include="YoutubeDLSharp" Version="1.1.2" />
+    <PackageReference Include="YoutubeDLSharp" Version="1.2.0" />
   </ItemGroup>
 
   <ItemGroup>
