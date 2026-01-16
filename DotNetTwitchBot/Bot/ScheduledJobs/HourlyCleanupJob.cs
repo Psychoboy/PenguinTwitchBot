@@ -6,6 +6,10 @@ namespace DotNetTwitchBot.Bot.ScheduledJobs
     {
         public Task Execute(IJobExecutionContext context)
         {
+            if(!Directory.Exists("wwwroot/tts/"))
+            {
+                Directory.CreateDirectory("wwwroot/tts/");
+            }
             var files = Directory.GetFiles("wwwroot/tts/");
             foreach (var file in files)
             {
