@@ -188,7 +188,7 @@ internal class Program
                     maxRetryDelay: System.TimeSpan.FromSeconds(15),
                     errorNumbersToAdd: null
                 )
-                .TranslateParameterizedCollectionsToConstants()
+                .UseParameterizedCollectionMode(ParameterTranslationMode.MultipleParameters)
                 .EnablePrimitiveCollectionsSupport());
             });
 
