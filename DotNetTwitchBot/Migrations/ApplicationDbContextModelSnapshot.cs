@@ -165,6 +165,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
 
@@ -269,6 +273,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
 
@@ -354,6 +362,10 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
 
@@ -423,6 +435,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
@@ -499,6 +515,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
@@ -980,6 +1000,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int>("PointTypeId")
                         .HasColumnType("int");

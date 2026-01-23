@@ -18,6 +18,7 @@
                         <HeaderContent>
                             <MudTh>Keyword</MudTh>
                             <MudTh>Response</MudTh>
+                            <MudTh>Platforms</MudTh>
                             <MudTh>Disabled</MudTh>
                             <MudTh></MudTh>
                             <MudTh></MudTh>
@@ -25,6 +26,7 @@
                         <RowTemplate>
                             <MudTd DataLabel="Name">@context.CommandName</MudTd>
                             <MudTd DataLabel="Response">@context.Response</MudTd>
+                            <MudTd DataLabel="Platforms">@string.Join(", ", context.Platforms)</MudTd>
                             <MudTd DataLabel="Last Shoutout">@context.Disabled</MudTd>
                             <MudTd DataLabel="Edit">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
@@ -77,6 +79,13 @@
                         <MudCheckBox @bind-Value="@keyword.RunFromBroadcasterOnly" Label="Run from own channel only?"></MudCheckBox>
                         <MudSelect @bind-Value="@keyword.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudSelect T=PlatformType SelectedValues="@keyword.Platforms" Label="Platform" MultiSelection="true"
+                                   SelectedValuesChanged="@(args => keyword.Platforms = args.ToList())">
+                            @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
                             {
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }

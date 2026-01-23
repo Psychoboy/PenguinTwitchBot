@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.33414.496
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11408.102 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetTwitchBot", "DotNetTwitchBot\DotNetTwitchBot.csproj", "{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}"
 EndProject
@@ -11,6 +11,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KickLib", "KickLib\KickLib.csproj", "{C159B553-D873-4480-B5D4-B649773E2671}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KickLib.Api.Unofficial", "KickLib.Api.Unofficial\KickLib.Api.Unofficial.csproj", "{D471B236-49DF-EE4C-F52D-A366E673DE03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KickLib.Client", "KickLib.Client\KickLib.Client.csproj", "{BB7DB04D-A6D2-0EC2-93CF-65EBFD575A19}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +32,18 @@ Global
 		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{01E5DBD1-FF3E-4C27-B47A-7485785AE23C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C159B553-D873-4480-B5D4-B649773E2671}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C159B553-D873-4480-B5D4-B649773E2671}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C159B553-D873-4480-B5D4-B649773E2671}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C159B553-D873-4480-B5D4-B649773E2671}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D471B236-49DF-EE4C-F52D-A366E673DE03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D471B236-49DF-EE4C-F52D-A366E673DE03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D471B236-49DF-EE4C-F52D-A366E673DE03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D471B236-49DF-EE4C-F52D-A366E673DE03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BB7DB04D-A6D2-0EC2-93CF-65EBFD575A19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB7DB04D-A6D2-0EC2-93CF-65EBFD575A19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB7DB04D-A6D2-0EC2-93CF-65EBFD575A19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB7DB04D-A6D2-0EC2-93CF-65EBFD575A19}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

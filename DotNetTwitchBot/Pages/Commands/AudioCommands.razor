@@ -18,6 +18,7 @@
                         <HeaderContent>
                             <MudTh>Commands</MudTh>
                             <MudTh>Audio File</MudTh>
+                            <MudTh>Platforms</MudTh>
                             <MudTh>Disabled</MudTh>
                             <MudTh></MudTh>
                             <MudTh></MudTh>
@@ -25,6 +26,7 @@
                         <RowTemplate>
                             <MudTd DataLabel="Command">!@context.Key</MudTd>
                             <MudTd DataLabel="AudioFile">@context.Value.AudioFile</MudTd>
+                            <MudTd DataLabel="Platforms">@string.Join(", ", context.Value.Platforms)</MudTd>
                             <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
                             <MudTd DataLabel="Edit">
                                 <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
@@ -78,6 +80,13 @@
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }
                         </MudSelect>
+                        <MudSelect T=PlatformType SelectedValues="@audioCommand.Platforms" Label="Platform" MultiSelection="true"
+                            SelectedValuesChanged="@(args => audioCommand.Platforms = args.ToList())">
+                            @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
                         <MudTextField Label="Specific User Only" @bind-Value="audioCommand.SpecificUserOnly" />
                         <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
                         <MudTable Items="@audioCommand.SpecificUsersOnly" Context="specificUsersContext">
@@ -115,6 +124,7 @@
     private Dictionary<string, AudioCommand>? audioCommands;
     private List<string>? audioFiles;
     private AudioCommand? audioCommand { get; set; } = new();
+    private List<PlatformType?> selectedPlatforms = new(){PlatformType.Twitch};
     [Inject] private IDialogService DialogService { get; set; } = default!;
     IEnumerable<Rank> ranks = new HashSet<Rank>();
     private string SpecificUsersOnly { get; set; } = "";

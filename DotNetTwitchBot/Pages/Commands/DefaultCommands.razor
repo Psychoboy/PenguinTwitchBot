@@ -17,6 +17,7 @@ else
             <MudTh>Configured Name</MudTh>
             <MudTh>Default Name</MudTh>
             <MudTh>Module</MudTh>
+            <MudTh>Platforms</MudTh>
             <MudTh>Rank</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
@@ -24,6 +25,7 @@ else
             <MudTd DataLabel="Configured Name">!@context.CustomCommandName</MudTd>
             <MudTd DataLabel="Default Name">!@context.CommandName</MudTd>
             <MudTd DataLabel="Module Name">@context.ModuleName</MudTd>
+            <MudTd DataLabel="Platforms">@string.Join(", ", context.Platforms)</MudTd>
             <MudTd DataLabel="Minimum Rank">@context.MinimumRank</MudTd>
             <MudTd DataLabel="Edit">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>

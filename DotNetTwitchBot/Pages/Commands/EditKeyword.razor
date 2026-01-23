@@ -51,6 +51,13 @@ else
                         <MudSelectItem Value="@item">@item</MudSelectItem>
                     }
                 </MudSelect>
+                <MudSelect T=PlatformType SelectedValues="@keyword.Platforms" Label="Platform" MultiSelection="true"
+                           SelectedValuesChanged="@(args => keyword.Platforms = args.ToList())">
+                    @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudTextField Label="Specific User Only" @bind-Value="keyword.SpecificUserOnly" />
                 <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
                     @foreach (Rank item in Enum.GetValues(typeof(Rank)))
