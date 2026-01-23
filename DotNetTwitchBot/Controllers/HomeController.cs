@@ -1,6 +1,9 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
+using Google.Apis.Auth.OAuth2;
+using KickLib;
+using KickLib.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using System.Diagnostics;
 using System.Security.Claims;
+using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Controllers
 {
@@ -17,6 +21,7 @@ namespace DotNetTwitchBot.Controllers
         SettingsFileManager settingsFileManager,
         IViewerFeature viewerFeature,
         IMemoryCache stateCache,
+        ILoggerFactory loggerFactory,
         ITwitchChatBot twitchChatBot,
         ITwitchService twitchService) : Controller
     {
@@ -40,7 +45,188 @@ namespace DotNetTwitchBot.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+        //Kick OAuth Endpoints
+        [HttpGet("/kickstreamersignin")]
+        [Authorize(Roles = "Streamer")]
+        public IActionResult KickStreamerSignin([FromQuery(Name = "r")] string? redirect)
+        {
+            logger.LogInformation("{ipAddress} accessed /kickstreamersign.", HttpContext.Connection?.RemoteIpAddress);
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            if(string.IsNullOrEmpty(clientId))
+            {
+                logger.LogError("Kick Streamer Client ID is not set.");
+                return Redirect("/");
+            }
+            var authGenerator = new KickOAuthGenerator();
+            var url = authGenerator.GetAuthorizationUri(
+#if DEBUG
+                "https://localhost:7293/kickstreamerredirect",
+#else
+                "https://bot.superpenguin.tv/kickstreamerredirect",
+#endif
+                clientId,
+                new List<string>
+                {
+                    KickScopes.UserRead,
+                    KickScopes.ChannelRewardsRead,
+                    KickScopes.ChannelRead,
+                    KickScopes.ChannelRewardsWrite,
+                    KickScopes.ChannelWrite,
+                    KickScopes.ChatWrite,
+                    KickScopes.EventsSubscribe,
+                    KickScopes.ModerationBan,
+                    KickScopes.ModerationChatMessageManage
+                }, out var verifier);
+            return Redirect(url.ToString());
+        }
 
+        [HttpGet("kickstreamerredirect")]
+        public async Task<IActionResult> KickStreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /kickstreamerredirect.", HttpContext.Connection?.RemoteIpAddress);
+
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            var clientSecret = configuration["Kick:Streamer:ClientSecret"];
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                logger.LogError("Kick Streamer Client ID or Client Secret is not set.");
+                return Redirect("/");
+            }
+
+            var authGenerator = new KickOAuthGenerator();
+            var exchangeResults = await authGenerator.ExchangeCodeForTokenAsync(
+                code,
+                clientId,
+                clientSecret,
+#if DEBUG
+                "https://localhost:7293/kickstreamerredirect",
+#else
+                "https://bot.superpenguin.tv/kickstreamerredirect",
+#endif
+                state);
+
+            if (!exchangeResults.IsSuccess)
+            {
+                logger.LogError("Failed to exchange code for token: {error}", exchangeResults.Reasons);
+                return Redirect("/");
+            }
+
+            configuration["Kick:Streamer:AccessToken"] = exchangeResults.Value.AccessToken;
+            configuration["Kick:Streamer:ExpiresIn"] = exchangeResults.Value.ExpiresIn.ToString();
+            configuration["Kick:Streamer:RefreshToken"] = exchangeResults.Value.RefreshToken;
+            //twitchService.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:AccessToken", exchangeResults.Value.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:ExpiresIn", exchangeResults.Value.ExpiresIn.ToString());
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:RefreshToken", exchangeResults.Value.RefreshToken);
+
+            return Redirect("/botauth");
+        }
+
+        [HttpGet("/kicksignin")]
+        public IActionResult KickSignin([FromQuery(Name = "r")] string? redirect)
+        {
+            logger.LogInformation("{ipAddress} accessed /kicksignin.", HttpContext.Connection?.RemoteIpAddress);
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            if (string.IsNullOrEmpty(clientId))
+            {
+                logger.LogError("Kick Streamer Client ID is not set.");
+                return Redirect("/");
+            }
+            var authGenerator = new KickOAuthGenerator();
+            var url = authGenerator.GetAuthorizationUri(
+#if DEBUG
+                "https://localhost:7293/kickredirect",
+#else
+                "https://bot.superpenguin.tv/kickredirect",
+#endif
+                clientId,
+                new List<string>
+                {
+                    KickScopes.UserRead
+                }, out var verifier);
+            return Redirect(url.ToString());
+        }
+
+        [HttpGet("/kickredirect")]
+        public async Task<IActionResult> RedirectFromKick([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /kickredirect.", HttpContext.Connection?.RemoteIpAddress);
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            var clientSecret = configuration["Kick:Streamer:ClientSecret"];
+            var accessToken = configuration["Kick:Streamer:AccessToken"];
+            var refreshToken = configuration["Kick:Streamer:RefreshToken"];
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                logger.LogError("Kick Streamer Client ID or Client Secret is not set.");
+                return Redirect("/");
+            }
+            var authGenerator = new KickOAuthGenerator();
+            var exchangeResults = await authGenerator.ExchangeCodeForTokenAsync(
+                code,
+                clientId,
+                clientSecret,
+#if DEBUG
+                "https://localhost:7293/kickredirect",
+#else
+                "https://bot.superpenguin.tv/kickredirect",
+#endif
+                state);
+            if(exchangeResults.IsFailed)
+            {
+
+                logger.LogError("Failed to exchange code for token: {error}", exchangeResults.Reasons);
+                return Redirect("/");
+            }
+
+            var settings = new KickLib.Core.ApiSettings
+            {
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+                RefreshToken = refreshToken,
+                AccessToken = accessToken
+            };
+
+            var api = KickApi.Create(settings, loggerFactory);
+            var userInfo = await api.Users.GetMeAsync();
+            if(userInfo.IsFailed)
+            {
+                logger.LogError("Error getting user info for GetMeAsync");
+                return Redirect("/");
+            }
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, userInfo.Value.Name),
+                new Claim(ClaimTypes.Role, "Viewer"),
+                new Claim("ProfilePicture", userInfo.Value.ProfilePicture ?? ""),
+                new Claim("DisplayName", userInfo.Value.Name ?? ""),
+                new Claim("UserId", userInfo.Value.UserId.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, userInfo.Value.UserId.ToString()),
+                new Claim("Platform", "Kick")
+            };
+
+            var claimsIdentity = new ClaimsIdentity(
+                    claims, CookieAuthenticationDefaults.AuthenticationScheme
+                );
+
+            var authProperties = new AuthenticationProperties
+            {
+
+            };
+
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties
+            );
+            logger.LogInformation("{login} logged in to web interface", userInfo.Value.Name);
+
+            return Redirect("/");
+        }
+
+        //Twitch OAuth Endpoints
         [HttpGet("/streamersignin")]
         [Authorize(Roles = "Streamer")]
         public IActionResult StreamerSignin()
@@ -194,7 +380,8 @@ namespace DotNetTwitchBot.Controllers
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName),
                     new Claim("UserId", user.Id),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id)
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim("Platform", "Twitch")
                 };
 
 
