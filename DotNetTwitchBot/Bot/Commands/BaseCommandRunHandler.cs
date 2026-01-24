@@ -28,6 +28,11 @@ namespace DotNetTwitchBot.Bot.Commands
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckToRunBroadcasterOnly(eventArgs, commandService.CommandProperties))
                 {
+                    if(!commandService.CommandProperties.Platforms.Contains(eventArgs.Platform))
+                    {
+                        return;
+                    }
+
                     if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
                     {
                         if (commandService.CommandProperties.SayCooldown)

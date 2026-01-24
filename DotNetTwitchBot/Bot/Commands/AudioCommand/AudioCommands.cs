@@ -127,6 +127,11 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
                 return;
             }
 
+            if(command.Platforms.Contains(e.Platform) == false)
+            {
+                return;
+            }
+
             await RunCommand(Commands[e.Command], e);
         }
 

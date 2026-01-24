@@ -20,6 +20,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 if(CommandHandler.CheckToRunBroadcasterOnly(eventArgs, pointCommand) == false) return;
                 if(await commandHandler.CheckPermission(pointCommand, eventArgs) == false) return;
 
+                if(pointCommand.Platforms.Contains(eventArgs.Platform) == false) return;
+
                 bool isCoolDownExpired = false;
                 if (pointCommand.SayCooldown)
                 {

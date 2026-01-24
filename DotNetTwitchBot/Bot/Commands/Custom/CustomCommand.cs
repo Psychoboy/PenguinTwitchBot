@@ -304,6 +304,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 return;
             }
+
+            if (Commands[e.Command].Platforms.Contains(e.Platform) == false)
+            {
+                return;
+            }
+
             await ExecuteCommand(e);
         }
 
@@ -576,17 +582,18 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
                     message = UnescapeTagsInMessages(result.Message);
-                    if (respondAsStreamer)
+
+                    if (respondAsStreamer && eventArgs.Platform == PlatformType.Twitch)
                     {
                         await _twitchService.SendMessage(message);
                     }
-                    else if (result.ReplyToMessage)
+                    else if (result.ReplyToMessage && eventArgs.Platform == PlatformType.Twitch)
                     {
                         await ServiceBackbone.ResponseWithMessage(eventArgs, message);
                     }
                     else
                     {
-                        await ServiceBackbone.SendChatMessage(message);
+                        await ServiceBackbone.SendChatMessage(message, eventArgs.Platform);
                     }
                 }
             }

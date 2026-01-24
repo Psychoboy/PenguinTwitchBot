@@ -39,14 +39,25 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             message = message.TrimStart('!').Trim();
 
-            if (string.IsNullOrWhiteSpace(e.MessageId))
+            switch(e.Platform)
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message);
+                case PlatformType.Twitch:
+                    if (string.IsNullOrWhiteSpace(e.MessageId))
+                    {
+                        await ServiceBackbone.SendChatMessage(e.DisplayName, message);
+                    }
+                    else
+                    {
+                        await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message));
+                    }
+                    break;
+                case PlatformType.Kick:
+                    await ServiceBackbone.SendChatMessage(e.DisplayName, message, e.Platform);
+                    break;
+                default:
+                    throw new NotImplementedException($"RespondWithMessage not implemented for platform type {e.Platform}");
             }
-            else
-            {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message));
-            }
+            
         }
 
         public abstract Task OnCommand(object? sender, CommandEventArgs e);

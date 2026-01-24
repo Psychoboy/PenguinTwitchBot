@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.KickServices;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
 using Google.Apis.Auth.OAuth2;
@@ -119,6 +120,85 @@ namespace DotNetTwitchBot.Controllers
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:AccessToken", exchangeResults.Value.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:ExpiresIn", exchangeResults.Value.ExpiresIn.ToString());
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:RefreshToken", exchangeResults.Value.RefreshToken);
+
+            var kickService = new KickService(loggerFactory.CreateLogger<KickService>(), loggerFactory, configuration);
+            await kickService.SendMessage("Bot successfully connected to Kick!");
+            return Redirect("/botauth");
+        }
+
+        [HttpGet("/kickbotsignin")]
+        [Authorize(Roles = "Streamer")]
+        public IActionResult KickBotSignin([FromQuery(Name = "r")] string? redirect)
+        {
+            logger.LogInformation("{ipAddress} accessed /kickbotsign.", HttpContext.Connection?.RemoteIpAddress);
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            if (string.IsNullOrEmpty(clientId))
+            {
+                logger.LogError("Kick Streamer Client ID is not set.");
+                return Redirect("/");
+            }
+            var authGenerator = new KickOAuthGenerator();
+            var url = authGenerator.GetAuthorizationUri(
+#if DEBUG
+                "https://localhost:7293/kickbotredirect",
+#else
+                "https://bot.superpenguin.tv/kickbotredirect",
+#endif
+                clientId,
+                new List<string>
+                {
+                    KickScopes.UserRead,
+                    KickScopes.ChannelRewardsRead,
+                    KickScopes.ChannelRead,
+                    KickScopes.ChannelRewardsWrite,
+                    KickScopes.ChannelWrite,
+                    KickScopes.ChatWrite,
+                    KickScopes.EventsSubscribe,
+                    KickScopes.ModerationBan,
+                    KickScopes.ModerationChatMessageManage
+                }, out var verifier);
+            return Redirect(url.ToString());
+        }
+
+        [HttpGet("kickbotredirect")]
+        public async Task<IActionResult> KickBotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /kickbotredirect.", HttpContext.Connection?.RemoteIpAddress);
+
+            var clientId = configuration["Kick:Streamer:ClientId"];
+            var clientSecret = configuration["Kick:Streamer:ClientSecret"];
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                logger.LogError("Kick Streamer Client ID or Client Secret is not set.");
+                return Redirect("/");
+            }
+
+            var authGenerator = new KickOAuthGenerator();
+            var exchangeResults = await authGenerator.ExchangeCodeForTokenAsync(
+                code,
+                clientId,
+                clientSecret,
+#if DEBUG
+                "https://localhost:7293/kickbotredirect",
+#else
+                "https://bot.superpenguin.tv/kickbotredirect",
+#endif
+                state);
+
+            if (!exchangeResults.IsSuccess)
+            {
+                logger.LogError("Failed to exchange code for token: {error}", exchangeResults.Reasons);
+                return Redirect("/");
+            }
+
+            configuration["Kick:Bot:AccessToken"] = exchangeResults.Value.AccessToken;
+            configuration["Kick:Bot:ExpiresIn"] = exchangeResults.Value.ExpiresIn.ToString();
+            configuration["Kick:Bot:RefreshToken"] = exchangeResults.Value.RefreshToken;
+            //twitchService.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Bot:AccessToken", exchangeResults.Value.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Bot:ExpiresIn", exchangeResults.Value.ExpiresIn.ToString());
+            await settingsFileManager.AddOrUpdateAppSetting("Kick:Bot:RefreshToken", exchangeResults.Value.RefreshToken);
 
             return Redirect("/botauth");
         }
