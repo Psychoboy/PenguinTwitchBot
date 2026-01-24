@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Bot.KickServices
 
         private void KickClient_OnMessageDeleted(object? sender, MessageDeletedEventArgs e)
         {
-            logger.LogInformation("Message deleted: {MessageId}", e.Data.Message);
+            logger.LogInformation("Message deleted");
         }
 
         private void KickClient_OnMessage(object? sender, ChatMessageEventArgs e)
@@ -62,12 +62,12 @@ namespace DotNetTwitchBot.Bot.KickServices
 
         private async Task HandleMessage(ChatMessageEventArgs e)
         {
-            if (chatMessageIdTracker.IsSelfMessage(e.Data.Id))
+            if (e.Data.Metadata != null && chatMessageIdTracker.IsSelfMessage(e.Data.Metadata.Id))
             {
                 return;
             }
 
-            if (DidProcessMessage(e.Data.Id))
+            if (DidProcessMessage(e.Data.Metadata?.Id))
             {
                 return;
             }
@@ -139,8 +139,12 @@ namespace DotNetTwitchBot.Bot.KickServices
             await mediator.Publish(new RunCommandNotification { EventArgs = eventArgs });
         }
 
-        private bool DidProcessMessage(string id)
+        private bool DidProcessMessage(string? id)
         {
+            if(string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
             if(memoryCache.TryGetValue(id, out _))
             {
                 logger.LogWarning("Duplicate message detected: {MessageId}", id);

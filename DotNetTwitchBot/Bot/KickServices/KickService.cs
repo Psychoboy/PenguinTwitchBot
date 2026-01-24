@@ -1,4 +1,5 @@
-﻿using KickLib;
+﻿using DotNetTwitchBot.Bot.TwitchServices;
+using KickLib;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetTwitchBot.Bot.KickServices
@@ -7,11 +8,13 @@ namespace DotNetTwitchBot.Bot.KickServices
     {
         private readonly IKickApi kickApi;
         private readonly ILogger<KickService> logger;
+        private readonly ChatMessageIdTracker chatMessageIdTracker;
         private int broadcasterUserId = -1;
 
         public KickService(
             ILogger<KickService> logger,
             ILoggerFactory loggerFactory,
+            ChatMessageIdTracker chatMessageIdTracker,
             IConfiguration configuration)
         {
             this.logger = logger;
@@ -28,6 +31,7 @@ namespace DotNetTwitchBot.Bot.KickServices
             };
 
             kickApi = KickApi.Create(streamerSettings, loggerFactory);
+            this.chatMessageIdTracker = chatMessageIdTracker;
             logger.LogInformation("KickService initialized.");
         }
 
@@ -62,7 +66,11 @@ namespace DotNetTwitchBot.Bot.KickServices
                 {
                     if (result.IsSuccess)
                     {
-                        logger.LogInformation("STREAMERCHATMSG[K]: {message}", message.Replace(Environment.NewLine, ""));
+                        if (string.IsNullOrEmpty(result.Value.MessageId) == false)
+                        {
+                            chatMessageIdTracker.AddMessageId(result.Value.MessageId);
+                        }
+                        logger.LogInformation("BOTMSG[K]: {message}", message.Replace(Environment.NewLine, ""));
                     }
                     else
                     {
@@ -78,6 +86,70 @@ namespace DotNetTwitchBot.Bot.KickServices
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error sending message as streamer to Kick chat.");
+            }
+        }
+
+        public async Task SendMessageAsStreamer(string message)
+        {
+            try
+            {
+                var result = await kickApi.Chat.SendMessageAsUserAsync(await GetBroadcasterUserId(), message);
+                if (result != null)
+                {
+                    if (result.IsSuccess)
+                    {
+                        if (string.IsNullOrEmpty(result.Value.MessageId) == false)
+                        {
+                            chatMessageIdTracker.AddMessageId(result.Value.MessageId);
+                        }
+                        logger.LogInformation("STREAMERMSG[K]: {message}", message.Replace(Environment.NewLine, ""));
+                    }
+                    else
+                    {
+                        logger.LogWarning("Failed to send message as streamer to Kick chat. Error: {Error}", result.Errors.ToString());
+                    }
+                    return;
+                }
+                else
+                {
+                    logger.LogWarning("Failed to send message as streamer to Kick chat. Result was null.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error sending message as streamer to Kick chat.");
+            }
+        }
+
+        public async Task ReplyToMessage(string name, string messageId, string message)
+        {
+            try
+            {
+                var result = await kickApi.Chat.SendMessageAsBotAsync(message, messageId);
+                if (result != null)
+                {
+                    if (result.IsSuccess)
+                    {
+                        if (string.IsNullOrEmpty(result.Value.MessageId) == false)
+                        {
+                            chatMessageIdTracker.AddMessageId(result.Value.MessageId);
+                        }
+                        logger.LogInformation("BOTREPLYMSG[K]: {name} - {message}", name, message.Replace(Environment.NewLine, ""));
+                    }
+                    else
+                    {
+                        logger.LogWarning("Failed to send reply message as streamer to Kick chat. Error: {Error}", result.Errors.ToString());
+                    }
+                    return;
+                }
+                else
+                {
+                    logger.LogWarning("Failed to send reply message as streamer to Kick chat. Result was null.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error sending reply message as streamer to Kick chat.");
             }
         }
     }

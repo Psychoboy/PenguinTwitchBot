@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.KickServices;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
@@ -37,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
+        private readonly IKickService _kickService;
         private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
@@ -45,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
+            IKickService kickService,
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands", mediator)
@@ -54,6 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _logger = logger;
             _twitchService = twitchService;
             _PointsSystem = pointsSystem;
+            _kickService = kickService;
 
             //Register Tags here
             CommandTags.Add("alert");
@@ -583,13 +587,20 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 {
                     message = UnescapeTagsInMessages(result.Message);
 
-                    if (respondAsStreamer && eventArgs.Platform == PlatformType.Twitch)
+                    if (respondAsStreamer)
                     {
-                        await _twitchService.SendMessage(message);
+                        if (eventArgs.Platform == PlatformType.Kick)
+                        {
+                            await _kickService.SendMessageAsStreamer(message);
+                        }
+                        else
+                        {
+                            await _twitchService.SendMessage(message);
+                        }
                     }
-                    else if (result.ReplyToMessage && eventArgs.Platform == PlatformType.Twitch)
+                    else if (result.ReplyToMessage )
                     {
-                        await ServiceBackbone.ResponseWithMessage(eventArgs, message);
+                        await ServiceBackbone.ResponseWithMessage(eventArgs, message, eventArgs.Platform);
                     }
                     else
                     {
