@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.TwitchServices;
 using KickLib;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.KickServices
 {
@@ -10,6 +11,7 @@ namespace DotNetTwitchBot.Bot.KickServices
         private readonly ILogger<KickService> logger;
         private readonly ChatMessageIdTracker chatMessageIdTracker;
         private int broadcasterUserId = -1;
+        private static readonly HttpClient httpClient = new();
 
         public KickService(
             ILogger<KickService> logger,
@@ -151,6 +153,59 @@ namespace DotNetTwitchBot.Bot.KickServices
             {
                 logger.LogError(ex, "Error sending reply message as streamer to Kick chat.");
             }
+        }
+
+        public async Task<Models.KickUser?> GetViewerInfoByUserId(string userId)
+        {
+            try
+            {
+                var viewer = await kickApi.Users.GetUserAsync(int.Parse(userId));
+                if(viewer == null || !viewer.IsSuccess)
+                {
+                    logger.LogWarning("Failed to get viewer info by user ID from Kick. Error: {Error}", viewer?.Errors.ToString());
+                    return null;
+                }
+
+                return await GetViewerInfoByUsername(viewer.Value.Name);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting viewer info by user ID from Kick.");
+                return null;
+            }
+        }
+
+        public async Task<Models.KickUser?> GetViewerInfoByUsername(string username)
+        {
+            try
+            {
+                var url = $"https://kick.com/api/v2/channels/superpenguintv/users/{username}";
+                using Stream stream = await httpClient.GetStreamAsync(url);
+                var kickUser = await JsonSerializer.DeserializeAsync<Models.KickUser>(stream);
+                return kickUser;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error getting viewer info by username from Kick.");
+                return null;
+            }
+        }
+
+        public async Task<Follower?> GetFollower(string username)
+        {
+            var kickUser = await GetViewerInfoByUsername(username);
+            if (kickUser != null && kickUser.FollowingSince != null)
+            {
+                return new Follower
+                {
+                    UserId = kickUser.Id.ToString(),
+                    Username = kickUser.Username,
+                    DisplayName = kickUser.Username,
+                    FollowDate = (DateTime)kickUser.FollowingSince,
+                    Platform = PlatformType.Kick
+                };
+            }
+            return null;
         }
     }
 }

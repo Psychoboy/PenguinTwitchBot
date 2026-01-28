@@ -12,5 +12,6 @@ namespace DotNetTwitchBot.Bot.Events
         public bool IsRenewal { get; set; } = false;
         public bool HadPreviousSub { get; set; } = false;
         public string? Message { get; set; }
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
     }
 }
