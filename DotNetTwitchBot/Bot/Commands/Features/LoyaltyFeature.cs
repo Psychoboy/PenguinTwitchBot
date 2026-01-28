@@ -93,11 +93,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             foreach (var viewerName in currentViewers)
             {
                 if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await viewerFeature.GetViewerId(viewerName);
+                var userId = await viewerFeature.GetViewerId(viewerName, PlatformType.Twitch);
                 if(userId == null) continue;
                 try
                 {
-                    await pointsSystem.AddPointsByUserIdAndGame(userId, ModuleName, 5);
+                    await pointsSystem.AddPointsByUserIdAndGame(userId, PlatformType.Twitch, ModuleName, 5);
                 }
                 catch (Exception ex)
                 {
@@ -117,7 +117,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             foreach (var viewerName in activeViewers)
             {
                 if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await viewerFeature.GetViewerId(viewerName);
+                var userId = await viewerFeature.GetViewerId(viewerName, PlatformType.Twitch);
                 if (userId == null) continue;
                 await AddTimeToViewerByUserId(userId, 10);
             }
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var viewer = await viewerFeature.GetViewerByUserId(userId);
+                var viewer = await viewerFeature.GetViewerByUserId(userId, PlatformType.Twitch);
                 if (viewer == null) return;
                 var viewerTime = await db.ViewersTime.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
                 viewerTime ??= new ViewerTime

@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
             var minBet = await gameSettingsService.GetIntSetting(ModuleName, MINIMUM_BET, 5);
-            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, "gamble", e.Args.First(), minBet);
+            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, e.Platform, "gamble", e.Args.First(), minBet);
             long amount = 0;
             switch (maxBet.Result)
             {
@@ -144,8 +144,15 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Rolled}", value.ToString(), StringComparison.OrdinalIgnoreCase)
                     .Replace("{Points}", (winnings + jackpotWinnings).ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
-                await twitchServices.Announcement(jackpotWin);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings + jackpotWinnings);
+                if(PlatformType.Twitch == e.Platform)
+                {
+                    await twitchServices.Announcement(jackpotWin);
+                } else
+                {
+                    await ServiceBackbone.ResponseWithMessage(e, jackpotWin);
+                }
+
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, winnings + jackpotWinnings);
                 await LaunchFireworks();
             }
             //If not jackpot see if they win at all
@@ -159,7 +166,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Points}", winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.ResponseWithMessage(e, winMessage);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, winnings);
                 if (value == jackpotNumber)
                 {
                     await ServiceBackbone.ResponseWithMessage(e, "You hit the jackpot! But the stream is offline so just normal win :(");

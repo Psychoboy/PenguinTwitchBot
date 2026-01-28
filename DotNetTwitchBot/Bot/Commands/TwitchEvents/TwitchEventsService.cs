@@ -82,7 +82,8 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                         IsBroadcaster = adEvent.ElevatedPermission == Rank.Streamer,
                         DisplayName = "",
                         Name = "",
-                        SkipLock = true
+                        SkipLock = true,
+                        Platform = PlatformType.Twitch
                     };
                     await ServiceBackbone.RunCommand(command);
                 }
@@ -91,7 +92,7 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                     var message = adEvent.Message.Replace("(length)", e.Length.ToString(), StringComparison.OrdinalIgnoreCase)
                         .Replace("(automatic)", e.Automatic.ToString(), StringComparison.OrdinalIgnoreCase)
                         .Replace("(startdate)", e.StartedAt.ToString(), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(message);
+                    await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
                 }
             }
         }
@@ -169,14 +170,15 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
                         IsBroadcaster = evt.ElevatedPermission == Rank.Streamer,
                         DisplayName = "",
                         Name = "",
-                        SkipLock = true
+                        SkipLock = true,
+                        Platform = PlatformType.Twitch
                     };
                     await ServiceBackbone.RunCommand(command);
                 }
 
                 if (string.IsNullOrWhiteSpace(evt.Message) == false)
                 {
-                    await ServiceBackbone.SendChatMessage(evt.Message);
+                    await ServiceBackbone.SendChatMessage(evt.Message, PlatformType.Twitch);
                 }
             }
         }

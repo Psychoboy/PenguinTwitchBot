@@ -43,7 +43,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
+            var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName);
             if (userPasties.Points < StealMax)
             {
                 await ServiceBackbone.ResponseWithMessage(e, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
@@ -55,36 +55,36 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
         private async Task StealFromUser(CommandEventArgs e)
         {
-            var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, ModuleName);
-            var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
+            var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, e.Platform, ModuleName);
+            var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser); //PlatformType.Twitch
             var amount = StaticTools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
                 await ServiceBackbone.ResponseWithMessage(e,
                 string.Format("{0} is to poor for you to steal from them, instead you give them {1} pasties.", targetDisplayName, amount.ToString("N0")));
-                await MovePoints(e.Name, e.TargetUser, amount);
+                await MovePoints(e.Name, e.TargetUser, e.Platform, amount);
                 return;
             }
             var rand = StaticTools.Next(1, 12 + 1);
             if (rand <= 4) // success
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} pasties from {2}",
-                e.DisplayName, amount, targetDisplayName));
+                e.DisplayName, amount, targetDisplayName), e.Platform);
 
-                await MovePoints(e.TargetUser, e.Name, amount);
+                await MovePoints(e.TargetUser, e.Name, e.Platform, amount);
             }
             else
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} pasties from {2}, {2} gets {1} pasties from {0} instead",
-               e.DisplayName, amount, targetDisplayName));
-                await MovePoints(e.Name, e.TargetUser, amount);
+               e.DisplayName, amount, targetDisplayName), e.Platform);
+                await MovePoints(e.Name, e.TargetUser, e.Platform, amount);
             }
         }
 
-        private async Task MovePoints(string from, string to, int amount)
+        private async Task MovePoints(string from, string to,PlatformType platform, int amount)
         {
-            await pointsSystem.RemovePointsFromUserByUsernameAndGame(from, ModuleName, amount);
-            await pointsSystem.RemovePointsFromUserByUsernameAndGame(to, ModuleName, amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(from, platform, ModuleName, amount);
+            await pointsSystem.RemovePointsFromUserByUsernameAndGame(to, platform, ModuleName, amount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

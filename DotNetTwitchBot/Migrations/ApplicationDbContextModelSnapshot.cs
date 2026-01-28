@@ -165,6 +165,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
 
@@ -221,6 +225,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<DateTime>("NextUserCooldownTime")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<int>("Platform")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
@@ -268,6 +275,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
@@ -354,6 +365,10 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
 
@@ -423,6 +438,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
@@ -499,6 +518,10 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PointTypeId")
                         .HasColumnType("int");
@@ -981,6 +1004,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int>("PointTypeId")
                         .HasColumnType("int");
 
@@ -1049,6 +1076,9 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<bool>("Banned")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Platform")
+                        .HasColumnType("int");
 
                     b.Property<int>("PointTypeId")
                         .HasColumnType("int");
@@ -1357,6 +1387,10 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<DateTime>("NextRun")
                         .HasColumnType("datetime(6)");
 
+                    b.PrimitiveCollection<string>("Platforms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("Repeat")
                         .HasColumnType("tinyint(1)");
 
@@ -1434,6 +1468,9 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<DateTime>("LastSeen")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Platform")
+                        .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()

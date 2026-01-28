@@ -65,13 +65,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if (!ServiceBackbone.IsOnline)
             {
-                await SendChatMessage(sender, "Nice try, the stream is currently offline.");
+                await SendChatMessage(sender, "Nice try, the stream is currently offline.", PlatformType.Twitch);
                 throw new SkipCooldownException();
             }
 
             if (ClaimedFirst.Count >= MaxClaims)
             {
-                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
+                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan", PlatformType.Twitch);
                 throw new SkipCooldownException();
             }
 
@@ -81,14 +81,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var awardPoints = (int)Math.Floor(((double)MaxClaims - CurrentClaims) / 2);
             if (awardPoints == 0)
             {
-                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan");
+                await SendChatMessage(sender, "Sorry, You were to slow today. FeelsBadMan", PlatformType.Twitch);
                 throw new SkipCooldownException();
             }
             CurrentClaims++;
             _logger.LogInformation("Current Claims: {CurrentClaims}", CurrentClaims);
             //await _ticketsFeature.GiveTicketsToViewerByUsername(sender, awardPoints);
-            await _pointsSystem.AddPointsByUsernameAndGame(sender, ModuleName, awardPoints);
-            await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints));
+            await _pointsSystem.AddPointsByUsernameAndGame(sender, PlatformType.Twitch, ModuleName, awardPoints);
+            await SendChatMessage(sender, string.Format("Whooohooo! You came in position {0} and get {1} tickets!! PogChamp", ClaimedFirst.Count, awardPoints), PlatformType.Twitch);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

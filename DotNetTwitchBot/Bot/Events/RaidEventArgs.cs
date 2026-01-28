@@ -11,5 +11,6 @@ namespace DotNetTwitchBot.Bot.Events
         public string UserId { get; set; } = string.Empty;
         public string DisplayName { get; set; } = null!;
         public int NumberOfViewers { get; set; }
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
     }
 }

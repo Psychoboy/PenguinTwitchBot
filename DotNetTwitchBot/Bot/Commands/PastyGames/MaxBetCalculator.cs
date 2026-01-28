@@ -7,13 +7,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
     public class MaxBetCalculator(IPointsSystem pointsSystem)
     {
-        public async Task<MaxBet> CheckAndRemovePoints(string userId, string gameName, string betAmount, long minBet)
+        public async Task<MaxBet> CheckAndRemovePoints(string userId, PlatformType platform, string gameName, string betAmount, long minBet)
         {
             long amount;
             if (betAmount.Equals("all", StringComparison.OrdinalIgnoreCase) ||
                betAmount.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
-                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, PointsSystem.MaxBet);
+                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(userId, platform, gameName, PointsSystem.MaxBet);
             }
             else if(betAmount.Contains('%'))
             {
@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                             Result = ParseResult.InvalidValue
                         };
                     }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(userId, gameName, PointsSystem.MaxBet) * result.Value);
+                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(userId, platform, gameName, PointsSystem.MaxBet) * result.Value);
                 }
                 catch
                 {
@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 };
             }
 
-            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(userId, gameName, amount)))
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(userId, platform, gameName, amount)))
             {
                 return new MaxBet { Result = ParseResult.NotEnough };
             }

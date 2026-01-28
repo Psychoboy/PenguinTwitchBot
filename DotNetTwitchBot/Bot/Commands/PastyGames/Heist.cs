@@ -62,6 +62,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             public string Name = null!;
             public string DisplayName = null!;
             public long Bet = 0;
+            public PlatformType Platform = PlatformType.Twitch;
         }
 
         public override async Task Register()
@@ -85,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (Entered.Exists(x => x.Name.Equals(e.Name)))
+            if (Entered.Exists(x => x.Name.Equals(e.Name) && x.Platform == e.Platform))
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, ALREADYJOINED, "you have already joined the heist.");
                 await ServiceBackbone.ResponseWithMessage(e, message); //ALREADYJOINED
@@ -103,7 +104,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             if (amountStr.Equals("all", StringComparison.OrdinalIgnoreCase) ||
                amountStr.Equals("max", StringComparison.OrdinalIgnoreCase))
             {
-                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet);
+                amount = await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, PointsSystem.MaxBet);
             }
             else if (amountStr.Contains('%'))
             {
@@ -115,7 +116,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         await SendInvalidArgsMessage(e, e.Command);
                         throw new SkipCooldownException();
                     }
-                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, ModuleName, PointsSystem.MaxBet) * result.Value);
+                    amount = (long)(await pointsSystem.GetMaxPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, PointsSystem.MaxBet) * result.Value);
                 }
                 catch
                 {
@@ -141,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
-            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, amount)))
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, e.Platform, ModuleName, amount)))
             {
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, NOTENOUGHPOINTS, "sorry you don't have that amount of {PointType} to enter the heist.");
                 message = message.Replace("{PointType}", pointType.Name, StringComparison.OrdinalIgnoreCase);
@@ -155,13 +156,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 message = message
                     .Replace("{Command}", e.Command, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(message); //GAMESTARTING
+                await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch); //GAMESTARTING
                 GameState = State.Running;
                 Entered.Add(new Participant
                 {
                     Name = e.Name,
                     DisplayName = e.DisplayName,
-                    Bet = amount
+                    Bet = amount,
+                    Platform = e.Platform
                 });
                 var joinTime = await gameSettingsService.GetIntSetting(GAMENAME, JOINTIME, 300);
                 JoinTimer = timeProvider.CreateTimer(JoinTimerCallback, this, TimeSpan.FromSeconds(joinTime), TimeSpan.FromSeconds(joinTime));
@@ -172,7 +174,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     Name = e.Name,
                     DisplayName = e.DisplayName,
-                    Bet = amount
+                    Bet = amount,
+                    Platform = e.Platform
                 });
 
             }
@@ -211,14 +214,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                             CalculateResult();
                             var stageOne = await gameSettingsService.GetStringSetting(GAMENAME, STAGEONE, "The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! sptvCharlie");
                             stageOne = ReplaceStageMessages(stageOne);
-                            await ServiceBackbone.SendChatMessage(stageOne); //STAGEONE
+                            await ServiceBackbone.SendChatMessage(stageOne, PlatformType.Twitch); //STAGEONE
                             CurrentStoryPart++;
                             break;
 
                         case 1:
                             var stageTwo = await gameSettingsService.GetStringSetting(GAMENAME, STAGETWO, "Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
                             stageTwo = ReplaceStageMessages(stageTwo);
-                            await ServiceBackbone.SendChatMessage(stageTwo); //STAGETWO
+                            await ServiceBackbone.SendChatMessage(stageTwo, PlatformType.Twitch); //STAGETWO
                             CurrentStoryPart++;
                             break;
 
@@ -227,7 +230,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                             {
                                 var stageThree = await gameSettingsService.GetStringSetting(GAMENAME, STAGETHREE, "Look out! Charlie sptvCharlie captured {Caught}");
                                 stageThree = ReplaceStageMessages(stageThree);
-                                await ServiceBackbone.SendChatMessage(stageThree); //STAGETHREE
+                                await ServiceBackbone.SendChatMessage(stageThree, PlatformType.Twitch); //STAGETHREE
                             }
                             CurrentStoryPart++;
                             break;
@@ -237,7 +240,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                             {
                                 var stageFour = await gameSettingsService.GetStringSetting(GAMENAME, STAGEFOUR, "{Survivors} managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
                                 stageFour = ReplaceStageMessages(stageFour);
-                                await ServiceBackbone.SendChatMessage(stageFour); //STAGEFOUR
+                                await ServiceBackbone.SendChatMessage(stageFour, PlatformType.Twitch); //STAGEFOUR
                             }
                             CurrentStoryPart++;
                             break;
@@ -270,7 +273,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
                     var pay = Convert.ToInt64(participant.Bet * winMultiplier);
-                    await pointsSystem.AddPointsByUsernameAndGame(participant.Name, ModuleName, participant.Bet + pay);
+                    await pointsSystem.AddPointsByUsernameAndGame(participant.Name, participant.Platform, ModuleName, participant.Bet + pay);
                     var formattedName = string.Format("{0} ({1})", participant.DisplayName, (participant.Bet + pay).ToString("N0"));
                     maxlength += formattedName.Length;
                     payouts.Add(formattedName);
@@ -279,7 +282,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 if (payouts.Count == 0)
                 {
                     var message = await gameSettingsService.GetStringSetting(GAMENAME, NOONEWON, "The heist ended! There are no survivors.");
-                    await ServiceBackbone.SendChatMessage(message); //NOONEWON
+                    await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch); //NOONEWON
                 }
                 else if (maxlength + 14 > 512)
                 {
@@ -287,13 +290,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     message = message
                         .Replace("{SurvivorsCount}", Survivors.Count.ToString(), StringComparison.OrdinalIgnoreCase)
                         .Replace("{CaughtCount}", Caught.Count.ToString(), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(message); //HEISTENDEDWITHBOTH
+                    await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch); //HEISTENDEDWITHBOTH
                 }
                 else
                 {
                     var message = await gameSettingsService.GetStringSetting(GAMENAME, SURVIVORS, "The heist ended! Survivors are: {Payouts}.");
                     message = message.Replace("{Payouts}", string.Join(", ", payouts), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(message); //HEISTENDED
+                    await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch); //HEISTENDED
                 }
                 await CleanUp();
             }

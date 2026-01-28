@@ -28,15 +28,20 @@ namespace DotNetTwitchBot.Bot.Commands
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
                 if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckToRunBroadcasterOnly(eventArgs, commandService.CommandProperties))
                 {
+                    if(!commandService.CommandProperties.Platforms.Contains(eventArgs.Platform))
+                    {
+                        return;
+                    }
+
                     if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
                     {
                         if (commandService.CommandProperties.SayCooldown)
                         {
-                            if (await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
+                            if (await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.Platform, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
                         }
                         else
                         {
-                            if (await commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
+                            if (await commandHandler.IsCoolDownExpired(eventArgs.Name, eventArgs.Platform, commandService.CommandProperties.CommandName) == false) return;
                         }
                         //This will throw a SkipCooldownException if the command fails to by pass setting cooldown
                         await commandService.CommandService.OnCommand(this, eventArgs);

@@ -16,6 +16,7 @@
                             <MudTh>Command</MudTh>
                             <MudTh>Category</MudTh>
                             <MudTh>Description</MudTh>
+                            <MudTh>Platforms</MudTh>
                             <MudTh>Disabled</MudTh>
                             <MudTh></MudTh>
                             <MudTh></MudTh>
@@ -24,6 +25,7 @@
                             <MudTd DataLabel="Command">!@context.CommandName</MudTd>
                             <MudTd DataLabel="Category">@context.Category</MudTd>
                             <MudTd DataLabel="Description">@context.Description</MudTd>
+                            <MudTd DataLabel="Platforms">@string.Join(", ", context.Platforms)</MudTd>
                             <MudTd DataLabel="Disabled">@context.Disabled</MudTd>
                             <MudTd DataLabel="Edit">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -67,6 +69,13 @@
                         <MudCheckBox @bind-Value="@externalCommand.Disabled" Label="Disabled?"></MudCheckBox>
                         <MudSelect @bind-Value="@externalCommand.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudSelect T=PlatformType SelectedValues="@externalCommand.Platforms" Label="Platform" MultiSelection="true"
+                                   SelectedValuesChanged="@(args => externalCommand.Platforms = args.ToList())">
+                            @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
                             {
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }

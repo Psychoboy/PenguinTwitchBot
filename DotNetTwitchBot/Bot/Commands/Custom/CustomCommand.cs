@@ -6,6 +6,7 @@ using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.KickServices;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
@@ -37,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
+        private readonly IKickService _kickService;
         private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
@@ -45,6 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
+            IKickService kickService,
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands", mediator)
@@ -54,6 +57,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             _logger = logger;
             _twitchService = twitchService;
             _PointsSystem = pointsSystem;
+            _kickService = kickService;
 
             //Register Tags here
             CommandTags.Add("alert");
@@ -236,7 +240,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
+                if (await CommandHandler.IsCoolDownExpired(e.Name, e.Platform, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -266,6 +270,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsMod = e.IsBroadcaster || e.IsMod,
                         IsVip = e.IsVip,
                         IsBroadcaster = e.IsBroadcaster,
+                        Platform = e.Platform,
                     };
 
                     if(await CommandHandler.CheckPermission(keyword.Keyword, commandEventArgs) == false)
@@ -304,6 +309,12 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             {
                 return;
             }
+
+            if (Commands[e.Command].Platforms.Contains(e.Platform) == false)
+            {
+                return;
+            }
+
             await ExecuteCommand(e);
         }
 
@@ -323,16 +334,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var command = Commands[e.Command];
                 if (command.SayCooldown)
                 {
-                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
+                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.Platform, e.DisplayName, e.Command) == false) return;
                 }
                 else
                 {
-                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
+                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Platform, e.Command) == false) return;
                 }
 
                 if (command.Cost > 0 && command.PointType != null)
                 {
-                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
+                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, e.Platform, command.PointTypeId ?? 0, command.Cost)) == false)
                     {
                         await RespondWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
                         return;
@@ -385,11 +396,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             if (newCommand != null)
                             {
                                 await AddCommand(newCommand);
-                                await ServiceBackbone.SendChatMessage("Successfully added command");
+                                await ServiceBackbone.SendChatMessage("Successfully added command", e.Platform);
                             }
                             else
                             {
-                                await ServiceBackbone.SendChatMessage("failed to add command");
+                                await ServiceBackbone.SendChatMessage("failed to add command", e.Platform);
                             }
 
                         }
@@ -416,7 +427,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg), e.Platform);
                                 return;
                             }
                             command.Disabled = true;
@@ -424,7 +435,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg), e.Platform);
                         return;
                     }
 
@@ -437,7 +448,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg), e.Platform);
                                 return;
                             }
                             command.Disabled = false;
@@ -445,7 +456,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg), e.Platform);
                         return;
                     }
 
@@ -576,17 +587,25 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 if (!string.IsNullOrWhiteSpace(result.Message))
                 {
                     message = UnescapeTagsInMessages(result.Message);
+
                     if (respondAsStreamer)
                     {
-                        await _twitchService.SendMessage(message);
+                        if (eventArgs.Platform == PlatformType.Kick)
+                        {
+                            await _kickService.SendMessageAsStreamer(message);
+                        }
+                        else
+                        {
+                            await _twitchService.SendMessage(message);
+                        }
                     }
-                    else if (result.ReplyToMessage)
+                    else if (result.ReplyToMessage )
                     {
                         await ServiceBackbone.ResponseWithMessage(eventArgs, message);
                     }
                     else
                     {
-                        await ServiceBackbone.SendChatMessage(message);
+                        await ServiceBackbone.SendChatMessage(message, eventArgs.Platform);
                     }
                 }
             }

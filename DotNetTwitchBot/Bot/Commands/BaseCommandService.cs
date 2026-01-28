@@ -25,27 +25,26 @@ namespace DotNetTwitchBot.Bot.Commands
 
         protected IServiceBackbone ServiceBackbone { get; }
 
-        public async Task SendChatMessage(string message)
+        public async Task SendChatMessage(string message, PlatformType platform)
         {
-            await ServiceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message, platform);
         }
 
-        public async Task SendChatMessage(string name, string message)
+        public async Task SendChatMessage(string name, string message, PlatformType platform)
         {
-            await ServiceBackbone.SendChatMessage(name, message);
+            await ServiceBackbone.SendChatMessage(name, message, platform);
         }
 
         public async Task RespondWithMessage(CommandEventArgs e, string message)
         {
             message = message.TrimStart('!').Trim();
-
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message);
+                await ServiceBackbone.SendChatMessage(e.DisplayName, message, e.Platform);
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message));
+                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message, e.Platform));
             }
         }
 

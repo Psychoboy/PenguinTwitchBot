@@ -15,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Events.Chat
         public string Name { get; set; } = "";
         public string UserId { get; set; } = string.Empty;
         public string MessageId { get; set; } = string.Empty;
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
 
         public bool IsSubOrHigher()
         {

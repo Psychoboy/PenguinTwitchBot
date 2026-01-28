@@ -9,5 +9,6 @@ namespace DotNetTwitchBot.Bot.Events
     {
         public string? Name { get; set; }
         public string UserId { get; set; } = string.Empty;
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
     }
 }

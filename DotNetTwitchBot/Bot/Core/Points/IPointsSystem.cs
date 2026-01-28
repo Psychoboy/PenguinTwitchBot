@@ -7,24 +7,23 @@ namespace DotNetTwitchBot.Bot.Core.Points
 {
     public interface IPointsSystem
     {
-        Task<long> AddPointsByUserId(string userId, int pointType, long points);
-        Task<long> AddPointsByUsername(string username, int pointType, long points);
-        Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points);
-        Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points);
-        Task AddPointsToActiveUsers(int pointType, long points);
-        Task AddPointsToSubbedUsers(int pointType, long points);
-        Task AddPointsToAllCurrentUsers(int pointType, long points);
-        //Task<long> GetMaxPointsByUserId(string userId, int pointType);
-        Task<long> GetMaxPointsByUserId(string userId, int pointType, long max);
-        Task<long> GetMaxPointsByUserIdAndGame(string userId, string gameName, long max);
-        Task<UserPoints> GetUserPointsByUserId(string userId, int pointType);
-        Task<UserPoints> GetUserPointsByUsername(string username, int pointType);
-        Task<UserPoints> GetUserPointsByUserIdAndGame(string userId, string gameName);
-        Task<UserPoints> GetUserPointsByUsernameAndGame(string username, string gameName);
-        Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points);
-        Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points);
-        Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points);
-        Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points);
+        Task<long> AddPointsByUserId(string userId, PlatformType platformType, int pointType, long points);
+        Task<long> AddPointsByUsername(string username, PlatformType platformType, int pointType, long points);
+        Task<long> AddPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName, long points);
+        Task<long> AddPointsByUsernameAndGame(string username, PlatformType platformType, string gameName, long points);
+        Task AddPointsToActiveUsers(int pointType, PlatformType platformType, long points);
+        Task AddPointsToSubbedUsers(int pointType, PlatformType platformType, long points);
+        Task AddPointsToAllCurrentUsers(int pointType, PlatformType platformType, long points);
+        Task<long> GetMaxPointsByUserId(string userId, PlatformType platformType, int pointType, long max);
+        Task<long> GetMaxPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName, long max);
+        Task<UserPoints> GetUserPointsByUserId(string userId, PlatformType platformType, int pointType);
+        Task<UserPoints> GetUserPointsByUsername(string username, PlatformType platformType, int pointType);
+        Task<UserPoints> GetUserPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName);
+        Task<UserPoints> GetUserPointsByUsernameAndGame(string username, PlatformType platformType, string gameName);
+        Task<bool> RemovePointsFromUserByUserId(string userId, PlatformType platformType, int pointType, long points);
+        Task<bool> RemovePointsFromUserByUsername(string username, PlatformType platformType, int pointType, long points);
+        Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, PlatformType platformType, string gameName, long points);
+        Task<bool> RemovePointsFromUserByUsernameAndGame(string username, PlatformType platformType, string gameName, long points);
         Task RemoveAllPointsForGame(string gameName);
         Task<PointType?> GetPointTypeById(int pointTypeId);
         Task<PointCommand?> GetPointCommand(string pointTypeCommand);
@@ -37,10 +36,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task RegisterDefaultPointForGame(string gameName);
         Task RunCommand(CommandEventArgs e, PointCommand pointCommand);
         Task<PagedDataResponse<LeaderPosition>> GetLeaderPositions(PaginationFilter filter, int pointType);
-        Task<ViewerTimeWithRank> GetUserTimeAndRank(string name);
-        Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name);
-        Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType);
-        Task<UserPointsWithRank> GetPointsWithRankByUsername(string username, int pointType);
+        Task<ViewerTimeWithRank> GetUserTimeAndRank(string name, PlatformType platformType);
+        Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name, PlatformType platformType);
+        Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, PlatformType platformType, int pointType);
+        Task<UserPointsWithRank> GetPointsWithRankByUsername(string username, PlatformType platformType, int pointType);
         public Task<List<PointGamePair>> GetPointTypesForGames();
     }
 }

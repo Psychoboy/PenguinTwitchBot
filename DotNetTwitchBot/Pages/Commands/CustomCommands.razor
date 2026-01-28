@@ -19,6 +19,7 @@
                             <MudTh>Command</MudTh>
                             <MudTh>Response</MudTh>
                             <MudTh>Points System</MudTh>
+                            <MudTh>Platforms</MudTh>
                             <MudTh>Disabled</MudTh>
                             <MudTh></MudTh>
                             <MudTh></MudTh>
@@ -27,6 +28,7 @@
                             <MudTd DataLabel="Command">!@context.Key</MudTd>
                             <MudTd DataLabel="Response" Style="overflow-wrap:anywhere;max-width:15%;">@context.Value.Response</MudTd>
                             <MudTd DataLabel="PointSystem">@context.Value.PointType?.Name</MudTd>
+                            <MudTd DataLabel="Platforms">@string.Join(", ", context.Value.Platforms)</MudTd>
                             <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
                             <MudTd DataLabel="Edit">
                                 <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
@@ -81,6 +83,13 @@
                         <MudCheckBox @bind-Value="@customCommand.RunFromBroadcasterOnly" Label="Run from own channel only?"></MudCheckBox>
                         <MudSelect @bind-Value="@customCommand.MinimumRank" Label="Minimum Rank">
                             @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudSelect T=PlatformType SelectedValues="@customCommand.Platforms" Label="Platform" MultiSelection="true"
+                            SelectedValuesChanged="@(args => customCommand.Platforms = args.ToList())">
+                            @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
                             {
                                 <MudSelectItem Value="@item">@item</MudSelectItem>
                             }

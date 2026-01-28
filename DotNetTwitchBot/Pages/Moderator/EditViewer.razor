@@ -186,8 +186,8 @@ else
                 viewer.FollowDated = follower.FollowDate;
             }
             var giveawayPointsSystem = await pointSystem.GetPointTypeForGame("giveawayfeature");
-            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, giveawayPointsSystem.Id.GetValueOrDefault());
-            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, 1);
+            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, viewer.Viewer.Platform, giveawayPointsSystem.Id.GetValueOrDefault());
+            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, viewer.Viewer.Platform, 1);
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
             viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);

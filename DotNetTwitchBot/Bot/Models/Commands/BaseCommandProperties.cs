@@ -28,5 +28,6 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public string? SpecificUserOnly { get; set; } = null;
         public List<string> SpecificUsersOnly { get; set; } = [];
         public List<Rank> SpecificRanks { get; set; } = [];
+        public List<PlatformType> Platforms { get; set; } = [ PlatformType.Twitch ];
     }
 }

@@ -15,5 +15,6 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public DateTime NextUserCooldownTime { get; set; } = DateTime.MinValue;
         public string CommandName { get; set; } = null!;
         public string UserName { get; set; } = ""!;
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
     }
 }

@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if (CurrentState != State.NotRunning)
             {
-                await ServiceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, _name));
+                await ServiceBackbone.SendChatMessage(Sender, string.Format(raffleRunning, _name), PlatformType.Twitch);
                 return;
             }
 
@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             _startTime = DateTime.Now;
             _entered.Clear();
             _joinedSinceLastAnnounce = false;
-            await ServiceBackbone.SendChatMessage(string.Format(raffleStarting, _emote, WinAmount, _command));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleStarting, _emote, WinAmount, _command), PlatformType.Twitch);
             RunRaffle();
         }
 
@@ -113,7 +113,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             if (_entered.Count == 0)
             {
                 CurrentState = State.NotRunning;
-                await ServiceBackbone.SendChatMessage(string.Format(raffleNotEnough, _name));
+                await ServiceBackbone.SendChatMessage(string.Format(raffleNotEnough, _name), PlatformType.Twitch);
                 return;
             }
 
@@ -136,10 +136,10 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
 
             var eachWins = Math.Ceiling((double)WinAmount / winnerCount);
-            await ServiceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleWinners, string.Join(", ", winners), _name, eachWins, _emote), PlatformType.Twitch);
             foreach (var winner in winners)
             {
-                await _pointSystem.AddPointsByUsernameAndGame(winner, "raffle", (long)eachWins);
+                await _pointSystem.AddPointsByUsernameAndGame(winner, PlatformType.Twitch, "raffle", (long)eachWins);
             }
             CurrentState = State.NotRunning;
         }
@@ -148,14 +148,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         {
             if (_runTime - elapsedTime < 10) return;
             RemainingTimeSent = true;
-            await ServiceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount));
+            await ServiceBackbone.SendChatMessage(string.Format(raffleTimeLeft, _runTime - elapsedTime, _command, WinAmount), PlatformType.Twitch);
         }
 
         private async Task SendJoinedMessage()
         {
             if (_joinedSinceLastAnnounce)
             {
-                await ServiceBackbone.SendChatMessage(string.Format(raffleJoined, _name));
+                await ServiceBackbone.SendChatMessage(string.Format(raffleJoined, _name), PlatformType.Twitch);
                 _joinedSinceLastAnnounce = false;
             }
         }

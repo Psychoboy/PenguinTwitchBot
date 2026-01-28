@@ -18,6 +18,9 @@ namespace DotNetTwitchBot.Bot.Models
         [JsonIgnore]
         public MusicPlaylist MusicPlaylist { get; set; } = null!;
 
+        [NotMapped]
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
+
         public Song CreateDeepCopy()
         {
             return new Song { Id = Id, Title = Title, RequestedBy = RequestedBy, Duration = Duration, SongId = SongId };

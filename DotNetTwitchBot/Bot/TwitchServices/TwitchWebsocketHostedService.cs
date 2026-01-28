@@ -88,6 +88,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsMod = false,
                 IsVip = false,
                 IsBroadcaster = false,
+                Platform = PlatformType.Twitch,
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
@@ -107,7 +108,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 MessageId = e.MessageId,
-                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
+                Platform = PlatformType.Twitch
 
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
@@ -137,7 +139,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim() : "",
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
-                MessageId = e.MessageId
+                MessageId = e.MessageId,
+                Platform = PlatformType.Twitch
             };
             await eventService.OnCommand(eventArgs);
         }

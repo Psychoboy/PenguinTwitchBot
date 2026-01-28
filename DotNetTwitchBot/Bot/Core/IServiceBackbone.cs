@@ -33,7 +33,6 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnAdBreakStartEvent(AdBreakStartEventArgs e);
         Task OnChannelPointRedeem(string userId, string userName, string title);
         Task OnChannelPointRedeem(string userId, string userName, string id, string userInput);
-        //Task OnChatMessage(ChatMessageEventArgs message);
         Task OnCheer(ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);
         Task OnFollow(ChannelFollow ev);
@@ -47,10 +46,10 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnUserLeft(string username);
         Task OnWhisperCommand(CommandEventArgs command);
         Task RunCommand(CommandEventArgs eventArgs);
-        Task SendChatMessage(string message);
-        Task SendChatMessage(string name, string message);
-        Task SendChatMessageWithTitle(string viewerName, string message);
         Task OnViewerBan(string userId, string username, bool unbanned, DateTimeOffset? endsAt);
         Task ResponseWithMessage(CommandEventArgs e, string message);
+        Task SendChatMessage(string message, PlatformType platform);
+        Task SendChatMessage(string name, string message, PlatformType platform);
+        Task SendChatMessageWithTitle(string viewerName, string message, PlatformType platform);
     }
 }

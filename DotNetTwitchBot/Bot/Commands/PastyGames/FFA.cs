@@ -73,9 +73,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             GameState = State.Finishing;
             if (Entered.Count == 1)
             {
-                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0], ModuleName, cost);
+                await _pointsSystem.AddPointsByUsernameAndGame(Entered[0], PlatformType.Twitch, ModuleName, cost);
                 var notEnoughMessage = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_PLAYERS, "Not enough viewers joined the FFA, returning the fees.");
-                await ServiceBackbone.SendChatMessage(notEnoughMessage);
+                await ServiceBackbone.SendChatMessage(notEnoughMessage, PlatformType.Twitch);
                 await CleanUp();
                 return;
             }
@@ -89,8 +89,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 .Replace(GameSettingsService.NAME, winner, StringComparison.OrdinalIgnoreCase)
                 .Replace(GameSettingsService.POINTS, winnings.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                 .Replace(GameSettingsService.POINT_TYPE, pointType.Name, StringComparison.OrdinalIgnoreCase);
-            await ServiceBackbone.SendChatMessage(winnerMessage);
-            await _pointsSystem.AddPointsByUsernameAndGame(winner, ModuleName, winnings);
+            await ServiceBackbone.SendChatMessage(winnerMessage, PlatformType.Twitch);
+            await _pointsSystem.AddPointsByUsernameAndGame(winner, PlatformType.Twitch, ModuleName, winnings);
             await CleanUp();
         }
 
@@ -134,7 +134,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             var cost = await _gameSettingsService.GetIntSetting(ModuleName, COST, 100);
 
-            if (!(await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, cost)))
+            if (!(await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, PlatformType.Twitch, ModuleName, cost)))
             {
                 var notEnoughPoints = await _gameSettingsService.GetStringSetting(ModuleName, NOT_ENOUGH_POINTS, "Sorry it costs {Cost} {PointType} to join the FFA game which you do not have.");
                 notEnoughPoints = notEnoughPoints
@@ -150,7 +150,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 starting = starting
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{CommandName}", e.Command, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(starting);
+                await ServiceBackbone.SendChatMessage(starting, PlatformType.Twitch);
                 GameState = State.Running;
                 var joinTime = await _gameSettingsService.GetIntSetting(ModuleName, JOIN_TIME, 180);
                 _joinTimer.Change(joinTime * 1000, Timeout.Infinite);
@@ -160,7 +160,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var joined = await _gameSettingsService.GetStringSetting(ModuleName, JOINED, "{Name} joined the FFA!");
                 joined = joined
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(joined);
+                await ServiceBackbone.SendChatMessage(joined, PlatformType.Twitch);
             }
             Entered.Add(e.Name);
         }

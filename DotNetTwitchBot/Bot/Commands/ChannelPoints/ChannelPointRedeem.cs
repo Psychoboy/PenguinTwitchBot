@@ -99,7 +99,8 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
                 IsBroadcaster = redeem.ElevatedPermission == Rank.Streamer,
                 DisplayName = e.Sender,
                 Name = e.Sender,
-                SkipLock = true
+                SkipLock = true,
+                Platform = PlatformType.Twitch
             };
             await ServiceBackbone.RunCommand(command);
         }

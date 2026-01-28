@@ -127,8 +127,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 message = message.Trim() + " https://twitch.tv/(name)";
             }
 
-                message = message.Replace("(name)", name).Replace("(game)", game);
-            await ServiceBackbone.SendChatMessage(message);
+            message = message.Replace("(name)", name).Replace("(game)", game);
+            await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
             if(playClip) await _clipService.PlayRandomClipForStreamer(name);
             
             await TwitchShoutOut(userId);
