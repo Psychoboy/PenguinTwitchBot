@@ -88,6 +88,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsMod = false,
                 IsVip = false,
                 IsBroadcaster = false,
+                Platform = PlatformType.Twitch,
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
@@ -107,7 +108,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 MessageId = e.MessageId,
-                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
+                Platform = PlatformType.Twitch
 
             };
             return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
