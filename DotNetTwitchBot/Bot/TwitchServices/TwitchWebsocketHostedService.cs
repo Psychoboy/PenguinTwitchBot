@@ -137,7 +137,8 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim() : "",
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
-                MessageId = e.MessageId
+                MessageId = e.MessageId,
+                Platform = PlatformType.Twitch
             };
             await eventService.OnCommand(eventArgs);
         }

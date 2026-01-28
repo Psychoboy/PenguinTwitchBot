@@ -270,6 +270,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         IsMod = e.IsBroadcaster || e.IsMod,
                         IsVip = e.IsVip,
                         IsBroadcaster = e.IsBroadcaster,
+                        Platform = e.Platform,
                     };
 
                     if(await CommandHandler.CheckPermission(keyword.Keyword, commandEventArgs) == false)
