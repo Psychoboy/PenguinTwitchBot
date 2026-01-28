@@ -342,7 +342,7 @@ namespace DotNetTwitchBot.Bot.Commands
                     using (var scope = scopeFactory.CreateAsyncScope())
                     {
                         var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-                        passed = await viewerService.IsFollowerByUsername(eventArgs.Name);
+                        passed = await viewerService.IsFollowerByUsername(eventArgs.Name, eventArgs.Platform);
                         break;
                     }
                 case Rank.Subscriber:

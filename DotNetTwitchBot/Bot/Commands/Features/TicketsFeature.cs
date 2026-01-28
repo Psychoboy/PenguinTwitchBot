@@ -93,7 +93,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach (var viewer in onlineViewers)
             {
-                if (activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) == false && await _viewerFeature.IsSubscriber(viewer))
+                if (activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) == false && await _viewerFeature.IsSubscriber(viewer, PlatformType.Twitch))
                 {
                     activeViewers.Add(viewer);
                 }
@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var onlineViewers = _viewerFeature.GetCurrentViewers();
             foreach (var viewer in onlineViewers)
             {
-                if (activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) == false && await _viewerFeature.IsSubscriber(viewer))
+                if (activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) == false && await _viewerFeature.IsSubscriber(viewer, PlatformType.Twitch))
                 {
                     activeViewers.Add(viewer);
                 }
@@ -126,7 +126,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             foreach (var viewer in viewers)
             {
                 long bonus = 0;
-                var viewerData = await _viewerFeature.GetViewerByUserName(viewer);
+                var viewerData = await _viewerFeature.GetViewerByUserName(viewer, PlatformType.Twitch);
                 if (viewerData != null && !string.IsNullOrWhiteSpace(viewerData.UserId))
                 {
                     bonus = viewerData.isSub ? subBonusAmount : 0; // Sub Bonus
@@ -137,7 +137,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
         public async Task<long> GiveTicketsToViewerByUsername(string username, long amount)
         {
-            var viewerData = await _viewerFeature.GetViewerByUserName(username);
+            var viewerData = await _viewerFeature.GetViewerByUserName(username, PlatformType.Twitch);
             if (viewerData == null || string.IsNullOrWhiteSpace(viewerData.UserId))
             {
                 return 0;
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<long> GiveTicketsToViewerByUserId(string userid, long amount)
         {
-            var viewer = await _viewerFeature.GetViewerByUserId(userid);
+            var viewer = await _viewerFeature.GetViewerByUserId(userid, PlatformType.Twitch);
             if(viewer == null)
             {
                 _logger.LogWarning("Viewer for userid {userid} was null.", userid);

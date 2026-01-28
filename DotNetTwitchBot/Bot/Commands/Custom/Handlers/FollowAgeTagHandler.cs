@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             var eventArgs = request.CommandEventArgs;
             var args = request.Args;
             if (string.IsNullOrWhiteSpace(args)) args = eventArgs.Name;
-            var follower = await viewerFeature.GetFollowerAsync(args);
+            var follower = await viewerFeature.GetFollowerAsync(args, eventArgs.Platform);
             if (follower == null)
             {
                 return new CustomCommandResult(string.Format("{0} is not a follower", args));

@@ -320,8 +320,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 var entries = await GetEntries();
                 var winningTicket = Tickets.RandomElementOrDefault(logger);
-                var viewer = await viewerFeature.GetViewerByUserName(winningTicket);
-                var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);
+                var viewer = await viewerFeature.GetViewerByUserName(winningTicket, PlatformType.Twitch);
+                var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket, PlatformType.Twitch);
                 var prize = await GetPrize();
 
                 var message = await gameSettingsService.GetStringSetting(ModuleName, "WINNER", "(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
@@ -414,7 +414,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, PlatformType.Twitch, ModuleName)).Points.ToString();
                 }
-                var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
+                var displayName = await viewerFeature.GetDisplayNameByUsername(sender, PlatformType.Twitch);
                 if (!Int32.TryParse(amount, out var points))
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");

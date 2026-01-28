@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 return new CustomCommandResult();
             }
             var targetName = eventArgs.TargetUser;
-            var target = await viewerFeature.GetViewerByUserName(targetName);
+            var target = await viewerFeature.GetViewerByUserName(targetName, eventArgs.Platform);
             if (target == null)
             {
                 logger.LogWarning("Invalid target for custom command of 'checkpoints' type.");

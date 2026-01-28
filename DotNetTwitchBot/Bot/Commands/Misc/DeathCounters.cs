@@ -102,12 +102,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var counter = await GetCounter(counterName);
             if (counter.Amount == 0)
             {
-                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counterName), PlatformType.Twitch);
+                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName, PlatformType.Twitch), counterName), PlatformType.Twitch);
 
             }
             else
             {
-                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counter.Amount, counterName), PlatformType.Twitch);
+                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName, PlatformType.Twitch), counter.Amount, counterName), PlatformType.Twitch);
             }
         }
 
