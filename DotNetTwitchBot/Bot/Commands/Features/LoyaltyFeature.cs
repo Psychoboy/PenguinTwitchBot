@@ -97,7 +97,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if(userId == null) continue;
                 try
                 {
-                    await pointsSystem.AddPointsByUserIdAndGame(userId, ModuleName, 5);
+                    await pointsSystem.AddPointsByUserIdAndGame(userId, PlatformType.Twitch, ModuleName, 5);
                 }
                 catch (Exception ex)
                 {

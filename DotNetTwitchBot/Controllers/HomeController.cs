@@ -115,14 +115,10 @@ namespace DotNetTwitchBot.Controllers
             configuration["Kick:Streamer:AccessToken"] = exchangeResults.Value.AccessToken;
             configuration["Kick:Streamer:ExpiresIn"] = exchangeResults.Value.ExpiresIn.ToString();
             configuration["Kick:Streamer:RefreshToken"] = exchangeResults.Value.RefreshToken;
-            //twitchService.SetAccessToken(resp.AccessToken);
 
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:AccessToken", exchangeResults.Value.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:ExpiresIn", exchangeResults.Value.ExpiresIn.ToString());
             await settingsFileManager.AddOrUpdateAppSetting("Kick:Streamer:RefreshToken", exchangeResults.Value.RefreshToken);
-
-            var kickService = new KickService(loggerFactory.CreateLogger<KickService>(), loggerFactory, configuration);
-            await kickService.SendMessage("Bot successfully connected to Kick!");
             return Redirect("/botauth");
         }
 

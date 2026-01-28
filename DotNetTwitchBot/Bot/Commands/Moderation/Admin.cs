@@ -71,13 +71,13 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         public async Task ResumeAlerts()
         {
             webSocketMessenger.Resume();
-            await ServiceBackbone.SendChatMessage("Alerts resumed.");
+            await ServiceBackbone.SendChatMessage("Alerts resumed.", PlatformType.Twitch);
         }
 
         public async Task PauseAlerts()
         {
             webSocketMessenger.Pause();
-            await ServiceBackbone.SendChatMessage("Alerts paused.");
+            await ServiceBackbone.SendChatMessage("Alerts paused.", PlatformType.Twitch);
         }
 
         public async Task ForceStreamOnline()

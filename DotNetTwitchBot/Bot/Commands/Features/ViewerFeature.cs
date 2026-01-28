@@ -142,7 +142,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnFollow(object? sender, FollowEventArgs e)
         {
             _logger.LogInformation("{DisplayName} Followed.", e.DisplayName);
-            await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
+            await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3", e.Platform);
             UpdateLastActive(e.Username);
         }
 

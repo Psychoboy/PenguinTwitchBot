@@ -115,11 +115,11 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 
             if (command.SayCooldown)
             {
-                if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
+                if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.Platform, e.DisplayName, e.Command) == false) return;
             }
             else
             {
-                if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
+                if (await CommandHandler.IsCoolDownExpired(e.Name, e.Platform, e.Command) == false) return;
             }
 
             if (await CommandHandler.CheckPermission(Commands[e.Command], e) == false)
@@ -202,7 +202,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
                 var command = await db.AudioCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                 if (command == null)
                 {
-                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.enable").Replace("(command)", e.Arg));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.enable").Replace("(command)", e.Arg), e.Platform);
                     return;
                 }
                 command.Disabled = disabled;
@@ -210,7 +210,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
                 db.AudioCommands.Update(command);
                 await db.SaveChangesAsync();
             }
-            await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.enable").Replace("(command)", e.Arg));
+            await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.enable").Replace("(command)", e.Arg), e.Platform);
         }
 
         private async Task RefreshAudio()
@@ -226,11 +226,11 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);
-                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.add"));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.success.add"), e.Platform);
                 }
                 else
                 {
-                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.add"));
+                    await ServiceBackbone.SendChatMessage(language.Get("audiocommands.fail.add"), e.Platform);
                 }
 
             }

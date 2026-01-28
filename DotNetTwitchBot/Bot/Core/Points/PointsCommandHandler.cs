@@ -25,11 +25,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 bool isCoolDownExpired = false;
                 if (pointCommand.SayCooldown)
                 {
-                    isCoolDownExpired = await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, pointCommand);
+                    isCoolDownExpired = await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.Platform, eventArgs.DisplayName, pointCommand);
                 }
                 else
                 {
-                    isCoolDownExpired = await commandHandler.IsCoolDownExpired(eventArgs.Name, pointCommand.CommandName);
+                    isCoolDownExpired = await commandHandler.IsCoolDownExpired(eventArgs.Name, eventArgs.Platform, pointCommand.CommandName);
                 }
                 if(isCoolDownExpired == false) return;
 

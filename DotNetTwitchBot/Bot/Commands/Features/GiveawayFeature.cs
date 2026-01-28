@@ -338,7 +338,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 message = "[DEBUG] " + message;
 #endif
                 logger.LogInformation("Drawing a ticket: {message}", message);
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
                 await AddWinner(viewer, isFollower);
             }
             catch (Exception ex)
@@ -409,23 +409,23 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     logger.LogWarning("Lock expired while waiting...");
                 }
                 amount = amount.ToLower();
-                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points; //await ticketsFeature.GetViewerTickets(sender);
+                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, PlatformType.Twitch, ModuleName)).Points; //await ticketsFeature.GetViewerTickets(sender);
                 if (amount == "max" || amount == "all")
                 {
-                    amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points.ToString();
+                    amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, PlatformType.Twitch, ModuleName)).Points.ToString();
                 }
                 var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
                 if (!Int32.TryParse(amount, out var points))
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message, PlatformType.Twitch);
 
                     throw new SkipCooldownException(message);
                 }
                 if (points == 0 || points > viewerPoints)
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message, PlatformType.Twitch);
 
                     throw new SkipCooldownException(message);
                 }
@@ -433,7 +433,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 if (points < 0)
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb."); //language.Get("giveawayfeature.enter.minus");
-                    await ServiceBackbone.SendChatMessage(displayName, message);
+                    await ServiceBackbone.SendChatMessage(displayName, message, PlatformType.Twitch);
                     throw new SkipCooldownException(message);
                 }
 
@@ -445,7 +445,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     message = message.Replace("(maxallowed)", "1,000,000", StringComparison.OrdinalIgnoreCase).Replace("(amount)", points.ToString(), StringComparison.OrdinalIgnoreCase);
                     if (!fromUi)
                     {
-                        await ServiceBackbone.SendChatMessage(displayName, message);
+                        await ServiceBackbone.SendChatMessage(displayName, message, PlatformType.Twitch);
                     }
 
                     if (points == 0)
@@ -455,12 +455,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 }
 
                 //if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
-                if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
+                if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, PlatformType.Twitch, ModuleName, points)))
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
                     if (!fromUi)
                     {
-                        await ServiceBackbone.SendChatMessage(displayName, message);
+                        await ServiceBackbone.SendChatMessage(displayName, message, PlatformType.Twitch);
                     }
 
                     throw new SkipCooldownException(message);
@@ -482,7 +482,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries."); //language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
                     message = message.Replace("(amount)", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message, PlatformType.Twitch);
                     return message;
                 }
             }

@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         if (amount.Equals("all", StringComparison.OrdinalIgnoreCase) ||
                             amount.Equals("max", StringComparison.OrdinalIgnoreCase))
                         {
-                            var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
+                            var viewerPoints = await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, e.Platform, ModuleName);
                             amount = viewerPoints.Points.ToString();
                         }
 
@@ -121,7 +121,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                             throw new SkipCooldownException();
                         }
 
-                        if (amountToBet > (await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName)).Points)
+                        if (amountToBet > (await _pointsSystem.GetUserPointsByUsernameAndGame(e.Name, e.Platform, ModuleName)).Points)
                         {
                             var notEnough = await _gameSettings.GetStringSetting(
                                 Roulette.GAMENAME,
@@ -165,7 +165,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                         var value = StaticTools.Next(100);
                         if (value > MustBeatValue)
                         {
-                            var totalPoints = await _pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, amountToBet);
+                            var totalPoints = await _pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, amountToBet);
                             var winMessage = await _gameSettings.GetStringSetting(
                                 GAMENAME,
                                 WIN_MESSAGE,
@@ -179,12 +179,12 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 .Replace("{TotalPoints}", totalPoints.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
-                            await SendChatMessage(winMessage);
+                            await SendChatMessage(winMessage, e.Platform);
                         }
                         else
                         {
-                            await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, amountToBet);
-                            var totalPoints = await _pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
+                            await _pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, e.Platform, ModuleName, amountToBet);
+                            var totalPoints = await _pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName);
                             var loseMessage = await _gameSettings.GetStringSetting(
                                 GAMENAME,
                                 LOSE_MESSAGE,
@@ -198,7 +198,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                                 .Replace("{TotalPoints}", totalPoints.Points.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{TotalBet}", TotalGambled[e.Name].ToString("N0"), StringComparison.OrdinalIgnoreCase)
                                 .Replace("{MaxBet}", MaxAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
-                            await SendChatMessage(loseMessage);
+                            await SendChatMessage(loseMessage, e.Platform);
                         }
                     }
                     break;

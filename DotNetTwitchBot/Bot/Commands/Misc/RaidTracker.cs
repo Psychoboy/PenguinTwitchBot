@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public async Task OnIncomingRaid(RaidEventArgs e)
         {
-            await ServiceBackbone.SendChatMessage($"{e.DisplayName} just raided with {e.NumberOfViewers} viewers! sptvHype");
+            await ServiceBackbone.SendChatMessage($"{e.DisplayName} just raided with {e.NumberOfViewers} viewers! sptvHype", e.Platform);
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
@@ -168,14 +168,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var user = await _twitchService.GetUserByName(targetUser);
             if (user == null)
             {
-                await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.");
+                await ServiceBackbone.SendChatMessage("Couldn't find that user to raid.", PlatformType.Twitch);
                 throw new SkipCooldownException();
             }
 
             var isOnline = await _twitchService.IsStreamOnline(user.Id);
             if (isOnline == false)
             {
-                await ServiceBackbone.SendChatMessage("That stream is offline");
+                await ServiceBackbone.SendChatMessage("That stream is offline", PlatformType.Twitch);
                 throw new SkipCooldownException();
             }
             try
@@ -197,7 +197,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     db.RaidHistory.Update(raidHistory);
                     await db.SaveChangesAsync();
                 }
-                await ServiceBackbone.SendChatMessage($"Starting a raid to {user.DisplayName}, please stick around for the raid!");
+                await ServiceBackbone.SendChatMessage($"Starting a raid to {user.DisplayName}, please stick around for the raid!", PlatformType.Twitch);
             }
             catch (Exception ex)
             {

@@ -17,9 +17,9 @@ namespace DotNetTwitchBot.Bot.Commands
         Task<DefaultCommand?> GetDefaultCommandById(int id);
         Task<DefaultCommand?> GetDefaultCommandFromDb(string defaultCommandName);
         Task<List<DefaultCommand>> GetDefaultCommandsFromDb();
-        Task<bool> IsCoolDownExpired(string user, string command);
-        Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, BaseCommandProperties command);
-        Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command);
+        Task<bool> IsCoolDownExpired(string user, PlatformType platform, string command);
+        Task<bool> IsCoolDownExpiredWithMessage(string user, PlatformType platform, string displayName, BaseCommandProperties command);
+        Task<bool> IsCoolDownExpiredWithMessage(string user, PlatformType platform, string displayName, string command);
         void RemoveCommand(string commandName);
         void UpdateCommandName(string oldCommandName, string newCommandName);
         Task UpdateDefaultCommand(DefaultCommand defaultCommand);

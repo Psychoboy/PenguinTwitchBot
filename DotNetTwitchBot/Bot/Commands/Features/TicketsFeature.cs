@@ -154,13 +154,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 return 0;
             }
             if (ServiceBackbone.IsKnownBot(viewer.Username)) return 0;
-            await _pointsSystem.AddPointsByUserIdAndGame(userid, ModuleName, amount);
+            await _pointsSystem.AddPointsByUserIdAndGame(userid, PlatformType.Twitch, ModuleName, amount);
             if (amount > 0)
             {
                 NumberOfTicketsGained.WithLabels(viewer.Username).Inc(amount);
             }
 
-            return (await _pointsSystem.GetUserPointsByUserIdAndGame(userid, ModuleName)).Points;
+            return (await _pointsSystem.GetUserPointsByUserIdAndGame(userid, PlatformType.Twitch, ModuleName)).Points;
         }
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)

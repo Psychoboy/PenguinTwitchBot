@@ -240,7 +240,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             bool match = false;
             foreach (var keyword in Keywords)
             {
-                if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
+                if (await CommandHandler.IsCoolDownExpired(e.Name, e.Platform, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
                 {
                     if (keyword.Regex.IsMatch(e.Message)) match = true;
@@ -333,16 +333,16 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var command = Commands[e.Command];
                 if (command.SayCooldown)
                 {
-                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
+                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.Platform, e.DisplayName, e.Command) == false) return;
                 }
                 else
                 {
-                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
+                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Platform, e.Command) == false) return;
                 }
 
                 if (command.Cost > 0 && command.PointType != null)
                 {
-                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
+                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, e.Platform, command.PointTypeId ?? 0, command.Cost)) == false)
                     {
                         await RespondWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
                         return;
@@ -395,11 +395,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             if (newCommand != null)
                             {
                                 await AddCommand(newCommand);
-                                await ServiceBackbone.SendChatMessage("Successfully added command");
+                                await ServiceBackbone.SendChatMessage("Successfully added command", e.Platform);
                             }
                             else
                             {
-                                await ServiceBackbone.SendChatMessage("failed to add command");
+                                await ServiceBackbone.SendChatMessage("failed to add command", e.Platform);
                             }
 
                         }
@@ -426,7 +426,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg), e.Platform);
                                 return;
                             }
                             command.Disabled = true;
@@ -434,7 +434,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg), e.Platform);
                         return;
                     }
 
@@ -447,7 +447,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
                             if (command == null)
                             {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg), e.Platform);
                                 return;
                             }
                             command.Disabled = false;
@@ -455,7 +455,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
-                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
+                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg), e.Platform);
                         return;
                     }
 
@@ -600,7 +600,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     else if (result.ReplyToMessage )
                     {
-                        await ServiceBackbone.ResponseWithMessage(eventArgs, message, eventArgs.Platform);
+                        await ServiceBackbone.ResponseWithMessage(eventArgs, message);
                     }
                     else
                     {

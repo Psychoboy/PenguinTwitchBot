@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
             var cost = await GetCost();
 
-            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, ModuleName, cost)))
+            if (!(await pointsSystem.RemovePointsFromUserByUserIdAndGame(e.UserId, e.Platform, ModuleName, cost)))
             {
                 var notEnough = await gameSettingsService.GetStringSetting(GAMENAME, NOT_ENOUGH, "Sorry it costs {Cost} {PointType} to defuse the bomb which you do not have.");
                 notEnough = await ReplaceVariables(notEnough, e.Name, "", cost, wires);
@@ -83,10 +83,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var min = cost * multiplier - cost / multiplier;
                 var max = cost * multiplier + cost / multiplier;
                 var value = Tools.Next(min, max + 1);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, value);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, value);
                 var success = await gameSettingsService.GetStringSetting(GAMENAME, SUCCESS, "The bomb goes silent. As a thank for saving the day you got awarded {Points} {PointType}");
                 success = await ReplaceVariables(success, nameWithTitle, e.Arg, value, wires);
-                await ServiceBackbone.SendChatMessage(startMessage + success);
+                await ServiceBackbone.SendChatMessage(startMessage + success, e.Platform);
 
                 await mediator.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
             }
@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             {
                 var fail = await gameSettingsService.GetStringSetting(GAMENAME, FAIL, "BOOM!!! The bomb explodes, you lose {Points} {PointType}.");
                 fail = await ReplaceVariables(fail, nameWithTitle, e.Arg, cost, wires);
-                await ServiceBackbone.SendChatMessage(startMessage + fail);
+                await ServiceBackbone.SendChatMessage(startMessage + fail, e.Platform);
                 await mediator.Publish(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
             }
         }

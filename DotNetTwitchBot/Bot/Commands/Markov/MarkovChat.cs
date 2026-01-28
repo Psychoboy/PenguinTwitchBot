@@ -39,18 +39,18 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     if (!string.IsNullOrWhiteSpace(args))
                     {
                         var message = await markov.Walk(args);
-                        await CheckAndSendMessage(message, args);
+                        await CheckAndSendMessage(message, e.Platform, args);
                     }
                     else
                     {
                         var message = await markov.Walk();
-                        await CheckAndSendMessage(message, args);
+                        await CheckAndSendMessage(message, e.Platform, args);
                     }
                 }
             }
         }
 
-        private async Task CheckAndSendMessage(string messages, string args)
+        private async Task CheckAndSendMessage(string messages, PlatformType platform, string args)
         {
             if (!string.IsNullOrWhiteSpace(messages))
             {
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                 {
                     if (await twitchService.WillBePermittedByAutomod(messageToSend))
                     {
-                        await ServiceBackbone.SendChatMessage(messageToSend);
+                        await ServiceBackbone.SendChatMessage(messageToSend, platform);
                         return;
                     } else
                     {
@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     }
                 }
             }
-            await ServiceBackbone.SendChatMessage($"I don't know \"{args}\" yet!");
+            await ServiceBackbone.SendChatMessage($"I don't know \"{args}\" yet!", platform);
         }
 
         public override async Task Register()

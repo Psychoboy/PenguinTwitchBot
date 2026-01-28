@@ -11,5 +11,6 @@ namespace DotNetTwitchBot.Bot.Models.Duel
         public string Defender { get; set; } = null!;
         public long Amount { get; set; }
         public DateTime ExpiresAt { get; set; } = DateTime.Now.AddMinutes(2);
+        public PlatformType Platform { get; set; }
     }
 }

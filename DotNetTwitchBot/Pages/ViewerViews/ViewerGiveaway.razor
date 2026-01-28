@@ -170,7 +170,7 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
             Username = user.Identity.Name;
-            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, PlatformType.Twitch, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
             userEntriesText = $"You are participating with {userEntries} tickets.";
         }
@@ -250,7 +250,7 @@
             var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
             AlertText = result;
             AlertSeverity = Severity.Success;
-            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, PlatformType.Twitch, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
             userEntriesText = $"You are participating with {userEntries} tickets.";
         } catch (SkipCooldownException ex)

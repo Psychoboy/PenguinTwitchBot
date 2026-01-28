@@ -159,25 +159,25 @@ namespace DotNetTwitchBot.Bot.Commands
             await db.SaveChangesAsync();
         }
 
-        public async Task<bool> IsCoolDownExpired(string user, string command)
+        public async Task<bool> IsCoolDownExpired(string user, PlatformType platform, string command)
         {
             if(await GetGlobalCooldown(command) > DateTime.Now)
             {
                 return false;
             }
 
-            if (await GetUserCooldown(user, command) > DateTime.Now)
+            if (await GetUserCooldown(user, platform, command) > DateTime.Now)
             {
                 return false;
             }
             return true;
         }
 
-        private async Task<DateTime> GetUserCooldown(string user, string command)
+        private async Task<DateTime> GetUserCooldown(string user, PlatformType platform, string command)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var userCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.UserName.Equals(user)).FirstOrDefaultAsync();
+            var userCooldown = await db.Cooldowns.Find(x => x.CommandName.Equals(command) && x.UserName.Equals(user) && x.Platform.Equals(platform)).FirstOrDefaultAsync();
             if (userCooldown == null)
             {
                 return DateTime.MinValue;
@@ -197,32 +197,32 @@ namespace DotNetTwitchBot.Bot.Commands
             return globalCooldown.NextGlobalCooldownTime;
         }
 
-        public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, string command)
+        public async Task<bool> IsCoolDownExpiredWithMessage(string user, PlatformType platform, string displayName, string command)
         {
-            if (!await IsCoolDownExpired(user, command))
+            if (!await IsCoolDownExpired(user, platform, command))
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
-                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command)));
+                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, platform, command)), platform);
 
                 return false;
             }
             return true;
         }
 
-        public async Task<bool> IsCoolDownExpiredWithMessage(string user, string displayName, BaseCommandProperties command)
+        public async Task<bool> IsCoolDownExpiredWithMessage(string user, PlatformType platform, string displayName, BaseCommandProperties command)
         {
-            if (!await IsCoolDownExpired(user, command.CommandName))
+            if (!await IsCoolDownExpired(user, platform, command.CommandName))
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
                 if (command is DefaultCommand commandProperties)
                 {
-                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, await CooldownLeft(user, command.CommandName)));
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", commandProperties.CustomCommandName, await CooldownLeft(user, platform, command.CommandName)), platform);
                 }
                 else
                 {
-                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command.CommandName)));
+                    await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, platform, command.CommandName)), platform);
                 }
 
                 return false;
@@ -230,7 +230,7 @@ namespace DotNetTwitchBot.Bot.Commands
             return true;
         }
 
-        private async Task<string> CooldownLeft(string user, string command)
+        private async Task<string> CooldownLeft(string user, PlatformType platform, string command)
         {
 
             var globalCooldown = DateTime.MinValue;
@@ -240,7 +240,7 @@ namespace DotNetTwitchBot.Bot.Commands
             {
                 globalCooldown = dbGlobalCooldown;
             }
-            var dbUserCooldown = await GetUserCooldown(user, command);
+            var dbUserCooldown = await GetUserCooldown(user, platform, command);
             if (dbUserCooldown > DateTime.Now)
             {
                 userCooldown = dbUserCooldown;

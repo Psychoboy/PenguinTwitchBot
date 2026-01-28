@@ -47,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 await serviceBackbone.ResponseWithMessage(eventArgs, $"User {target} not found.");
                 return new CustomCommandResult();
             }
-            var points = await pointsSystem.GetUserPointsByUserId(target.UserId, pointTypeId);
+            var points = await pointsSystem.GetUserPointsByUserId(target.UserId, request.CommandEventArgs.Platform, pointTypeId);
             await serviceBackbone.ResponseWithMessage(eventArgs, $"{target.DisplayName} has {points.Points:N0} {pointSystem.Name}.");
             return new CustomCommandResult();
         }

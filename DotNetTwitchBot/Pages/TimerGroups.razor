@@ -65,6 +65,13 @@
 
                     <MudCheckBox @bind-Value="@timerGroup.Active" Label="Enabled?"></MudCheckBox>
                     <MudCheckBox @bind-Value="@timerGroup.Repeat" Label="Repeat?"></MudCheckBox>
+                    <MudSelect T=PlatformType SelectedValues="@timerGroup.Platforms" Label="Platform" MultiSelection="true"
+                               SelectedValuesChanged="@(args => timerGroup.Platforms = args.ToList())">
+                        @foreach (PlatformType item in Enum.GetValues(typeof(PlatformType)))
+                        {
+                            <MudSelectItem Value="@item">@item</MudSelectItem>
+                        }
+                    </MudSelect>
                     <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                         Class="ml-auto">
                         Submit

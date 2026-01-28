@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             nameWheelActive = true;
             nameEntries.Clear();
             nameWheel = null;
-            ServiceBackbone.SendChatMessage("The viewer wheel is now open! Type !join to enter the wheel.");
+            ServiceBackbone.SendChatMessage("The viewer wheel is now open! Type !join to enter the wheel.", PlatformType.Twitch);
         }
 
         public void ShowNameWheel()
@@ -163,7 +163,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                 if (winningMessage != null)
                 {
                     Thread.Sleep(4000);
-                    await ServiceBackbone.SendChatMessage(winningMessage);
+                    await ServiceBackbone.SendChatMessage(winningMessage, PlatformType.Twitch);
                 }
             }
         }

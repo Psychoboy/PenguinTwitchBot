@@ -42,7 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             switch (command.CommandProperties.CommandName)
             {
                 case "quote":
-                    await SayQuote(e.Arg);
+                    await SayQuote(e.Arg, e.Platform);
                     break;
                 case "addquote":
                     await AddQuote(e);
@@ -119,7 +119,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return quote;
         }
 
-        public async Task SayQuote(string? searchParam)
+        public async Task SayQuote(string? searchParam, PlatformType platform)
         {
             FilteredQuoteType? quote = null;
 
@@ -154,7 +154,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             if (quote != null)
             {
-                await ServiceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}");
+                await ServiceBackbone.SendChatMessage($"Quote {quote.Id}: {quote.Quote} ({quote.Game}) ({quote.CreatedOn:yyyy-MM-dd}) Created By {quote.CreatedBy}", platform);
             }
         }
 
