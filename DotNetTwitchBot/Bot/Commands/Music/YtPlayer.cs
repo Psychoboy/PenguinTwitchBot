@@ -400,7 +400,6 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                             // Keep track of songs vetoed to see if any songs want to be removed.
                             await File.AppendAllTextAsync("vetoed.txt", $"{DateTime.Now:d} {DateTime.Now:t} - {CurrentSong.SongId} - {CurrentSong.Title}\n");
                         }
-                        await PlayNextSong();
                     }
                     catch (Exception ex)
                     {
@@ -409,6 +408,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     finally                    {
                         _semaphoreSlim.Release();
                     }
+                    await PlayNextSong();
 
                     break;
                 case "pause":
