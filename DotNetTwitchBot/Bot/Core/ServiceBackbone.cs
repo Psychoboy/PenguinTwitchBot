@@ -134,7 +134,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             using var scope = scopeFactory.CreateAsyncScope();
             var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-            var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
+            var nameWithTitle = await viewerService.GetNameWithTitle(viewerName, platform);
             await SendChatMessage(string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message), platform);
         }
 

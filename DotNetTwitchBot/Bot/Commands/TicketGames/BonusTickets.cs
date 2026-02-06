@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await _semaphoreSlim.WaitAsync();
             try
             {
-                var viewer = viewerFeature.GetViewerByUserName(username);
+                var viewer = viewerFeature.GetViewerByUserName(username, PlatformType.Twitch);
                 if (viewer == null)
                 {
                     logger.LogWarning("Could not find viewer {username} when trying to redeem bonus tickets.", username);

@@ -461,11 +461,11 @@ namespace DotNetTwitchBot.Controllers
                 };
 
 
-                if (await viewerFeature.IsFollowerByUsername(user.Login))
+                if (await viewerFeature.IsFollowerByUsername(user.Login, PlatformType.Twitch))
                 {
                     claims.Add(new Claim(ClaimTypes.Role, "Follower"));
                 }
-                var viewer = await viewerFeature.GetViewerByUserId(user.Id);
+                var viewer = await viewerFeature.GetViewerByUserId(user.Id, PlatformType.Twitch);
                 if (viewer != null)
                 {
                     if (viewer.isMod)

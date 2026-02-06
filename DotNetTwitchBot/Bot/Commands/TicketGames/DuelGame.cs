@@ -192,7 +192,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 throw new SkipCooldownException();
             }
-            var defender = await viewerFeature.GetViewerByUserName(e.TargetUser);
+            var defender = await viewerFeature.GetViewerByUserName(e.TargetUser, e.Platform);
             if (defender == null)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "Could not find that viewer");

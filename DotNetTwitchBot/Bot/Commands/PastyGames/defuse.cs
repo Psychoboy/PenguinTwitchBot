@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         internal async Task RunGame(CommandEventArgs e, List<string> wires, int cost)
         {
             var chosenWire = wires.RandomElement();
-            var nameWithTitle = await viewerFeature.GetNameWithTitle(e.Name);
+            var nameWithTitle = await viewerFeature.GetNameWithTitle(e.Name, e.Platform);
             var starting = await gameSettingsService.GetStringSetting(GAMENAME, STARTING, "The bomb is beeping and {Name} cuts the {Wire} wire... ");
             starting = await ReplaceVariables(starting, nameWithTitle, e.Arg, cost, wires);
             var startMessage = starting;

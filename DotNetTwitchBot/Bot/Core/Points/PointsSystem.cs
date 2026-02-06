@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             try
             {
-                var viewer = await viewerFeature.GetViewerByUserId(userId);
+                var viewer = await viewerFeature.GetViewerByUserId(userId, platformType);
                 if (viewer == null)
                 {
                     logger.LogWarning("Viewer not found for user {userId}", userId);
@@ -74,7 +74,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         public async Task<long> AddPointsByUsername(string username, PlatformType platformType, int pointType, long points)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", ""));
@@ -102,7 +102,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, platformType, pointType);
-            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            var viewer = await viewerFeature.GetViewerByUserId(userId, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for user {userId}", userId);
@@ -124,7 +124,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         public async Task<UserPoints> GetUserPointsByUsername(string username, PlatformType platformType, int pointType)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username);
@@ -318,7 +318,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         public async Task<bool> RemovePointsFromUserByUsername(string username, PlatformType platformType, int pointType, long points)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username);
@@ -432,7 +432,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var time = await GetUserTimeAndRank(e.Name, e.Platform);
             var messages = await GetUserMessagesAndRank(e.Name, e.Platform);
             loyaltyMessage = loyaltyMessage
-                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name), StringComparison.OrdinalIgnoreCase)
+                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name, e.Platform), StringComparison.OrdinalIgnoreCase)
                 .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time), StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsName}", loyaltyPointType.Name, StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsRank}", points.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
@@ -486,7 +486,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                         args = string.IsNullOrWhiteSpace(args) ? "" : args .Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
                         {
-                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser, e.Platform);
                             if (userId == null) return;
                             await AddPointsByUsername(e.TargetUser, e.Platform, pointCommand.PointType.GetId(), amount);
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, e.Platform, pointCommand.PointType.GetId());    
@@ -503,7 +503,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                         args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
                         {
-                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser, e.Platform);
                             if (userId == null) return;
                             await RemovePointsFromUserByUsername(e.Name, e.Platform, pointCommand.PointType.GetId(), amount);
                             logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
@@ -539,7 +539,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var onlineViewers = viewerFeature.GetCurrentViewers();
                 foreach (var viewer in onlineViewers)
                 {
-                    if (!activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) && await viewerFeature.IsSubscriber(viewer))
+                    if (!activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) && await viewerFeature.IsSubscriber(viewer, platformType))
                     {
                         activeViewers.Add(viewer);
                     }
@@ -555,7 +555,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             viewerFeature.GetCurrentViewers().ForEach(async viewer =>
             {
-                if (await viewerFeature.IsSubscriber(viewer))
+                if (await viewerFeature.IsSubscriber(viewer, platformType))
                 {
                     await AddPointsByUsername(viewer, platformType, pointType, points);
                 }
@@ -574,7 +574,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, PlatformType platformType, int pointType)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(name);
+            var viewer = await viewerFeature.GetViewerByUserName(name, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", name);

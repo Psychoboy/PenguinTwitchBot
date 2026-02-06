@@ -56,7 +56,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         private async Task StealFromUser(CommandEventArgs e)
         {
             var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, e.Platform, ModuleName);
-            var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser); //PlatformType.Twitch
+            var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser, e.Platform); //PlatformType.Twitch
             var amount = StaticTools.Next(StealMin, StealMax + 1);
             if (targetPasties.Points < StealMax)
             {
