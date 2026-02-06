@@ -392,6 +392,10 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await VoteSkipSong(e);
                     break;
                 case "veto":
+                    if (CurrentSong != null)
+                    {
+                        await File.AppendAllTextAsync("vetoed.txt", $"{DateTime.Now:d} {DateTime.Now:t} - {CurrentSong.SongId} - {CurrentSong.Title}\n");
+                    }
                     await PlayNextSong();
                     break;
                 case "pause":
