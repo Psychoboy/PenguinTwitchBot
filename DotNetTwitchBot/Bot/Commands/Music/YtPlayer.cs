@@ -392,7 +392,24 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     await VoteSkipSong(e);
                     break;
                 case "veto":
+                    try
+                    {
+                        await _semaphoreSlim.WaitAsync();
+                        if (CurrentSong != null)
+                        {
+                            // Keep track of songs vetoed to see if any songs want to be removed.
+                            await File.AppendAllTextAsync("vetoed.txt", $"{DateTime.Now:d} {DateTime.Now:t} - {CurrentSong.SongId} - {CurrentSong.Title}\n");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error vetoing song");
+                    }
+                    finally                    {
+                        _semaphoreSlim.Release();
+                    }
                     await PlayNextSong();
+
                     break;
                 case "pause":
                     await Pause();
