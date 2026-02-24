@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Ai
                 AllowedDomains = [
                     "starcitizen.tools",
                     "finder.cstone.space",
-                    "sc-trade.tools",
+                    "uexcorp.space",
                     "robertsspaceindustries.com",
                     "status.robertsspaceindustries.com"
                     ]
