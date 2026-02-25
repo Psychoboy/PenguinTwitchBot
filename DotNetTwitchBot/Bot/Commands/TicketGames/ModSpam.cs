@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 _intervalTimer?.Dispose();
                 var message = await gameSettingsService.GetStringSetting(GAMENAME, ENDING_MESSAGE, "Mod spam completed... {PointType} arriving soon.");
                 message = message.Replace("{PointType}", (await pointsSystem.GetPointTypeForGame("AddActive")).Name, StringComparison.OrdinalIgnoreCase);
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
 
 
             }
@@ -77,7 +77,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private async Task StartModSpam()
         {
             var message = await gameSettingsService.GetStringSetting(GAMENAME, STARTING_MESSAGE, "Starting Mod Spam... please wait while it spams silently...");
-            await ServiceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
             var minTime = await gameSettingsService.GetIntSetting(GAMENAME, MIN_TIME, 15);
             var maxTime = await gameSettingsService.GetIntSetting(GAMENAME, MAX_TIME, 20);
             _runTime = new TimeSpan(0, 0, tools.RandomRange(minTime, minTime));

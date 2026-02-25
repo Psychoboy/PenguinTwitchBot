@@ -72,8 +72,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
-                await ServiceBackbone.SendChatMessage(message);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
+                await ServiceBackbone.SendChatMessage(message, e.Platform);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, prizeWinnings);
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
@@ -91,14 +91,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
-                await ServiceBackbone.SendChatMessage(message);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
+                await ServiceBackbone.SendChatMessage(message, e.Platform);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, prizeWinnings);
                 return;
             }
             var randomLoseMessage = LoseMessages[StaticTools.Next(0, WinMessages.Count)];
             //{NAME_HERE}
             message += randomLoseMessage;
-            await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
+            await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName), e.Platform);
         }
 
         private async Task<long> CheckBetAmount(CommandEventArgs e)
@@ -108,7 +108,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 return 0;
             }
 
-            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, "slots", e.Args.First(), 25);
+            var maxBet = await maxBetCalculator.CheckAndRemovePoints(e.UserId, e.Platform, "slots", e.Args.First(), 25);
             switch (maxBet.Result)
             {
                 case MaxBet.ParseResult.Success:

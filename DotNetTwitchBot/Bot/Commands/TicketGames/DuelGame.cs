@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task DenyDuel(CommandEventArgs e)
         {
-            if ((await CheckIfAlreadyInDuel(e.Name)) == false)
+            if ((await CheckIfAlreadyInDuel(e.Name, e.Platform)) == false)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels.");
                 return;
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                var existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name)).FirstOrDefault();
+                var existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name) && x.Platform == e.Platform).FirstOrDefault();
                 if (existingDuel == null)
                 {
                     await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels targeting you.");
@@ -69,7 +69,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 else
                 {
                     PendingDuels.Remove(existingDuel);
-                    await ServiceBackbone.SendChatMessage(existingDuel.Attacker, $"{existingDuel.Defender} has denied your duel.");
+                    await ServiceBackbone.SendChatMessage(existingDuel.Attacker, $"{existingDuel.Defender} has denied your duel.", e.Platform);
                 }
             }
             finally
@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         private async Task AcceptDuel(CommandEventArgs e)
         {
-            if ((await CheckIfAlreadyInDuel(e.Name)) == false)
+            if ((await CheckIfAlreadyInDuel(e.Name, e.Platform)) == false)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels.");
                 return;
@@ -89,7 +89,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name)).FirstOrDefault();
+                existingDuel = PendingDuels.Where(x => x.Defender.Equals(e.Name) && x.Platform == e.Platform).FirstOrDefault();
                 if (existingDuel == null)
                 {
                     await ServiceBackbone.ResponseWithMessage(e, "You don't have any pending duels targeting you.");
@@ -109,43 +109,43 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         private async Task FightDuel(PendingDuel existingDuel)
         {
 
-            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Attacker, ModuleName)).Points < existingDuel.Amount)
+            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Attacker, existingDuel.Platform, ModuleName)).Points < existingDuel.Amount)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.", existingDuel.Platform);
                 return;
             }
 
-            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Defender, ModuleName)).Points < existingDuel.Amount)
+            if ((await pointsSystem.GetUserPointsByUsernameAndGame(existingDuel.Defender, existingDuel.Platform, ModuleName)).Points < existingDuel.Amount)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.", existingDuel.Platform);
                 return;
             }
 
-            var removedTicketsFromAttacker = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount);
+            var removedTicketsFromAttacker = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Attacker, existingDuel.Platform, ModuleName, existingDuel.Amount);
             if (removedTicketsFromAttacker == false)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.");
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Attacker} doesn't have enough tickets anymore.", existingDuel.Platform);
                 return;
             }
 
-            var removedTicketsFromDefender = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount);
+            var removedTicketsFromDefender = await pointsSystem.RemovePointsFromUserByUsernameAndGame(existingDuel.Defender, existingDuel.Platform, ModuleName, existingDuel.Amount);
             if (removedTicketsFromDefender == false)
             {
-                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.");
-                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount); //refund for attack since we removed them already
+                await ServiceBackbone.SendChatMessage($"{existingDuel.Defender} doesn't have enough tickets anymore.", existingDuel.Platform);
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, existingDuel.Platform, ModuleName, existingDuel.Amount); //refund for attack since we removed them already
                 return;
             }
 
             var winner = StaticTools.Next(0, 100);
             if (winner < 50)
             {
-                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, ModuleName, existingDuel.Amount * 2);
-                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan");
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Attacker, existingDuel.Platform, ModuleName, existingDuel.Amount * 2);
+                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Attacker} won the Duel vs {existingDuel.Defender} PogChamp {existingDuel.Attacker} won {existingDuel.Amount} tickets FeelsGoodMan", existingDuel.Platform);
             }
             else
             {
-                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Defender, ModuleName, existingDuel.Amount * 2);
-                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} tickets FeelsGoodMan");
+                await pointsSystem.AddPointsByUsernameAndGame(existingDuel.Defender, existingDuel.Platform, ModuleName, existingDuel.Amount * 2);
+                await ServiceBackbone.SendChatMessage($"/me {existingDuel.Defender} won the Duel vs {existingDuel.Attacker} PogChamp {existingDuel.Defender} won {existingDuel.Amount} tickets FeelsGoodMan", existingDuel.Platform);
             }
         }
 
@@ -173,13 +173,13 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 await ServiceBackbone.ResponseWithMessage(e, "To duel you must choose an amount between 1 and 100");
                 throw new SkipCooldownException();
             }
-            var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, ModuleName);
+            var attackerTickets = await pointsSystem.GetUserPointsByUsernameAndGame(e.Name, e.Platform, ModuleName);
             if (attackerTickets.Points < amount)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "You don't have that much.");
                 throw new SkipCooldownException();
             }
-            var existingDuel = await GetExistingDuel(e.Name);
+            var existingDuel = await GetExistingDuel(e.Name, e.Platform);
             if (existingDuel != null)
             {
                 if (existingDuel.Attacker.Equals(e.Name, StringComparison.OrdinalIgnoreCase))
@@ -192,20 +192,20 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 throw new SkipCooldownException();
             }
-            var defender = await viewerFeature.GetViewerByUserName(e.TargetUser);
+            var defender = await viewerFeature.GetViewerByUserName(e.TargetUser, e.Platform);
             if (defender == null)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "Could not find that viewer");
                 throw new SkipCooldownException();
             }
-            existingDuel = await GetExistingDuel(defender.Username);
+            existingDuel = await GetExistingDuel(defender.Username, e.Platform);
             if (existingDuel != null)
             {
                 await ServiceBackbone.ResponseWithMessage(e, $"{defender.DisplayName} has a pending duel already. Please wait for that duel to end or time out.");
                 throw new SkipCooldownException();
             }
 
-            var defenderTickets = await pointsSystem.GetUserPointsByUsernameAndGame(defender.Username, ModuleName);
+            var defenderTickets = await pointsSystem.GetUserPointsByUsernameAndGame(defender.Username, e.Platform, ModuleName);
             if (defenderTickets.Points < amount)
             {
                 await ServiceBackbone.ResponseWithMessage(e, "They don't have that many tickets.");
@@ -216,7 +216,8 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 Attacker = e.Name,
                 Defender = defender.Username,
-                Amount = amount
+                Amount = amount,
+                Platform = e.Platform
             };
 
             try
@@ -228,17 +229,17 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             {
                 _semaphoreSlim.Release();
             }
-            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.");
+            await ServiceBackbone.SendChatMessage(defender.DisplayName, $"{e.DisplayName} has challenged you to a duel for {amount} tickets. You have 2 minutes to !accept or !deny the duel.", e.Platform);
         }
 
-        private async Task<bool> CheckIfAlreadyInDuel(string name)
+        private async Task<bool> CheckIfAlreadyInDuel(string name, PlatformType platform)
         {
             try
             {
                 await _semaphoreSlim.WaitAsync();
                 var existingDuel = PendingDuels
-                    .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
+                    .Where(x => (x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)) && x.Platform == platform
                     ).FirstOrDefault();
                 if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
                 {
@@ -256,14 +257,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        private async Task<PendingDuel?> GetExistingDuel(string name)
+        private async Task<PendingDuel?> GetExistingDuel(string name, PlatformType platform)
         {
             try
             {
                 await _semaphoreSlim.WaitAsync();
                 var existingDuel = PendingDuels
-                    .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
+                    .Where(x => (x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)) && x.Platform == platform
                     ).FirstOrDefault();
                 if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
                 {

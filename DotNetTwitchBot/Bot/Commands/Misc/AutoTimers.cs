@@ -170,7 +170,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 if (group.Messages.Where(x => x.Enabled == true).Any() == false) return;
                 var message = group.Messages.Where(x => x.Enabled == true).ToList().RandomElementOrDefault(_logger);
-                await SendMessage(message);
+                foreach(var platform in group.Platforms)
+                {
+                    await SendMessage(message, platform);
+                }
 
             }
             catch (Exception ex)
@@ -217,7 +220,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             return true;
         }
 
-        private async Task SendMessage(TimerMessage message)
+        private async Task SendMessage(TimerMessage message, PlatformType platform)
         {
 
             if (message.Message.StartsWith("command:"))
@@ -231,13 +234,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     IsMod = true,
                     IsBroadcaster = true,
                     IsSub = true,
-                    SkipLock = true
+                    SkipLock = true,
+                    Platform = platform
                 };
                 await ServiceBackbone.RunCommand(commandArgs);
             }
             else
             {
-                await SendChatMessage(message.Message);
+                await SendChatMessage(message.Message, platform);
             }
         }
 

@@ -25,11 +25,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public static bool IncludeSubsInActive = true;
         private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
         private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
-        public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
+        public async Task<long> AddPointsByUserId(string userId, PlatformType platformType, int pointType, long points)
         {
             try
             {
-                var viewer = await viewerFeature.GetViewerByUserId(userId);
+                var viewer = await viewerFeature.GetViewerByUserId(userId, platformType);
                 if (viewer == null)
                 {
                     logger.LogWarning("Viewer not found for user {userId}", userId);
@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 }
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
+                var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, platformType, pointType);
                 if (userPoints == null)
                 {
                     userPoints = new UserPoints
@@ -72,25 +72,20 @@ namespace DotNetTwitchBot.Bot.Core.Points
             }
         }
 
-        public async Task<long> AddPointsByUsername(string username, int pointType, long points)
+        public async Task<long> AddPointsByUsername(string username, PlatformType platformType, int pointType, long points)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", ""));
                 return 0;
             }
-            return await AddPointsByUserId(viewer.UserId, pointType, points);
+            return await AddPointsByUserId(viewer.UserId, platformType, pointType, points);
         }
 
-        //public Task<long> GetMaxPointsByUserId(string userId, int pointType)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        public async Task<long> GetMaxPointsByUserId(string userId, int pointType, long max)
+        public async Task<long> GetMaxPointsByUserId(string userId, PlatformType platformType, int pointType, long max)
         {
-            var viewerPoints = await GetUserPointsByUserId(userId, pointType);
+            var viewerPoints = await GetUserPointsByUserId(userId, platformType, pointType);
             if (viewerPoints == null)
             {
                 return 0;
@@ -102,12 +97,12 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return viewerPoints.Points;
         }
 
-        public async Task<UserPoints> GetUserPointsByUserId(string userId, int pointType)
+        public async Task<UserPoints> GetUserPointsByUserId(string userId, PlatformType platformType, int pointType)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
-            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, platformType, pointType);
+            var viewer = await viewerFeature.GetViewerByUserId(userId, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for user {userId}", userId);
@@ -127,15 +122,15 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return userPoints;
         }
 
-        public async Task<UserPoints> GetUserPointsByUsername(string username, int pointType)
+        public async Task<UserPoints> GetUserPointsByUsername(string username, PlatformType platformType, int pointType)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username);
                 return new();
             }
-            return await GetUserPointsByUserId(viewer.UserId, pointType);
+            return await GetUserPointsByUserId(viewer.UserId, platformType, pointType);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -294,9 +289,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return gameSettingsService.SetPointTypeForGame(gameName, pointTypeId);
         }
 
-        public async Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points)
+        public async Task<bool> RemovePointsFromUserByUserId(string userId, PlatformType platformType, int pointType, long points)
         {
-            var userPoints = await GetUserPointsByUserId(userId, pointType);
+            var userPoints = await GetUserPointsByUserId(userId, platformType, pointType);
             if (userPoints == null)
             {
                 return false;
@@ -321,44 +316,30 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return true;
         }
 
-        public async Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points)
+        public async Task<bool> RemovePointsFromUserByUsername(string username, PlatformType platformType, int pointType, long points)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(username);
+            var viewer = await viewerFeature.GetViewerByUserName(username, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", username);
                 return false;
             }
-            return await RemovePointsFromUserByUserId(viewer.UserId, pointType, points);
+            return await RemovePointsFromUserByUserId(viewer.UserId, platformType, pointType, points);
         }
 
-        public async Task<UserPoints> GetUserPointsByUserIdAndGame(string userId, string gameName)
+        public async Task<UserPoints> GetUserPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            return await GetUserPointsByUserId(userId, pointType.GetId());
+            return await GetUserPointsByUserId(userId, platformType, pointType.GetId());
         }
 
-        public async Task<UserPoints> GetUserPointsByUsernameAndGame(string username, string gameName)
+        public async Task<UserPoints> GetUserPointsByUsernameAndGame(string username, PlatformType platformType, string gameName)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            return await GetUserPointsByUsername(username, pointType.GetId());
+            return await GetUserPointsByUsername(username, platformType, pointType.GetId());
         }
 
-        public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, string gameName, long points)
-        {
-            var pointType = await GetPointTypeForGame(gameName);
-            try
-            {
-                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error updating metric");
-            }
-            return await RemovePointsFromUserByUserId(userId, pointType.GetId(), points);
-        }
-
-        public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, string gameName, long points)
+        public async Task<bool> RemovePointsFromUserByUserIdAndGame(string userId, PlatformType platformType, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
             try
@@ -369,10 +350,24 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 logger.LogError(ex, "Error updating metric");
             }
-            return await RemovePointsFromUserByUsername(username, pointType.GetId(), points);
+            return await RemovePointsFromUserByUserId(userId, platformType, pointType.GetId(), points);
         }
 
-        public async Task<long> AddPointsByUserIdAndGame(string userId, string gameName, long points)
+        public async Task<bool> RemovePointsFromUserByUsernameAndGame(string username, PlatformType platformType, string gameName, long points)
+        {
+            var pointType = await GetPointTypeForGame(gameName);
+            try
+            {
+                NumberOfPointsByGame.WithLabels(gameName.ToLower(), pointType.GetId().ToString()).Dec(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metric");
+            }
+            return await RemovePointsFromUserByUsername(username, platformType, pointType.GetId(), points);
+        }
+
+        public async Task<long> AddPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
             try
@@ -383,10 +378,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 logger.LogError(ex, "Error updating metric");
             }
-            return await AddPointsByUserId(userId, pointType.GetId(), points);
+            return await AddPointsByUserId(userId, platformType, pointType.GetId(), points);
         }
 
-        public async Task<long> AddPointsByUsernameAndGame(string username, string gameName, long points)
+        public async Task<long> AddPointsByUsernameAndGame(string username, PlatformType platformType, string gameName, long points)
         {
             var pointType = await GetPointTypeForGame(gameName);
             try
@@ -397,13 +392,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
             {
                 logger.LogError(ex, "Error updating metric");
             }
-            return await AddPointsByUsername(username, pointType.GetId(), points);
+            return await AddPointsByUsername(username, platformType, pointType.GetId(), points);
         }
 
-        public async Task<long> GetMaxPointsByUserIdAndGame(string userId, string gameName, long max)
+        public async Task<long> GetMaxPointsByUserIdAndGame(string userId, PlatformType platformType, string gameName, long max)
         {
             var pointType = await GetPointTypeForGame(gameName);
-            return await GetMaxPointsByUserId(userId, pointType.GetId(), max);
+            return await GetMaxPointsByUserId(userId, platformType, pointType.GetId(), max);
         }
 
         public async Task<PointCommand?> GetPointCommand(string pointTypeCommand)
@@ -433,11 +428,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 "LoyaltyMessage",
                 "{NameWithTitle} Watch Time: [{WatchTime}] - {PointsName}: [#{PointsRank}, {Points} - Messages: [#{MessagesRank}, {Messages}]");
             var loyaltyPointType = await GetPointTypeForGame("loyalty");
-            var points = await GetPointsWithRankByUserId(e.UserId, loyaltyPointType.GetId());
-            var time = await GetUserTimeAndRank(e.Name);
-            var messages = await GetUserMessagesAndRank(e.Name);
+            var points = await GetPointsWithRankByUserId(e.UserId, e.Platform, loyaltyPointType.GetId());
+            var time = await GetUserTimeAndRank(e.Name, e.Platform);
+            var messages = await GetUserMessagesAndRank(e.Name, e.Platform);
             loyaltyMessage = loyaltyMessage
-                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name), StringComparison.OrdinalIgnoreCase)
+                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name, e.Platform), StringComparison.OrdinalIgnoreCase)
                 .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time), StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsName}", loyaltyPointType.Name, StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsRank}", points.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
@@ -447,7 +442,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await RespondWithMessage(e, loyaltyMessage);
         }
 
-        public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
+        public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name, PlatformType platformType)
         {
             ViewerTimeWithRank? viewerTime;
             await using (var scope = scopeFactory.CreateAsyncScope())
@@ -458,7 +453,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
         }
 
-        public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name)
+        public async Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name, PlatformType platformType)
         {
             ViewerMessageCountWithRank? viewerMessage;
             await using (var scope = scopeFactory.CreateAsyncScope())
@@ -491,11 +486,11 @@ namespace DotNetTwitchBot.Bot.Core.Points
                         args = string.IsNullOrWhiteSpace(args) ? "" : args .Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
                         {
-                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser, e.Platform);
                             if (userId == null) return;
-                            await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
-                            var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());    
-                            await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
+                            await AddPointsByUsername(e.TargetUser, e.Platform, pointCommand.PointType.GetId(), amount);
+                            var userPoints = await GetUserPointsByUsername(e.TargetUser, e.Platform, pointCommand.PointType.GetId());    
+                            await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}", e.Platform);
                             
                             logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 
@@ -508,9 +503,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
                         args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
                         if (Int64.TryParse(args, out long amount))
                         {
-                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser, e.Platform);
                             if (userId == null) return;
-                            await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                            await RemovePointsFromUserByUsername(e.Name, e.Platform, pointCommand.PointType.GetId(), amount);
                             logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
                         }
                         break;
@@ -529,14 +524,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     {
                         if (Int64.TryParse(e.Args[1], out long amount))
                         {
-                            await AddPointsToActiveUsers(pointCommand.PointType.GetId(), amount);
+                            await AddPointsToActiveUsers(pointCommand.PointType.GetId(), e.Platform, amount);
                         }
                         break;
                     }
             }
         }
 
-        public async Task AddPointsToActiveUsers(int pointType, long points)
+        public async Task AddPointsToActiveUsers(int pointType, PlatformType platformType, long points)
         {
             var activeViewers = viewerFeature.GetActiveViewers();
             if (IncludeSubsInActive)
@@ -544,7 +539,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var onlineViewers = viewerFeature.GetCurrentViewers();
                 foreach (var viewer in onlineViewers)
                 {
-                    if (!activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) && await viewerFeature.IsSubscriber(viewer))
+                    if (!activeViewers.Contains(viewer, StringComparer.OrdinalIgnoreCase) && await viewerFeature.IsSubscriber(viewer, platformType))
                     {
                         activeViewers.Add(viewer);
                     }
@@ -552,34 +547,34 @@ namespace DotNetTwitchBot.Bot.Core.Points
             }
             viewerFeature.GetActiveViewers().Distinct().ToList().ForEach(async viewer =>
             {
-                await AddPointsByUsername(viewer, pointType, points);
+                await AddPointsByUsername(viewer, platformType, pointType, points);
             });
         }
 
-        public Task AddPointsToSubbedUsers(int pointType, long points)
+        public Task AddPointsToSubbedUsers(int pointType, PlatformType platformType, long points)
         {
             viewerFeature.GetCurrentViewers().ForEach(async viewer =>
             {
-                if (await viewerFeature.IsSubscriber(viewer))
+                if (await viewerFeature.IsSubscriber(viewer, platformType))
                 {
-                    await AddPointsByUsername(viewer, pointType, points);
+                    await AddPointsByUsername(viewer, platformType, pointType, points);
                 }
             });
             return Task.CompletedTask;
         }
 
-        public Task AddPointsToAllCurrentUsers(int pointType, long points)
+        public Task AddPointsToAllCurrentUsers(int pointType, PlatformType platformType, long points)
         {
             viewerFeature.GetCurrentViewers().ForEach(async viewer =>
             {
-                await AddPointsByUsername(viewer, pointType, points);
+                await AddPointsByUsername(viewer, platformType, pointType, points);
             });
             return Task.CompletedTask;
         }
 
-        public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, int pointType)
+        public async Task<UserPointsWithRank> GetPointsWithRankByUsername(string name, PlatformType platformType, int pointType)
         {
-            var viewer = await viewerFeature.GetViewerByUserName(name);
+            var viewer = await viewerFeature.GetViewerByUserName(name, platformType);
             if (viewer == null)
             {
                 logger.LogWarning("Viewer not found for username {username}", name);
@@ -591,14 +586,14 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     Username = ""
                 };
             }
-            return await GetPointsWithRankByUserId(name, pointType);
+            return await GetPointsWithRankByUserId(name, platformType, pointType);
         }
 
-        public async Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType)
+        public async Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, PlatformType platformType, int pointType)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, platformType, pointType);
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
             return userPoints ?? new UserPointsWithRank
             {
@@ -616,7 +611,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             var userId = e.UserId;
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+            var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, e.Platform, pointType);
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
             if (userPoints != null)
             {

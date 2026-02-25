@@ -50,7 +50,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 IsBroadcaster = commandPermission.Equals("broadcaster") || eventArgs.IsBroadcaster,
                 DisplayName = eventArgs.DisplayName,
                 Name = eventArgs.Name,
-                SkipLock = true
+                SkipLock = true,
+                Platform = eventArgs.Platform,
             };
 
             await serviceBackbone.RunCommand(command);

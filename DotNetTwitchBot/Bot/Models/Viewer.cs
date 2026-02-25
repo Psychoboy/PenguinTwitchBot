@@ -24,6 +24,7 @@ namespace DotNetTwitchBot.Bot.Models
         public bool isMod { get; set; } = false;
         public bool isEditor { get; set; } = false;
         public bool isBroadcaster { get; set; } = false;
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
 
         public string NameWithTitle()
         {

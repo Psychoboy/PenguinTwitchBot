@@ -106,35 +106,36 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public Task SendChatMessage(string message)
+        public Task SendChatMessage(string message, PlatformType platform)
         {
-            return mediator.Publish(new SendBotMessage(message));
+            return mediator.Publish(new SendBotMessage(message, platform));
         }
 
         public async Task ResponseWithMessage(CommandEventArgs e, string message)
         {
             message = message.TrimStart('!').Trim();
-
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
-                await SendChatMessage(e.DisplayName, message);
+                await SendChatMessage(e.DisplayName, message, e.Platform);
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message));
+                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message, e.Platform));
             }
         }
 
-        public async Task SendChatMessage(string name, string message)
+
+        public async Task SendChatMessage(string name, string message, PlatformType platform)
         {
-            await SendChatMessage(string.Format("@{0}, {1}", name, message));
+            await SendChatMessage(string.Format("@{0}, {1}", name, message), platform);
         }
-        public async Task SendChatMessageWithTitle(string viewerName, string message)
+
+        public async Task SendChatMessageWithTitle(string viewerName, string message, PlatformType platform)
         {
             using var scope = scopeFactory.CreateAsyncScope();
             var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
-            var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
-            await SendChatMessage(string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
+            var nameWithTitle = await viewerService.GetNameWithTitle(viewerName, platform);
+            await SendChatMessage(string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message), platform);
         }
 
         public async Task OnStreamStarted()
@@ -216,11 +217,6 @@ namespace DotNetTwitchBot.Bot.Core
                 }
             }
         }
-
-        //public async Task OnChatMessage(ChatMessageEventArgs message)
-        //{
-        //    await mediator.Publish(new ReceivedChatMessage { EventArgs = message });
-        //}
 
         public async Task OnSubscription(SubscriptionEventArgs eventArgs)
         {

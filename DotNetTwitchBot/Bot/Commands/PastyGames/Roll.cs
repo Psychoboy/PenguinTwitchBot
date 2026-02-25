@@ -82,13 +82,13 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                         break;
                 }
                 var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
-                await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
-                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizes[dice1 - 1]);
+                await ServiceBackbone.SendChatMessage(resultMessage + winMessage, e.Platform);
+                await pointsSystem.AddPointsByUserIdAndGame(e.UserId, e.Platform, ModuleName, prizes[dice1 - 1]);
             }
             else
             {
                 var lostMessage = string.Format(LostMessages.RandomElementOrDefault(), e.DisplayName);
-                await ServiceBackbone.SendChatMessage(resultMessage + lostMessage);
+                await ServiceBackbone.SendChatMessage(resultMessage + lostMessage, e.Platform);
             }
 
         }

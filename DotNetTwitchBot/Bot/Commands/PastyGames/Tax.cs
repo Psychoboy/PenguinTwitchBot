@@ -70,19 +70,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 long totalRemoved = 0;
                 foreach (var viewer in viewers)
                 {
-                    //await using var scope = _scopeFactory.CreateAsyncScope();
-                    //var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var viewerPoints = await _pointSystem.GetUserPointsByUserIdAndGame(viewer.UserId, ModuleName);
-                    //var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
+                    var viewerPoints = await _pointSystem.GetUserPointsByUserIdAndGame(viewer.UserId, PlatformType.Twitch, ModuleName);
                     if (viewerPoints == null) continue;
                     if (viewerPoints.Points <= 25000) continue;
                     var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
                     toRemove = toRemove > 200000069 ? 200000069 : toRemove;
                     totalRemoved += toRemove;
                     viewerPoints.Points -= toRemove;
-                    await _pointSystem.RemovePointsFromUserByUserIdAndGame(viewer.UserId, ModuleName, toRemove);
-                    //db.ViewerPoints.Update(viewerPoints);
-                    //await db.SaveChangesAsync();
+                    await _pointSystem.RemovePointsFromUserByUserIdAndGame(viewer.UserId, PlatformType.Twitch, ModuleName, toRemove);
                 }
                 _logger.LogInformation("Removed {totalRemoved} pasties via taxes", totalRemoved);
             }

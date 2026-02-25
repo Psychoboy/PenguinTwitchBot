@@ -34,7 +34,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await _semaphoreSlim.WaitAsync();
             try
             {
-                var viewer = viewerFeature.GetViewerByUserName(username);
+                var viewer = viewerFeature.GetViewerByUserName(username, PlatformType.Twitch);
                 if (viewer == null)
                 {
                     logger.LogWarning("Could not find viewer {username} when trying to redeem bonus tickets.", username);
@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 }
                 ClaimedBonuses.Add(username);
                 var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
-                var amount = await pointSystem.AddPointsByUsernameAndGame(username, "bonus", ticketsWon);
+                var amount = await pointSystem.AddPointsByUsernameAndGame(username, PlatformType.Twitch, "bonus", ticketsWon);
                 if(amount == 0)
                 {
                     logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);

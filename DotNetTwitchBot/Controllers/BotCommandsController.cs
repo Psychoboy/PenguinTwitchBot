@@ -41,7 +41,8 @@ namespace DotNetTwitchBot.Controllers
                     IsMod = true,
                     IsBroadcaster = true,
                     TargetUser = "",
-                    SkipLock = true
+                    SkipLock = true,
+                    Platform = PlatformType.Twitch
                 };
                 await serviceBackbone.RunCommand(args);
             }

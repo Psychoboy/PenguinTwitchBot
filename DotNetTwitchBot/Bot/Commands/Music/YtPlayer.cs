@@ -284,7 +284,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             _logger.LogWarning("Error with song {errorCode}", errorCode);
             if (CurrentSong != null && !CurrentSong.RequestedBy.Equals(ServiceBackbone.BotName ?? "TheBot"))
             {
-                await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
+                await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...", CurrentSong.Platform);
             }
             await PlayNextSong();
         }
@@ -443,7 +443,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             var song = BackupPlaylist.Songs.Where(x => x.Id == requestedSong.Id).FirstOrDefault();
             if (song == null)
             {
-                await ServiceBackbone.SendChatMessage("Song is not in the list.");
+                _logger.LogWarning("{SongId} not found in backup playlist", requestedSong.Id);
                 return;
             }
 
@@ -465,7 +465,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (CurrentSong == null) return;
             if (BackupPlaylist.Songs.Where(x => x.SongId.Equals(CurrentSong.SongId)).Any())
             {
-                await ServiceBackbone.SendChatMessage("Song is already in the list.");
+                _logger.LogWarning("{SongId} is already in the playlist", CurrentSong.SongId);
                 return;
             }
             var songToSteel = CurrentSong.CreateDeepCopy();
@@ -540,12 +540,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             SkipVotes.Add(e.Name);
             if (SkipVotes.Count >= 3)
             {
-                await ServiceBackbone.SendChatMessage($"{e.DisplayName} voted to skip the song and was the 3rd vote. Skipping song.");
+                await ServiceBackbone.SendChatMessage($"{e.DisplayName} voted to skip the song and was the 3rd vote. Skipping song.", e.Platform);
                 await PlayNextSong();
                 return;
             }
 
-            await ServiceBackbone.SendChatMessage($"{e.DisplayName} is trying to skip the current song. {3 - SkipVotes.Count} more votes needed.");
+            await ServiceBackbone.SendChatMessage($"{e.DisplayName} is trying to skip the current song. {3 - SkipVotes.Count} more votes needed.", e.Platform);
         }
 
         private async Task SayNextSong(CommandEventArgs e)
@@ -606,7 +606,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 var playList = (await db.Playlists.GetAsync(filter: x => x.Id == id, includeProperties: "Songs")).FirstOrDefault();
                 if (playList == null)
                 {
-                    await ServiceBackbone.SendChatMessage("No playlist found");
+                    _logger.LogWarning("No playlist loaded.");
                     return;
                 }
                 BackupPlaylist = playList;
@@ -629,25 +629,25 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (e.Args.Count < 2) throw new SkipCooldownException();
             try
             {
-                await ServiceBackbone.SendChatMessage("Importing Playlist");
+                await ServiceBackbone.SendChatMessage("Importing Playlist", e.Platform);
                 var playListName = e.Args[0];
                 var playListFile = e.Args[1];
                 if (string.IsNullOrEmpty(playListFile) || string.IsNullOrWhiteSpace(playListName))
                 {
-                    await ServiceBackbone.SendChatMessage("Invalid playlist name or file name");
+                    await ServiceBackbone.SendChatMessage("Invalid playlist name or file name", e.Platform);
                     return;
                 }
 
                 if (File.Exists($"Playlists/{playListFile}") == false)
                 {
-                    await ServiceBackbone.SendChatMessage("File doesn't exists");
+                    await ServiceBackbone.SendChatMessage("File doesn't exists", e.Platform);
                     return;
                 }
 
                 var songLinks = await File.ReadAllLinesAsync($"Playlists/{playListFile}");
                 if (songLinks.Length <= 1)
                 {
-                    await ServiceBackbone.SendChatMessage("No songs in playlist");
+                    await ServiceBackbone.SendChatMessage("No songs in playlist", e.Platform);
                     return;
                 }
 
@@ -688,12 +688,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                     db.Playlists.Update(playList);
                     await db.SaveChangesAsync();
                 }
-                await ServiceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count} songs");
+                await ServiceBackbone.SendChatMessage($"Imported Playlist {playList.Name} with {playList.Songs.Count} songs", e.Platform);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to import");
-                await ServiceBackbone.SendChatMessage("Failed to import playlist");
+                await ServiceBackbone.SendChatMessage("Failed to import playlist", e.Platform);
             }
 
         }
@@ -817,7 +817,9 @@ namespace DotNetTwitchBot.Bot.Commands.Music
 
             requestCount++;
 
-            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), await GetSongRequestedCount(song)));
+            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", 
+                song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), await GetSongRequestedCount(song)),
+                e.Platform);
         }
 
         private async Task AddSongToRequests(Song song)
@@ -861,12 +863,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
                 TimeSpan length = new();
                 if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
                 {
-                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.", PlatformType.Twitch);
                     return null;
                 }
                 if (item.AgeGating != null && item.AgeGating.Restricted == true)
                 {
-                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.");
+                    if (sendChatResponse) await ServiceBackbone.SendChatMessage("That song can not be played due to restrictions.", PlatformType.Twitch);
                     return null;
                 }
                 if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
@@ -885,7 +887,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             }
             if (displayName != null)
             {
-                if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, "Could not get or had an issue finding your song request");
+                if (sendChatResponse) await ServiceBackbone.SendChatMessage(displayName, "Could not get or had an issue finding your song request", PlatformType.Twitch);
             }
             return null;
         }

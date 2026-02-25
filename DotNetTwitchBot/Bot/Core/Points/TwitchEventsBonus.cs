@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous || string.IsNullOrWhiteSpace(e.UserId))
             {
-                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
+                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype", PlatformType.Twitch);
                 return;
             }
             try
@@ -85,8 +85,8 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     if (pointsToAward < 1) return;
                     var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                     logger.LogInformation("Gave {name} {points} {PointType} for cheering.", e.Name, pointsToAward, pointType.Name);
-                    await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, pointsToAward);
-                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
+                    await pointsSystem.AddPointsByUserIdAndGame(e.UserId, PlatformType.Twitch, ModuleName, pointsToAward);
+                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype", PlatformType.Twitch);
                 }
             }
             catch (Exception ex)
@@ -103,13 +103,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var subPoints = await GetPointsPerSub() * args.GiftAmount;
                 var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                 logger.LogInformation("Gave {name} {points} {PointType} for subscribing.", args.Name, subPoints, pointType.Name);
-                await pointsSystem.AddPointsByUserIdAndGame(args.UserId, ModuleName, subPoints);
+                await pointsSystem.AddPointsByUserIdAndGame(args.UserId, PlatformType.Twitch, ModuleName, subPoints);
                 var message = $"{args.DisplayName} gifted {args.GiftAmount} subscriptions to the channel! sptvHype sptvHype sptvHype";
                 if (args.TotalGifted != null && args.TotalGifted > args.GiftAmount)
                 {
                     message += $" They have gifted a total of {args.TotalGifted} subs to the channel!";
                 }
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
             }
             catch (Exception ex)
             {
@@ -153,7 +153,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     var subPoints = await GetPointsPerSub();
                     var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                     logger.LogInformation("Gave {name} {points} {PointType} for subscribing.", e.Name, subPoints, pointType.Name);
-                    await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, subPoints);
+                    await pointsSystem.AddPointsByUserIdAndGame(e.UserId, PlatformType.Twitch, ModuleName, subPoints);
                 }
 
                 if (!e.IsRenewal && e.HadPreviousSub) return;
@@ -171,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 }
 
                 message += "! sptvHype";
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, PlatformType.Twitch);
 
             }
             catch (Exception ex)

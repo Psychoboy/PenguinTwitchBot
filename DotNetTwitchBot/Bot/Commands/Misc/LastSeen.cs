@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             if (string.IsNullOrWhiteSpace(e.TargetUser)) throw new SkipCooldownException();
 
-            var viewer = await _viewerFeature.GetViewerByUserName(e.TargetUser);
+            var viewer = await _viewerFeature.GetViewerByUserName(e.TargetUser, e.Platform);
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)
             {
                 var seconds = Convert.ToInt32((DateTime.Now - viewer.LastSeen).TotalSeconds);

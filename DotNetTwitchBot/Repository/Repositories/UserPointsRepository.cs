@@ -8,9 +8,9 @@ namespace DotNetTwitchBot.Repository.Repositories
     public class UserPointsRepository(ApplicationDbContext context) :
         GenericRepository<UserPoints>(context), IUserPointsRepository
     {
-        public Task<UserPoints?> GetUserPointsByUserId(string userId, int pointType)
+        public Task<UserPoints?> GetUserPointsByUserId(string userId, PlatformType platform, int pointType)
         {
-            return _context.UserPoints.Include(x => x.PointType).FirstOrDefaultAsyncEF(x => x.UserId == userId && x.PointTypeId == pointType);
+            return _context.UserPoints.Include(x => x.PointType).FirstOrDefaultAsyncEF(x => x.UserId == userId && x.PointTypeId == pointType && x.Platform == platform);
         }
 
         // Override the backup and restore methods to do nothing, they are covered by PointTypesRepository
@@ -24,11 +24,11 @@ namespace DotNetTwitchBot.Repository.Repositories
             return Task.CompletedTask;
         }
 
-        public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, int pointType)
+        public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, PlatformType platform, int pointType)
         {
             var result = _context.UserPoints
                 .Include(x => x.PointType)
-                .Where(x => x.PointTypeId == pointType && x.Banned == false)
+                .Where(x => x.PointTypeId == pointType && x.Banned == false && x.Platform == platform)
                 .OrderByDescending(x => x.Points)
                 .ToLinqToDB()
                 .Select((x, i) => new UserPointsWithRank

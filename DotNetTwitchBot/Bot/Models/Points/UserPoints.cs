@@ -18,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Models.Points
         public string Username { get; set; } = null!;
         public long Points { get; set; }
         public bool Banned { get; set; }
+        public PlatformType Platform { get; set; } = PlatformType.Twitch;
 
     }
 }

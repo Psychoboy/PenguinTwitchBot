@@ -174,23 +174,23 @@ else
         } 
         else if (!string.IsNullOrEmpty(id))
         {
-            viewer.Viewer = await viewerFeature.GetViewerByUserName(id);
+            viewer.Viewer = await viewerFeature.GetViewerByUserName(id, PlatformType.Twitch); //TODO add flexibility for other platforms
         }
 
         if(viewer.Viewer != null)
         {
             username = viewer.Viewer.Username;
-            var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
+            var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username, viewer.Viewer.Platform);
             if(follower != null)
             {
                 viewer.FollowDated = follower.FollowDate;
             }
             var giveawayPointsSystem = await pointSystem.GetPointTypeForGame("giveawayfeature");
-            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, giveawayPointsSystem.Id.GetValueOrDefault());
-            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, 1);
+            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, viewer.Viewer.Platform, giveawayPointsSystem.Id.GetValueOrDefault());
+            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, viewer.Viewer.Platform, 1);
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
-            viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
+            viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username, viewer.Viewer.Platform);
             if(viewer.Time != null)
             {
                 viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);

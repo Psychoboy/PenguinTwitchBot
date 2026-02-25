@@ -70,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 return new CustomCommandResult();
             }
 
-            var target = await viewerFeature.GetViewerByUserName(targetName);
+            var target = await viewerFeature.GetViewerByUserName(targetName, eventArgs.Platform);
             if (target == null)
             {
                 logger.LogWarning("Invalid target for custom command of 'giftpoints' type.");
@@ -78,13 +78,13 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
                 return new CustomCommandResult();
             }
 
-            if (await pointsSystem.RemovePointsFromUserByUserId(eventArgs.UserId, pointTypeId, amount) == false)
+            if (await pointsSystem.RemovePointsFromUserByUserId(eventArgs.UserId, eventArgs.Platform, pointTypeId, amount) == false)
             {
                 logger.LogWarning("Not enough points for custom command of 'giftpoints' type.");
                 await serviceBackbone.ResponseWithMessage(eventArgs, $"You don't have enough {pointSystem.Name} to gift {amount} to {targetName}.");
                 return new CustomCommandResult();
             }
-            await pointsSystem.AddPointsByUserId(target.UserId, pointTypeId, amount);
+            await pointsSystem.AddPointsByUserId(target.UserId, eventArgs.Platform, pointTypeId, amount);
             await serviceBackbone.ResponseWithMessage(eventArgs, $"You have gifted {amount:N0} {pointSystem.Name} to {target.DisplayName}.");
             return new CustomCommandResult();
         }

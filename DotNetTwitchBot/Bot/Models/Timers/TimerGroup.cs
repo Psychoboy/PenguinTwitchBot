@@ -19,6 +19,8 @@ namespace DotNetTwitchBot.Bot.Models.Timers
         public DateTime LastRun { get; set; }
         public DateTime NextRun { get; set; }
 
+        public List<PlatformType> Platforms { get; set; } = new List<PlatformType>() { PlatformType.Twitch };
+
         public List<TimerMessage> Messages { get; set; } = new List<TimerMessage>();
     }
 }

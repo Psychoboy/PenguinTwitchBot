@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.KickServices;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
 using MediatR;
@@ -17,6 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ConcurrentDictionary<string, DateTime> _lurkers = new();
 
         private readonly ITwitchService _twitchService;
+        private readonly IKickService _kickService;
         private readonly ILogger<ViewerFeature> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Timer _subscriberUpdateTimer = new(TimeSpan.FromHours(1).TotalMilliseconds);
@@ -28,6 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             ILogger<ViewerFeature> logger,
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
+            IKickService kickService,
             IServiceScopeFactory scopeFactory,
             IMediator mediator,
             ICommandHandler commandHandler
@@ -42,6 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             serviceBackbone.ChannelPointRedeemEvent += OnChannelPointRedeem;
 
             _twitchService = twitchService;
+            _kickService = kickService;
             _scopeFactory = scopeFactory;
 
             _subscriberUpdateTimer.Elapsed += OnSubscriberTimerElapsed;
@@ -69,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 _users = new(chatters.Select(x => x.UserLogin).Distinct());
                 foreach (var chatter in chatters)
                 {
-                    await AddOrUpdateLastSeen(chatter.UserId);
+                    await AddOrUpdateLastSeen(chatter.UserId, PlatformType.Twitch);
                 }
             }
             catch (Exception ex)
@@ -104,12 +108,12 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
 
-        private async Task AddOrUpdateLastSeen(string userId)
+        private async Task AddOrUpdateLastSeen(string userId, PlatformType platform)
         {
-            var viewer = await GetViewerByUserId(userId);
+            var viewer = await GetViewerByUserId(userId, platform);
             if (viewer == null)
             {
-                await AddBasicUser(userId);
+                await AddBasicUser(userId, platform);
             }
             else
             {
@@ -142,7 +146,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private async Task OnFollow(object? sender, FollowEventArgs e)
         {
             _logger.LogInformation("{DisplayName} Followed.", e.DisplayName);
-            await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3");
+            await ServiceBackbone.SendChatMessage($"Thank you for following {e.DisplayName} <3", e.Platform);
             UpdateLastActive(e.Username);
         }
 
@@ -152,33 +156,45 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await Task.CompletedTask;
         }
 
-        public async Task<bool> IsFollowerByUsername(string username)
+        public async Task<bool> IsFollowerByUsername(string username, PlatformType platform)
         {
-            var follower = await GetFollowerAsync(username);
+            var follower = await GetFollowerAsync(username, platform);
             return follower != null;
         }
 
-        public async Task<Follower?> GetFollowerAsync(string username)
+        public async Task<Follower?> GetFollowerAsync(string username, PlatformType platform)
         {
-            var follower = await _twitchService.GetUserFollow(username);
-            if (follower == null) return null;
-            return follower;
+            if (platform == PlatformType.Twitch)
+            {
+                var follower = await _twitchService.GetUserFollow(username);
+                if (follower == null) return null;
+                return follower;
+            } 
+            else
+            {
+                var follower = await _kickService.GetFollower(username);
+                if (follower == null) return null;
+                return follower;
+            }
         }
 
-        public async Task<DateTime?> GetUserCreatedAsync(string username)
+        public async Task<DateTime?> GetUserCreatedAsync(string username, PlatformType platform)
         {
             DateTime? dateCreated = null;
-            try
+            if (platform == PlatformType.Twitch)
             {
-                var user = await _twitchService.GetUserByName(username);
-                if (user != null)
+                try
                 {
-                    dateCreated = user.CreatedAt;
+                    var user = await _twitchService.GetUserByName(username);
+                    if (user != null)
+                    {
+                        dateCreated = user.CreatedAt;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error getting user");
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error getting user");
+                }
             }
             return dateCreated;
         }
@@ -201,52 +217,75 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return [.. users];
         }
 
-        public async Task<Viewer?> GetViewerByUserName(string username)
+        public async Task<Viewer?> GetViewerByUserName(string username, PlatformType platform)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var viewer = await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
-            if(viewer == null)
+            var viewer = await db.Viewers.Find(x => x.Username.Equals(username.ToLower()) && x.Platform == platform).FirstOrDefaultAsync();
+            if (viewer == null)
             {
-                var twitchViewer = await _twitchService.GetUserByName(username);
-                if (twitchViewer != null)
+                if (platform == PlatformType.Twitch)
                 {
-                    await AddOrUpdateLastSeen(twitchViewer.Id);
-                    viewer = await GetViewerByUserId(twitchViewer.Id);
+                    var twitchViewer = await _twitchService.GetUserByName(username);
+                    if (twitchViewer != null)
+                    {
+                        await AddOrUpdateLastSeen(twitchViewer.Id, platform);
+                        viewer = await GetViewerByUserId(twitchViewer.Id, platform);
+                    }
                 }
-
-            }
-            return viewer;
-        }
-
-        public async Task<Viewer?> GetViewerByUserId(string userId)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-        }
-
-        public async Task<Viewer?> GetViewerByUserIdOrName(string userId, string username)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var viewer =  await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-            viewer ??= await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
-            if(viewer == null)
-            {
-                var twitchViewer = await _twitchService.GetUserByName(username);
-                if (twitchViewer != null)
+                else if (platform == PlatformType.Kick)
                 {
-                    await AddOrUpdateLastSeen(twitchViewer.Id);
-                    viewer = await GetViewerByUserId(twitchViewer.Id);
+                    var kickViewer = await _kickService.GetViewerInfoByUsername(username);
+                    if (kickViewer != null)
+                    {
+                        await AddOrUpdateLastSeen(kickViewer.Id.ToString(), platform);
+                        viewer = await GetViewerByUserId(kickViewer.Id.ToString(), platform);
+                    }
                 }
             }
             return viewer;
         }
 
-        public async Task<string> GetDisplayNameByUsername(string username)
+        public async Task<Viewer?> GetViewerByUserId(string userId, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.Viewers.Find(x => x.UserId.Equals(userId) && x.Platform == platform).FirstOrDefaultAsync();
+        }
+
+        public async Task<Viewer?> GetViewerByUserIdOrName(string userId, string username, PlatformType platform)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var viewer =  await db.Viewers.Find(x => x.UserId.Equals(userId) && x.Platform == platform).FirstOrDefaultAsync();
+            viewer ??= await db.Viewers.Find(x => x.Username.Equals(username.ToLower()) && x.Platform == platform).FirstOrDefaultAsync();
+            if (viewer == null)
+            {
+                if (platform == PlatformType.Twitch)
+                { 
+                    var twitchViewer = await _twitchService.GetUserByName(username);
+                    if (twitchViewer != null)
+                    {
+                        await AddOrUpdateLastSeen(twitchViewer.Id, platform);
+                        viewer = await GetViewerByUserId(twitchViewer.Id, platform);
+                    }
+                } 
+                else if (platform == PlatformType.Kick)
+                {
+                    var kickViewer = await _kickService.GetViewerInfoByUsername(username);
+                    if (kickViewer != null)
+                    {
+                        await AddOrUpdateLastSeen(kickViewer.Id.ToString(), platform);
+                        viewer = await GetViewerByUserId(kickViewer.Id.ToString(), platform);
+                    }
+                }
+            }
+            return viewer;
+        }
+
+        public async Task<string> GetDisplayNameByUsername(string username, PlatformType platform)
+        {
+            var viewer = await GetViewerByUserName(username, platform);
             return GetDisplayNameForViewer(viewer, username);
         }
 
@@ -255,21 +294,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewer != null ? viewer.DisplayName : username;
         }
 
-        public async Task<string> GetDisplayNameByUserId(string userId, string username)
+        public async Task<string> GetDisplayNameByUserId(string userId, string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserId(userId);
+            var viewer = await GetViewerByUserId(userId, platform);
             return viewer != null ? viewer.DisplayName : username;
         }
 
-        public async Task<string> GetNameWithTitle(string username)
+        public async Task<string> GetNameWithTitle(string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            var viewer = await GetViewerByUserName(username, platform);
             return viewer != null ? viewer.NameWithTitle() : username;
         }
 
-        public async Task<bool> IsSubscriber(string username)
+        public async Task<bool> IsSubscriber(string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            var viewer = await GetViewerByUserName(username, platform);
             if (viewer == null)
             {
                 return false;
@@ -277,9 +316,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             return viewer.isSub;
         }
 
-        public async Task<bool> IsModerator(string username)
+        public async Task<bool> IsModerator(string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            var viewer = await GetViewerByUserName(username, platform);
             if (viewer == null)
             {
                 return false;
@@ -291,7 +330,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (e.Name == null) return;
             _logger.LogInformation("{name} Subscribed.", e.Name);
-            await AddSubscription(e.Name);
+            await AddSubscription(e.Name, e.Platform);
             UpdateLastActive(e.Name);
         }
 
@@ -299,21 +338,21 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             if (e.Name == null) return;
             _logger.LogInformation("{name} Unsubscribed", e.Name);
-            await RemoveSubscription(e.Name);
+            await RemoveSubscription(e.Name, e.Platform);
         }
 
-        private async Task AddSubscription(string username)
+        private async Task AddSubscription(string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            var viewer = await GetViewerByUserName(username, platform);
             if (viewer == null) return;
             viewer.isSub = true;
             await UpdateViewer(viewer);
             _logger.LogInformation("{name} Subscription added.", username);
         }
 
-        private async Task RemoveSubscription(string username)
+        private async Task RemoveSubscription(string username, PlatformType platform)
         {
-            var viewer = await GetViewerByUserName(username);
+            var viewer = await GetViewerByUserName(username, platform);
             if (viewer == null) return;
             viewer.isSub = false;
             await UpdateViewer(viewer);
@@ -338,7 +377,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             UpdateLastActive(e.Name);
-            Viewer? viewer = await GetViewerByUserIdOrName(e.UserId, e.Name);
+            Viewer? viewer = await GetViewerByUserIdOrName(e.UserId, e.Name, e.Platform);
 
             viewer ??= new Viewer
             {
@@ -350,25 +389,44 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             if (viewer.isSub != e.IsSub) viewer.isSub = e.IsSub;
             if (viewer.isVip != e.IsVip) viewer.isVip = e.IsVip;
             if (viewer.isBroadcaster != e.IsBroadcaster) viewer.isBroadcaster = e.IsBroadcaster;
+            viewer.Platform = e.Platform;
             viewer.LastSeen = DateTime.Now;
             await UpdateViewer(viewer);
         }
 
-        private async Task AddBasicUser(string userId)
+        private async Task AddBasicUser(string userId, PlatformType platform)
         {
-            var viewer = await GetViewerByUserId(userId);
+            var viewer = await GetViewerByUserId(userId, platform);
             if (viewer != null) return;
 
-            var user = await _twitchService.GetUserById(userId);
-            if(user == null) return;
-
-            viewer = new Viewer
+            if (platform == PlatformType.Twitch)
             {
-                DisplayName = user.DisplayName,
-                UserId = userId,
-                Username = user.Login,
-                LastSeen = DateTime.Now
-            };
+                var user = await _twitchService.GetUserById(userId);
+                if (user == null) return;
+
+                viewer = new Viewer
+                {
+                    DisplayName = user.DisplayName,
+                    UserId = userId,
+                    Username = user.Login,
+                    LastSeen = DateTime.Now
+                };
+            } else if (platform == PlatformType.Kick)
+            {
+                var user = await _kickService.GetViewerInfoByUserId(userId);
+                if (user == null) return;
+                viewer = new Viewer
+                {
+                    DisplayName = user.Username,
+                    UserId = userId,
+                    Username = user.Username.ToLower(),
+                    LastSeen = DateTime.Now
+                };
+            }
+            else
+            {
+                return;
+            }
             await UpdateViewer(viewer);
         }
 
@@ -384,7 +442,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         try
                         {
-                            var viewer = await GetViewerByUserIdOrName(subscriber.UserId,subscriber.UserLogin);
+                            var viewer = await GetViewerByUserIdOrName(subscriber.UserId,subscriber.UserLogin, PlatformType.Twitch);
                             viewer ??= new Viewer
                             {
                                 UserId = subscriber.UserId
@@ -457,7 +515,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     {
                         try
                         {
-                            var viewer = await GetViewerByUserIdOrName(editor.UserId, editor.UserName);
+                            var viewer = await GetViewerByUserIdOrName(editor.UserId, editor.UserName, PlatformType.Twitch);
                             viewer ??= new Viewer
                             {
                                 UserId = editor.UserId
@@ -514,23 +572,29 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         }
 
 
-        public async Task<string?> GetViewerId(string username)
+        public async Task<string?> GetViewerId(string username, PlatformType platform)
         {
-            var dbViewer = await GetViewerByUserName(username);
+            var dbViewer = await GetViewerByUserName(username, platform);
             if(dbViewer != null && !string.IsNullOrWhiteSpace(dbViewer.UserId))
             {
                 return dbViewer.UserId;
             }
-
-            var viewer = await _twitchService.GetUserByName(username);
-            if (viewer != null)
+            if(platform == PlatformType.Kick)
             {
-                return viewer.Id;
-            }
-            else 
+                var kickViewer = await _kickService.GetViewerInfoByUsername(username);
+                if (kickViewer != null)
+                {
+                    return kickViewer.Id.ToString();
+                }
+            } else if(platform == PlatformType.Twitch)
             {
-                return null;
+                var viewer = await _twitchService.GetUserByName(username);
+                if (viewer != null)
+                {
+                    return viewer.Id;
+                }
             }
+            return null;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
