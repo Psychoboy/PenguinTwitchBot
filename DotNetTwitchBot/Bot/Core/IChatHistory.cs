@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Models;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {

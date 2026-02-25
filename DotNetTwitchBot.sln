@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.2.11415.280 d18.0
+VisualStudioVersion = 18.2.11415.280
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetTwitchBot", "DotNetTwitchBot\DotNetTwitchBot.csproj", "{AAE6EFEA-8861-4AAA-B8D3-20163977C51C}"
 EndProject
@@ -15,6 +15,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchLib.Api", "TwitchLib.Api\TwitchLib.Api\TwitchLib.Api.csproj", "{7BE46FB0-00E5-01EC-1D50-22FEBCF124CC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchLib.EventSub.Websockets", "TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets.csproj", "{842D0F11-90CF-35F7-978C-606F4EEEE54D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchLib.EventSub.Core", "TwitchLib.EventSub.Core\TwitchLib.EventSub.Core\TwitchLib.EventSub.Core.csproj", "{434DC76C-AF7D-8C6D-51E0-81E53D099B00}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,10 @@ Global
 		{842D0F11-90CF-35F7-978C-606F4EEEE54D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{842D0F11-90CF-35F7-978C-606F4EEEE54D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{842D0F11-90CF-35F7-978C-606F4EEEE54D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{434DC76C-AF7D-8C6D-51E0-81E53D099B00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{434DC76C-AF7D-8C6D-51E0-81E53D099B00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{434DC76C-AF7D-8C6D-51E0-81E53D099B00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{434DC76C-AF7D-8C6D-51E0-81E53D099B00}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

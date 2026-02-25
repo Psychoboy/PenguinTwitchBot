@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
 using MediatR;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Core
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var chatHistory = db.ViewerChatHistories.Find(x => x.MessageId == e.Notification.Payload.Event.MessageId).FirstOrDefault();
+                var chatHistory = db.ViewerChatHistories.Find(x => x.MessageId == e.Payload.Event.MessageId).FirstOrDefault();
                 if (chatHistory != null)
                 {
                     db.ViewerChatHistories.Remove(chatHistory);

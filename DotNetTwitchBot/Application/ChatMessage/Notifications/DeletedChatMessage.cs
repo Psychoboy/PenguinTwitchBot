@@ -1,5 +1,5 @@
 ﻿using MediatR;
-using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Application.ChatMessage.Notifications
 {
