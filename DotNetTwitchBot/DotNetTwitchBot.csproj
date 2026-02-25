@@ -48,8 +48,8 @@
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.73.0.4029" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.17.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
-    <PackageReference Include="linq2db" Version="5.4.1" />
-    <PackageReference Include="linq2db.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="linq2db" Version="6.1.0" />
+    <PackageReference Include="linq2db.EntityFrameworkCore" Version="10.1.0" />
 	<PackageReference Include="MediatR" Version="14.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.2" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="10.0.2" />
