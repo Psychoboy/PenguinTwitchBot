@@ -138,15 +138,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     try
                     {
                         logger.LogInformation("Refreshing Bot Token");
-
-                        //var refreshToken = await _twitchApi.Auth.RefreshAuthTokenAsync(configuration["twitchBotRefreshToken"], configuration["twitchBotClientSecret"], configuration["twitchBotClientId"]);
-                        //configuration["twitchBotAccessToken"] = refreshToken.AccessToken;
-                        //configuration["botExpiresIn"] = refreshToken.ExpiresIn.ToString();
-                        //configuration["twitchBotRefreshToken"] = refreshToken.RefreshToken;
-                        //_twitchApi.Settings.AccessToken = refreshToken.AccessToken;
-                        //await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
-                        //await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
-                        //await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
                         return await RefreshAccessToken();
                     }
                     catch (Exception e)
@@ -171,38 +162,36 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             var url = "https://id.twitch.tv/oauth2/token";
             var formData = new List<KeyValuePair<string, string>>
             {
-                new KeyValuePair<string, string>("client_id", configuration["twitchBotClientId"]),
-                new KeyValuePair<string, string>("client_secret", configuration["twitchBotClientSecret"]),
-                new KeyValuePair<string, string>("grant_type", "client_credentials"),
+                new("client_id", configuration["twitchBotClientId"]),
+                new("client_secret", configuration["twitchBotClientSecret"]),
+                new("grant_type", "client_credentials"),
             };
             var encodedContent = new FormUrlEncodedContent(formData);
-            using (var client = new HttpClient())
+            using var client = new HttpClient();
+            try
             {
-                try
+                var response = await client.PostAsync(url, encodedContent);
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await client.PostAsync(url, encodedContent);
-                    if (response.IsSuccessStatusCode)
+                    logger.LogInformation("Successfully requested bot access token");
+                    var content = await response.Content.ReadAsStringAsync();
+                    var tokenResponse = System.Text.Json.JsonSerializer.Deserialize<TwitchTokenResponse>(content);
+                    if (tokenResponse == null)
                     {
-                        logger.LogInformation("Successfully requested bot access token");
-                        var content = await response.Content.ReadAsStringAsync();
-                        var tokenResponse = System.Text.Json.JsonSerializer.Deserialize<TwitchTokenResponse>(content);
-                        if(tokenResponse == null)
-                        {
-                            logger.LogError("Failed to deserialize token response");
-                            return false;
-                        }
-                        configuration["twitchBotAccessToken"] = tokenResponse.AccessToken;
-                        configuration["botExpiresIn"] = tokenResponse.ExpiresIn.ToString();
-                        _twitchApi.Settings.AccessToken = tokenResponse.AccessToken;
-                        await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", tokenResponse.AccessToken);
-                        await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", tokenResponse.ExpiresIn.ToString());
+                        logger.LogError("Failed to deserialize token response");
+                        return false;
                     }
-                    return true;
+                    configuration["twitchBotAccessToken"] = tokenResponse.AccessToken;
+                    configuration["botExpiresIn"] = tokenResponse.ExpiresIn.ToString();
+                    _twitchApi.Settings.AccessToken = tokenResponse.AccessToken;
+                    await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", tokenResponse.AccessToken);
+                    await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", tokenResponse.ExpiresIn.ToString());
                 }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error requesting bot access token");
-                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error requesting bot access token");
             }
             return false;
         }
