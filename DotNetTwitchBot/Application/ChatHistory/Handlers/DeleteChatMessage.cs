@@ -8,6 +8,7 @@ namespace DotNetTwitchBot.Application.ChatHistory.Handlers
     {
         public Task Handle(DeletedChatMessage notification, CancellationToken cancellationToken)
         {
+
             return chatHistory.DeleteChatMessage(notification.EventArgs);
         }
     }
