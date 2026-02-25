@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                         //await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", refreshToken.AccessToken);
                         //await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", refreshToken.RefreshToken);
                         //await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", refreshToken.ExpiresIn.ToString());
-                        //return true;
+                        return await RefreshAccessToken();
                     }
                     catch (Exception e)
                     {
