@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Application.ChatMessage.Handlers
     {
         public Task Handle(SendBotMessage request, CancellationToken cancellationToken)
         {
-            return chatBot.SendMessage(request.Message);
+            return chatBot.SendMessage(request.Message, request.SourceOnly);
         }
     }
 }

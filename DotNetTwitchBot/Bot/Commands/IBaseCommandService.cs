@@ -10,8 +10,8 @@ namespace DotNetTwitchBot.Bot.Commands
 {
     public interface IBaseCommandService
     {
-        Task SendChatMessage(string message);
-        Task SendChatMessage(string name, string message);
+        Task SendChatMessage(string message, bool sourceOnly = true);
+        Task SendChatMessage(string name, string message, bool sourceOnly = true);
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
         Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand);
