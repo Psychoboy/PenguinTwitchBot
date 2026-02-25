@@ -39,8 +39,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var command = CommandHandler.GetCommandDefaultName(e.Command);
-            if (!command.Equals("death")) return;
+            var command = CommandHandler.GetCommand(e.Command);
+            if (command == null) return;
+            if (!command.CommandProperties.CommandName.Equals("death")) return;
 
             var game = await _twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))
@@ -94,20 +95,20 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         break;
                 }
             }
-            await SendCounter(game);
+            await SendCounter(game, command.CommandProperties.SourceOnly);
         }
 
-        private async Task SendCounter(string counterName)
+        private async Task SendCounter(string counterName, bool sourceOnly)
         {
             var counter = await GetCounter(counterName);
             if (counter.Amount == 0)
             {
-                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counterName));
+                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counterName), sourceOnly);
 
             }
             else
             {
-                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counter.Amount, counterName));
+                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counter.Amount, counterName), sourceOnly);
             }
         }
 

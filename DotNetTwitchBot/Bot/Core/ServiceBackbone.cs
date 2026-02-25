@@ -108,7 +108,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task SendChatMessage(string message, bool sourceOnly = true)
         {
-            return mediator.Publish(new SendBotMessage(message));
+            return mediator.Publish(new SendBotMessage(message, sourceOnly));
         }
 
         public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)

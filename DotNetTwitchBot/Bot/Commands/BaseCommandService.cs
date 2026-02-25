@@ -25,14 +25,14 @@ namespace DotNetTwitchBot.Bot.Commands
 
         protected IServiceBackbone ServiceBackbone { get; }
 
-        public async Task SendChatMessage(string message)
+        public async Task SendChatMessage(string message, bool sourceOnly = true)
         {
-            await ServiceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message, sourceOnly);
         }
 
-        public async Task SendChatMessage(string name, string message)
+        public async Task SendChatMessage(string name, string message, bool sourceOnly = true)
         {
-            await ServiceBackbone.SendChatMessage(name, message);
+            await ServiceBackbone.SendChatMessage(name, message, sourceOnly);
         }
 
         public async Task RespondWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
