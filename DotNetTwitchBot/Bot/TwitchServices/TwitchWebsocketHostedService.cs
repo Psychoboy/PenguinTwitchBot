@@ -225,15 +225,9 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
         private bool DidProcessMessage(EventSubMetadata eventSubMetaData)
         {
-            if (eventSubMetaData is not WebsocketEventSubMetadata)
+            if (eventSubMetaData is not WebsocketEventSubMetadata metadata)
             {
                 logger.LogError("Metadata was not of type WebsocketEventSubMetadata when checking if message was already processed");
-                return false;
-            }
-            var metadata = eventSubMetaData as WebsocketEventSubMetadata;
-            if(metadata == null)
-            {
-                logger.LogError("Metadata was null when checking if message was already processed");
                 return false;
             }
             if (memoryCache.TryGetValue(metadata.MessageId, out var _))
