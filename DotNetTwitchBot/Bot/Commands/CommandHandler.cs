@@ -25,6 +25,10 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public static bool CheckToRunBroadcasterOnly(CommandEventArgs eventArgs, BaseCommandProperties commandProperties)
         {
+            if(commandProperties.SourceOnly && eventArgs.FromOwnChannel == false)
+            {
+                return false;
+            }
             if (commandProperties.RunFromBroadcasterOnly == false) return true;
             if (eventArgs.FromOwnChannel == false) return false;
             return true;

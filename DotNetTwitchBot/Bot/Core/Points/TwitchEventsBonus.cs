@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous || string.IsNullOrWhiteSpace(e.UserId))
             {
-                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype");
+                await ServiceBackbone.SendChatMessage($"Someone just cheered {e.Amount} bits! sptvHype", false);
                 return;
             }
             try
@@ -86,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
                     logger.LogInformation("Gave {name} {points} {PointType} for cheering.", e.Name, pointsToAward, pointType.Name);
                     await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, pointsToAward);
-                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype");
+                    await ServiceBackbone.SendChatMessage($"{e.DisplayName} just cheered {e.Amount} bits! sptvHype", false);
                 }
             }
             catch (Exception ex)
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 {
                     message += $" They have gifted a total of {args.TotalGifted} subs to the channel!";
                 }
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, false);
             }
             catch (Exception ex)
             {
@@ -171,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 }
 
                 message += "! sptvHype";
-                await ServiceBackbone.SendChatMessage(message);
+                await ServiceBackbone.SendChatMessage(message, false);
 
             }
             catch (Exception ex)

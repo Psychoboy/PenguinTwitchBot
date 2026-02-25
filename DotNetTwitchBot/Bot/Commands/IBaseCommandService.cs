@@ -15,6 +15,6 @@ namespace DotNetTwitchBot.Bot.Commands
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
         Task<DefaultCommand> RegisterDefaultCommand(DefaultCommand defaultCommand);
-        Task RespondWithMessage(CommandEventArgs e, string message);
+        Task RespondWithMessage(CommandEventArgs e, string message, bool sourceOnly = true);
     }
 }

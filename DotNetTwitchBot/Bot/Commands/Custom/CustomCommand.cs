@@ -273,7 +273,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         return;
                     }
 
-                    await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response, false);
+                    await ProcessTagsAndSayMessage(commandEventArgs, keyword.Keyword.Response, false, keyword.Keyword.SourceOnly);
 
                     if (keyword.Keyword.GlobalCooldown > 0)
                     {
@@ -339,7 +339,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                 }
 
-                await ProcessTagsAndSayMessage(e, command.Response, command.RespondAsStreamer);
+                await ProcessTagsAndSayMessage(e, command.Response, command.RespondAsStreamer, command.SourceOnly);
                 if (command.GlobalCooldown > 0)
                 {
                     await CommandHandler.AddGlobalCooldown(e.Command, command.GlobalCooldown);
@@ -562,7 +562,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             };
         }
 
-        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText, bool respondAsStreamer)
+        private async Task ProcessTagsAndSayMessage(CommandEventArgs eventArgs, string commandText, bool respondAsStreamer, bool sourceOnly)
         {
             var messages = commandText.Split("\n");
             foreach (var oldMessage in messages)
@@ -582,11 +582,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     }
                     else if (result.ReplyToMessage)
                     {
-                        await ServiceBackbone.ResponseWithMessage(eventArgs, message);
+                        await ServiceBackbone.ResponseWithMessage(eventArgs, message, sourceOnly);
                     }
                     else
                     {
-                        await ServiceBackbone.SendChatMessage(message);
+                        await ServiceBackbone.SendChatMessage(message, sourceOnly);
                     }
                 }
             }

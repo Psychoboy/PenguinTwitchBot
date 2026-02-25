@@ -81,7 +81,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    SenderId = broadcasterId,
+                    Message = message
+                };
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
                 if (result.Data.First().IsSent == false)
                 {
                     _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
@@ -98,7 +105,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    SenderId = broadcasterId,
+                    Message = message
+                };
+                var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
                 _messageIdTracker.AddMessageId(result.Data.First().MessageId);
                 if (result.Data.First().IsSent == false)
                 {

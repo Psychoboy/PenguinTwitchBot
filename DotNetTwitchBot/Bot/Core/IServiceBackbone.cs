@@ -47,10 +47,10 @@ namespace DotNetTwitchBot.Bot.Core
         Task OnUserLeft(string username);
         Task OnWhisperCommand(CommandEventArgs command);
         Task RunCommand(CommandEventArgs eventArgs);
-        Task SendChatMessage(string message);
-        Task SendChatMessage(string name, string message);
-        Task SendChatMessageWithTitle(string viewerName, string message);
+        Task SendChatMessage(string message, bool sourceOnly = true);
+        Task SendChatMessage(string name, string message, bool sourceOnly = true);
+        Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly = true);
         Task OnViewerBan(string userId, string username, bool unbanned, DateTimeOffset? endsAt);
-        Task ResponseWithMessage(CommandEventArgs e, string message);
+        Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly = true);
     }
 }

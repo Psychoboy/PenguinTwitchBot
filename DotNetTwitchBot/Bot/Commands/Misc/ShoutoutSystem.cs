@@ -75,11 +75,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             if (autoShoutout != null)
             {
-                await Shoutout(name, autoShoutout.AutoPlayClip);
+                await Shoutout(name, autoShoutout.AutoPlayClip, true, false);
             }
         }
 
-        private async Task Shoutout(string name, bool playClip, bool useAi = true)
+        private async Task Shoutout(string name, bool playClip, bool useAi, bool sourceOnly)
         {
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
 
                 message = message.Replace("(name)", name).Replace("(game)", game);
-            await ServiceBackbone.SendChatMessage(message);
+            await ServiceBackbone.SendChatMessage(message, false);
             if(playClip) await _clipService.PlayRandomClipForStreamer(name);
             
             await TwitchShoutOut(userId);
@@ -200,7 +200,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     {
                         throw new SkipCooldownException();
                     }
-                    await Shoutout(e.TargetUser, true);
+                    await Shoutout(e.TargetUser, true, true, command.CommandProperties.SourceOnly);
                     break;
             }
         }

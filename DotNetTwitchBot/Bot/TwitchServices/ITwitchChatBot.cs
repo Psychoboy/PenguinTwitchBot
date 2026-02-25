@@ -3,8 +3,9 @@
     public interface ITwitchChatBot : IHostedService
     {
         Task<bool> IsConnected();
-        Task ReplyToMessage(string name, string messageId, string message);
-        Task SendMessage(string message);
+        Task<bool> RefreshAccessToken();
+        Task ReplyToMessage(string name, string messageId, string message, bool sourceOnly = true);
+        Task SendMessage(string message, bool sourceOnly = true);
         void SetAccessToken(string accessToken);
     }
 }
