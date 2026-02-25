@@ -49,9 +49,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 _logger.LogWarning("Game is not set for counter");
                 throw new SkipCooldownException();
             }
-
-            
-
             var modifiers = e.Args;
             if (modifiers.Count > 0)
             {
