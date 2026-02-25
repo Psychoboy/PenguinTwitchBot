@@ -69,7 +69,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 100);
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser just cheered 100 bits! sptvHype");
+            await _serviceBackbone.Received(1).SendChatMessage("TestUser just cheered 100 bits! sptvHype", false);
         }
 
         [Fact]
@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             //await _twitchEventsBonus.OnSubscription(this, subscriptionEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 500);
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser just subscribed for a total of 1 months and for 1 months in a row! sptvHype");
+            await _serviceBackbone.Received(1).SendChatMessage("TestUser just subscribed for a total of 1 months and for 1 months in a row! sptvHype", false);
         }
 
         [Fact]
@@ -117,7 +117,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             //await _twitchEventsBonus.OnSubScriptionGift(this, subscriptionGiftEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 2500);
-            await _serviceBackbone.Received(1).SendChatMessage("TestUser gifted 5 subscriptions to the channel! sptvHype sptvHype sptvHype They have gifted a total of 10 subs to the channel!");
+            await _serviceBackbone.Received(1).SendChatMessage("TestUser gifted 5 subscriptions to the channel! sptvHype sptvHype sptvHype They have gifted a total of 10 subs to the channel!", false);
         }
 
         [Fact]

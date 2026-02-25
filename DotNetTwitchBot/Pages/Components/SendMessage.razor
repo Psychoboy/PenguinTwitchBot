@@ -5,6 +5,10 @@
             <MudSelectItem Value="SendAsType.Streamer">Streamer</MudSelectItem>
             <MudSelectItem Value="SendAsType.Bot">Bot</MudSelectItem>
         </MudSelect>
+        @if (MessageModel.SendAs == SendAsType.Bot)
+        {
+            <MudCheckBox @bind-Value ="MessageModel.SourceOnly" Label="Source Only (For Stream Together)" />
+        }
         <MudTextField @ref="textField" @bind-Value="MessageModel.Message" Label="Message" />
         <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>
     </EditForm>
@@ -17,6 +21,7 @@
     {
         public string Message { get; set; } = string.Empty;
         public SendAsType SendAs { get; set; } = SendAsType.Streamer;
+        public bool SourceOnly { get; set; } = false;
     }
     private SendMessageModel MessageModel { get; set; } = new SendMessageModel();
 
@@ -47,7 +52,7 @@
         }
         else
         {
-            await twitchChatBot.SendMessage(MessageModel.Message);
+            await twitchChatBot.SendMessage(MessageModel.Message, MessageModel.SourceOnly);
         }
         MessageModel.Message = string.Empty;
         textField?.Clear();

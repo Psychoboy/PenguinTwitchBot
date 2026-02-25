@@ -22,6 +22,7 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public bool SayCooldown { get; set; } = true;
         public bool SayRankRequirement { get; set; } = false;
         public bool ExcludeFromUi { get; set; } = false;
+        public bool SourceOnly { get; set; } = true;
         public string Category { get; set; } = "";
         public string Description { get; set; } = "";
         public bool RunFromBroadcasterOnly { get; set; } = false;

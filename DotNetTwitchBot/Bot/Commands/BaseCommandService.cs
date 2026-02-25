@@ -35,17 +35,17 @@ namespace DotNetTwitchBot.Bot.Commands
             await ServiceBackbone.SendChatMessage(name, message);
         }
 
-        public async Task RespondWithMessage(CommandEventArgs e, string message)
+        public async Task RespondWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
         {
             message = message.TrimStart('!').Trim();
 
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
-                await ServiceBackbone.SendChatMessage(e.DisplayName, message);
+                await ServiceBackbone.SendChatMessage(e.DisplayName, message, sourceOnly);
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message));
+                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message, sourceOnly));
             }
         }
 

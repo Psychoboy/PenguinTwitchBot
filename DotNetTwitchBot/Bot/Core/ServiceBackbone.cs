@@ -106,30 +106,30 @@ namespace DotNetTwitchBot.Bot.Core
             }
         }
 
-        public Task SendChatMessage(string message)
+        public Task SendChatMessage(string message, bool sourceOnly = true)
         {
             return mediator.Publish(new SendBotMessage(message));
         }
 
-        public async Task ResponseWithMessage(CommandEventArgs e, string message)
+        public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
         {
             message = message.TrimStart('!').Trim();
 
             if (string.IsNullOrWhiteSpace(e.MessageId))
             {
-                await SendChatMessage(e.DisplayName, message);
+                await SendChatMessage(e.DisplayName, message, sourceOnly);
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message));
+                await mediator.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message, sourceOnly));
             }
         }
 
-        public async Task SendChatMessage(string name, string message)
+        public async Task SendChatMessage(string name, string message, bool sourceOnly = true)
         {
             await SendChatMessage(string.Format("@{0}, {1}", name, message));
         }
-        public async Task SendChatMessageWithTitle(string viewerName, string message)
+        public async Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly = true)
         {
             using var scope = scopeFactory.CreateAsyncScope();
             var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
