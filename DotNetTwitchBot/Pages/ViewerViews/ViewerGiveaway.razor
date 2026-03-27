@@ -47,11 +47,11 @@
                 <MudText Typo="Typo.h4">@entrants</MudText>
             </MudPaper>
 
-            <MudPaper Class="pa-4" Outlined="false" Elevation="0">
+             <MudPaper Class="pa-4" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">Tickets Entered</MudText>
                 <MudDivider />
                 <MudText Typo="Typo.h4">@entries</MudText>
-            </MudPaper>
+            </MudPaper> 
             <AuthorizeView>
                 <Authorized Context="Auth">
                     <MudPaper Class="pa-4" Outlined="false" Elevation="0">
@@ -69,11 +69,16 @@
                         <MudDivider />
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
-                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" />
+                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" Disabled="@isClosed" />
+                                @if(isClosed)
+                                {
+                                    <MudAlert Severity="Severity.Warning">Giveaway is currently closed. Please wait for next giveaway to open.</MudAlert>
+                                } else {
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                             Class="ml-auto" Disabled=@isSubmitting>
                                 Enter
                             </MudButton>
+                                }
                             @if (!string.IsNullOrWhiteSpace(AlertText))
                             {
                                 <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
@@ -122,7 +127,7 @@
             </MudPaper>
             <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
                 <MudText Typo="Typo.h5" class="mud-contrast-text">Terms</MudText>
-                <MudText>Winner(s) must whisper SuperPenguinTV on Twitch within 48hrs to claim Prize. Winners are announced Live on stream and in <MudLink Href="https://discord.gg/vrbaE6f" Target="_blank">Discord</MudLink> in the #giveaway-winners channel.</MudText>
+                <MudText>Winner(s) must whisper SuperPenguinTV on Twitch within 48hrs to claim Prize. Winners are announced Live on stream and in <MudLink Href="https://discord.gg/4zVq4DyBFS" Target="_blank">Discord</MudLink> in the #giveaway-winners channel.</MudText>
                 <MudText>Subscribers auto claim and will be whispered directly.</MudText>
                 <MudText>Right to change giveaway at any time. Giveaways illegal where it is not legal. Must be 18+ to participate.</MudText>
                 <MudText>Giveaways can change at any time without reason.</MudText>
@@ -152,6 +157,8 @@
     private int pointsForEveryone { get; set; }
     private int pointsForActive { get; set; }
     private int pointsForSubs { get; set; }
+
+    private bool isClosed { get; set; } = false;
 
     private EnterTicketsForm model = new();
 
@@ -184,6 +191,7 @@
         pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
         pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
         pointsForSubs = await ticketsFeature.GetPointsForSubs();
+        isClosed = GiveawayFeature.IsClosed();
         if (BitsPerPoint > 0) BitsPerPoint = 100 * BitsPerPoint;
     }
 
@@ -214,6 +222,11 @@
             userEntriesText = $"You are participating with {userEntries} tickets.";
             InvokeAsync(StateHasChanged);
         });
+        hubConnection.On<bool>("GiveawayIsClosed", (isClosed) =>
+        {
+            this.isClosed = isClosed;
+            InvokeAsync(StateHasChanged);
+        }); 
         try
         {
             await hubConnection.StartAsync();
