@@ -35,6 +35,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
 
+        private bool isClosed = false;
+
         private Task StreamStarted(object? sender, EventArgs _)
         {
             return Task.Run(() =>
@@ -109,6 +111,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 return prize.StringSetting;
             }
+        }
+
+        public bool IsClosed()
+        {
+            return isClosed;
         }
 
         public async Task<int> GetEntrantsCount()
@@ -289,6 +296,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task Close()
         {
+            isClosed = true;
             Tickets.Clear();
             var entries = await GetEntries();
             var tickets = new List<string>();
@@ -299,6 +307,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
             }
             Tickets.AddRange(tickets.OrderBy(_ => Guid.NewGuid()).ToList());
+            await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
         public async Task Reset()
@@ -308,6 +317,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await db.GiveawayEntries.ExecuteDeleteAllAsync();
             await db.SaveChangesAsync();
             Tickets.Clear();
+            isClosed = false;
+            await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
         public async Task Draw()
@@ -408,6 +419,14 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 {
                     logger.LogWarning("Lock expired while waiting...");
                 }
+
+                if (isClosed) 
+                {
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.closed", "the giveaway is closed and not accepting entries."); 
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                    throw new SkipCooldownException(message);
+                }
+
                 amount = amount.ToLower();
                 var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points; //await ticketsFeature.GetViewerTickets(sender);
                 if (amount == "max" || amount == "all")
