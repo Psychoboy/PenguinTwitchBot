@@ -69,7 +69,7 @@
                         <MudDivider />
                         <EditForm Model="@model" OnValidSubmit="EnterTickets">
                             <DataAnnotationsValidator />
-                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" />
+                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" Disabled="@isClosed" />
                                 @if(isClosed)
                                 {
                                     <MudAlert Severity="Severity.Warning">Giveaway is currently closed. Please wait for next giveaway to open.</MudAlert>
