@@ -104,7 +104,7 @@
     private IEnumerable<KeywordType>? keywords;
     private KeywordType keyword { get; set; } = new KeywordType();
     [Inject] private IDialogService DialogService { get; set; } = default!;
-    IEnumerable<Rank> ranks = new HashSet<Rank>();
+    IReadOnlyCollection<Rank> ranks = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     protected override Task OnInitializedAsync()
@@ -126,7 +126,7 @@
 
     private async Task Delete(KeywordType keyword)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");

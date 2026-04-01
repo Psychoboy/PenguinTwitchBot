@@ -73,7 +73,7 @@ else
     public int id { get; set; }
 
     private KeywordType? keyword { get; set; }
-    IEnumerable<Rank> ranks = new HashSet<Rank>();
+    IReadOnlyCollection<Rank> ranks = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
 

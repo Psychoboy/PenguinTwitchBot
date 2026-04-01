@@ -116,7 +116,7 @@
     private List<string>? audioFiles;
     private AudioCommand? audioCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
-    IEnumerable<Rank> ranks = new HashSet<Rank>();
+    IReadOnlyCollection<Rank> ranks = [];
     private string SpecificUsersOnly { get; set; } = "";
     protected override Task OnInitializedAsync()
     {
@@ -136,7 +136,7 @@
         if (audioCommand == null) return;
         if (await CommandHelper.CommandExists(audioCommand.CommandName))
         {
-            bool? result = await DialogService.ShowMessageBox(
+            bool? result = await DialogService.ShowMessageBoxAsync(
                "Warning",
                "This command already exists, continue?",
                yesText: "Yes!", cancelText: "Cancel");
@@ -159,7 +159,7 @@
 
     private async void Delete(AudioCommand item)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
        "Warning",
        "Deleting can not be undone!",
        yesText: "Delete!", cancelText: "Cancel");

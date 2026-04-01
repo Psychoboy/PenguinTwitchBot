@@ -135,7 +135,7 @@ else
 
     private async Task Reset()
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Are you should you want to reset the giveaway?",
         yesText: "Delete!", cancelText: "Cancel");

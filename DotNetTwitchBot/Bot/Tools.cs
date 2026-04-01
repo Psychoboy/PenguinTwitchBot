@@ -1,6 +1,4 @@
-﻿using Microsoft.Identity.Client;
-
-namespace DotNetTwitchBot.Bot
+﻿namespace DotNetTwitchBot.Bot
 {
     public class Tools : ITools
     {

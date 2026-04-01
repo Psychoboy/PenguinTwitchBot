@@ -49,7 +49,7 @@ else
             {
                 if (await CommandHelper.CommandExists(theAlias.AliasName))
                 {
-                    bool? result = await DialogService.ShowMessageBox(
+                    bool? result = await DialogService.ShowMessageBoxAsync(
                        "Warning",
                        "This command already exists, continue?",
                        yesText: "Yes!", cancelText: "Cancel");

@@ -87,7 +87,7 @@
     private AudioCommand? audioCommand { get; set; }
     private List<string>? audioFiles;
     [Inject] private IDialogService DialogService { get; set; } = default!;
-    IEnumerable<Rank> ranks = new HashSet<Rank>();
+    IReadOnlyCollection<Rank> ranks = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private string SpecificUsersOnly { get; set; } = "";
@@ -111,7 +111,7 @@
             {
                 if (await CommandHelper.CommandExists(audioCommand.CommandName))
                 {
-                    bool? result = await DialogService.ShowMessageBox(
+                    bool? result = await DialogService.ShowMessageBoxAsync(
                    "Warning",
                    "This command already exists, continue?",
                    yesText: "Yes!", cancelText: "Cancel");
