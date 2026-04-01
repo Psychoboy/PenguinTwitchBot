@@ -90,7 +90,7 @@
 
     private async Task Delete(WordFilter wordFilter)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");

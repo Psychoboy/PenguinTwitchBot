@@ -187,7 +187,7 @@
 
     private async Task RemoveSong(Song song)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");
@@ -199,7 +199,7 @@
 
     private async Task RemoveSongRequest(Song song)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");

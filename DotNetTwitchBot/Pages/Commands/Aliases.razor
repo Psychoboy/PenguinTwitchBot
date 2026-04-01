@@ -70,7 +70,7 @@
         if (theAlias == null) return;
         if (await CommandHelper.CommandExists(theAlias.AliasName))
         {
-            bool? result = await DialogService.ShowMessageBox(
+            bool? result = await DialogService.ShowMessageBoxAsync(
                "Warning",
                "This command already exists, continue?",
                yesText: "Yes!", cancelText: "Cancel");
@@ -92,7 +92,7 @@
 
     private async Task Delete(DotNetTwitchBot.Bot.Models.AliasModel item)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");

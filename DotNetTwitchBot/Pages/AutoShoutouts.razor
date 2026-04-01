@@ -95,7 +95,7 @@
         }
         if(autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)) && autoShoutout.Id == 0)
         {
-            await DialogService.ShowMessageBox("Error", "A shoutout with that name already exists!");
+            await DialogService.ShowMessageBoxAsync("Error", "A shoutout with that name already exists!");
             return;
         }
         
@@ -105,7 +105,7 @@
     }
     private async Task Delete(AutoShoutout autoShoutout)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");

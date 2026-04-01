@@ -122,7 +122,7 @@
     private Dictionary<string, Bot.Models.Commands.CustomCommands>? commands;
     private Bot.Models.Commands.CustomCommands customCommand { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
-    IEnumerable<Rank> ranks = new HashSet<Rank>();
+    IReadOnlyCollection<Rank> ranks = [];
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private string SpecificUsersOnly { get; set; } = "";
@@ -138,7 +138,7 @@
         if (customCommand == null) return;
         if(await CommandHelper.CommandExists(customCommand.CommandName))
         {
-            bool? result = await DialogService.ShowMessageBox(
+            bool? result = await DialogService.ShowMessageBoxAsync(
                "Warning",
                "This command already exists, continue?",
                yesText: "Yes!", cancelText: "Cancel");
@@ -162,7 +162,7 @@
 
     private async Task Delete(Bot.Models.Commands.CustomCommands item)
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
         yesText: "Delete!", cancelText: "Cancel");
