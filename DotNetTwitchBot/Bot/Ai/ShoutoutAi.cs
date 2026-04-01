@@ -42,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Ai
             foreach (var item in responseItems) {
                 responseOptions.InputItems.Add(item);
             }
+            responseOptions.Model = "gpt-5.1";
 
             var response = await respClient.CreateResponseAsync(responseOptions);
             foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
