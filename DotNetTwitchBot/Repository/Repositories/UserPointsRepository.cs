@@ -43,13 +43,13 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Ranking = (int)Sql.Ext.Rank().Over().OrderByDesc(x.Points).ToValue()
                 });
             var resultCte = result.AsCte();
-            return resultCte.Where(x => x.UserId.Equals(userId)).FirstOrDefaultAsyncLinqToDB();
+            return resultCte.Where(x => x.UserId == userId).FirstOrDefaultAsyncLinqToDB();
         }
 
         public IQueryable<UserPointsWithRank> GetRankedPoints(int pointType,
             Expression<Func<UserPointsWithRank, bool>>? filter = null, 
             Func<IQueryable<UserPointsWithRank>, IOrderedQueryable<UserPointsWithRank>>? orderBy = null, 
-            int? limit = null, int? offset = null, string includeProperties = "")
+            int? limit = null, int? offset = null)
         {
             var result = _context.UserPoints
             .Include(x => x.PointType)
@@ -73,15 +73,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                 query = query.Where(filter);
             }
 
-            foreach (var includeProperty in includeProperties.Split
-                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                query = query.Include(includeProperty);
-            }
-
             if (orderBy != null)
             {
-                query = orderBy(query).AsQueryable();
+                query = orderBy(query);
             }
 
             if (offset != null)
