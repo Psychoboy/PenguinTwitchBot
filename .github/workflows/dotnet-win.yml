@@ -14,17 +14,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: checkout all the submodules
-      uses: actions/checkout@v2
+    - name: Checkout (with submodules)
+      uses: actions/checkout@v4
       with:
         submodules: recursive
-    - uses: actions/checkout@v3
+        fetch-depth: 0
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
-    - name: Restore dependencies
-      run: dotnet restore
+        dotnet-version: 10.0.x
     - name: Build
       run: dotnet build --configuration Debug --no-restore
     - name: Test
