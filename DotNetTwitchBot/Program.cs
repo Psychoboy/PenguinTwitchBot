@@ -255,6 +255,8 @@ internal class Program
 
         }
 
+        app.UseStatusCodePagesWithReExecute("/NotFoundItem", "?statusCode={0}");
+
         //app.UseHttpsRedirection();
         app.UseStaticFiles();
 

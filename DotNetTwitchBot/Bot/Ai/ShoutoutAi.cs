@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Ai
                 $"{additionalInfo} " +
                 $"Keep it under 300 characters. No Links or Markdown. Do not use asterisks, hashtags, or backticks.";
 
-            var respClient = openAIClient.GetResponsesClient("gpt-5.1");
+            var respClient = openAIClient.GetResponsesClient();
             var responseItems = new List<OpenAI.Responses.ResponseItem>
             {
                ResponseItem.CreateDeveloperMessageItem("You are a helpful assistant that provides short and fun Twitch shoutout messages in plain text."),
@@ -38,7 +38,12 @@ namespace DotNetTwitchBot.Bot.Ai
                ResponseItem.CreateUserMessageItem(prompt)
             };
 
-            var response = await respClient.CreateResponseAsync(responseItems);
+            var responseOptions = new CreateResponseOptions();
+            foreach (var item in responseItems) {
+                responseOptions.InputItems.Add(item);
+            }
+
+            var response = await respClient.CreateResponseAsync(responseOptions);
             foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
             {
                 if (output is MessageResponseItem messageItem &&

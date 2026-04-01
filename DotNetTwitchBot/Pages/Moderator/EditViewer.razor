@@ -231,11 +231,6 @@ else
         return new TableData<ViewerChatHistory>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    public class CommandsConverter : BoolConverter<bool>
-    {
-        
-    }
-
     private string LinkBuilder(string _route, string _parameter)
     {
         return _route + _parameter;

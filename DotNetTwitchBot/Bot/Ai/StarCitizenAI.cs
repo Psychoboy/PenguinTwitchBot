@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Ai
                 return "Prompt cannot be empty.";
             }
 
-            var respClient = client.GetResponsesClient("gpt-5.1");
+            var respClient = client.GetResponsesClient();
 
             var webSearchTool = ResponseTool.CreateWebSearchTool(null, null, new WebSearchToolFilters
             {

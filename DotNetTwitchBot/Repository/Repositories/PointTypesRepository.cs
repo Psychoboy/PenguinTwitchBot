@@ -1,6 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Models.Points;
-using static LinqToDB.Reflection.Methods.LinqToDB.Insert;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {
