@@ -55,7 +55,10 @@
             await twitchChatBot.SendMessage(MessageModel.Message, MessageModel.SourceOnly);
         }
         MessageModel.Message = string.Empty;
-        await textField?.ClearAsync();
+        if (textField is not null)
+        {
+            await textField.ClearAsync();
+        }
         
         await InvokeAsync(StateHasChanged);
     }
