@@ -46,8 +46,8 @@ namespace DotNetTwitchBot.Bot.Ai
                 "Do not provide any markdown." +
                 "Do not use asterisks, hashtags, or backticks." +
                 "Do not provide any links unless specifically asked for.",
-                PreviousResponseId = previousResponseId
-
+                PreviousResponseId = previousResponseId,
+                Model = "gpt-5.1"
             };
             responseOptions.InputItems.Add(ResponseItem.CreateUserMessageItem(prompt));
             var response = await respClient.CreateResponseAsync(responseOptions);
