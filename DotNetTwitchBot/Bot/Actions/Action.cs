@@ -8,7 +8,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions
 {
-    public class Action (ILogger<Action> logger, IServiceScopeFactory scopeFactory)
+    public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory) : IAction
     {
         public async Task<Models.Actions.ActionType> AddAction(Models.Actions.ActionType action)
         {
@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Actions
 
         public async Task RunAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
         {
-            if(!action.Enabled)
+            if (!action.Enabled)
             {
                 logger.LogInformation("Action {action.Name} was disabled so skipping", action.Name);
                 return;
@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Bot.Actions
                 }
             }
 
-            if(action.ConcurrentAction)
+            if (action.ConcurrentAction)
             {
                 var subActions = action.SubActions;
                 var tasks = subActions.Select(item => RunSubAction(item, variables));

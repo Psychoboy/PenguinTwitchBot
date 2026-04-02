@@ -185,7 +185,7 @@ namespace DotNetTwitchBot.Bot.Queues
                     queuedAction.Action.Name, Name);
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var actionService = scope.ServiceProvider.GetRequiredService<Actions.Action>();
+                var actionService = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
 
                 await actionService.RunAction(queuedAction.Variables, queuedAction.Action);
 

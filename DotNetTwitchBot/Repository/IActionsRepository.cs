@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Models.Actions;
+using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 
 namespace DotNetTwitchBot.Repository
 {
@@ -9,5 +10,6 @@ namespace DotNetTwitchBot.Repository
         Task<ActionType> CreateActionAsync(ActionType action);
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(int id);
+        Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
     }
 }

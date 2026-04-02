@@ -114,7 +114,7 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddSingleton<Bot.Markov.TokenisationStrategies.StringMarkov>();
 
-            services.AddScoped<Bot.Actions.Action>();
+            services.AddScoped<Bot.Actions.IAction, Bot.Actions.Action>();
 
             // Register SubAction handlers
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.SendMessageHandler>();
