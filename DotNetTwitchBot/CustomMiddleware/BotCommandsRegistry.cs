@@ -128,6 +128,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.UptimeHandler>();
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.ExternalApiHandler>();
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.WatchTimeHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.GiveawayPrizeHandler>();
             services.AddTransient<Bot.Actions.SubActions.SubActionHandlerFactory>();
 
             // Register Action Execution Logger

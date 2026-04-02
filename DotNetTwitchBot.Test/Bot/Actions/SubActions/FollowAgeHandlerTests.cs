@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Models;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 

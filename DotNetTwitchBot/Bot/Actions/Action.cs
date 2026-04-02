@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions
 {
     public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory) : IAction
     {
-        public async Task<Models.Actions.ActionType> AddAction(Models.Actions.ActionType action)
+        public async Task<ActionType> AddAction(ActionType action)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Actions
             return action;
         }
 
-        public async Task EnqueueAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
+        public async Task EnqueueAction(Dictionary<string, string> variables, ActionType action)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Actions
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }
 
-        public async Task RunAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
+        public async Task RunAction(Dictionary<string, string> variables, ActionType action)
         {
             if (!action.Enabled)
             {

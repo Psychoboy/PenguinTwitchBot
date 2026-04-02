@@ -1,9 +1,9 @@
 using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Actions;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

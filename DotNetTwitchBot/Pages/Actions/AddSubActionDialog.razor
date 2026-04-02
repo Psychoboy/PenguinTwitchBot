@@ -1,4 +1,4 @@
-@using DotNetTwitchBot.Bot.Models.Actions.SubActions
+@using DotNetTwitchBot.Bot.Actions.SubActions.Types
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Rendering
 
@@ -208,6 +208,9 @@
             case SubActionTypes.WatchTime:
                 RenderSimpleTextConfig(builder, "Format string (e.g., HH:mm:ss for time)");
                 break;
+            case SubActionTypes.GiveawayPrize:
+                RenderGiveawayConfig(builder);
+                break;
             default:
                 RenderBasicConfig(builder);
                 break;
@@ -224,6 +227,16 @@
         builder.AddAttribute(5, "Lines", 3);
         builder.CloseComponent();
 
+        builder.OpenComponent<MudSwitch<bool>>(10);
+        builder.AddAttribute(11, "Label", "Enabled");
+        builder.AddAttribute(12, "Value", _enabled);
+        builder.AddAttribute(13, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => _enabled = v));
+        builder.AddAttribute(14, "Color", Color.Success);
+        builder.CloseComponent();
+    }
+
+    private void RenderGiveawayConfig(RenderTreeBuilder builder)
+    {
         builder.OpenComponent<MudSwitch<bool>>(10);
         builder.AddAttribute(11, "Label", "Enabled");
         builder.AddAttribute(12, "Value", _enabled);
@@ -525,6 +538,7 @@
             SubActionTypes.Followage => new FollowAgeType(),
             SubActionTypes.Uptime => new UptimeType(),
             SubActionTypes.WatchTime => new WatchTimeType(),
+            SubActionTypes.GiveawayPrize => new GiveawayPrizeType(),
             _ => throw new InvalidOperationException($"Unsupported SubAction type: {_selectedType}")
         };
 
@@ -572,6 +586,7 @@
         SubActionTypes.WatchTime => "Watch Time",
         SubActionTypes.SendMessage => "Send Message",
         SubActionTypes.ReplyToMessage => "Reply to Message",
+        SubActionTypes.GiveawayPrize => "Giveaway Prize",
         _ => type.ToString()
     };
 
@@ -588,6 +603,7 @@
         SubActionTypes.WatchTime => "Get a viewer's watch time",
         SubActionTypes.SendMessage => "Send a message to chat",
         SubActionTypes.ReplyToMessage => "Reply to the triggering message",
+        SubActionTypes.GiveawayPrize => "Gets the Giveaway Prize (use %prize%)",
         _ => "Configure this subaction type"
     };
 

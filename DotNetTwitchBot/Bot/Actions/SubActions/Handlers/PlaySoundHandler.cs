@@ -1,6 +1,6 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Alerts;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers

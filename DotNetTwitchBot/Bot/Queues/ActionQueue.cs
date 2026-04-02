@@ -1,5 +1,5 @@
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Hubs;
-using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.Models.Queues;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;

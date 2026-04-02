@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Actions;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Queues;
 using DotNetTwitchBot.Bot.Queues;
 using Microsoft.AspNetCore.SignalR;

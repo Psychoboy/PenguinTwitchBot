@@ -1,4 +1,5 @@
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
@@ -66,8 +67,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
         
-        public DbSet<Models.Actions.ActionType> Actions { get; set; } = null!;
-        public DbSet<Models.Actions.SubActions.SubActionType> SubActions { get; set; } = null!;
+        public DbSet<ActionType> Actions { get; set; } = null!;
+        public DbSet<SubActionType> SubActions { get; set; } = null!;
         public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
         public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
 
@@ -138,15 +139,16 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<UptimeType>().ToTable("SubActions_Uptime");
             modelBuilder.Entity<ExternalApiType>().ToTable("SubActions_ExternalApi");
             modelBuilder.Entity<WatchTimeType>().ToTable("SubActions_WatchTime");
+            modelBuilder.Entity<GiveawayPrizeType>().ToTable("SubActions_GiveawayPrize");
 
             // Configure the relationship between ActionType and SubActionType
-            modelBuilder.Entity<Models.Actions.ActionType>()
+            modelBuilder.Entity<ActionType>()
                 .HasMany(a => a.SubActions)
                 .WithOne()
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure the relationship between ActionType and TriggerType (one-to-many)
-            modelBuilder.Entity<Models.Actions.ActionType>()
+            modelBuilder.Entity<ActionType>()
                 .HasMany(a => a.Triggers)
                 .WithOne(t => t.Action)
                 .HasForeignKey(t => t.ActionId)

@@ -1,8 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using System.Text.Json.Serialization;
 
-namespace DotNetTwitchBot.Bot.Models.Actions
+namespace DotNetTwitchBot.Bot.Actions
 {
     public class ActionType
     {

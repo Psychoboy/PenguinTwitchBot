@@ -1,11 +1,10 @@
-﻿namespace DotNetTwitchBot.Bot.Actions.Triggers
+namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
 {
     public enum TriggerTypes
     {
-        None,
-        TwitchChatCommand,
-        TwitchChatMessage,
-        TwitchChannelPointRedeemed,
-        ScheduledEvent
+        Command,
+        TwitchEvent,
+        Timer,
+        Manual
     }
 }

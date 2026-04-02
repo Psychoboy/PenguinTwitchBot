@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Actions;
+﻿using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 
 namespace DotNetTwitchBot.Repository

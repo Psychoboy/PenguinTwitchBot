@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions;
 using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models.Actions.Triggers

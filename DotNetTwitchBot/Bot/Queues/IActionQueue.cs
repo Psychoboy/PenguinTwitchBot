@@ -1,4 +1,4 @@
-using DotNetTwitchBot.Bot.Models.Actions;
+using DotNetTwitchBot.Bot.Actions;
 
 namespace DotNetTwitchBot.Bot.Queues
 {

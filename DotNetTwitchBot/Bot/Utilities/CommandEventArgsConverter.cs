@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Utilities
                 ["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString()
             };
 
-            if(eventArgs.Args.Count > 0)
+            if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
                 dictionary["targetorself"] = eventArgs.Args[0];
                 dictionary["target"] = eventArgs.Args[0];
@@ -63,7 +63,7 @@ namespace DotNetTwitchBot.Bot.Utilities
             dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs);
 
             // Add Args as indexed items (Args_0, Args_1, etc.)
-            if (eventArgs.Args != null)
+            if (eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
                 for (int i = 0; i < eventArgs.Args.Count; i++)
                 {

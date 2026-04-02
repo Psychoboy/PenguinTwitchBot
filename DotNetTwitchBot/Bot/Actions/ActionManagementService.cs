@@ -1,4 +1,3 @@
-using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using DotNetTwitchBot.Repository;
 using Microsoft.Extensions.DependencyInjection;

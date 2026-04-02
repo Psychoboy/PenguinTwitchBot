@@ -1,6 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Actions;
-
-namespace DotNetTwitchBot.Bot.Actions
+﻿namespace DotNetTwitchBot.Bot.Actions
 {
     public interface IAction
     {

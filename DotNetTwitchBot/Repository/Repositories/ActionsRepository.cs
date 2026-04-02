@@ -1,5 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Models.Actions;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;

@@ -1,6 +1,6 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;

@@ -1,3 +1,5 @@
+using DotNetTwitchBot.Bot.Actions;
+
 namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
 {
     /// <summary>

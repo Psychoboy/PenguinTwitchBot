@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DotNetTwitchBot.Bot.Models.Actions.SubActions
+namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     public abstract class SubActionType
     {

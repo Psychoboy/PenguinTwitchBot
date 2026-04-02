@@ -1,6 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions;
 
-namespace DotNetTwitchBot.Bot.Models.Actions.SubActions
+namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     public class PlaySoundType : SubActionType
     {

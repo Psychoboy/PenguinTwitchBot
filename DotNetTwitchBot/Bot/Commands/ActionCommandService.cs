@@ -28,10 +28,13 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             // Ensure category is never null
             command.Category = command.Category ?? string.Empty;
-            
+
+            // Clear navigation property to avoid EF tracking issues
+            command.PointType = null;
+
             await _unitOfWork.ActionCommands.AddAsync(command);
             await _unitOfWork.SaveChangesAsync();
-            
+
             return command;
         }
 
@@ -39,10 +42,13 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             // Ensure category is never null
             command.Category = command.Category ?? string.Empty;
-            
+
+            // Clear navigation property to avoid EF tracking issues
+            command.PointType = null;
+
             _unitOfWork.ActionCommands.Update(command);
             await _unitOfWork.SaveChangesAsync();
-            
+
             return command;
         }
 

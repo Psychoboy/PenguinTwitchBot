@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -61,7 +61,8 @@ namespace DotNetTwitchBot.Repository.Repositories
                         new JsonDerivedType(typeof(FollowAgeType), "FollowAge"),
                         new JsonDerivedType(typeof(WatchTimeType), "WatchTime"),
                         new JsonDerivedType(typeof(ExternalApiType), "ExternalApi"),
-                        new JsonDerivedType(typeof(WriteFileType), "WriteFile")
+                        new JsonDerivedType(typeof(WriteFileType), "WriteFile"),
+                        new JsonDerivedType(typeof(GiveawayPrizeType), "GiveawayPrize")
                     }
                 };
             }

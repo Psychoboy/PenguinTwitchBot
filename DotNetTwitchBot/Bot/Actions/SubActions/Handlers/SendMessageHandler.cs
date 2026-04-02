@@ -1,5 +1,5 @@
 using DotNetTwitchBot.Application.ChatMessage.Notification;
-using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
