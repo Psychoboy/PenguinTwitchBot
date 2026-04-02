@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions
         Task<ActionType> CreateActionAsync(ActionType action);
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(int id);
+        Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
 
         Task<List<ActionTrigger>> GetTriggersForActionAsync(int actionId);
         Task<ActionTrigger> AddTriggerToActionAsync(ActionTrigger actionTrigger);

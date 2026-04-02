@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Repository.Repositories
@@ -142,6 +143,22 @@ namespace DotNetTwitchBot.Repository.Repositories
                 _context.Actions.Remove(action);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName)
+        {
+            return await _context.Actions
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(a => a.SubActions)
+                .Include(a => a.ActionTriggers)
+                    .ThenInclude(at => at.Trigger)
+                .Where(a => a.ActionTriggers.Any(at => 
+                    at.Trigger.Type == triggerType && 
+                    at.Trigger.Name == triggerName &&
+                    at.Enabled))
+                .OrderBy(a => a.Name)
+                .ToListAsync();
         }
     }
 }

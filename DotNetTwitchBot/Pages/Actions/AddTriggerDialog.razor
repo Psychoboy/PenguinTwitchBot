@@ -58,8 +58,9 @@
                 {
                     <MudText Typo="Typo.h6">Configure Command Trigger</MudText>
                     
-                    <MudSelect T="int?" @bind-Value="_selectedCommandId" Label="Select Command" Variant="Variant.Outlined" 
-                               Required="true" AnchorOrigin="Origin.BottomCenter">
+                    <MudSelect T="int?" Value="_selectedCommandId" Label="Select Command" Variant="Variant.Outlined" 
+                               Required="true" AnchorOrigin="Origin.BottomCenter"
+                               ValueChanged="OnCommandSelected" >
                         <MudSelectItem T="int?" Value="null">None</MudSelectItem>
                         @foreach (var command in _commands)
                         {
@@ -68,7 +69,7 @@
                     </MudSelect>
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
-                                  Required="true" Placeholder="e.g., My Command Trigger" />
+                                  Required="true" Placeholder="e.g., My Command Trigger" ReadOnly="true" />
 
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
@@ -145,9 +146,24 @@
     {
         _selectedType = type;
         _showTypeSelection = false;
-        
+
         // Set default trigger name based on type
         _triggerName = $"{type} Trigger";
+    }
+
+    private void OnCommandSelected(int? commandId)
+    {
+        _selectedCommandId = commandId;
+
+        // Auto-populate trigger name with command name (with !)
+        if (commandId.HasValue)
+        {
+            var command = _commands.FirstOrDefault(c => c.Id == commandId);
+            if (command != null)
+            {
+                _triggerName = $"!{command.CommandName}";
+            }
+        }
     }
 
     private bool CanSubmit()
