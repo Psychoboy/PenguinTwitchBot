@@ -33,6 +33,7 @@ namespace DotNetTwitchBot.Bot.Utilities
                 ["IsSubOrHigher"] = eventArgs.IsSubOrHigher().ToString(),
                 ["IsVipOrHigher"] = eventArgs.IsVipOrHigher().ToString(),
                 ["IsModOrHigher"] = eventArgs.IsModOrHigher().ToString(),
+                ["User"] = eventArgs.Name ?? string.Empty,
 
                 // CommandEventArgs properties
                 ["Command"] = eventArgs.Command ?? string.Empty,

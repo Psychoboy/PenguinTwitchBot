@@ -4,13 +4,20 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Actions
 {
-    public class ActionCommandHandler(IActionManagementService actionManagement, IAction actionService) : INotificationHandler<RunCommandNotification>
+    public class ActionCommandHandler(IServiceScopeFactory serviceScopeFactory) : INotificationHandler<RunCommandNotification>
     {
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             if (notification.EventArgs == null || string.IsNullOrWhiteSpace(notification.EventArgs.Command))
                 return;
-            var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(Models.Actions.Triggers.TriggerTypes.Command, "!" + notification.EventArgs.Command);
+
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+            var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                Models.Actions.Triggers.TriggerTypes.Command, 
+                "!" + notification.EventArgs.Command);
 
             var dictionary = CommandEventArgsConverter.ToDictionary(notification.EventArgs);
 
