@@ -75,6 +75,7 @@
             var temp = SubActions[index];
             SubActions[index] = SubActions[index - 1];
             SubActions[index - 1] = temp;
+            UpdateIndexes();
             await NotifyChanged();
         }
     }
@@ -86,6 +87,7 @@
             var temp = SubActions[index];
             SubActions[index] = SubActions[index + 1];
             SubActions[index + 1] = temp;
+            UpdateIndexes();
             await NotifyChanged();
         }
     }
@@ -137,8 +139,17 @@
     private async Task DeleteSubAction(int index)
     {
         SubActions.RemoveAt(index);
+        UpdateIndexes();
         await NotifyChanged();
         Snackbar.Add("SubAction removed", Severity.Success);
+    }
+
+    private void UpdateIndexes()
+    {
+        for (int i = 0; i < SubActions.Count; i++)
+        {
+            SubActions[i].Index = i;
+        }
     }
 
     private async Task NotifyChanged()

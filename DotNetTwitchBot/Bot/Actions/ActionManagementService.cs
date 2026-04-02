@@ -20,14 +20,30 @@ namespace DotNetTwitchBot.Bot.Actions
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.Actions.GetAllWithDetailsAsync();
+            var actions = await unitOfWork.Actions.GetAllWithDetailsAsync();
+
+            // Ensure SubActions are ordered by Index
+            foreach (var action in actions)
+            {
+                action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+            }
+
+            return actions;
         }
 
         public async Task<ActionType?> GetActionByIdAsync(int id)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.Actions.GetByIdWithDetailsAsync(id);
+            var action = await unitOfWork.Actions.GetByIdWithDetailsAsync(id);
+
+            // Ensure SubActions are ordered by Index
+            if (action != null)
+            {
+                action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+            }
+
+            return action;
         }
 
         public async Task<ActionType> CreateActionAsync(ActionType action)

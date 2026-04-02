@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Actions
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(a => a.SubActions)
                 .Include(a => a.ActionTriggers)
                     .ThenInclude(at => at.Trigger)
@@ -24,6 +25,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Actions
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(a => a.SubActions)
                 .Include(a => a.ActionTriggers)
                     .ThenInclude(at => at.Trigger)
