@@ -132,8 +132,12 @@
                                                   Required="true" Variant="Variant.Outlined" />
                                 </MudItem>
                                 <MudItem xs="12" md="6">
-                                    <MudTextField @bind-Value="_selectedAction.Group" Label="Group" 
-                                                  Variant="Variant.Outlined" />
+                                    <MudAutocomplete T="string" @bind-Value="_selectedAction.Group" Label="Group" 
+                                                     Variant="Variant.Outlined" 
+                                                     SearchFunc="@SearchGroups"
+                                                     Clearable="true"
+                                                     CoerceText="true"
+                                                     CoerceValue="false" />
                                 </MudItem>
                                 <MudItem xs="12" md="4">
                                     <MudSelect T="string" @bind-Value="_selectedAction.QueueName" Label="Queue Name" 
@@ -222,6 +226,22 @@
         }).OrderBy(a => a.Name).ToList();
     }
 
+    private Task<IEnumerable<string>> SearchGroups(string value, CancellationToken cancellationToken)
+    {
+        // If no search value, return all groups
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(_groups);
+        }
+
+        // Filter groups by search value
+        var filteredGroups = _groups
+            .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .AsEnumerable();
+
+        return Task.FromResult(filteredGroups);
+    }
+
     private async Task OnActionSelected(ActionType? action)
     {
         if (action == null) return;
@@ -267,6 +287,9 @@
 
         try
         {
+            // Ensure Group is never null (convert to empty string)
+            _selectedAction.Group = _selectedAction.Group ?? string.Empty;
+
             if (_isNewAction || !_selectedAction.Id.HasValue)
             {
                 _selectedAction = await ActionService.CreateActionAsync(_selectedAction);
