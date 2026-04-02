@@ -90,6 +90,9 @@ namespace DotNetTwitchBot.Repository.Repositories
             }
 
             // Process incoming SubActions
+            // Track the next available ID to prevent duplicate ID assignments in the same operation
+            var nextAvailableId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
+
             foreach (var subAction in action.SubActions)
             {
                 // Check if this is a new SubAction (Id = 0 or not in existing)
@@ -98,9 +101,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                     // New SubAction - generate ID
                     if (subAction.Id == 0)
                     {
-                        // Get the next available ID
-                        var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
-                        subAction.Id = maxId + 1;
+                        // Assign the next available ID and increment for subsequent subactions
+                        nextAvailableId++;
+                        subAction.Id = nextAvailableId;
                     }
 
                     // Add to collection - EF will INSERT this

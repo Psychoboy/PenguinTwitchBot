@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Events.Chat;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Utilities
 {
@@ -46,6 +47,20 @@ namespace DotNetTwitchBot.Bot.Utilities
                 ["SkipLock"] = eventArgs.SkipLock.ToString(),
                 ["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString()
             };
+
+            if(eventArgs.Args.Count > 0)
+            {
+                dictionary["targetorself"] = eventArgs.Args[0];
+                dictionary["target"] = eventArgs.Args[0];
+                dictionary["args"] = string.Join(" ", eventArgs.Args);
+            } else
+            {
+                dictionary["targetorself"] = eventArgs.Name ?? string.Empty;
+                dictionary["target"] = string.Empty;
+                dictionary["args"] = string.Empty;
+            }
+
+            dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs);
 
             // Add Args as indexed items (Args_0, Args_1, etc.)
             if (eventArgs.Args != null)
