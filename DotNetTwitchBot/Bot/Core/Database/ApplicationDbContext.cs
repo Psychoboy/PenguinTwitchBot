@@ -129,7 +129,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .HasValue<RandomIntType>(SubActionTypes.RandomInt)
                 .HasValue<CurrentTimeType>(SubActionTypes.CurrentTime)
                 .HasValue<FollowAgeType>(SubActionTypes.Followage)
-                .HasValue<UptimeType>(SubActionTypes.Uptime);
+                .HasValue<UptimeType>(SubActionTypes.Uptime)
+                .HasValue<ExternalApiType>(SubActionTypes.ExternalApi);
         }
     }
 }
