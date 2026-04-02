@@ -9,6 +9,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
+@inject DotNetTwitchBot.Bot.Queues.IQueueManager QueueManager
 
 <PageTitle>SPTV Twitch Bot - Manage Actions</PageTitle>
 
@@ -135,8 +136,13 @@
                                                   Variant="Variant.Outlined" />
                                 </MudItem>
                                 <MudItem xs="12" md="4">
-                                    <MudTextField @bind-Value="_selectedAction.QueueName" Label="Queue Name" 
-                                                  Variant="Variant.Outlined" />
+                                    <MudSelect T="string" @bind-Value="_selectedAction.QueueName" Label="Queue Name" 
+                                               Variant="Variant.Outlined" Required="true">
+                                        @foreach (var queue in _availableQueues)
+                                        {
+                                            <MudSelectItem T="string" Value="@queue">@queue</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="8">
                                     <MudStack Row="true" Spacing="3">
@@ -167,6 +173,7 @@
     private List<ActionType> _actions = new();
     private List<ActionType> _filteredActions = new();
     private List<string> _groups = new();
+    private List<string> _availableQueues = new();
     private ActionType? _selectedAction;
     private List<ActionTrigger> _actionTriggers = new();
     private bool _isNewAction = false;
@@ -175,7 +182,25 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAvailableQueues();
         await LoadActions();
+    }
+
+    private async Task LoadAvailableQueues()
+    {
+        var queueConfigs = await QueueManager.GetAllQueuesAsync();
+        _availableQueues = queueConfigs.Select(q => q.Name).OrderBy(n => n).ToList();
+
+        // Ensure "Default" is always in the list and at the top
+        if (!_availableQueues.Contains("Default"))
+        {
+            _availableQueues.Insert(0, "Default");
+        }
+        else
+        {
+            _availableQueues.Remove("Default");
+            _availableQueues.Insert(0, "Default");
+        }
     }
 
     private async Task LoadActions()

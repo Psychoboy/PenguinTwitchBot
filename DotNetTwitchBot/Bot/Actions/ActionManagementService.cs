@@ -82,7 +82,7 @@ namespace DotNetTwitchBot.Bot.Actions
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
+            
             try
             {
                 await unitOfWork.Actions.DeleteActionAsync(id);
@@ -92,21 +92,6 @@ namespace DotNetTwitchBot.Bot.Actions
                 _logger.LogError(ex, "Error deleting action {ActionId}", id);
                 throw;
             }
-        }
-
-        public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName)
-        {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var actions = await unitOfWork.Actions.GetActionsByTriggerTypeAndNameAsync(triggerType, triggerName);
-
-            // Ensure SubActions are ordered by Index
-            foreach (var action in actions)
-            {
-                action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
-            }
-
-            return actions;
         }
 
         public async Task<List<ActionTrigger>> GetTriggersForActionAsync(int actionId)
