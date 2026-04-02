@@ -67,7 +67,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Actions.ActionType> Actions { get; set; } = null!;
         public DbSet<Models.Actions.SubActions.SubActionType> SubActions { get; set; } = null!;
         public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
-        public DbSet<Models.Actions.Triggers.ActionTrigger> ActionTriggers { get; set; } = null!;
         public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -142,6 +141,13 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<Models.Actions.ActionType>()
                 .HasMany(a => a.SubActions)
                 .WithOne()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure the relationship between ActionType and TriggerType (one-to-many)
+            modelBuilder.Entity<Models.Actions.ActionType>()
+                .HasMany(a => a.Triggers)
+                .WithOne(t => t.Action)
+                .HasForeignKey(t => t.ActionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Models.Queues.QueueConfiguration>()

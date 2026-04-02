@@ -18,8 +18,7 @@ namespace DotNetTwitchBot.Bot.Models.Actions
         public string QueueName { get; set; } = "default";
         public List<SubActionType> SubActions { get; set; } = [];
 
-        // Navigation property for many-to-many relationship with triggers
-        [JsonIgnore]
-        public List<ActionTrigger> ActionTriggers { get; set; } = [];
+        // Navigation property for one-to-many relationship with triggers
+        public List<TriggerType> Triggers { get; set; } = [];
     }
 }

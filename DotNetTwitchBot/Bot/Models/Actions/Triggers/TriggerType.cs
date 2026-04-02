@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
 {
     public class TriggerType
@@ -5,15 +7,18 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        
+
         public string Name { get; set; } = null!;
         public TriggerTypes Type { get; set; }
         public string Configuration { get; set; } = string.Empty; // JSON configuration for trigger-specific data
         public bool Enabled { get; set; } = true;
+        public int Priority { get; set; } = 0; // Execution priority when multiple triggers fire
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        
-        // Navigation property for many-to-many relationship
-        public List<ActionTrigger> ActionTriggers { get; set; } = [];
+
+        // One-to-many relationship: Trigger belongs to one Action
+        public int? ActionId { get; set; }
+        [JsonIgnore]
+        public ActionType? Action { get; set; }
     }
 }

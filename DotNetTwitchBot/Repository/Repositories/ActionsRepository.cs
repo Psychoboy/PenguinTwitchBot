@@ -2,6 +2,9 @@
 using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {
@@ -16,8 +19,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
-                .Include(a => a.ActionTriggers)
-                    .ThenInclude(at => at.Trigger)
+                .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
@@ -27,8 +29,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
-                .Include(a => a.ActionTriggers)
-                    .ThenInclude(at => at.Trigger)
+                .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .OrderBy(a => a.Name)
                 .ToListAsync();
@@ -62,7 +63,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Load the existing action from database WITH tracking
             var existingAction = await _context.Actions
                 .Include(a => a.SubActions)
-                .Include(a => a.ActionTriggers)
+                .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == action.Id.Value);
 
@@ -119,16 +120,33 @@ namespace DotNetTwitchBot.Repository.Repositories
                 }
             }
 
-            // Handle ActionTriggers - update only Enabled and Priority
-            foreach (var actionTrigger in action.ActionTriggers)
-            {
-                var existing = existingAction.ActionTriggers
-                    .FirstOrDefault(at => at.Id == actionTrigger.Id);
+            // Handle Triggers: Remove deleted, Add new, Update existing
+            var existingTriggerIds = existingAction.Triggers.Select(t => t.Id).ToHashSet();
+            var newTriggerIds = action.Triggers.Where(t => t.Id > 0).Select(t => t.Id).ToHashSet();
 
+            // Remove Triggers that are no longer in the incoming list
+            var triggersToRemove = existingAction.Triggers
+                .Where(t => !newTriggerIds.Contains(t.Id))
+                .ToList();
+            foreach (var trigger in triggersToRemove)
+            {
+                existingAction.Triggers.Remove(trigger);
+                _context.Entry(trigger).State = EntityState.Deleted;
+            }
+
+            // Update existing Triggers (Enabled, Priority, etc.)
+            foreach (var trigger in action.Triggers)
+            {
+                var existing = existingAction.Triggers.FirstOrDefault(t => t.Id == trigger.Id);
                 if (existing != null)
                 {
-                    existing.Enabled = actionTrigger.Enabled;
-                    existing.Priority = actionTrigger.Priority;
+                    _context.Entry(existing).CurrentValues.SetValues(trigger);
+                }
+                else if (!existingTriggerIds.Contains(trigger.Id))
+                {
+                    // New Trigger - add to collection
+                    trigger.ActionId = action.Id.Value;
+                    existingAction.Triggers.Add(trigger);
                 }
             }
 
@@ -152,14 +170,91 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(a => a.SubActions)
-                .Include(a => a.ActionTriggers)
-                    .ThenInclude(at => at.Trigger)
-                .Where(a => a.ActionTriggers.Any(at => 
-                    at.Trigger.Type == triggerType && 
-                    at.Trigger.Name == triggerName &&
-                    at.Enabled))
+                .Include(a => a.Triggers)
+                .Where(a => a.Triggers.Any(t => 
+                    t.Type == triggerType && 
+                    t.Name == triggerName &&
+                    t.Enabled))
                 .OrderBy(a => a.Name)
                 .ToListAsync();
+        }
+
+        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            // Load Actions with all related SubActions and Triggers
+            var records = await context.Set<ActionType>()
+                .Include(a => a.SubActions)
+                .Include(a => a.Triggers)
+                .AsSplitQuery()
+                .ToListAsync();
+
+            var options = new JsonSerializerOptions
+            {
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                WriteIndented = true,
+                TypeInfoResolver = new SubActionTypeResolver()
+            };
+
+            var json = JsonSerializer.Serialize(records, options);
+
+            var fileName = $"{backupDirectory}/ActionType.json";
+            await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
+            logger?.LogDebug("Backed up {Count} ActionType records with SubActions and Triggers", records.Count);
+        }
+
+        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            try
+            {
+                var fileName = $"{backupDirectory}/ActionType.json";
+                if (!File.Exists(fileName)) return;
+
+                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
+
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                    TypeInfoResolver = new SubActionTypeResolver()
+                };
+
+                var records = JsonSerializer.Deserialize<List<ActionType>>(json, options);
+                if (records == null) throw new Exception("ActionType.json was null");
+
+                logger?.LogDebug("Deserialized {Count} ActionType records", records.Count);
+
+                context.ChangeTracker.Clear();
+
+                // Delete Actions (cascade will handle SubActions and Triggers)
+                await context.Set<ActionType>().ExecuteDeleteAsync();
+
+                context.ChangeTracker.Clear();
+
+                // Add the Actions with all their related entities
+                foreach (var record in records)
+                {
+                    // Ensure ActionId is set for Triggers
+                    foreach (var trigger in record.Triggers)
+                    {
+                        if (record.Id.HasValue)
+                        {
+                            trigger.ActionId = record.Id.Value;
+                        }
+                    }
+
+                    // Add the Action - EF will cascade to SubActions and Triggers
+                    context.Set<ActionType>().Add(record);
+                }
+
+                var subActionCount = records.Sum(r => r.SubActions.Count);
+                var triggerCount = records.Sum(r => r.Triggers.Count);
+                logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
+                    records.Count, subActionCount, triggerCount);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to restore ActionType");
+                throw;
+            }
         }
     }
 }

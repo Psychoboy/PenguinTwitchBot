@@ -12,14 +12,12 @@ namespace DotNetTwitchBot.Bot.Actions
         Task DeleteActionAsync(int id);
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
 
-        Task<List<ActionTrigger>> GetTriggersForActionAsync(int actionId);
-        Task<ActionTrigger> AddTriggerToActionAsync(ActionTrigger actionTrigger);
-        Task RemoveTriggerFromActionAsync(int actionTriggerId);
-
-        // Trigger management
+        // Trigger management (Triggers are now children of Actions)
+        Task<List<TriggerType>> GetTriggersForActionAsync(int actionId);
         Task<List<TriggerType>> GetAllTriggersAsync();
         Task<TriggerType?> GetTriggerByIdAsync(int id);
         Task<TriggerType> CreateTriggerAsync(TriggerType trigger);
         Task<TriggerType> UpdateTriggerAsync(TriggerType trigger);
+        Task DeleteTriggerAsync(int triggerId);
     }
 }

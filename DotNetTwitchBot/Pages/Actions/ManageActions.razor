@@ -69,7 +69,7 @@
                                                 @action.SubActions.Count SubActions
                                             </MudChip>
                                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary">
-                                                @action.ActionTriggers.Count Triggers
+                                                @action.Triggers.Count Triggers
                                             </MudChip>
                                         </MudStack>
                                     </MudStack>
@@ -179,7 +179,7 @@
     private List<string> _groups = new();
     private List<string> _availableQueues = new();
     private ActionType? _selectedAction;
-    private List<ActionTrigger> _actionTriggers = new();
+    private List<TriggerType> _actionTriggers = new();
     private bool _isNewAction = false;
     private string _searchString = "";
     private string _filterGroup = "";
@@ -249,12 +249,12 @@
         _selectedAction = action;
         _isNewAction = false;
 
-        // ActionTriggers are already loaded by GetAllWithDetailsAsync, no need to query again
-        _actionTriggers = _selectedAction.ActionTriggers ?? new List<ActionTrigger>();
+        // Triggers are already loaded by GetAllWithDetailsAsync, no need to query again
+        _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
         await Task.CompletedTask; // Keep async signature for consistency
     }
 
-    private void OnActionTriggersChanged(List<ActionTrigger> triggers)
+    private void OnActionTriggersChanged(List<TriggerType> triggers)
     {
         _actionTriggers = triggers;
     }
@@ -277,7 +277,7 @@
             QueueName = "Default",
             SubActions = new List<SubActionType>()
         };
-        _actionTriggers = new List<ActionTrigger>();
+        _actionTriggers = new List<TriggerType>();
         _isNewAction = true;
     }
 
@@ -289,6 +289,9 @@
         {
             // Ensure Group is never null (convert to empty string)
             _selectedAction.Group = _selectedAction.Group ?? string.Empty;
+
+            // Sync triggers from the separate list back to the action
+            _selectedAction.Triggers = _actionTriggers;
 
             if (_isNewAction || !_selectedAction.Id.HasValue)
             {
@@ -306,7 +309,7 @@
 
             // Clear selection after successful save
             _selectedAction = null;
-            _actionTriggers = new List<ActionTrigger>();
+            _actionTriggers = new List<TriggerType>();
             _isNewAction = false;
         }
         catch (Exception ex)
@@ -332,7 +335,7 @@
                 await ActionService.DeleteActionAsync(_selectedAction.Id.Value);
                 Snackbar.Add($"Action '{_selectedAction.Name}' deleted successfully", Severity.Success);
                 _selectedAction = null;
-                _actionTriggers = new List<ActionTrigger>();
+                _actionTriggers = new List<TriggerType>();
                 await LoadActions();
             }
             catch (Exception ex)
@@ -345,7 +348,7 @@
     private void CancelEdit()
     {
         _selectedAction = null;
-        _actionTriggers = new List<ActionTrigger>();
+        _actionTriggers = new List<TriggerType>();
         _isNewAction = false;
     }
 }

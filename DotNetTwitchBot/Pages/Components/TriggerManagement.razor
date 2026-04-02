@@ -30,27 +30,22 @@
         }
         else
         {
-            <MudTable Items="@ActionTriggers" Dense="true" Hover="true" T="ActionTrigger">
+            <MudTable Items="@ActionTriggers" Dense="true" Hover="true" T="TriggerType">
                 <HeaderContent>
                     <MudTh>Trigger Name</MudTh>
                     <MudTh>Type</MudTh>
-                    <MudTh>Global Enabled</MudTh>
-                    <MudTh>Action Enabled</MudTh>
+                    <MudTh>Enabled</MudTh>
                     <MudTh>Priority</MudTh>
                     <MudTh Style="text-align: right;">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Trigger Name">@context.Trigger.Name</MudTd>
+                    <MudTd DataLabel="Trigger Name">@context.Name</MudTd>
                     <MudTd DataLabel="Type">
-                        <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Trigger.Type)">
-                            @context.Trigger.Type.ToString()
+                        <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Type)">
+                            @context.Type.ToString()
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Global Enabled">
-                        <MudIcon Icon="@(context.Trigger.Enabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
-                                 Color="@(context.Trigger.Enabled ? Color.Success : Color.Error)" Size="Size.Small" />
-                    </MudTd>
-                    <MudTd DataLabel="Action Enabled">
+                    <MudTd DataLabel="Enabled">
                         <MudSwitch T="bool" Value="@context.Enabled" ValueChanged="@((bool val) => ToggleTriggerEnabled(context, val))" 
                                    Color="Color.Success" />
                     </MudTd>
@@ -70,10 +65,10 @@
     public int? ActionId { get; set; }
 
     [Parameter]
-    public List<ActionTrigger> ActionTriggers { get; set; } = new();
+    public List<TriggerType> ActionTriggers { get; set; } = new();
 
     [Parameter]
-    public EventCallback<List<ActionTrigger>> ActionTriggersChanged { get; set; }
+    public EventCallback<List<TriggerType>> ActionTriggersChanged { get; set; }
 
     [Parameter]
     public bool ReadOnly { get; set; } = false;
@@ -90,7 +85,8 @@
     {
         if (ActionId.HasValue)
         {
-            ActionTriggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
+            var triggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
+            ActionTriggers = triggers;
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
         }
     }
@@ -121,31 +117,22 @@
                 TriggerTypes triggerType = data.TriggerType;
                 string configuration = data.Configuration;
 
-                // Create a new trigger
+                // Create a new trigger linked directly to the action
                 var newTrigger = new TriggerType
                 {
                     Name = triggerName,
                     Type = triggerType,
                     Configuration = configuration,
-                    Enabled = true
+                    Enabled = true,
+                    ActionId = ActionId.Value,
+                    Priority = ActionTriggers.Count
                 };
 
                 var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
 
-                // Link the trigger to the action
-                var actionTrigger = new ActionTrigger
-                {
-                    ActionId = ActionId.Value,
-                    TriggerId = createdTrigger.Id,
-                    Priority = ActionTriggers.Count,
-                    Enabled = true
-                    // Don't set navigation property - it causes tracking issues across scopes
-                };
-
-                await ActionService.AddTriggerToActionAsync(actionTrigger);
-
-                // Reload triggers to ensure navigation properties are loaded
-                await LoadTriggers();
+                // Add to local list
+                ActionTriggers.Add(createdTrigger);
+                await ActionTriggersChanged.InvokeAsync(ActionTriggers);
 
                 Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
             }
@@ -156,28 +143,28 @@
         }
     }
 
-    private async Task ToggleTriggerEnabled(ActionTrigger actionTrigger, bool enabled)
+    private async Task ToggleTriggerEnabled(TriggerType trigger, bool enabled)
     {
-        actionTrigger.Enabled = enabled;
+        trigger.Enabled = enabled;
         await ActionTriggersChanged.InvokeAsync(ActionTriggers);
         // Note: This will be saved when the parent action is saved
     }
 
-    private async Task RemoveTrigger(ActionTrigger actionTrigger)
+    private async Task RemoveTrigger(TriggerType trigger)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Remove Trigger",
-            $"Are you sure you want to remove the trigger '{actionTrigger.Trigger.Name}' from this action?",
+            $"Are you sure you want to remove the trigger '{trigger.Name}' from this action?",
             yesText: "Remove",
             cancelText: "Cancel");
 
         if (result == true)
         {
-            if (actionTrigger.Id > 0)
+            if (trigger.Id > 0)
             {
-                await ActionService.RemoveTriggerFromActionAsync(actionTrigger.Id);
+                await ActionService.DeleteTriggerAsync(trigger.Id);
             }
-            ActionTriggers.Remove(actionTrigger);
+            ActionTriggers.Remove(trigger);
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
             Snackbar.Add("Trigger removed", Severity.Success);
         }

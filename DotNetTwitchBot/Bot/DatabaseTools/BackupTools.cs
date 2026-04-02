@@ -103,11 +103,34 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
         public static async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             logger?.LogInformation("Restoring database");
-            var handlers = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
+
+            // Get all handler types
+            var allHandlers = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(s => s.GetTypes())
+                .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false)
+                .ToList();
+
+            // Define restore order priority (lower number = restore first)
+            var restoreOrder = new Dictionary<string, int>
+            {
+                { "ActionsRepository", 1 },        // First (includes SubActions and Triggers)
+                { "SubActionsRepository", 999 },   // Skip (no-op)
+                { "TriggersRepository", 999 },     // Skip (no-op)
+                { "ActionTriggersRepository", 999 } // Skip (no-op, deprecated)
+            };
+
+            // Sort handlers by priority
+            var orderedHandlers = allHandlers
+                .OrderBy(h => restoreOrder.TryGetValue(h.Name, out int priority) ? priority : 100) // Default priority 100
+                .ThenBy(h => h.Name) // Alphabetical for same priority
+                .ToList();
+
+            logger?.LogDebug("Restore order: {Handlers}", string.Join(", ", orderedHandlers.Select(h => h.Name)));
+
             var errors = "";
-            foreach (var handler in handlers)
+            var currentPriority = -1;
+
+            foreach (var handler in orderedHandlers)
             {
                 try
                 {
@@ -117,16 +140,31 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
                         logger?.LogError("Failed to create instance of {Name}", handler.Name);
                         continue;
                     }
+
+                    var priority = restoreOrder.TryGetValue(handler.Name, out int p) ? p : 100;
+
+                    // Save changes when priority level changes (to ensure previous entities are persisted)
+                    // Priority 1 (Actions) must be saved before Priority 100 (everything else)
+                    if (currentPriority != -1 && currentPriority != priority && priority < 100)
+                    {
+                        logger?.LogDebug("Committing priority {Priority} entities before moving to priority {NextPriority}", currentPriority, priority);
+                        await context.SaveChangesAsync();
+                        context.ChangeTracker.Clear(); // Clear after save to avoid conflicts
+                    }
+
+                    currentPriority = priority;
+
                     await handlerInstance.RestoreTable(context, backupDirectory, logger);
                 }
                 catch (Exception ex)
                 {
                     errors += $"{handler.Name}: {ex.Message}\n";
-
                 }
             }
-            logger?.LogInformation("Database committing");
+
+            logger?.LogInformation("Database committing final changes");
             await context.SaveChangesAsync();
+
             if (!string.IsNullOrEmpty(errors))
             {
                 logger?.LogError("Errors occurred during restore:\n{Errors}", errors);

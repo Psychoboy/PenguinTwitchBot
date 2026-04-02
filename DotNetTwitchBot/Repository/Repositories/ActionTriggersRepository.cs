@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {
+    // DEPRECATED: ActionTriggers junction table removed. Triggers now have direct one-to-many relationship with Actions.
+    // This repository is kept for compatibility but should not be used.
+    [Obsolete("ActionTrigger junction table has been removed. Use Triggers directly on Actions.")]
     public class ActionTriggersRepository : GenericRepository<ActionTrigger>, IActionTriggersRepository
     {
         public ActionTriggersRepository(ApplicationDbContext context) : base(context)
@@ -12,68 +15,51 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public new async Task<ActionTrigger?> GetByIdAsync(int id)
         {
-            return await _context.ActionTriggers
-                .AsNoTracking()
-                .Include(at => at.Action)
-                .Include(at => at.Trigger)
-                .FirstOrDefaultAsync(at => at.Id == id);
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public async Task<List<ActionTrigger>> GetByActionIdAsync(int actionId)
         {
-            return await _context.ActionTriggers
-                .AsNoTracking()
-                .Include(at => at.Trigger)
-                .Where(at => at.ActionId == actionId)
-                .OrderBy(at => at.Priority)
-                .ToListAsync();
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public async Task<List<ActionTrigger>> GetByTriggerIdAsync(int triggerId)
         {
-            return await _context.ActionTriggers
-                .AsNoTracking()
-                .Include(at => at.Action)
-                .Where(at => at.TriggerId == triggerId)
-                .OrderBy(at => at.Priority)
-                .ToListAsync();
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public new async Task<ActionTrigger> AddAsync(ActionTrigger actionTrigger)
         {
-            actionTrigger.CreatedAt = DateTime.UtcNow;
-            await _context.ActionTriggers.AddAsync(actionTrigger);
-            await _context.SaveChangesAsync();
-            return actionTrigger;
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public async Task DeleteAsync(int id)
         {
-            var actionTrigger = await _context.ActionTriggers.FindAsync(id);
-            if (actionTrigger != null)
-            {
-                _context.ActionTriggers.Remove(actionTrigger);
-                await _context.SaveChangesAsync();
-            }
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public async Task DeleteByActionAndTriggerAsync(int actionId, int triggerId)
         {
-            var actionTrigger = await _context.ActionTriggers
-                .FirstOrDefaultAsync(at => at.ActionId == actionId && at.TriggerId == triggerId);
-            
-            if (actionTrigger != null)
-            {
-                _context.ActionTriggers.Remove(actionTrigger);
-                await _context.SaveChangesAsync();
-            }
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
         }
 
         public async Task<bool> ExistsAsync(int actionId, int triggerId)
         {
-            return await _context.ActionTriggers
-                .AsNoTracking()
-                .AnyAsync(at => at.ActionId == actionId && at.TriggerId == triggerId);
+            throw new NotImplementedException("ActionTrigger junction table has been removed.");
+        }
+
+        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            // No-op: ActionTrigger junction table no longer exists
+            logger?.LogDebug("Skipping ActionTrigger backup - entity deprecated");
+            await Task.CompletedTask;
+        }
+
+        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            // No-op: ActionTrigger junction table no longer exists
+            logger?.LogDebug("Skipping ActionTrigger restore - entity deprecated");
+            await Task.CompletedTask;
         }
     }
 }

@@ -118,43 +118,11 @@ namespace DotNetTwitchBot.Bot.Actions
             }
         }
 
-        public async Task<List<ActionTrigger>> GetTriggersForActionAsync(int actionId)
+        public async Task<List<TriggerType>> GetTriggersForActionAsync(int actionId)
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.ActionTriggers.GetByActionIdAsync(actionId);
-        }
-
-        public async Task<ActionTrigger> AddTriggerToActionAsync(ActionTrigger actionTrigger)
-        {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            
-            try
-            {
-                return await unitOfWork.ActionTriggers.AddAsync(actionTrigger);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error adding trigger to action {ActionId}", actionTrigger.ActionId);
-                throw;
-            }
-        }
-
-        public async Task RemoveTriggerFromActionAsync(int actionTriggerId)
-        {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            try
-            {
-                await unitOfWork.ActionTriggers.DeleteAsync(actionTriggerId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error removing trigger {ActionTriggerId}", actionTriggerId);
-                throw;
-            }
+            return await unitOfWork.Triggers.GetTriggersForActionAsync(actionId);
         }
 
         public async Task<List<TriggerType>> GetAllTriggersAsync()
@@ -199,6 +167,22 @@ namespace DotNetTwitchBot.Bot.Actions
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating trigger {TriggerName}", trigger.Name);
+                throw;
+            }
+        }
+
+        public async Task DeleteTriggerAsync(int triggerId)
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            try
+            {
+                await unitOfWork.Triggers.DeleteAsync(triggerId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting trigger {TriggerId}", triggerId);
                 throw;
             }
         }

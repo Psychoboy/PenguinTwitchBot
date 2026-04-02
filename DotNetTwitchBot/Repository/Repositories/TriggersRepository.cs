@@ -1,6 +1,8 @@
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {
@@ -14,8 +16,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
-                .Include(t => t.ActionTriggers)
-                .ThenInclude(at => at.Action)
+                .Include(t => t.Action)
                 .FirstOrDefaultAsync(t => t.Id == id);
         }
 
@@ -23,7 +24,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
-                .Include(t => t.ActionTriggers)
                 .FirstOrDefaultAsync(t => t.Name == name);
         }
 
@@ -31,7 +31,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
-                .Include(t => t.ActionTriggers)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
         }
@@ -40,7 +39,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
-                .Include(t => t.ActionTriggers)
                 .Where(t => t.Type == type)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
@@ -50,8 +48,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
-                .Include(t => t.ActionTriggers)
-                .Where(t => t.ActionTriggers.Any(at => at.ActionId == actionId))
+                .Where(t => t.ActionId == actionId)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
         }
@@ -86,6 +83,22 @@ namespace DotNetTwitchBot.Repository.Repositories
         public async Task<bool> ExistsAsync(string name)
         {
             return await _context.Triggers.AsNoTracking().AnyAsync(t => t.Name == name);
+        }
+
+        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            // No-op: Triggers are now backed up as children of Actions
+            // They are included when ActionsRepository backs up with .Include(a => a.Triggers)
+            logger?.LogDebug("Skipping TriggerType backup - backed up with Actions");
+            await Task.CompletedTask;
+        }
+
+        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            // No-op: Triggers are now restored as children of Actions
+            // They are restored when ActionsRepository restores with .Include(a => a.Triggers)
+            logger?.LogDebug("Skipping TriggerType restore - restored with Actions");
+            await Task.CompletedTask;
         }
     }
 }
