@@ -522,21 +522,21 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return tagName.ToLower() switch
             {
-                "alert" => _mediator.Send(new AlertTag { CommandEventArgs = eventArgs, Args = args }),
-                "playsound" => _mediator.Send(new PlaySoundTag { CommandEventArgs = eventArgs, Args = args }),
+                "alert" => _mediator.Send(new AlertTag { CommandEventArgs = eventArgs, Args = args }),//
+                "playsound" => _mediator.Send(new PlaySoundTag { CommandEventArgs = eventArgs, Args = args }),//
                 "sender" => _mediator.Send(new SenderTag { CommandEventArgs = eventArgs, Args = args }),
                 "args" => _mediator.Send(new ArgsTag { CommandEventArgs = eventArgs, Args = args }),
-                "randomint" => _mediator.Send(new RandomIntTag { CommandEventArgs = eventArgs, Args = args }),
+                "randomint" => _mediator.Send(new RandomIntTag { CommandEventArgs = eventArgs, Args = args }),//
                 "useronly" => _mediator.Send(new UserOnlyTag { CommandEventArgs = eventArgs, Args = args }),
-                "writefile" => _mediator.Send(new WriteFileTag { CommandEventArgs = eventArgs, Args = args }),
-                "currenttime" => _mediator.Send(new CurrentTimeTag { CommandEventArgs = eventArgs, Args = args }),
+                "writefile" => _mediator.Send(new WriteFileTag { CommandEventArgs = eventArgs, Args = args }),//
+                "currenttime" => _mediator.Send(new CurrentTimeTag { CommandEventArgs = eventArgs, Args = args }),//
                 "@sender" => _mediator.Send(new AtSenderTag { CommandEventArgs = eventArgs, Args = args }),
                 "onlineonly" => _mediator.Send(new OnlineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
                 "offlineonly" => _mediator.Send(new OfflineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
-                "followage" => _mediator.Send(new FollowAgeTag { CommandEventArgs = eventArgs, Args = args }),
+                "followage" => _mediator.Send(new FollowAgeTag { CommandEventArgs = eventArgs, Args = args }), //
                 "multicounter" => _mediator.Send(new MultiCounterTag { CommandEventArgs = eventArgs, Args = args }),
                 "multicounteralert" => _mediator.Send(new MultiCounterAlertTag { CommandEventArgs = eventArgs, Args = args }),
-                "uptime" => _mediator.Send(new UptimeTag { CommandEventArgs = eventArgs, Args = args }),
+                "uptime" => _mediator.Send(new UptimeTag { CommandEventArgs = eventArgs, Args = args }), //
                 "customapitext" => _mediator.Send(new CustomApiTextTag { CommandEventArgs = eventArgs, Args = args }),
                 "customapinoresponse" => _mediator.Send(new CustomApiNoResponseTag { CommandEventArgs = eventArgs, Args = args }),
                 "giveawayprize" => _mediator.Send(new GiveawayPrizeTag { CommandEventArgs = eventArgs, Args = args }),

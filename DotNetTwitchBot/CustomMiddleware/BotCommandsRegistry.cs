@@ -113,6 +113,20 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddSingleton<Bot.Markov.TokenisationStrategies.StringMarkov>();
 
+            services.AddScoped<Bot.Actions.Action>();
+
+            // Register SubAction handlers
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.SendMessageHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.AlertHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.PlaySoundHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.WriteFileHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.CurrentTimeHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.FollowAgeHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.RandomIntHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.UptimeHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.ExternalApiHandler>();
+            services.AddTransient<Bot.Actions.SubActions.SubActionHandlerFactory>();
+
             return services;
         }
 

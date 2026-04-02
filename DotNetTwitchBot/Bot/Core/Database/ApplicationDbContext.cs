@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
@@ -63,7 +64,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
         
-
+        public DbSet<Models.Actions.ActionType> Actions { get; set; } = null!;
+        public DbSet<Models.Actions.SubActions.SubActionType> SubActions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -116,6 +118,18 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .WithOne(t => t.TimerGroup)
                 .HasForeignKey(t => t.TimerGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubActionType>()
+                .HasDiscriminator(x => x.SubActionTypes)
+                .HasValue<SubActionType>(SubActionTypes.None)
+                .HasValue<SendMessageType>(SubActionTypes.SendMessage)
+                .HasValue<AlertType>(SubActionTypes.Alert)
+                .HasValue<PlaySoundType>(SubActionTypes.PlaySound)
+                .HasValue<WriteFileType>(SubActionTypes.WriteFile)
+                .HasValue<RandomIntType>(SubActionTypes.RandomInt)
+                .HasValue<CurrentTimeType>(SubActionTypes.CurrentTime)
+                .HasValue<FollowAgeType>(SubActionTypes.Followage)
+                .HasValue<UptimeType>(SubActionTypes.Uptime);
         }
     }
 }

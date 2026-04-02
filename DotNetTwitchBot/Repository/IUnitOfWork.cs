@@ -52,6 +52,9 @@
         IPointCommandsRepository PointCommands { get; }
         IScAiResponsesRepository ScAiResponses { get; }
 
+        IActionsRepository Actions { get; }
+        ISubActionsRepository SubActions { get; }
+
         int SaveChanges();
         Task<int> SaveChangesAsync();
     }

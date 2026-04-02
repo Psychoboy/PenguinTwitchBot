@@ -1,0 +1,30 @@
+﻿namespace DotNetTwitchBot.Bot.Models.Actions.SubActions
+{
+    public enum SubActionTypes
+    {
+        None,
+        Alert,
+        PlaySound,
+        RandomInt,
+        WriteFile,
+        CurrentTime,
+        Followage,
+        MultiCounter,
+        MultiCounterAlert,
+        Uptime,
+        ExternalApi,
+        GiveawayPrize,
+        WatchTime,
+        ExecuteCommand,
+        TtsAndPrint,
+        Tts,
+        ChannelPointSetEnabledState,
+        ChannelPointSetPausedState,
+        TimerGroupSetEnabledState,
+        CommandSetEnabledState,
+        GivePoints,
+        CheckPoints,
+        SendMessage,
+        ReplyToMessage
+    }
+}

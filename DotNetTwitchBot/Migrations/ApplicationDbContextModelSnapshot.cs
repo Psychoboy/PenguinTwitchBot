@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Aliases");
+                    b.ToTable("Aliases", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.AutoShoutout", b =>
@@ -75,7 +75,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("AutoShoutouts");
+                    b.ToTable("AutoShoutouts", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.BannedViewer", b =>
@@ -99,7 +99,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Username");
 
-                    b.ToTable("BannedViewers");
+                    b.ToTable("BannedViewers", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ChannelPointRedeem", b =>
@@ -123,7 +123,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ChannelPointRedeems");
+                    b.ToTable("ChannelPointRedeems", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.AudioCommand", b =>
@@ -200,7 +200,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("AudioCommands");
+                    b.ToTable("AudioCommands", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.CurrentCooldowns", b =>
@@ -234,7 +234,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("CommandName", "UserName");
 
-                    b.ToTable("Cooldowns");
+                    b.ToTable("Cooldowns", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.CustomCommands", b =>
@@ -314,7 +314,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("CustomCommands");
+                    b.ToTable("CustomCommands", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.DefaultCommand", b =>
@@ -395,7 +395,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("DefaultCommands");
+                    b.ToTable("DefaultCommands", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.ExternalCommands", b =>
@@ -468,7 +468,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("ExternalCommands");
+                    b.ToTable("ExternalCommands", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.KeywordType", b =>
@@ -551,7 +551,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("Keywords");
+                    b.ToTable("Keywords", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Counter", b =>
@@ -573,7 +573,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("CounterName");
 
-                    b.ToTable("Counters");
+                    b.ToTable("Counters", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.DeathCounter", b =>
@@ -595,7 +595,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Game");
 
-                    b.ToTable("DeathCounters");
+                    b.ToTable("DeathCounters", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.DiscordEventMap", b =>
@@ -615,7 +615,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DiscordEvents");
+                    b.ToTable("DiscordEvents", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.FilteredQuoteType", b =>
@@ -684,7 +684,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("GameName", "SettingName");
 
-                    b.ToTable("GameSettings");
+                    b.ToTable("GameSettings", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Giveaway.GiveawayEntry", b =>
@@ -711,7 +711,7 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("GiveawayEntries");
+                    b.ToTable("GiveawayEntries", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Giveaway.GiveawayExclusion", b =>
@@ -734,7 +734,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GiveawayExclusions");
+                    b.ToTable("GiveawayExclusions", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Giveaway.GiveawayWinner", b =>
@@ -773,7 +773,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GiveawayWinners");
+                    b.ToTable("GiveawayWinners", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.IpLogs.IpLogEntry", b =>
@@ -801,7 +801,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("IpLogEntrys");
+                    b.ToTable("IpLogEntrys", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.KnownBot", b =>
@@ -818,7 +818,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("KnownBots");
+                    b.ToTable("KnownBots", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.MarkovValue", b =>
@@ -841,7 +841,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("KeyIndex");
 
-                    b.ToTable("MarkovValues");
+                    b.ToTable("MarkovValues", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Metrics.SongRequestHistory", b =>
@@ -865,7 +865,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SongRequestHistories");
+                    b.ToTable("SongRequestHistories", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Metrics.SongRequestHistoryWithRank", b =>
@@ -913,7 +913,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("SongId");
 
-                    b.ToTable("SongRequestMetrics");
+                    b.ToTable("SongRequestMetrics", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Metrics.SongRequestMetricsWithRank", b =>
@@ -955,7 +955,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Playlists");
+                    b.ToTable("Playlists", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointCommand", b =>
@@ -1031,7 +1031,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("PointTypeId");
 
-                    b.ToTable("PointCommands");
+                    b.ToTable("PointCommands", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.PointType", b =>
@@ -1054,7 +1054,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("PointTypes");
+                    b.ToTable("PointTypes", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Points.UserPoints", b =>
@@ -1090,7 +1090,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Username");
 
-                    b.ToTable("UserPoints");
+                    b.ToTable("UserPoints", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.QuoteType", b =>
@@ -1118,7 +1118,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Quotes");
+                    b.ToTable("Quotes", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.RaidHistoryEntry", b =>
@@ -1171,7 +1171,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RaidHistory");
+                    b.ToTable("RaidHistory", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.RegisteredVoice", b =>
@@ -1202,9 +1202,9 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RegisteredVoices");
+                    b.ToTable("RegisteredVoices", (string)null);
 
-                    b.HasDiscriminator().HasValue("RegisteredVoice");
+                    b.HasDiscriminator<string>("Discriminator").HasValue("RegisteredVoice");
 
                     b.UseTphMappingStrategy();
                 });
@@ -1223,7 +1223,7 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("ScAiResponseCodes");
+                    b.ToTable("ScAiResponseCodes", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Setting", b =>
@@ -1258,7 +1258,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("Settings");
+                    b.ToTable("Settings", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Song", b =>
@@ -1291,7 +1291,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("MusicPlaylistId");
 
-                    b.ToTable("Songs");
+                    b.ToTable("Songs", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.SongRequestViewItem", b =>
@@ -1316,7 +1316,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SongRequestViewItems");
+                    b.ToTable("SongRequestViewItems", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.SubscriptionHistory", b =>
@@ -1342,7 +1342,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Username");
 
-                    b.ToTable("SubscriptionHistories");
+                    b.ToTable("SubscriptionHistories", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", b =>
@@ -1383,7 +1383,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TimerGroups");
+                    b.ToTable("TimerGroups", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerMessage", b =>
@@ -1408,7 +1408,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("TimerGroupId");
 
-                    b.ToTable("TimerMessages");
+                    b.ToTable("TimerMessages", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.TwitchEvent", b =>
@@ -1435,7 +1435,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TwitchEvents");
+                    b.ToTable("TwitchEvents", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Viewer", b =>
@@ -1486,7 +1486,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Username");
 
-                    b.ToTable("Viewers");
+                    b.ToTable("Viewers", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerChatHistory", b =>
@@ -1516,7 +1516,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("Username");
 
-                    b.ToTable("ViewerChatHistories");
+                    b.ToTable("ViewerChatHistories", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCount", b =>
@@ -1545,7 +1545,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ViewerMessageCounts");
+                    b.ToTable("ViewerMessageCounts", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCountWithRank", b =>
@@ -1596,7 +1596,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ViewersTime");
+                    b.ToTable("ViewersTime", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTimeWithRank", b =>
@@ -1639,7 +1639,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Wheels");
+                    b.ToTable("Wheels", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.WheelProperty", b =>
@@ -1673,7 +1673,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasIndex("WheelId");
 
-                    b.ToTable("WheelProperties");
+                    b.ToTable("WheelProperties", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.WordFilter", b =>
@@ -1719,7 +1719,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("WordFilters");
+                    b.ToTable("WordFilters", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.UserRegisteredVoice", b =>
