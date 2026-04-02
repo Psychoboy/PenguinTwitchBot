@@ -2,5 +2,9 @@
 {
     public class UptimeType : SubActionType
     {
+        public UptimeType()
+        {
+            SubActionTypes = SubActionTypes.Uptime;
+        }
     }
 }

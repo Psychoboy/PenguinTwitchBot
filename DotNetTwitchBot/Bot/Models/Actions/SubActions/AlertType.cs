@@ -4,6 +4,11 @@ namespace DotNetTwitchBot.Bot.Models.Actions.SubActions
 {
     public class AlertType : SubActionType
     {
+        public AlertType()
+        {
+            SubActionTypes = SubActionTypes.Alert;
+        }
+
         public int Duration { get; set; } = 3;
         public float Volume { get; set; } = 0.8f;
         public string CSS { get; set; } = "";

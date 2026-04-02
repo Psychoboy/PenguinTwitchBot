@@ -27,8 +27,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             Assert.Equal("TestAction", logs[0].ActionName);
             Assert.Equal("default", logs[0].QueueName);
             Assert.Equal(ActionExecutionState.Pending, logs[0].State);
-            Assert.Equal(2, logs[0].Variables.Count);
-            Assert.Equal("value1", logs[0].Variables["key1"]);
+            Assert.Equal(2, logs[0].VariablesBefore.Count);
+            Assert.Equal("value1", logs[0].VariablesBefore["key1"]);
         }
 
         [Fact]
@@ -60,9 +60,10 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var variables = new Dictionary<string, string>();
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
             executionLogger.UpdateActionStarted(logId);
+            var variablesAfter = new Dictionary<string, string>();
 
             // Act
-            executionLogger.UpdateActionCompleted(logId);
+            executionLogger.UpdateActionCompleted(logId, variablesAfter);
 
             // Assert
             var logs = executionLogger.GetRecentLogs();
@@ -127,7 +128,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logId3 = executionLogger.LogActionEnqueued("Action3", "default", new Dictionary<string, string>());
             
             executionLogger.UpdateActionStarted(logId1);
-            executionLogger.UpdateActionCompleted(logId1);
+            executionLogger.UpdateActionCompleted(logId1, new Dictionary<string, string>());
             executionLogger.UpdateActionStarted(logId2);
             executionLogger.UpdateActionFailed(logId2, "Error");
 
@@ -249,8 +250,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             
             executionLogger.UpdateActionStarted(logId);
             Thread.Sleep(20);
-            
-            executionLogger.UpdateActionCompleted(logId);
+
+            executionLogger.UpdateActionCompleted(logId, new Dictionary<string, string>());
 
             // Act
             var logs = executionLogger.GetRecentLogs();
@@ -263,6 +264,46 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             Assert.True(log.WaitTime.Value.TotalMilliseconds >= 10);
             Assert.True(log.ExecutionDuration.Value.TotalMilliseconds >= 10);
             Assert.True(log.TotalTime.Value.TotalMilliseconds >= 30);
+        }
+
+        [Fact]
+        public void VariablesBeforeAndAfter_TracksVariableChanges()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
+            var executionLogger = new ActionExecutionLogger(logger);
+            var variablesBefore = new Dictionary<string, string>
+            {
+                { "key1", "value1" },
+                { "key2", "value2" }
+            };
+
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variablesBefore);
+            executionLogger.UpdateActionStarted(logId);
+
+            var variablesAfter = new Dictionary<string, string>
+            {
+                { "key1", "modifiedValue1" },
+                { "key2", "value2" },
+                { "newKey", "newValue" }
+            };
+
+            // Act
+            executionLogger.UpdateActionCompleted(logId, variablesAfter);
+
+            // Assert
+            var logs = executionLogger.GetRecentLogs();
+            var log = logs[0];
+
+            Assert.Equal(2, log.VariablesBefore.Count);
+            Assert.Equal("value1", log.VariablesBefore["key1"]);
+            Assert.Equal("value2", log.VariablesBefore["key2"]);
+
+            Assert.NotNull(log.VariablesAfter);
+            Assert.Equal(3, log.VariablesAfter.Count);
+            Assert.Equal("modifiedValue1", log.VariablesAfter["key1"]);
+            Assert.Equal("value2", log.VariablesAfter["key2"]);
+            Assert.Equal("newValue", log.VariablesAfter["newKey"]);
         }
     }
 }

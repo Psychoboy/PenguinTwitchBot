@@ -2,5 +2,9 @@
 {
     public class CurrentTimeType : SubActionType
     {
+        public CurrentTimeType()
+        {
+            SubActionTypes = SubActionTypes.CurrentTime;
+        }
     }
 }

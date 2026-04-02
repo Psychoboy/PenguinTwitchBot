@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Queues
             {
                 ActionName = actionName,
                 QueueName = queueName,
-                Variables = new Dictionary<string, string>(variables),
+                VariablesBefore = new Dictionary<string, string>(variables),
                 State = ActionExecutionState.Pending,
                 EnqueuedAt = DateTime.UtcNow
             };
@@ -49,13 +49,14 @@ namespace DotNetTwitchBot.Bot.Queues
             }
         }
 
-        public void UpdateActionCompleted(Guid logId)
+        public void UpdateActionCompleted(Guid logId, Dictionary<string, string> variablesAfter)
         {
             if (_logIndex.TryGetValue(logId, out var log))
             {
                 log.State = ActionExecutionState.Completed;
                 log.CompletedAt = DateTime.UtcNow;
-                
+                log.VariablesAfter = new Dictionary<string, string>(variablesAfter);
+
                 _logger.LogTrace("Updated action {ActionName} to Completed state in {Duration}ms", 
                     log.ActionName, log.ExecutionDuration?.TotalMilliseconds ?? 0);
             }

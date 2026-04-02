@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             // Assert
             Assert.NotNull(queue);
             Assert.Equal("Default", queue.Name);
-            Assert.True(queue.IsBlocking);
+            Assert.False(queue.IsBlocking);
         }
 
         [Fact]
@@ -93,7 +93,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             // Assert
             Assert.NotNull(stats);
             Assert.Equal("Default", stats.QueueName);
-            Assert.True(stats.IsBlocking);
+            Assert.False(stats.IsBlocking);
             Assert.Equal(0, stats.PendingActions);
             Assert.Equal(0, stats.CompletedActions);
         }

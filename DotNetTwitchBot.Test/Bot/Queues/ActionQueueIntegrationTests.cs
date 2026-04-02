@@ -54,8 +54,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             Assert.Equal("TestAction", log.ActionName);
             Assert.Equal("test-queue", log.QueueName);
             Assert.Equal(ActionExecutionState.Pending, log.State);
-            Assert.Contains("test", log.Variables.Keys);
-            Assert.Equal("value", log.Variables["test"]);
+            Assert.Contains("test", log.VariablesBefore.Keys);
+            Assert.Equal("value", log.VariablesBefore["test"]);
             Assert.Null(log.StartedAt);
             Assert.Null(log.CompletedAt);
         }

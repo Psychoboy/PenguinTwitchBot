@@ -63,7 +63,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "TestAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [subAction1]
             };
 
@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "TestAction",
-                Enbled = false,
+                Enabled = false,
                 SubActions =
                 [
                     new SendMessageType
@@ -114,7 +114,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "RandomTestAction",
-                Enbled = true,
+                Enabled = true,
                 RandomAction = true,
                 SubActions = [subAction1, subAction2]
             };
@@ -135,7 +135,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "EmptyRandomAction",
-                Enbled = true,
+                Enabled = true,
                 RandomAction = true,
                 SubActions = []
             };
@@ -172,7 +172,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "ConcurrentTestAction",
-                Enbled = true,
+                Enabled = true,
                 ConcurrentAction = true,
                 SubActions = [subAction1, subAction2, subAction3]
             };
@@ -208,7 +208,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "SequentialTestAction",
-                Enbled = true,
+                Enabled = true,
                 RandomAction = false,
                 ConcurrentAction = false,
                 SubActions = [subAction2, subAction1]
@@ -235,7 +235,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "UnknownAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [subAction]
             };
 
@@ -261,7 +261,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "SendMessageAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [subAction]
             };
 
@@ -286,7 +286,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "NullSendMessageAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [subAction]
             };
 
@@ -306,7 +306,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "EmptyAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = []
             };
 
@@ -333,7 +333,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "ActionWithEmptyVariables",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [subAction]
             };
 
@@ -363,7 +363,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "MixedAction",
-                Enbled = true,
+                Enabled = true,
                 SubActions = [sendMessageAction, unknownAction]
             };
 
@@ -394,7 +394,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var actionType = new ActionType
             {
                 Name = "RandomAndConcurrentAction",
-                Enbled = true,
+                Enabled = true,
                 RandomAction = true,
                 ConcurrentAction = true,
                 SubActions = [subAction1, subAction2]

@@ -179,7 +179,7 @@ namespace DotNetTwitchBot.Bot.Queues
 
                 Interlocked.Increment(ref _completedCount);
 
-                _executionLogger.UpdateActionCompleted(queuedAction.LogId);
+                _executionLogger.UpdateActionCompleted(queuedAction.LogId, queuedAction.Variables);
 
                 _logger.LogDebug("Completed action {ActionName} in queue {QueueName}", 
                     queuedAction.Action.Name, Name);

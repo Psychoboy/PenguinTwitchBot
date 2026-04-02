@@ -36,8 +36,8 @@ namespace DotNetTwitchBot.Bot.Queues
             // Create default queue
             var defaultQueue = new ActionQueue(
                 DefaultQueueName,
-                isBlocking: true,
-                maxConcurrentActions: 1,
+                isBlocking: false,
+                maxConcurrentActions: 50,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger);

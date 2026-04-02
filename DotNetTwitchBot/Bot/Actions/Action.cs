@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Actions
 
         public async Task RunAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
         {
-            if(!action.Enbled)
+            if(!action.Enabled)
             {
                 logger.LogInformation("Action {action.Name} was disabled so skipping", action.Name);
                 return;

@@ -1,0 +1,200 @@
+@using DotNetTwitchBot.Bot.Models.Queues
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6" GutterBottom="true">@Log.ActionName</MudText>
+                <MudDivider Class="mb-4" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">State</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@GetStateColor()">@Log.State.ToString()</MudChip>
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Queue</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@(Log.QueueName == "Default" ? Color.Primary : Color.Default)">
+                    @Log.QueueName
+                </MudChip>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Queued At</MudText>
+                <MudText Typo="Typo.body2">@Log.EnqueuedAt.ToLocalTime().ToString("g")</MudText>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Started At</MudText>
+                <MudText Typo="Typo.body2">
+                    @(Log.StartedAt.HasValue ? Log.StartedAt.Value.ToLocalTime().ToString("g") : "Not started")
+                </MudText>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Completed At</MudText>
+                <MudText Typo="Typo.body2">
+                    @(Log.CompletedAt.HasValue ? Log.CompletedAt.Value.ToLocalTime().ToString("g") : "Not completed")
+                </MudText>
+            </MudItem>
+
+            @if (Log.WaitTime.HasValue)
+            {
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Time to Start</MudText>
+                    <MudText Typo="Typo.body2">@FormatDuration(Log.WaitTime.Value)</MudText>
+                </MudItem>
+            }
+
+            @if (Log.ExecutionDuration.HasValue)
+            {
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Execution Time</MudText>
+                    <MudText Typo="Typo.body2">@FormatDuration(Log.ExecutionDuration.Value)</MudText>
+                </MudItem>
+            }
+
+            @if (Log.TotalTime.HasValue)
+            {
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Duration</MudText>
+                    <MudText Typo="Typo.body2">@FormatDuration(Log.TotalTime.Value)</MudText>
+                </MudItem>
+            }
+
+            @if (!string.IsNullOrEmpty(Log.ErrorMessage))
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        <MudText Typo="Typo.subtitle2">Error Message</MudText>
+                        <MudText Typo="Typo.body2">@Log.ErrorMessage</MudText>
+                    </MudAlert>
+                </MudItem>
+            }
+
+            <MudItem xs="12">
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.h6" GutterBottom="true">Variables Before Execution (@Log.VariablesBefore.Count)</MudText>
+            </MudItem>
+
+            @if (Log.VariablesBefore.Any())
+            {
+                <MudItem xs="12">
+                    <MudTable Items="@Log.VariablesBefore" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="300px">
+                        <HeaderContent>
+                            <MudTh>Key</MudTh>
+                            <MudTh>Value</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Key">
+                                <MudText Typo="Typo.body2"><strong>@context.Key</strong></MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Value">
+                                <MudText Typo="Typo.body2" Style="word-break: break-word;">@context.Value</MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+            }
+            else
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        No variables were passed to this action.
+                    </MudAlert>
+                </MudItem>
+            }
+
+            @if (Log.VariablesAfter != null)
+            {
+                <MudItem xs="12">
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" GutterBottom="true">Variables After Execution (@Log.VariablesAfter.Count)</MudText>
+                </MudItem>
+
+                @if (Log.VariablesAfter.Any())
+                {
+                    <MudItem xs="12">
+                        <MudTable Items="@Log.VariablesAfter" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="300px">
+                            <HeaderContent>
+                                <MudTh>Key</MudTh>
+                                <MudTh>Value</MudTh>
+                                <MudTh>Changed</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Key">
+                                    <MudText Typo="Typo.body2"><strong>@context.Key</strong></MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Value">
+                                    <MudText Typo="Typo.body2" Style="word-break: break-word;">@context.Value</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Changed">
+                                    @if (IsVariableChanged(context.Key, context.Value))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Modified</MudChip>
+                                    }
+                                    else if (!Log.VariablesBefore.ContainsKey(context.Key))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">New</MudChip>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudItem>
+                }
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Primary">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public ActionExecutionLog Log { get; set; } = null!;
+
+    private Color GetStateColor()
+    {
+        return Log.State switch
+        {
+            ActionExecutionState.Pending => Color.Warning,
+            ActionExecutionState.Running => Color.Info,
+            ActionExecutionState.Completed => Color.Success,
+            ActionExecutionState.Failed => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string FormatDuration(TimeSpan duration)
+    {
+        var totalMilliseconds = duration.TotalMilliseconds;
+
+        if (totalMilliseconds < 1000)
+            return $"{totalMilliseconds:F0}ms";
+
+        if (duration.TotalSeconds < 60)
+            return $"{duration.TotalSeconds:F2}s";
+
+        return $"{duration.TotalMinutes:F2}m";
+    }
+
+    private bool IsVariableChanged(string key, string afterValue)
+    {
+        if (!Log.VariablesBefore.TryGetValue(key, out var beforeValue))
+            return false; // New variable
+
+        return beforeValue != afterValue;
+    }
+
+    private void Close()
+    {
+        MudDialog.Close();
+    }
+    }
+}
