@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Models.Actions
         public bool Enbled { get; set; } = true;
         public bool RandomAction { get; set; } = false;
         public bool ConcurrentAction { get; set; } = false;
+        public string QueueName { get; set; } = "default";
         public List<SubActionType> SubActions { get; set; } = [];
     }
 }

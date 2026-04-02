@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using MediatR;
@@ -17,6 +18,16 @@ namespace DotNetTwitchBot.Bot.Actions
             db.SaveChanges();
             return action;
         }
+
+        public async Task EnqueueAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
+            var queue = await queueManager.GetQueueAsync(action.QueueName);
+            await queue.EnqueueAsync(action, variables);
+            logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
+        }
+
         public async Task RunAction(Dictionary<string, string> variables, Models.Actions.ActionType action)
         {
             if(!action.Enbled)

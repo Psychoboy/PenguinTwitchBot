@@ -542,7 +542,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 "giveawayprize" => _mediator.Send(new GiveawayPrizeTag { CommandEventArgs = eventArgs, Args = args }), //
                 "target" => _mediator.Send(new TargetTag { CommandEventArgs = eventArgs, Args = args }),//--
                 "targetorself" => _mediator.Send(new TargetOrSelfTag { CommandEventArgs = eventArgs, Args = args }),//--
-                "watchtime" => _mediator.Send(new WatchTimeTag { CommandEventArgs = eventArgs, Args = args }),
+                "watchtime" => _mediator.Send(new WatchTimeTag { CommandEventArgs = eventArgs, Args = args }), //
                 "command" => _mediator.Send(new ExecuteCommandTag { CommandEventArgs = eventArgs, Args = args }),
                 "elevatedcommand" => _mediator.Send(new ExecuteElevatedCommandTag { CommandEventArgs = eventArgs, Args = args }),
                 "ttsandprint" => _mediator.Send(new TTSAndPrintTag { CommandEventArgs = eventArgs, Args = args }),

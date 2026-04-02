@@ -125,7 +125,14 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.RandomIntHandler>();
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.UptimeHandler>();
             services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.ExternalApiHandler>();
+            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.WatchTimeHandler>();
             services.AddTransient<Bot.Actions.SubActions.SubActionHandlerFactory>();
+
+            // Register Action Execution Logger
+            services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
+
+            // Register Queue Manager
+            services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
 
             return services;
         }

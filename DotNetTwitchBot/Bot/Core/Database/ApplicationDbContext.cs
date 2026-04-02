@@ -66,6 +66,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         
         public DbSet<Models.Actions.ActionType> Actions { get; set; } = null!;
         public DbSet<Models.Actions.SubActions.SubActionType> SubActions { get; set; } = null!;
+        public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -130,7 +131,12 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .HasValue<CurrentTimeType>(SubActionTypes.CurrentTime)
                 .HasValue<FollowAgeType>(SubActionTypes.Followage)
                 .HasValue<UptimeType>(SubActionTypes.Uptime)
-                .HasValue<ExternalApiType>(SubActionTypes.ExternalApi);
+                .HasValue<ExternalApiType>(SubActionTypes.ExternalApi)
+                .HasValue<WatchTimeType>(SubActionTypes.WatchTime);
+
+            modelBuilder.Entity<Models.Queues.QueueConfiguration>()
+                .HasIndex(q => q.Name)
+                .IsUnique();
         }
     }
 }

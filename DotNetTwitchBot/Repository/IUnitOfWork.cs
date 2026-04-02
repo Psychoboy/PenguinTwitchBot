@@ -54,6 +54,7 @@
 
         IActionsRepository Actions { get; }
         ISubActionsRepository SubActions { get; }
+        IQueueConfigurationsRepository QueueConfigurations { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

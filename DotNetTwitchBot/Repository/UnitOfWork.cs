@@ -60,6 +60,7 @@ namespace DotNetTwitchBot.Repository
             ScAiResponses = new ScAiResponsesRepository(_context);
             Actions = new ActionsRepository(_context);
             SubActions = new SubActionsRepository(_context);
+            QueueConfigurations = new QueueConfigurationsRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -113,6 +114,7 @@ namespace DotNetTwitchBot.Repository
         public IScAiResponsesRepository ScAiResponses { get; private set; }
         public IActionsRepository Actions { get; private set; }
         public ISubActionsRepository SubActions { get; private set; }
+        public IQueueConfigurationsRepository QueueConfigurations { get; private set; }
 
         public void Dispose()
         {
