@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IActionExecutionLogger _executionLogger;
         private CancellationTokenSource? _cancellationTokenSource;
 
-        public const string DefaultQueueName = "default";
+        public const string DefaultQueueName = "Default";
 
         public IActionExecutionLogger ExecutionLogger => _executionLogger;
 
@@ -140,13 +140,86 @@ namespace DotNetTwitchBot.Bot.Queues
             db.QueueConfigurations.Update(existing);
             await db.SaveChangesAsync();
 
-            // Update the running queue
-            if (_queues.TryGetValue(config.Name, out var queue))
+            // Check if QueueManager is running
+            if (_cancellationTokenSource == null || _cancellationTokenSource.Token.IsCancellationRequested)
             {
-                queue.IsEnabled = config.Enabled;
-                _logger.LogInformation("Updated queue {QueueName}", config.Name);
+                _logger.LogWarning("Cannot update queue {QueueName} - QueueManager is not running", existing.Name);
+                throw new InvalidOperationException("Queue Manager is not running. Please restart the application.");
             }
 
+            // Create new queue first before removing old one to avoid losing it if creation fails
+            var newQueue = new ActionQueue(
+                existing.Name,
+                existing.IsBlocking,
+                existing.MaxConcurrentActions,
+                _loggerFactory.CreateLogger<ActionQueue>(),
+                _scopeFactory,
+                _executionLogger)
+            {
+                IsEnabled = existing.Enabled
+            };
+
+            // Start the new queue with proper error handling
+            try
+            {
+                await newQueue.StartAsync(_cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Queue start was cancelled for {QueueName}", existing.Name);
+                throw new InvalidOperationException("Queue update was cancelled. Please try again.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start new queue {QueueName}", existing.Name);
+                throw new InvalidOperationException($"Failed to start updated queue: {ex.Message}");
+            }
+
+            // Now remove and stop the old queue
+            IActionQueue? oldQueue = null;
+            if (_queues.TryRemove(existing.Name, out oldQueue))
+            {
+                _logger.LogInformation("Removed old queue {QueueName} for update", existing.Name);
+            }
+
+            // Add the new queue
+            if (!_queues.TryAdd(existing.Name, newQueue))
+            {
+                // This shouldn't happen since we just removed it, but handle it just in case
+                _logger.LogError("Failed to add updated queue {QueueName} to dictionary", existing.Name);
+
+                // Stop the new queue and try to restore old queue
+                await newQueue.StopAsync();
+
+                if (oldQueue != null && _queues.TryAdd(existing.Name, oldQueue))
+                {
+                    _logger.LogWarning("Restored old queue {QueueName} after failed update", existing.Name);
+                    throw new InvalidOperationException($"Failed to update queue '{existing.Name}' - changes reverted");
+                }
+
+                throw new InvalidOperationException($"Failed to update queue '{existing.Name}'");
+            }
+
+            // Stop old queue after new one is added successfully
+            if (oldQueue != null)
+            {
+                try
+                {
+                    await oldQueue.StopAsync();
+                    _logger.LogInformation("Stopped old queue {QueueName} after successful update", existing.Name);
+                }
+                catch (OperationCanceledException)
+                {
+                    // This is expected - the old queue was cancelled, which is normal during shutdown
+                    _logger.LogDebug("Old queue {QueueName} was already cancelled during stop", existing.Name);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Unexpected error stopping old queue {QueueName}, but update completed successfully", existing.Name);
+                }
+            }
+
+            _logger.LogInformation("Successfully updated queue {QueueName}", existing.Name);
             return existing;
         }
 
@@ -217,7 +290,11 @@ namespace DotNetTwitchBot.Bot.Queues
                 });
             }
 
-            return statistics;
+            // Sort with Default queue first, then alphabetically
+            return statistics
+                .OrderBy(s => s.QueueName != DefaultQueueName)
+                .ThenBy(s => s.QueueName)
+                .ToList();
         }
 
         public async Task StartAllQueuesAsync(CancellationToken cancellationToken)

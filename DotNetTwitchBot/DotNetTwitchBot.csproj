@@ -94,7 +94,6 @@
   <ItemGroup>
     <Folder Include="Application\Alias\" />
     <Folder Include="Application\Metrics\Notifications\" />
-    <Folder Include="Pages\Actions\" />
   </ItemGroup>
 
   <ItemGroup>
