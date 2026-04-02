@@ -60,6 +60,8 @@ namespace DotNetTwitchBot.Repository
             ScAiResponses = new ScAiResponsesRepository(_context);
             Actions = new ActionsRepository(_context);
             SubActions = new SubActionsRepository(_context);
+            Triggers = new TriggersRepository(_context);
+            ActionTriggers = new ActionTriggersRepository(_context);
             QueueConfigurations = new QueueConfigurationsRepository(_context);
         }
 
@@ -114,6 +116,8 @@ namespace DotNetTwitchBot.Repository
         public IScAiResponsesRepository ScAiResponses { get; private set; }
         public IActionsRepository Actions { get; private set; }
         public ISubActionsRepository SubActions { get; private set; }
+        public ITriggersRepository Triggers { get; private set; }
+        public IActionTriggersRepository ActionTriggers { get; private set; }
         public IQueueConfigurationsRepository QueueConfigurations { get; private set; }
 
         public void Dispose()

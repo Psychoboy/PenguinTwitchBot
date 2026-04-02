@@ -66,6 +66,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
         
         public DbSet<Models.Actions.ActionType> Actions { get; set; } = null!;
         public DbSet<Models.Actions.SubActions.SubActionType> SubActions { get; set; } = null!;
+        public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
+        public DbSet<Models.Actions.Triggers.ActionTrigger> ActionTriggers { get; set; } = null!;
         public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -133,6 +135,12 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .HasValue<UptimeType>(SubActionTypes.Uptime)
                 .HasValue<ExternalApiType>(SubActionTypes.ExternalApi)
                 .HasValue<WatchTimeType>(SubActionTypes.WatchTime);
+
+            // Configure the relationship between ActionType and SubActionType
+            modelBuilder.Entity<Models.Actions.ActionType>()
+                .HasMany(a => a.SubActions)
+                .WithOne()
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Models.Queues.QueueConfiguration>()
                 .HasIndex(q => q.Name)

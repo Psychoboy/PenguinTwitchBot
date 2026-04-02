@@ -1,0 +1,197 @@
+@using DotNetTwitchBot.Bot.Models.Actions.Triggers
+@using DotNetTwitchBot.Bot.Actions
+@using DotNetTwitchBot.Pages.Actions
+@inject IActionManagementService ActionService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4 mb-4">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h6">Triggers (@ActionTriggers.Count)</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                       OnClick="OpenAddTriggerDialog" Variant="Variant.Filled" Disabled="@(ActionId == null)">
+                Add Trigger
+            </MudButton>
+        </MudStack>
+
+        @if (ActionTriggers.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @if (ActionId == null)
+                {
+                    <text>Save the action first before adding triggers.</text>
+                }
+                else
+                {
+                    <text>No triggers configured. Click "Add Trigger" to get started.</text>
+                }
+            </MudText>
+        }
+        else
+        {
+            <MudTable Items="@ActionTriggers" Dense="true" Hover="true" T="ActionTrigger">
+                <HeaderContent>
+                    <MudTh>Trigger Name</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Global Enabled</MudTh>
+                    <MudTh>Action Enabled</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh Style="text-align: right;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Trigger Name">@context.Trigger.Name</MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Trigger.Type)">
+                            @context.Trigger.Type.ToString()
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Global Enabled">
+                        <MudIcon Icon="@(context.Trigger.Enabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
+                                 Color="@(context.Trigger.Enabled ? Color.Success : Color.Error)" Size="Size.Small" />
+                    </MudTd>
+                    <MudTd DataLabel="Action Enabled">
+                        <MudSwitch T="bool" Value="@context.Enabled" ValueChanged="@((bool val) => ToggleTriggerEnabled(context, val))" 
+                                   Color="Color.Success" />
+                    </MudTd>
+                    <MudTd DataLabel="Priority">@context.Priority</MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align: right;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                       OnClick="@(() => RemoveTrigger(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public List<ActionTrigger> ActionTriggers { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<ActionTrigger>> ActionTriggersChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; } = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ActionId.HasValue && ActionTriggers.Count == 0)
+        {
+            await LoadTriggers();
+        }
+    }
+
+    private async Task LoadTriggers()
+    {
+        if (ActionId.HasValue)
+        {
+            ActionTriggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
+            await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+        }
+    }
+
+    private async Task OpenAddTriggerDialog()
+    {
+        if (!ActionId.HasValue) return;
+
+        var parameters = new DialogParameters<AddTriggerDialog>
+        {
+            { x => x.ActionId, ActionId.Value }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data != null)
+        {
+            try
+            {
+                dynamic data = result.Data;
+                string triggerName = data.TriggerName;
+                TriggerTypes triggerType = data.TriggerType;
+                string configuration = data.Configuration;
+
+                // Create a new trigger
+                var newTrigger = new TriggerType
+                {
+                    Name = triggerName,
+                    Type = triggerType,
+                    Configuration = configuration,
+                    Enabled = true
+                };
+
+                var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
+
+                // Link the trigger to the action
+                var actionTrigger = new ActionTrigger
+                {
+                    ActionId = ActionId.Value,
+                    TriggerId = createdTrigger.Id,
+                    Priority = ActionTriggers.Count,
+                    Enabled = true
+                    // Don't set navigation property - it causes tracking issues across scopes
+                };
+
+                await ActionService.AddTriggerToActionAsync(actionTrigger);
+
+                // Reload triggers to ensure navigation properties are loaded
+                await LoadTriggers();
+
+                Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error adding trigger: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ToggleTriggerEnabled(ActionTrigger actionTrigger, bool enabled)
+    {
+        actionTrigger.Enabled = enabled;
+        await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+        // Note: This will be saved when the parent action is saved
+    }
+
+    private async Task RemoveTrigger(ActionTrigger actionTrigger)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Remove Trigger",
+            $"Are you sure you want to remove the trigger '{actionTrigger.Trigger.Name}' from this action?",
+            yesText: "Remove",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            if (actionTrigger.Id > 0)
+            {
+                await ActionService.RemoveTriggerFromActionAsync(actionTrigger.Id);
+            }
+            ActionTriggers.Remove(actionTrigger);
+            await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            Snackbar.Add("Trigger removed", Severity.Success);
+        }
+    }
+
+    private Color GetTriggerTypeColor(TriggerTypes type)
+    {
+        return type switch
+        {
+            TriggerTypes.Command => Color.Primary,
+            TriggerTypes.TwitchEvent => Color.Secondary,
+            TriggerTypes.Timer => Color.Info,
+            TriggerTypes.Manual => Color.Default,
+            _ => Color.Default
+        };
+    }
+}

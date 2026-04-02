@@ -21,8 +21,8 @@
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Queues</MudText>
                 <MudSpacer />
-                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="@AddNewQueue" Title="Add New Queue" />
-                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadQueues" Title="Refresh" />
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="@AddNewQueue" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadQueues" />
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Name</MudTh>
@@ -189,7 +189,7 @@
         var dialog = await DialogService.ShowAsync<QueueEditDialog>("Add New Queue", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is QueueConfiguration newQueue)
+        if (result is not null && !result.Canceled && result.Data is QueueConfiguration newQueue)
         {
             try
             {
@@ -245,7 +245,7 @@
             var dialog = await DialogService.ShowAsync<QueueEditDialog>("Edit Queue", parameters, options);
             var result = await dialog.Result;
 
-            if (!result.Canceled && result.Data is QueueConfiguration updatedQueue)
+            if (result is not null && !result.Canceled && result.Data is QueueConfiguration updatedQueue)
             {
                 await QueueManager.UpdateQueueAsync(updatedQueue);
                 Snackbar.Add($"Queue '{updatedQueue.Name}' updated successfully", Severity.Success);

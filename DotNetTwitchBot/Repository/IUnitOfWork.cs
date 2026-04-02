@@ -54,6 +54,8 @@
 
         IActionsRepository Actions { get; }
         ISubActionsRepository SubActions { get; }
+        ITriggersRepository Triggers { get; }
+        IActionTriggersRepository ActionTriggers { get; }
         IQueueConfigurationsRepository QueueConfigurations { get; }
 
         int SaveChanges();

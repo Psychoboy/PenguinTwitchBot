@@ -23,7 +23,13 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
 
         public static async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger = null)
         {
-            var json = JsonSerializer.Serialize(records);
+            var options = new JsonSerializerOptions
+            {
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                WriteIndented = true
+            };
+
+            var json = JsonSerializer.Serialize(records, options);
 
             var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
             await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
@@ -36,9 +42,17 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             {
                 var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
                 if (!File.Exists(fileName)) return;
+
                 var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-                var records = JsonSerializer.Deserialize<List<T>>(json);
+
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                };
+
+                var records = JsonSerializer.Deserialize<List<T>>(json, options);
                 if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
+
                 await context.Set<T>().ExecuteDeleteAsync();
                 context.Set<T>().AddRange(records);
                 logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);

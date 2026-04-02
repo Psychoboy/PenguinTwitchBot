@@ -15,7 +15,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
             var time = DateTime.Now.ToString("h:mm:ss tt");
             variables["current_time"] = time;
-            Thread.Sleep(10000); // Sleep for 10 seconds to simulate a long-running operation
             return Task.CompletedTask;
         }
     }

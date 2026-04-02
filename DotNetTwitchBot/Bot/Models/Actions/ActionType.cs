@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Models.Actions.SubActions;
+using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models.Actions
@@ -16,5 +17,9 @@ namespace DotNetTwitchBot.Bot.Models.Actions
         public bool ConcurrentAction { get; set; } = false;
         public string QueueName { get; set; } = "default";
         public List<SubActionType> SubActions { get; set; } = [];
+
+        // Navigation property for many-to-many relationship with triggers
+        [JsonIgnore]
+        public List<ActionTrigger> ActionTriggers { get; set; } = [];
     }
 }
