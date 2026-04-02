@@ -1,4 +1,7 @@
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Actions;
+using DotNetTwitchBot.Bot.Models.Queues;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
@@ -10,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly ILogger<ActionQueue> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IActionExecutionLogger _executionLogger;
+        private readonly IHubContext<MainHub>? _hubContext;
         private readonly SemaphoreSlim _semaphore;
         private long _completedCount;
         private int _currentlyExecuting;
@@ -31,7 +35,8 @@ namespace DotNetTwitchBot.Bot.Queues
             int maxConcurrentActions,
             ILogger<ActionQueue> logger,
             IServiceScopeFactory scopeFactory,
-            IActionExecutionLogger executionLogger)
+            IActionExecutionLogger executionLogger,
+            IHubContext<MainHub>? hubContext = null)
         {
             Name = name;
             IsBlocking = isBlocking;
@@ -40,6 +45,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _logger = logger;
             _scopeFactory = scopeFactory;
             _executionLogger = executionLogger;
+            _hubContext = hubContext;
 
             var channelOptions = new UnboundedChannelOptions
             {
@@ -63,6 +69,9 @@ namespace DotNetTwitchBot.Bot.Queues
             await _channel.Writer.WriteAsync(queuedAction);
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
+
+            // Notify clients about queue statistics change
+            await SendQueueStatsUpdateAsync();
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -167,6 +176,9 @@ namespace DotNetTwitchBot.Bot.Queues
 
             _executionLogger.UpdateActionStarted(queuedAction.LogId);
 
+            // Notify clients about queue statistics change
+            await SendQueueStatsUpdateAsync();
+
             try
             {
                 _logger.LogDebug("Executing action {ActionName} in queue {QueueName}", 
@@ -192,7 +204,28 @@ namespace DotNetTwitchBot.Bot.Queues
             finally
             {
                 Interlocked.Decrement(ref _currentlyExecuting);
+
+                // Notify clients about queue statistics change
+                await SendQueueStatsUpdateAsync();
             }
+        }
+
+        private async Task SendQueueStatsUpdateAsync()
+        {
+            if (_hubContext == null) return;
+
+            var stats = new QueueStatistics
+            {
+                QueueName = Name,
+                PendingActions = PendingCount,
+                CompletedActions = CompletedCount,
+                IsBlocking = IsBlocking,
+                IsEnabled = IsEnabled,
+                MaxConcurrentActions = MaxConcurrentActions,
+                CurrentlyExecuting = CurrentlyExecuting
+            };
+
+            await _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
         }
 
         private record QueuedAction(ActionType Action, Dictionary<string, string> Variables, Guid LogId);

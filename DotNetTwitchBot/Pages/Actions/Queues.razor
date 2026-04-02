@@ -1,13 +1,15 @@
 ﻿@page "/actions/queues"
-@attribute [Authorize(Roles = "Streamer, Editor")]
 @using DotNetTwitchBot.Bot.Queues
 @using DotNetTwitchBot.Bot.Models.Queues
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@implements IDisposable
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
 
-<PageTitle>Queue Management</PageTitle>
+<PageTitle>SPTV Twitch Bot - Queue Management</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Queue Management</MudText>
@@ -32,46 +34,46 @@
                 <MudTh>Max Concurrent</MudTh>
                 <MudTh Style="text-align: right;">Actions</MudTh>
             </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Name">
-                    <MudChip T="string" Size="Size.Small" Color="@(context.QueueName == "Default" ? Color.Primary : Color.Default)">
-                        @context.QueueName
+            <RowTemplate Context="row">
+                <MudTd DataLabel="Name" @key="@row.QueueName">
+                    <MudChip T="string" Size="Size.Small" Color="@(row.QueueName == "Default" ? Color.Primary : Color.Default)">
+                        @row.QueueName
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="Pending">
-                    <MudChip T="string" Size="Size.Small" Color="@(context.PendingActions > 0 ? Color.Warning : Color.Default)">
-                        @context.PendingActions
+                    <MudChip T="string" Size="Size.Small" Color="@(row.PendingActions > 0 ? Color.Warning : Color.Default)">
+                        @row.PendingActions
                     </MudChip>
                 </MudTd>
-                <MudTd DataLabel="Completed">@context.CompletedActions</MudTd>
+                <MudTd DataLabel="Completed">@row.CompletedActions</MudTd>
                 <MudTd DataLabel="Currently Executing">
-                    <MudChip T="string" Size="Size.Small" Color="@(context.CurrentlyExecuting > 0 ? Color.Success : Color.Default)">
-                        @context.CurrentlyExecuting
+                    <MudChip T="string" Size="Size.Small" Color="@(row.CurrentlyExecuting > 0 ? Color.Success : Color.Default)">
+                        @row.CurrentlyExecuting
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="Enabled">
-                    <MudIcon Icon="@(context.IsEnabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
-                             Color="@(context.IsEnabled ? Color.Success : Color.Error)" Size="Size.Small" />
+                    <MudIcon Icon="@(row.IsEnabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
+                             Color="@(row.IsEnabled ? Color.Success : Color.Error)" Size="Size.Small" />
                 </MudTd>
                 <MudTd DataLabel="Blocking">
-                    <MudIcon Icon="@(context.IsBlocking ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" 
-                             Color="@(context.IsBlocking ? Color.Info : Color.Default)" Size="Size.Small" 
-                             Title="@(context.IsBlocking ? "Sequential Execution" : "Concurrent Execution")" />
+                    <MudIcon Icon="@(row.IsBlocking ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" 
+                             Color="@(row.IsBlocking ? Color.Info : Color.Default)" Size="Size.Small" 
+                             Title="@(row.IsBlocking ? "Sequential Execution" : "Concurrent Execution")" />
                 </MudTd>
-                <MudTd DataLabel="Max Concurrent">@context.MaxConcurrentActions</MudTd>
+                <MudTd DataLabel="Max Concurrent">@row.MaxConcurrentActions</MudTd>
                 <MudTd DataLabel="Actions" Style="text-align: right;">
                     <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" 
                              AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                        <MudMenuItem OnClick="@(() => EditQueue(context))" 
-                                     Disabled="@(context.QueueName == "Default")">
+                        <MudMenuItem OnClick="@(() => EditQueue(row))" 
+                                     Disabled="@(row.QueueName == "Default")">
                             <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" /> Edit Queue
                         </MudMenuItem>
-                        <MudMenuItem OnClick="@(() => ClearQueue(context))">
+                        <MudMenuItem OnClick="@(() => ClearQueue(row))">
                             <MudIcon Icon="@Icons.Material.Filled.ClearAll" Class="mr-2" /> Clear Queue
                         </MudMenuItem>
                         <MudDivider />
-                        <MudMenuItem OnClick="@(() => DeleteQueue(context))" 
-                                     Disabled="@(context.QueueName == "Default")">
+                        <MudMenuItem OnClick="@(() => DeleteQueue(row))" 
+                                     Disabled="@(row.QueueName == "Default")">
                             <MudIcon Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Class="mr-2" /> Delete Queue
                         </MudMenuItem>
                     </MudMenu>
@@ -87,28 +89,70 @@
 @code {
     private List<QueueStatistics> _queueStats = new();
     private bool _loading = true;
-    private System.Threading.Timer? _refreshTimer;
+    private HubConnection? _hubConnection;
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadQueues();
+    }
 
-        // Auto-refresh every 2 seconds
-        _refreshTimer = new System.Threading.Timer(_ =>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            if (!_disposed)
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/mainHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<QueueStatistics>("QueueStatsUpdated", async (stats) =>
             {
-                _ = InvokeAsync(async () =>
+                await InvokeAsync(() =>
                 {
-                    if (!_disposed)
+                    // Update or add the queue statistics in our collection
+                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == stats.QueueName);
+                    if (existingStatsIndex >= 0)
                     {
-                        await LoadQueues();
+                        _queueStats[existingStatsIndex] = stats;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        // Insert new queue in sorted position to avoid recreating the list
+                        var insertIndex = _queueStats.Count;
+                        if (stats.QueueName == "Default")
+                        {
+                            insertIndex = 0;
+                        }
+                        else
+                        {
+                            // Find insertion point to maintain sorted order (Default first, then alphabetical)
+                            for (int i = 0; i < _queueStats.Count; i++)
+                            {
+                                if (_queueStats[i].QueueName == "Default") continue;
+                                if (string.Compare(_queueStats[i].QueueName, stats.QueueName, StringComparison.Ordinal) > 0)
+                                {
+                                    insertIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                        _queueStats.Insert(insertIndex, stats);
                         StateHasChanged();
                     }
                 });
+            });
+
+            try
+            {
+                await _hubConnection.StartAsync();
             }
-        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lost connection to bot. Data may be inaccurate until refresh. Error: {ex.Message}", Severity.Warning);
+            }
+        }
     }
 
     private async Task LoadQueues()
@@ -258,13 +302,17 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
+
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+                _hubConnection = null;
+            }
         }
     }
 }

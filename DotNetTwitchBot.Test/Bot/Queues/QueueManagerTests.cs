@@ -1,7 +1,9 @@
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.Models.Queues;
 using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Repository;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -18,8 +20,9 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var loggerFactory = Substitute.For<ILoggerFactory>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger);
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, hubContext);
 
             var config = new QueueConfiguration
             {
@@ -52,7 +55,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             queueRepo.GetAllAsync().Returns(new List<QueueConfiguration>());
 
             var executionLogger = Substitute.For<IActionExecutionLogger>();
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger);
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, hubContext);
             await queueManager.StartAsync(CancellationToken.None);
 
             // Act
@@ -84,7 +88,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             queueRepo.GetAllAsync().Returns(new List<QueueConfiguration>());
 
             var executionLogger = Substitute.For<IActionExecutionLogger>();
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger);
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, hubContext);
             await queueManager.StartAsync(CancellationToken.None);
 
             // Act
@@ -106,8 +111,9 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var loggerFactory = Substitute.For<ILoggerFactory>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger);
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, hubContext);
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -122,8 +128,9 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var loggerFactory = Substitute.For<ILoggerFactory>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger);
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, hubContext);
 
             var config = new QueueConfiguration
             {

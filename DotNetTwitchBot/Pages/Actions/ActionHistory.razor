@@ -1,13 +1,15 @@
 @page "/actions/history"
-@attribute [Authorize(Roles = "Streamer, Editor")]
 @using DotNetTwitchBot.Bot.Queues
 @using DotNetTwitchBot.Bot.Models.Queues
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@implements IDisposable
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
 
-<PageTitle>Action History</PageTitle>
+<PageTitle>SPTV Twitch Bot - Action History</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>
@@ -22,8 +24,8 @@
                 <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
                               DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs"></MudTextField>
-                <MudSelect T="ActionExecutionState?" @bind-Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
-                           Dense="true" Margin="Margin.Dense" >
+                <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
+                           Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
                     <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
                     <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
                     <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
@@ -114,7 +116,7 @@
     private List<ActionExecutionLog> _executionLogs = new();
     private List<ActionExecutionLog> _allLogs = new();
     private bool _loading = true;
-    private System.Threading.Timer? _refreshTimer;
+    private HubConnection? _hubConnection;
     private bool _disposed;
     private string _searchString = "";
     private ActionExecutionState? _filterState = null;
@@ -122,22 +124,51 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadLogs();
+    }
 
-        // Auto-refresh every 5 seconds
-        _refreshTimer = new System.Threading.Timer(_ =>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            if (!_disposed)
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/mainHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<ActionExecutionLog>("ActionLogUpdated", async (log) =>
             {
-                _ = InvokeAsync(async () =>
+                await InvokeAsync(() =>
                 {
-                    if (!_disposed)
+                    // Update or add the log in our collection
+                    var existingLogIndex = _allLogs.FindIndex(l => l.Id == log.Id);
+                    if (existingLogIndex >= 0)
                     {
-                        await LoadLogs();
-                        StateHasChanged();
+                        _allLogs[existingLogIndex] = log;
                     }
+                    else
+                    {
+                        _allLogs.Insert(0, log);
+                        // Keep only last 100 logs
+                        if (_allLogs.Count > 100)
+                        {
+                            _allLogs = _allLogs.Take(100).ToList();
+                        }
+                    }
+
+                    FilterLogs();
+                    StateHasChanged();
                 });
+            });
+
+            try
+            {
+                await _hubConnection.StartAsync();
             }
-        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lost connection to bot. Data may be inaccurate until refresh. Error: {ex.Message}", Severity.Warning);
+            }
+        }
     }
 
     private async Task LoadLogs()
@@ -183,6 +214,12 @@
         _executionLogs = filtered.OrderByDescending(log => log.EnqueuedAt).ToList();
     }
 
+    private void OnFilterStateChanged(ActionExecutionState? value)
+    {
+        _filterState = value;
+        FilterLogs();
+    }
+
     private async Task ViewVariables(ActionExecutionLog log)
     {
         var parameters = new DialogParameters<ActionVariablesDialog>
@@ -225,13 +262,17 @@
         return $"{duration.TotalMinutes:F2}m";
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
             _disposed = true;
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
+
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+                _hubConnection = null;
+            }
         }
     }
 }

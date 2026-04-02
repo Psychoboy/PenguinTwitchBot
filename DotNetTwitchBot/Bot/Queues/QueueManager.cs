@@ -1,5 +1,7 @@
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Queues;
 using DotNetTwitchBot.Repository;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Queues
@@ -11,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILoggerFactory _loggerFactory;
         private readonly IActionExecutionLogger _executionLogger;
+        private readonly IHubContext<MainHub> _hubContext;
         private CancellationTokenSource? _cancellationTokenSource;
 
         public const string DefaultQueueName = "Default";
@@ -21,12 +24,14 @@ namespace DotNetTwitchBot.Bot.Queues
             ILogger<QueueManager> logger,
             IServiceScopeFactory scopeFactory,
             ILoggerFactory loggerFactory,
-            IActionExecutionLogger executionLogger)
+            IActionExecutionLogger executionLogger,
+            IHubContext<MainHub> hubContext)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
             _loggerFactory = loggerFactory;
             _executionLogger = executionLogger;
+            _hubContext = hubContext;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -40,7 +45,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 maxConcurrentActions: 50,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
-                _executionLogger);
+                _executionLogger,
+                _hubContext);
 
             _queues.TryAdd(DefaultQueueName, defaultQueue);
             await defaultQueue.StartAsync(_cancellationTokenSource.Token);
@@ -99,7 +105,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 config.MaxConcurrentActions,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
-                _executionLogger)
+                _executionLogger,
+                _hubContext)
             {
                 IsEnabled = config.Enabled
             };
@@ -154,7 +161,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 existing.MaxConcurrentActions,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
-                _executionLogger)
+                _executionLogger,
+                _hubContext)
             {
                 IsEnabled = existing.Enabled
             };
@@ -326,7 +334,8 @@ namespace DotNetTwitchBot.Bot.Queues
                         config.MaxConcurrentActions,
                         _loggerFactory.CreateLogger<ActionQueue>(),
                         _scopeFactory,
-                        _executionLogger)
+                        _executionLogger,
+                        _hubContext)
                     {
                         IsEnabled = config.Enabled
                     };

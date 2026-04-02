@@ -1,4 +1,6 @@
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Queues;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Queues
@@ -9,10 +11,15 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly ConcurrentDictionary<Guid, ActionExecutionLog> _logIndex = new();
         private readonly int _maxLogEntries;
         private readonly ILogger<ActionExecutionLogger> _logger;
+        private readonly IHubContext<MainHub> _hubContext;
 
-        public ActionExecutionLogger(ILogger<ActionExecutionLogger> logger, int maxLogEntries = 1000)
+        public ActionExecutionLogger(
+            ILogger<ActionExecutionLogger> logger, 
+            IHubContext<MainHub> hubContext,
+            int maxLogEntries = 1000)
         {
             _logger = logger;
+            _hubContext = hubContext;
             _maxLogEntries = maxLogEntries;
         }
 
@@ -35,6 +42,9 @@ namespace DotNetTwitchBot.Bot.Queues
             _logger.LogTrace("Logged action {ActionName} enqueued to {QueueName} with ID {LogId}", 
                 actionName, queueName, log.Id);
 
+            // Notify clients about new action log
+            _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+
             return log.Id;
         }
 
@@ -44,8 +54,11 @@ namespace DotNetTwitchBot.Bot.Queues
             {
                 log.State = ActionExecutionState.Running;
                 log.StartedAt = DateTime.UtcNow;
-                
+
                 _logger.LogTrace("Updated action {ActionName} to Running state", log.ActionName);
+
+                // Notify clients about action update
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
             }
         }
 
@@ -59,6 +72,9 @@ namespace DotNetTwitchBot.Bot.Queues
 
                 _logger.LogTrace("Updated action {ActionName} to Completed state in {Duration}ms", 
                     log.ActionName, log.ExecutionDuration?.TotalMilliseconds ?? 0);
+
+                // Notify clients about action completion
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
             }
         }
 
@@ -69,9 +85,12 @@ namespace DotNetTwitchBot.Bot.Queues
                 log.State = ActionExecutionState.Failed;
                 log.CompletedAt = DateTime.UtcNow;
                 log.ErrorMessage = errorMessage;
-                
+
                 _logger.LogTrace("Updated action {ActionName} to Failed state: {ErrorMessage}", 
                     log.ActionName, errorMessage);
+
+                // Notify clients about action failure
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
             }
         }
 

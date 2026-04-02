@@ -1,8 +1,10 @@
 using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.Models.Actions.SubActions;
 using DotNetTwitchBot.Bot.Models.Queues;
 using DotNetTwitchBot.Bot.Queues;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -18,7 +20,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             // Arrange
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
-            var executionLogger = new ActionExecutionLogger(executionLoggerLogger);
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
@@ -66,7 +69,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             // Arrange
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
-            var executionLogger = new ActionExecutionLogger(executionLoggerLogger);
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
