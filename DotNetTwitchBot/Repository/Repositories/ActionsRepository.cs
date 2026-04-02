@@ -17,6 +17,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .Include(a => a.SubActions)
                 .Include(a => a.ActionTriggers)
                     .ThenInclude(at => at.Trigger)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 
@@ -27,6 +28,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .Include(a => a.SubActions)
                 .Include(a => a.ActionTriggers)
                     .ThenInclude(at => at.Trigger)
+                .AsSplitQuery()
                 .OrderBy(a => a.Name)
                 .ToListAsync();
         }
@@ -60,6 +62,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             var existingAction = await _context.Actions
                 .Include(a => a.SubActions)
                 .Include(a => a.ActionTriggers)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == action.Id.Value);
 
             if (existingAction == null)
