@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
 
             var config = new QueueConfiguration
             {
-                Name = "default",
+                Name = "Default",
                 IsBlocking = true
             };
 
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
 
             // Assert
             Assert.NotNull(queue);
-            Assert.Equal("default", queue.Name);
+            Assert.Equal("Default", queue.Name);
             Assert.True(queue.IsBlocking);
         }
 
@@ -88,11 +88,11 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             await queueManager.StartAsync(CancellationToken.None);
 
             // Act
-            var stats = await queueManager.GetQueueStatisticsAsync("default");
+            var stats = await queueManager.GetQueueStatisticsAsync("Default");
 
             // Assert
             Assert.NotNull(stats);
-            Assert.Equal("default", stats.QueueName);
+            Assert.Equal("Default", stats.QueueName);
             Assert.True(stats.IsBlocking);
             Assert.Equal(0, stats.PendingActions);
             Assert.Equal(0, stats.CompletedActions);
@@ -111,7 +111,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await queueManager.DeleteQueueAsync("default"));
+                async () => await queueManager.DeleteQueueAsync("Default"));
         }
 
         [Fact]
@@ -127,7 +127,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
 
             var config = new QueueConfiguration
             {
-                Name = "default",
+                Name = "Default",
                 IsBlocking = false
             };
 

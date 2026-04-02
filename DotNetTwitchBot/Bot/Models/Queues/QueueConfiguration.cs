@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Models.Queues
         
         public bool Enabled { get; set; } = true;
         
-        public int MaxConcurrentActions { get; set; } = 1;
+        public int MaxConcurrentActions { get; set; } = 50;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
