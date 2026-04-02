@@ -1,6 +1,6 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Models.Commands
-@using DotNetTwitchBot.Repository
+@using DotNetTwitchBot.Bot.Commands
 @using MudBlazor
 
 <MudDialog>
@@ -57,7 +57,7 @@
                 @if (_selectedType == TriggerTypes.Command)
                 {
                     <MudText Typo="Typo.h6">Configure Command Trigger</MudText>
-                    
+
                     <MudSelect T="int?" Value="_selectedCommandId" Label="Select Command" Variant="Variant.Outlined" 
                                Required="true" AnchorOrigin="Origin.BottomCenter"
                                ValueChanged="OnCommandSelected" >
@@ -128,18 +128,18 @@
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter] public int ActionId { get; set; }
-    [Inject] private IUnitOfWork UnitOfWork { get; set; } = null!;
+    [Inject] private IActionCommandService CommandService { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
-    private List<CustomCommands> _commands = new();
+    private List<ActionCommand> _commands = new();
     private int? _selectedCommandId;
     private string _triggerName = "";
 
     protected override async Task OnInitializedAsync()
     {
-        // Load all custom commands for the dropdown
-        _commands = (await UnitOfWork.CustomCommands.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
+        // Load all action commands for the dropdown
+        _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
     }
 
     private void SelectType(TriggerTypes type)

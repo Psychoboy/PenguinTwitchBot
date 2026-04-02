@@ -5,6 +5,7 @@ using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
+using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
@@ -16,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
+        public DbSet<ActionCommand> ActionCommands { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;

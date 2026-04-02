@@ -23,6 +23,7 @@
         IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
         ICustomCommandsRepository CustomCommands { get; }
+        IActionCommandsRepository ActionCommands { get; }
         IKeywordsRepository Keywords { get; }
         ICountersRepository Counters { get; }
         IQuotesRepository Quotes { get; }
@@ -47,6 +48,9 @@
         IWheelPropertiesRepository WheelProperties { get; }
         ICooldownsRepository Cooldowns { get; }
         IGameSettingsRepository GameSettings { get; }
+
+        int SaveChanges();
+        Task<int> SaveChangesAsync();
         IPointTypesRepository PointTypes { get; }
         IUserPointsRepository UserPoints { get; }
         IPointCommandsRepository PointCommands { get; }
@@ -57,8 +61,5 @@
         ITriggersRepository Triggers { get; }
         IActionTriggersRepository ActionTriggers { get; }
         IQueueConfigurationsRepository QueueConfigurations { get; }
-
-        int SaveChanges();
-        Task<int> SaveChangesAsync();
     }
 }

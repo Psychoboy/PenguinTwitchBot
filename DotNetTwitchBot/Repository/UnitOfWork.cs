@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.Repository
             ViewersTime = new ViewersTimeRepository(_context);
             ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
             CustomCommands = new CustomCommandsRepository(_context);
+            ActionCommands = new ActionCommandsRepository(_context);
             Keywords = new KeywordsRepository(_context);
             Counters = new CountersRepository(_context);
             Quotes = new QuotesRepository(_context);
@@ -86,6 +87,7 @@ namespace DotNetTwitchBot.Repository
         public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
         public IViewerChatHistoriesRepository ViewerChatHistories { get; private set; }
         public ICustomCommandsRepository CustomCommands { get; private set; }
+        public IActionCommandsRepository ActionCommands { get; private set; }
         public IKeywordsRepository Keywords { get; private set; }
         public ICountersRepository Counters { get; private set; }
         public IQuotesRepository Quotes { get; private set; }

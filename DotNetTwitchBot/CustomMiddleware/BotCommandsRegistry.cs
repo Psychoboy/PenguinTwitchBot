@@ -40,6 +40,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
+            services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<ILurkBait, LurkBait>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
