@@ -33,6 +33,17 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public async Task<ActionType> CreateActionAsync(ActionType action)
         {
+            // Assign IDs to new SubActions
+            if (action.SubActions != null && action.SubActions.Any())
+            {
+                var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
+                foreach (var subAction in action.SubActions.Where(s => s.Id == 0))
+                {
+                    maxId++;
+                    subAction.Id = maxId;
+                }
+            }
+
             await _context.Actions.AddAsync(action);
             await _context.SaveChangesAsync();
             return action;
@@ -61,7 +72,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             // Handle SubActions: Remove deleted, Add new, Update existing
             var existingSubActionIds = existingAction.SubActions.Select(s => s.Id).ToHashSet();
-            var newSubActionIds = action.SubActions.Select(s => s.Id).ToHashSet();
+            var newSubActionIds = action.SubActions.Where(s => s.Id > 0).Select(s => s.Id).ToHashSet();
 
             // Remove SubActions that are no longer in the incoming list
             var subActionsToRemove = existingAction.SubActions
@@ -70,18 +81,21 @@ namespace DotNetTwitchBot.Repository.Repositories
             foreach (var subAction in subActionsToRemove)
             {
                 existingAction.SubActions.Remove(subAction);
+                _context.Entry(subAction).State = EntityState.Deleted;
             }
 
             // Process incoming SubActions
             foreach (var subAction in action.SubActions)
             {
-                // Check if this is a new SubAction (Guid.Empty or not in existing)
-                if (subAction.Id == Guid.Empty || !existingSubActionIds.Contains(subAction.Id))
+                // Check if this is a new SubAction (Id = 0 or not in existing)
+                if (subAction.Id == 0 || !existingSubActionIds.Contains(subAction.Id))
                 {
-                    // New SubAction - generate ID if needed
-                    if (subAction.Id == Guid.Empty)
+                    // New SubAction - generate ID
+                    if (subAction.Id == 0)
                     {
-                        subAction.Id = Guid.NewGuid();
+                        // Get the next available ID
+                        var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
+                        subAction.Id = maxId + 1;
                     }
 
                     // Add to collection - EF will INSERT this
@@ -89,9 +103,15 @@ namespace DotNetTwitchBot.Repository.Repositories
                 }
                 else
                 {
-                    // Existing SubAction - update its properties
-                    var existingSubAction = existingAction.SubActions.First(s => s.Id == subAction.Id);
-                    _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
+                    // Existing SubAction - find and update it
+                    var existingSubAction = existingAction.SubActions.FirstOrDefault(s => s.Id == subAction.Id);
+                    if (existingSubAction != null)
+                    {
+                        // Remove the old one and add the new one (for polymorphism)
+                        existingAction.SubActions.Remove(existingSubAction);
+                        _context.Entry(existingSubAction).State = EntityState.Deleted;
+                        existingAction.SubActions.Add(subAction);
+                    }
                 }
             }
 

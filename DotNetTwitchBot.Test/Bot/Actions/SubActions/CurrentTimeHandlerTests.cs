@@ -35,7 +35,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<CurrentTimeHandler>>();
             var handler = new CurrentTimeHandler(logger);
 
-            var wrongType = new SubActionType();
+            var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
             // Act

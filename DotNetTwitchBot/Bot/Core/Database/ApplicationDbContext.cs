@@ -122,19 +122,21 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .HasForeignKey(t => t.TimerGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Configure TPC (Table Per Concrete Type) for SubActions
             modelBuilder.Entity<SubActionType>()
-                .HasDiscriminator(x => x.SubActionTypes)
-                .HasValue<SubActionType>(SubActionTypes.None)
-                .HasValue<SendMessageType>(SubActionTypes.SendMessage)
-                .HasValue<AlertType>(SubActionTypes.Alert)
-                .HasValue<PlaySoundType>(SubActionTypes.PlaySound)
-                .HasValue<WriteFileType>(SubActionTypes.WriteFile)
-                .HasValue<RandomIntType>(SubActionTypes.RandomInt)
-                .HasValue<CurrentTimeType>(SubActionTypes.CurrentTime)
-                .HasValue<FollowAgeType>(SubActionTypes.Followage)
-                .HasValue<UptimeType>(SubActionTypes.Uptime)
-                .HasValue<ExternalApiType>(SubActionTypes.ExternalApi)
-                .HasValue<WatchTimeType>(SubActionTypes.WatchTime);
+                .UseTpcMappingStrategy();
+
+            // Configure each concrete SubAction type
+            modelBuilder.Entity<SendMessageType>().ToTable("SubActions_SendMessage");
+            modelBuilder.Entity<AlertType>().ToTable("SubActions_Alert");
+            modelBuilder.Entity<PlaySoundType>().ToTable("SubActions_PlaySound");
+            modelBuilder.Entity<WriteFileType>().ToTable("SubActions_WriteFile");
+            modelBuilder.Entity<RandomIntType>().ToTable("SubActions_RandomInt");
+            modelBuilder.Entity<CurrentTimeType>().ToTable("SubActions_CurrentTime");
+            modelBuilder.Entity<FollowAgeType>().ToTable("SubActions_FollowAge");
+            modelBuilder.Entity<UptimeType>().ToTable("SubActions_Uptime");
+            modelBuilder.Entity<ExternalApiType>().ToTable("SubActions_ExternalApi");
+            modelBuilder.Entity<WatchTimeType>().ToTable("SubActions_WatchTime");
 
             // Configure the relationship between ActionType and SubActionType
             modelBuilder.Entity<Models.Actions.ActionType>()

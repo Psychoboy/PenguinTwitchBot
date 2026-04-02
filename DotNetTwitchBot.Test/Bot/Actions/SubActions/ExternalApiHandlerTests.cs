@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ExternalApiHandler>>();
             var handler = new ExternalApiHandler(logger);
 
-            var wrongType = new SubActionType();
+            var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
             // Act

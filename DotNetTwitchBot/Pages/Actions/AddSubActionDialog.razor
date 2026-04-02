@@ -525,7 +525,7 @@
             SubActionTypes.Followage => new FollowAgeType(),
             SubActionTypes.Uptime => new UptimeType(),
             SubActionTypes.WatchTime => new WatchTimeType(),
-            _ => new SubActionType { SubActionTypes = _selectedType }
+            _ => throw new InvalidOperationException($"Unsupported SubAction type: {_selectedType}")
         };
 
         subAction.Text = _text;
@@ -536,6 +536,11 @@
         {
             subAction.Id = ExistingSubAction.Id;
             subAction.Index = ExistingSubAction.Index;
+        }
+        else
+        {
+            // New SubAction - ID will be assigned by the repository
+            subAction.Id = 0;
         }
 
         return subAction;

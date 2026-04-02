@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<AlertHandler>>();
             var handler = new AlertHandler(mediator, logger);
 
-            var wrongType = new SubActionType();
+            var wrongType = new SendMessageType();  
             var variables = new Dictionary<string, string>();
 
             // Act

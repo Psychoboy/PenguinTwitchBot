@@ -227,9 +227,10 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task RunActionAsCommand_UnknownSubActionType_ShouldLogWarning()
         {
-            var subAction = new SubActionType
+            var subAction = new SendMessageType
             {
-                SubActionTypes = SubActionTypes.None
+                SubActionTypes = SubActionTypes.None,
+                Text = "Test"
             };
 
             var actionType = new ActionType
@@ -278,9 +279,10 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task RunActionAsCommand_NullSendMessageType_ShouldNotThrow()
         {
-            var subAction = new SubActionType
+            var subAction = new SendMessageType
             {
-                SubActionTypes = SubActionTypes.SendMessage
+                SubActionTypes = SubActionTypes.SendMessage,
+                Text = "Test"
             };
 
             var actionType = new ActionType
@@ -355,24 +357,25 @@ namespace DotNetTwitchBot.Test.Bot.Actions
                 SubActionTypes = SubActionTypes.SendMessage,
                 Text = "Valid message"
             };
-            var unknownAction = new SubActionType
+            var alertAction = new AlertType
             {
-                SubActionTypes = SubActionTypes.Alert
+                SubActionTypes = SubActionTypes.Alert,
+                Text = "Alert message"
             };
 
             var actionType = new ActionType
             {
                 Name = "MixedAction",
                 Enabled = true,
-                SubActions = [sendMessageAction, unknownAction]
+                SubActions = [sendMessageAction, alertAction]
             };
 
             await action.RunAction(variables, actionType);
 
-            alertHandlerLogger.Received(1).Log(
+            logger.DidNotReceive().Log(
                 LogLevel.Warning,
                 Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("is not of AlertType class")),
+                Arg.Any<object>(),
                 null,
                 Arg.Any<Func<object, Exception?, string>>());
         }

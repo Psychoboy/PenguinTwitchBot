@@ -2,11 +2,12 @@
 
 namespace DotNetTwitchBot.Bot.Models.Actions.SubActions
 {
-    public class SubActionType
+    public abstract class SubActionType
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         [JsonIgnore]
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; }
         public int Index { get; set; } = 0;
         public string Text { get; set; } = "";
         public string File { get; set; } = "";

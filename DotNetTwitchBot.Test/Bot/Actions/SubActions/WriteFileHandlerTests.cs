@@ -112,7 +112,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<WriteFileHandler>>();
             var handler = new WriteFileHandler(logger);
 
-            var wrongType = new SubActionType();
+            var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
             // Act

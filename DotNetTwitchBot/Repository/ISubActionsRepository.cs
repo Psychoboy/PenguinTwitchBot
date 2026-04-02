@@ -4,5 +4,6 @@ namespace DotNetTwitchBot.Repository
 {
     public interface ISubActionsRepository : IGenericRepository<SubActionType>
     {
+        Task<int> GetNextIdAsync();
     }
 }

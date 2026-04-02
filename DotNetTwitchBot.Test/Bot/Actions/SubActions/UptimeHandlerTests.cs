@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<UptimeHandler>>();
             var handler = new UptimeHandler(logger, twitchService);
 
-            var wrongType = new SubActionType();
+            var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
             // Act
