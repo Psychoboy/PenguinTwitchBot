@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
@@ -125,27 +126,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure TPC (Table Per Concrete Type) for SubActions
-            modelBuilder.Entity<SubActionType>()
-                .UseTpcMappingStrategy();
-
-            // Configure each concrete SubAction type
-            modelBuilder.Entity<SendMessageType>().ToTable("SubActions_SendMessage");
-            modelBuilder.Entity<AlertType>().ToTable("SubActions_Alert");
-            modelBuilder.Entity<PlaySoundType>().ToTable("SubActions_PlaySound");
-            modelBuilder.Entity<WriteFileType>().ToTable("SubActions_WriteFile");
-            modelBuilder.Entity<RandomIntType>().ToTable("SubActions_RandomInt");
-            modelBuilder.Entity<CurrentTimeType>().ToTable("SubActions_CurrentTime");
-            modelBuilder.Entity<FollowAgeType>().ToTable("SubActions_FollowAge");
-            modelBuilder.Entity<UptimeType>().ToTable("SubActions_Uptime");
-            modelBuilder.Entity<ExternalApiType>().ToTable("SubActions_ExternalApi");
-            modelBuilder.Entity<WatchTimeType>().ToTable("SubActions_WatchTime");
-            modelBuilder.Entity<GiveawayPrizeType>().ToTable("SubActions_GiveawayPrize");
-
-            // Configure the relationship between ActionType and SubActionType
-            modelBuilder.Entity<ActionType>()
-                .HasMany(a => a.SubActions)
-                .WithOne()
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.ConfigureSubActions();
 
             // Configure the relationship between ActionType and TriggerType (one-to-many)
             modelBuilder.Entity<ActionType>()

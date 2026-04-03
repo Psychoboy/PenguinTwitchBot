@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Ai;
 using DotNetTwitchBot.Bot.Commands.Alias;
@@ -117,19 +118,8 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddScoped<Bot.Actions.IAction, Bot.Actions.Action>();
 
-            // Register SubAction handlers
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.SendMessageHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.AlertHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.PlaySoundHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.WriteFileHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.CurrentTimeHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.FollowAgeHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.RandomIntHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.UptimeHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.ExternalApiHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.WatchTimeHandler>();
-            services.AddTransient<Bot.Actions.SubActions.ISubActionHandler, Bot.Actions.SubActions.Handlers.GiveawayPrizeHandler>();
-            services.AddTransient<Bot.Actions.SubActions.SubActionHandlerFactory>();
+            // Register SubAction handlers automatically
+            services.AddSubActionHandlers();
 
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();

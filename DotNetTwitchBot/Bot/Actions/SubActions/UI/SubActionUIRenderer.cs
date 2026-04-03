@@ -1,0 +1,227 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
+using MudBlazor;
+
+namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
+{
+    /// <summary>
+    /// Generic UI renderer that automatically generates forms from SubAction UI field descriptors.
+    /// </summary>
+    /// <remarks>
+    /// This class intentionally uses dynamic sequence numbers (sequence++) because it generates
+    /// UI dynamically based on field descriptors. The ASP0006 warning is suppressed as this is
+    /// a legitimate use case for variable sequences in a render fragment generator.
+    /// </remarks>
+#pragma warning disable ASP0006 // Do not use non-literal sequence numbers
+    public static class SubActionUIRenderer
+    {
+        public static RenderFragment RenderFields(
+            ISubActionUIProvider uiProvider,
+            Dictionary<string, object?> values,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            return builder =>
+            {
+                var fields = uiProvider.GetUIFields();
+                int sequence = 0;
+
+                foreach (var field in fields)
+                {
+                    RenderField(builder, ref sequence, field, values, receiver, onValueChanged);
+                }
+            };
+        }
+
+        private static void RenderField(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            Dictionary<string, object?> values,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            values.TryGetValue(field.PropertyName, out var currentValue);
+
+            switch (field.FieldType)
+            {
+                case UIFieldType.Text:
+                    RenderTextField(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
+                    break;
+                case UIFieldType.TextArea:
+                    RenderTextArea(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
+                    break;
+                case UIFieldType.Number:
+                    RenderNumberField(builder, ref sequence, field, currentValue as int? ?? 0, receiver, onValueChanged);
+                    break;
+                case UIFieldType.Float:
+                    RenderFloatField(builder, ref sequence, field, currentValue as float? ?? 0f, receiver, onValueChanged);
+                    break;
+                case UIFieldType.Switch:
+                    RenderSwitch(builder, ref sequence, field, currentValue as bool? ?? false, receiver, onValueChanged);
+                    break;
+                case UIFieldType.Select:
+                    RenderSelect(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
+                    break;
+            }
+        }
+
+        private static void RenderTextField(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            string value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudTextField<string>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+            builder.AddAttribute(sequence++, "Required", field.Required);
+            if (!string.IsNullOrEmpty(field.HelperText))
+                builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+
+            foreach (var attr in field.Attributes)
+                builder.AddAttribute(sequence++, attr.Key, attr.Value);
+
+            builder.CloseComponent();
+        }
+
+        private static void RenderTextArea(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            string value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudTextField<string>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+            builder.AddAttribute(sequence++, "Lines", field.Attributes.TryGetValue("Lines", out var lines) ? lines : 3);
+            builder.AddAttribute(sequence++, "Required", field.Required);
+            if (!string.IsNullOrEmpty(field.HelperText))
+                builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+
+            foreach (var attr in field.Attributes.Where(a => a.Key != "Lines"))
+                builder.AddAttribute(sequence++, attr.Key, attr.Value);
+            
+            builder.CloseComponent();
+        }
+
+        private static void RenderNumberField(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            int value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudNumericField<int>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<int>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+
+            if (field.Attributes.TryGetValue("Min", out var min))
+                builder.AddAttribute(sequence++, "Min", min);
+            if (field.Attributes.TryGetValue("Max", out var max))
+                builder.AddAttribute(sequence++, "Max", max);
+            if (!string.IsNullOrEmpty(field.HelperText))
+                builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+
+            foreach (var attr in field.Attributes.Where(a => a.Key != "Min" && a.Key != "Max"))
+                builder.AddAttribute(sequence++, attr.Key, attr.Value);
+
+            builder.CloseComponent();
+        }
+
+        private static void RenderFloatField(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            float value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudNumericField<float>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<float>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+            
+            if (field.Attributes.TryGetValue("Min", out var min))
+                builder.AddAttribute(sequence++, "Min", min);
+            if (field.Attributes.TryGetValue("Max", out var max))
+                builder.AddAttribute(sequence++, "Max", max);
+            if (field.Attributes.TryGetValue("Step", out var step))
+                builder.AddAttribute(sequence++, "Step", step);
+            if (!string.IsNullOrEmpty(field.HelperText))
+                builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+            
+            foreach (var attr in field.Attributes.Where(a => a.Key != "Min" && a.Key != "Max" && a.Key != "Step"))
+                builder.AddAttribute(sequence++, attr.Key, attr.Value);
+            
+            builder.CloseComponent();
+        }
+
+        private static void RenderSwitch(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            bool value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudSwitch<bool>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<bool>(receiver, v => onValueChanged(field.PropertyName, v)));
+
+            var color = field.Attributes.TryGetValue("Color", out var colorValue) && colorValue is string colorStr
+                ? Enum.Parse<Color>(colorStr)
+                : Color.Primary;
+            builder.AddAttribute(sequence++, "Color", color);
+            
+            foreach (var attr in field.Attributes.Where(a => a.Key != "Color"))
+                builder.AddAttribute(sequence++, attr.Key, attr.Value);
+            
+            builder.CloseComponent();
+        }
+
+        private static void RenderSelect(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field,
+            string value,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
+            builder.OpenComponent<MudSelect<string>>(sequence++);
+            builder.AddAttribute(sequence++, "Label", field.Label);
+            builder.AddAttribute(sequence++, "Value", value);
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+
+            if (field.Attributes.TryGetValue("Options", out var optionsObj) && optionsObj is string[] options)
+            {
+                builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
+                {
+                    foreach (var option in options)
+                    {
+                        __builder.OpenComponent<MudSelectItem<string>>(0);
+                        __builder.AddAttribute(1, "Value", option);
+                        __builder.AddAttribute(2, "ChildContent", (RenderFragment)(__builder2 => __builder2.AddContent(3, option)));
+                        __builder.CloseComponent();
+                    }
+                }));
+            }
+
+            builder.CloseComponent();
+        }
+    }
+}

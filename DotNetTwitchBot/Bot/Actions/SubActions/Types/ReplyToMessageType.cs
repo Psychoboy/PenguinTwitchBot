@@ -3,17 +3,14 @@
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Send Message",
-        description: "Send a chat message to Twitch",
-        icon: "mdi-message-text",
+        displayName: "Reply to Message",
+        description: "Reply to the triggering message",
+        icon: "mdi-reply",
         color: "Primary",
-        tableName: "subactions_sendmessage")]
-    public class SendMessageType : ChatType, ISubActionUIProvider
+        tableName: "subactions_replytomessage")]
+    public class ReplyToMessageType : ChatType, ISubActionUIProvider
     {
-        public SendMessageType()
-        {
-            SubActionTypes = SubActionTypes.SendMessage;
-        }
+        public ReplyToMessageType() { SubActionTypes = SubActionTypes.ReplyToMessage; }
 
         public List<SubActionUIField> GetUIFields()
         {
