@@ -232,9 +232,19 @@ namespace DotNetTwitchBot.Repository.Repositories
 
                 context.ChangeTracker.Clear();
 
+                // SubAction IDs are marked with [JsonIgnore], so they're not in the backup
+                // We need to assign IDs manually before adding to context
+                int nextSubActionId = 1; // Start from 1 since table is empty
+
                 // Add the Actions with all their related entities
                 foreach (var record in records)
                 {
+                    // Assign IDs to SubActions (they're all 0 after deserialization)
+                    foreach (var subAction in record.SubActions)
+                    {
+                        subAction.Id = nextSubActionId++;
+                    }
+
                     // Ensure ActionId is set for Triggers
                     foreach (var trigger in record.Triggers)
                     {
