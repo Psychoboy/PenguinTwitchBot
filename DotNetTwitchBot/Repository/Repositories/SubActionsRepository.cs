@@ -36,8 +36,28 @@ namespace DotNetTwitchBot.Repository.Repositories
     }
 
     // Custom JsonTypeInfoResolver for SubActionType polymorphism
+    // Automatically discovers all SubActionType derived classes via reflection
     public class SubActionTypeResolver : DefaultJsonTypeInfoResolver
     {
+        private static readonly Lazy<IReadOnlyList<JsonDerivedType>> _derivedTypes = new(() =>
+        {
+            var baseType = typeof(SubActionType);
+            var assembly = baseType.Assembly;
+
+            return assembly.GetTypes()
+                .Where(t => t.IsClass && !t.IsAbstract && baseType.IsAssignableFrom(t) && t != baseType)
+                .OrderBy(t => t.Name) // Consistent ordering
+                .Select(t =>
+                {
+                    // Extract discriminator name from type name (e.g., "AlertType" -> "Alert")
+                    var discriminator = t.Name.EndsWith("Type")
+                        ? t.Name[..^4] // Remove "Type" suffix
+                        : t.Name;
+                    return new JsonDerivedType(t, discriminator);
+                })
+                .ToList();
+        }, LazyThreadSafetyMode.ExecutionAndPublication);
+
         public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
         {
             JsonTypeInfo jsonTypeInfo = base.GetTypeInfo(type, options);
@@ -45,28 +65,19 @@ namespace DotNetTwitchBot.Repository.Repositories
             Type baseType = typeof(SubActionType);
             if (jsonTypeInfo.Type == baseType)
             {
+                // Create a new JsonPolymorphismOptions for each JsonTypeInfo instance
                 jsonTypeInfo.PolymorphismOptions = new JsonPolymorphismOptions
                 {
                     TypeDiscriminatorPropertyName = "$type",
                     IgnoreUnrecognizedTypeDiscriminators = true,
-                    UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization,
-                    DerivedTypes =
-                    {
-                        new JsonDerivedType(typeof(AlertType), "Alert"),
-                        new JsonDerivedType(typeof(CurrentTimeType), "CurrentTime"),
-                        new JsonDerivedType(typeof(ExternalApiType), "ExternalApi"),
-                        new JsonDerivedType(typeof(FollowAgeType), "FollowAge"),
-                        new JsonDerivedType(typeof(GiveawayPrizeType), "GiveawayPrize"),
-                        new JsonDerivedType(typeof(MultiCounterType), "MultiCounter"),
-                        new JsonDerivedType(typeof(PlaySoundType), "PlaySound"),
-                        new JsonDerivedType(typeof(RandomIntType), "RandomInt"),
-                        new JsonDerivedType(typeof(ReplyToMessageType), "ReplyToMessage"),
-                        new JsonDerivedType(typeof(SendMessageType), "SendMessage"),
-                        new JsonDerivedType(typeof(UptimeType), "Uptime"),
-                        new JsonDerivedType(typeof(WatchTimeType), "WatchTime"),
-                        new JsonDerivedType(typeof(WriteFileType), "WriteFile")
-                    }
+                    UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization
                 };
+
+                // Add all discovered derived types
+                foreach (var derivedType in _derivedTypes.Value)
+                {
+                    jsonTypeInfo.PolymorphismOptions.DerivedTypes.Add(derivedType);
+                }
             }
 
             return jsonTypeInfo;
