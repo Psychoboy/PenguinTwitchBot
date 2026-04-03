@@ -33,7 +33,7 @@
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
                                   OnDebounceIntervalElapsed="FilterActions" />
 
-                    <MudSelect T="string" @bind-Value="_filterGroup" Label="Filter by Group" Dense="true">
+                    <MudSelect T="string" Value="_filterGroup" ValueChanged="OnGroupFilterChanged" Label="Filter by Group" Dense="true">
                         <MudSelectItem T="string" Value="@("")">All Groups</MudSelectItem>
                         @foreach (var group in _groups)
                         {
@@ -226,6 +226,12 @@
         }).OrderBy(a => a.Name).ToList();
     }
 
+    private void OnGroupFilterChanged(string group)
+    {
+        _filterGroup = group;
+        FilterActions();
+    }
+
     private Task<IEnumerable<string>> SearchGroups(string value, CancellationToken cancellationToken)
     {
         // If no search value, return all groups
@@ -237,9 +243,15 @@
         // Filter groups by search value
         var filteredGroups = _groups
             .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .AsEnumerable();
+            .ToList();
 
-        return Task.FromResult(filteredGroups);
+        // If the typed value doesn't exist in the list, add it as the first option
+        if (!filteredGroups.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredGroups.Insert(0, value);
+        }
+
+        return Task.FromResult(filteredGroups.AsEnumerable());
     }
 
     private async Task OnActionSelected(ActionType? action)
