@@ -30,7 +30,7 @@
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
                                   OnDebounceIntervalElapsed="FilterCommands" />
 
-                    <MudSelect T="string" Value="_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
+                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
                         <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
                         @foreach (var category in _categories)
                         {
@@ -281,12 +281,14 @@
             return Task.FromResult<IEnumerable<string>>(_categories);
         }
 
+        value = value.Trim();
+
         var filteredCategories = _categories
             .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         // If the typed value doesn't exist in the list, add it as the first option
-        if (!filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(value) && !filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
         {
             filteredCategories.Insert(0, value);
         }

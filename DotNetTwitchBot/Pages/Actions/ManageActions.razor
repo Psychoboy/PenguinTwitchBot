@@ -33,7 +33,7 @@
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
                                   OnDebounceIntervalElapsed="FilterActions" />
 
-                    <MudSelect T="string" Value="_filterGroup" ValueChanged="OnGroupFilterChanged" Label="Filter by Group" Dense="true">
+                    <MudSelect T="string" Value="@_filterGroup" ValueChanged="OnGroupFilterChanged" Label="Filter by Group" Dense="true">
                         <MudSelectItem T="string" Value="@("")">All Groups</MudSelectItem>
                         @foreach (var group in _groups)
                         {
@@ -240,13 +240,15 @@
             return Task.FromResult<IEnumerable<string>>(_groups);
         }
 
+        value = value.Trim();
+
         // Filter groups by search value
         var filteredGroups = _groups
             .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         // If the typed value doesn't exist in the list, add it as the first option
-        if (!filteredGroups.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(value) && !filteredGroups.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
         {
             filteredGroups.Insert(0, value);
         }
