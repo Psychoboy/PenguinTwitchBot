@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Watch Time",
         description: "Get a viewer's watch time",
-        icon: "mdi-eye",
+        icon: MdiIcons.Eye,
         color: "Default",
         tableName: "subactions_watchtime")]
     public class WatchTimeType : SubActionType, ISubActionUIProvider

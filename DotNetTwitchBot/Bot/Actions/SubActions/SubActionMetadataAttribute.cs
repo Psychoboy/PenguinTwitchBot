@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
         public SubActionMetadataAttribute(
             string displayName, 
             string description, 
-            string icon = "mdi-cog", 
+            string icon = MdiIcons.Cog, 
             string color = "Primary",
             string? tableName = null)
         {

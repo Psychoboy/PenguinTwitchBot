@@ -4,8 +4,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "Reply to Message",
-        description: "Reply to the triggering message",
-        icon: "mdi-reply",
+        description: "Reply to the message",
+        icon: MdiIcons.Reply,
         color: "Primary",
         tableName: "subactions_replytomessage")]
     public class ReplyToMessageType : ChatType, ISubActionUIProvider

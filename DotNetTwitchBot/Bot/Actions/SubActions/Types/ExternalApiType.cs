@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "External API",
         description: "Call an external API endpoint",
-        icon: "mdi-api",
+        icon: MdiIcons.Api,
         color: "Secondary",
         tableName: "subactions_externalapi")]
     public class ExternalApiType : SubActionType, ISubActionUIProvider

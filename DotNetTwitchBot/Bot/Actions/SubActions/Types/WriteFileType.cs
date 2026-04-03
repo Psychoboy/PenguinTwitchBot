@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Write File",
         description: "Write or append text to a file",
-        icon: "mdi-content-save",
+        icon: MdiIcons.ContentSave,
         color: "Success",
         tableName: "subactions_writefile")]
     public class WriteFileType : SubActionType, ISubActionUIProvider

@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Play Sound",
         description: "Play an audio file",
-        icon: "mdi-volume-high",
+        icon: MdiIcons.VolumeHigh,
         color: "Info",
         tableName: "subactions_playsound")]
     public class PlaySoundType : SubActionType, ISubActionUIProvider

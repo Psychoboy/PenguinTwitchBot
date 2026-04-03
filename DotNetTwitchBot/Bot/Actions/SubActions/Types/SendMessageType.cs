@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Send Message",
         description: "Send a chat message to Twitch",
-        icon: "mdi-message-text",
+        icon: MdiIcons.MessageText,
         color: "Primary",
         tableName: "subactions_sendmessage")]
     public class SendMessageType : ChatType, ISubActionUIProvider

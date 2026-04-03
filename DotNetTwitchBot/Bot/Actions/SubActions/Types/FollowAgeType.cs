@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Follow Age",
         description: "Get how long a user has been following",
-        icon: "mdi-heart",
+        icon: MdiIcons.Heart,
         color: "Default",
         tableName: "subactions_followage")]
     public class FollowAgeType : SubActionType, ISubActionUIProvider

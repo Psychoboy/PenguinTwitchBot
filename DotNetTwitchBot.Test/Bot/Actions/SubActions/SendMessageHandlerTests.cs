@@ -15,7 +15,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             // Arrange
             var mediator = Substitute.For<IMediator>();
             var logger = Substitute.For<ILogger<SendMessageHandler>>();
-            var handler = new SendMessageHandler(mediator, logger);
+            var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
+            var handler = new SendMessageHandler(mediator, logger, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -41,7 +42,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             // Arrange
             var mediator = Substitute.For<IMediator>();
             var logger = Substitute.For<ILogger<SendMessageHandler>>();
-            var handler = new SendMessageHandler(mediator, logger);
+            var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
+            var handler = new SendMessageHandler(mediator, logger, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -64,7 +66,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             // Arrange
             var mediator = Substitute.For<IMediator>();
             var logger = Substitute.For<ILogger<SendMessageHandler>>();
-            var handler = new SendMessageHandler(mediator, logger);
+            var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
+            var handler = new SendMessageHandler(mediator, logger, twitchService);
 
             var wrongType = new CurrentTimeType();
             var variables = new Dictionary<string, string>();

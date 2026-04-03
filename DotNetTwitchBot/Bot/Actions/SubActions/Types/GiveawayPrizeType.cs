@@ -3,7 +3,7 @@
     [SubActionMetadata(
         displayName: "Giveaway Prize",
         description: "Gets the Giveaway Prize (use %prize%)",
-        icon: "mdi-gift",
+        icon: MdiIcons.Gift,
         color: "Default",
         tableName: "subactions_giveawayprize")]
     public class GiveawayPrizeType : SimpleSubActionType

@@ -3,7 +3,7 @@
     [SubActionMetadata(
         displayName: "Current Time",
         description: "Get the current time in a specified format",
-        icon: "mdi-clock",
+        icon: MdiIcons.Clock,
         color: "Default",
         tableName: "subactions_currenttime")]
     public class CurrentTimeType : SimpleSubActionType

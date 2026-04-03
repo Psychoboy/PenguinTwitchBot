@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Random Number",
         description: "Generate a random number for use in actions",
-        icon: "mdi-dice-multiple",
+        icon: MdiIcons.DiceMultiple,
         color: "Warning",
         tableName: "subactions_randomint")]
     public class RandomIntType : SubActionType, ISubActionUIProvider

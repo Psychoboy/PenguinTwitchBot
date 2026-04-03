@@ -3,7 +3,7 @@
     [SubActionMetadata(
         displayName: "Stream Uptime",
         description: "Get how long the stream has been live",
-        icon: "mdi-timer",
+        icon: MdiIcons.Timer,
         color: "Default",
         tableName: "subactions_uptime")]
     public class UptimeType : SimpleSubActionType

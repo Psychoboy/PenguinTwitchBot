@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     [SubActionMetadata(
         displayName: "Alert",
         description: "Show an alert with text, image, or video",
-        icon: "mdi-bell",
+        icon: MdiIcons.Bell,
         color: "Error",
         tableName: "subactions_alert")]
     public class AlertType : SubActionType, ISubActionUIProvider
