@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Actions;
+using DotNetTwitchBot.Bot.TwitchServices;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         private readonly ILogger<AlertHandler> alertHandlerLogger;
         private readonly IMediator mediator;
         private readonly IServiceScopeFactory scopeFactory;
+        private readonly ITwitchService twitchService;
         private readonly DotNetTwitchBot.Bot.Actions.Action action;
         private readonly Dictionary<string, string> variables;
 
@@ -27,11 +29,13 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             factoryLogger = Substitute.For<ILogger<SubActionHandlerFactory>>();
             alertHandlerLogger = Substitute.For<ILogger<AlertHandler>>();
             mediator = Substitute.For<IMediator>();
+            twitchService = Substitute.For<ITwitchService>();
 
             // Setup service provider and scope factory
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddSingleton(mediator);
             serviceCollection.AddSingleton(factoryLogger);
+            serviceCollection.AddSingleton(twitchService);
             serviceCollection.AddSingleton(Substitute.For<ILogger<SendMessageHandler>>());
             serviceCollection.AddSingleton(alertHandlerLogger);
             serviceCollection.AddSingleton(Substitute.For<ILogger<PlaySoundHandler>>());
