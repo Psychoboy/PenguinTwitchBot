@@ -50,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
         public object? Min { get; set; }
         public object? Max { get; set; }
         public object? Step { get; set; }
+        public bool Clearable { get; set; } = false;
 
         // Switch specific
         public string? SwitchColor { get; set; } = "Primary";

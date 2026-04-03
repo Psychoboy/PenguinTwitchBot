@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 new()
                 {
                     PropertyName = "info_hint",
-                    Label = "This SubAction gets the current system time. Use DateTime format strings like 'HH:mm:ss' for 24-hour time or 'hh:mm:ss tt' for 12-hour time. The result is available as %currenttime% variable.",
+                    Label = "The result is available as %currenttime% variable.",
                     FieldType = UIFieldType.Info,
                     Severity = "Info",
                     Dense = true

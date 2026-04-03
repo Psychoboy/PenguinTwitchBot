@@ -52,17 +52,19 @@ namespace DotNetTwitchBot.Repository.Repositories
                     UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization,
                     DerivedTypes =
                     {
-                        new JsonDerivedType(typeof(SendMessageType), "SendMessage"),
                         new JsonDerivedType(typeof(AlertType), "Alert"),
+                        new JsonDerivedType(typeof(CurrentTimeType), "CurrentTime"),
+                        new JsonDerivedType(typeof(ExternalApiType), "ExternalApi"),
+                        new JsonDerivedType(typeof(FollowAgeType), "FollowAge"),
+                        new JsonDerivedType(typeof(GiveawayPrizeType), "GiveawayPrize"),
+                        new JsonDerivedType(typeof(MultiCounterType), "MultiCounter"),
                         new JsonDerivedType(typeof(PlaySoundType), "PlaySound"),
                         new JsonDerivedType(typeof(RandomIntType), "RandomInt"),
+                        new JsonDerivedType(typeof(ReplyToMessageType), "ReplyToMessage"),
+                        new JsonDerivedType(typeof(SendMessageType), "SendMessage"),
                         new JsonDerivedType(typeof(UptimeType), "Uptime"),
-                        new JsonDerivedType(typeof(CurrentTimeType), "CurrentTime"),
-                        new JsonDerivedType(typeof(FollowAgeType), "FollowAge"),
                         new JsonDerivedType(typeof(WatchTimeType), "WatchTime"),
-                        new JsonDerivedType(typeof(ExternalApiType), "ExternalApi"),
-                        new JsonDerivedType(typeof(WriteFileType), "WriteFile"),
-                        new JsonDerivedType(typeof(GiveawayPrizeType), "GiveawayPrize")
+                        new JsonDerivedType(typeof(WriteFileType), "WriteFile")
                     }
                 };
             }

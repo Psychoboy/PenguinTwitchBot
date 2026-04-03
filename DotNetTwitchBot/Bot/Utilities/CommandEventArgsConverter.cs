@@ -74,6 +74,32 @@ namespace DotNetTwitchBot.Bot.Utilities
             return dictionary;
         }
 
+
+        /// <summary>
+        /// Creates a new instance of the CommandEventArgs class from the specified dictionary, if possible.
+        /// </summary>
+        /// <remarks>If the dictionary is null, does not contain the required key, or if deserialization
+        /// fails, a default CommandEventArgs instance is returned.</remarks>
+        /// <param name="dictionary">A dictionary containing serialized event argument data. The dictionary should include an entry with the key
+        /// "OriginalEventArgs" containing a JSON representation of a CommandEventArgs object.</param>
+        /// <returns>A CommandEventArgs instance deserialized from the dictionary if possible; otherwise, a new CommandEventArgs
+        /// instance.</returns>
+        public static CommandEventArgs FromDictionary(Dictionary<string, string> dictionary)
+        {
+            if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
+            {
+                return new CommandEventArgs();
+            }
+            try
+            {
+                return JsonSerializer.Deserialize<CommandEventArgs>(json) ?? new CommandEventArgs();
+            }
+            catch
+            {
+                return new CommandEventArgs();
+            }
+        }
+
         /// <summary>
         /// Converts CommandEventArgs to a Dictionary and optionally adds custom values
         /// </summary>

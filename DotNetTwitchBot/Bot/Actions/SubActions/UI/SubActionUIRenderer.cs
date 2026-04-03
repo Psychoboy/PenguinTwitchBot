@@ -52,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
                     RenderTextArea(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
                     break;
                 case UIFieldType.Number:
-                    RenderNumberField(builder, ref sequence, field, currentValue as int? ?? 0, receiver, onValueChanged);
+                    RenderNumberField(builder, ref sequence, field, currentValue as int?, receiver, onValueChanged);
                     break;
                 case UIFieldType.Float:
                     RenderFloatField(builder, ref sequence, field, currentValue as float? ?? 0f, receiver, onValueChanged);
@@ -114,15 +114,17 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             RenderTreeBuilder builder,
             ref int sequence,
             SubActionUIField field,
-            int value,
+            int? value,
             object receiver,
             Action<string, object?> onValueChanged)
         {
-            builder.OpenComponent<MudNumericField<int>>(sequence++);
+            builder.OpenComponent<MudNumericField<int?>>(sequence++);
             builder.AddAttribute(sequence++, "Label", field.Label);
             builder.AddAttribute(sequence++, "Value", value);
-            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<int>(receiver, v => onValueChanged(field.PropertyName, v)));
+            builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<int?>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+            if (field.Clearable)
+                builder.AddAttribute(sequence++, "Clearable", true);
 
             if (field.Min != null)
                 builder.AddAttribute(sequence++, "Min", field.Min);
