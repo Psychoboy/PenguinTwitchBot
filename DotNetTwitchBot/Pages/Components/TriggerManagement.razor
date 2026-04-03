@@ -35,7 +35,6 @@
                     <MudTh>Trigger Name</MudTh>
                     <MudTh>Type</MudTh>
                     <MudTh>Enabled</MudTh>
-                    <MudTh>Priority</MudTh>
                     <MudTh Style="text-align: right;">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -49,7 +48,6 @@
                         <MudSwitch T="bool" Value="@context.Enabled" ValueChanged="@((bool val) => ToggleTriggerEnabled(context, val))" 
                                    Color="Color.Success" />
                     </MudTd>
-                    <MudTd DataLabel="Priority">@context.Priority</MudTd>
                     <MudTd DataLabel="Actions" Style="text-align: right;">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
                                        OnClick="@(() => RemoveTrigger(context))" />
@@ -124,8 +122,7 @@
                     Type = triggerType,
                     Configuration = configuration,
                     Enabled = true,
-                    ActionId = ActionId.Value,
-                    Priority = ActionTriggers.Count
+                    ActionId = ActionId.Value
                 };
 
                 var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);

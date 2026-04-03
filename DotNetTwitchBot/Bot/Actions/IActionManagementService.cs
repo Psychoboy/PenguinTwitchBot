@@ -18,5 +18,6 @@ namespace DotNetTwitchBot.Bot.Actions
         Task<TriggerType> CreateTriggerAsync(TriggerType trigger);
         Task<TriggerType> UpdateTriggerAsync(TriggerType trigger);
         Task DeleteTriggerAsync(int triggerId);
+        Task DeleteTriggersForCommandAsync(int commandId);
     }
 }

@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Repository;
 
@@ -7,11 +8,19 @@ namespace DotNetTwitchBot.Bot.Commands
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICommandHelper _commandHelper;
+        private readonly IActionManagementService _actionManagementService;
+        private readonly ILogger<ActionCommandService> _logger;
 
-        public ActionCommandService(IUnitOfWork unitOfWork, ICommandHelper commandHelper)
+        public ActionCommandService(
+            IUnitOfWork unitOfWork, 
+            ICommandHelper commandHelper, 
+            IActionManagementService actionManagementService,
+            ILogger<ActionCommandService> logger)
         {
             _unitOfWork = unitOfWork;
             _commandHelper = commandHelper;
+            _actionManagementService = actionManagementService;
+            _logger = logger;
         }
 
         public async Task<List<ActionCommand>> GetAllAsync()
@@ -57,6 +66,18 @@ namespace DotNetTwitchBot.Bot.Commands
             var command = await _unitOfWork.ActionCommands.GetByIdAsync(id);
             if (command != null)
             {
+                try
+                {
+                    // Delete all triggers that reference this command
+                    await _actionManagementService.DeleteTriggersForCommandAsync(id);
+                    _logger.LogInformation("Deleted triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deleting triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
+                    // Continue with command deletion even if trigger deletion fails
+                }
+
                 _unitOfWork.ActionCommands.Remove(command);
                 await _unitOfWork.SaveChangesAsync();
             }

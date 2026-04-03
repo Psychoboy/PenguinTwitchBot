@@ -185,5 +185,27 @@ namespace DotNetTwitchBot.Bot.Actions
                 throw;
             }
         }
+
+        public async Task DeleteTriggersForCommandAsync(int commandId)
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            try
+            {
+                var triggers = await unitOfWork.Triggers.GetTriggersByCommandIdAsync(commandId);
+                _logger.LogInformation("Deleting {Count} triggers for command ID {CommandId}", triggers.Count, commandId);
+
+                foreach (var trigger in triggers)
+                {
+                    await unitOfWork.Triggers.DeleteAsync(trigger.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting triggers for command {CommandId}", commandId);
+                throw;
+            }
+        }
     }
 }

@@ -13,7 +13,6 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         public TriggerTypes Type { get; set; }
         public string Configuration { get; set; } = string.Empty; // JSON configuration for trigger-specific data
         public bool Enabled { get; set; } = true;
-        public int Priority { get; set; } = 0; // Execution priority when multiple triggers fire
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
