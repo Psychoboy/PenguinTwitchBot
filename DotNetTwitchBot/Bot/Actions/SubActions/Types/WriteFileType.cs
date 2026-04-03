@@ -34,21 +34,21 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     Label = "Content",
                     FieldType = UIFieldType.TextArea,
                     Required = true,
-                    Attributes = new Dictionary<string, object> { { "Lines", 3 } }
+                    Lines = 3
                 },
                 new()
                 {
                     PropertyName = nameof(Append),
                     Label = "Append to File",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Primary" } }
+                    SwitchColor = "Primary"
                 },
                 new()
                 {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                    SwitchColor = "Success"
                 }
             };
         }

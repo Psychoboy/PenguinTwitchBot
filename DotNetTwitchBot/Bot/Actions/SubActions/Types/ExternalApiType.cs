@@ -35,10 +35,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     PropertyName = nameof(HttpMethod),
                     Label = "HTTP Method",
                     FieldType = UIFieldType.Select,
-                    Attributes = new Dictionary<string, object>
-                    {
-                        { "Options", new[] { "GET", "POST", "PUT", "DELETE", "PATCH" } }
-                    }
+                    Options = new[] { "GET", "POST", "PUT", "DELETE", "PATCH" }
                 },
                 new()
                 {
@@ -46,14 +43,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     Label = "Headers",
                     FieldType = UIFieldType.TextArea,
                     HelperText = "One header per line (e.g., Accept: text/plain)",
-                    Attributes = new Dictionary<string, object> { { "Lines", 2 } }
+                    Lines = 2
                 },
                 new()
                 {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                    SwitchColor = "Success"
                 }
             };
         }

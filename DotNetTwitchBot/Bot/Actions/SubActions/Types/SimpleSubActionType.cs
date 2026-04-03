@@ -24,9 +24,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     FieldType = TextLines > 1 ? UIFieldType.TextArea : UIFieldType.Text,
                     Required = TextRequired,
                     HelperText = TextHelperText,
-                    Attributes = TextLines > 1 
-                        ? new Dictionary<string, object> { { "Lines", TextLines } }
-                        : new Dictionary<string, object>()
+                    Lines = TextLines > 1 ? TextLines : null
                 }
             };
 
@@ -37,7 +35,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 PropertyName = nameof(Enabled),
                 Label = "Enabled",
                 FieldType = UIFieldType.Switch,
-                Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                SwitchColor = "Success"
             });
 
             return fields;

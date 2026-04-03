@@ -26,35 +26,35 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.TextArea,
                     Required = true,
                     HelperText = "Use variables like %user%, %target%, %random.1-100%, etc.",
-                    Attributes = new Dictionary<string, object> { { "Lines", 3 } }
+                    Lines = 3
                 },
                 new()
                 {
                     PropertyName = nameof(UseBot),
                     Label = "Use Bot Account",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Primary" } }
+                    SwitchColor = "Primary"
                 },
                 new()
                 {
                     PropertyName = nameof(FallBack),
                     Label = "Fall Back to Broadcaster",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Primary" } }
+                    SwitchColor = "Primary"
                 },
                 new()
                 {
                     PropertyName = nameof(StreamOnly),
                     Label = "Stream Only",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Primary" } }
+                    SwitchColor = "Primary"
                 },
                 new()
                 {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                    SwitchColor = "Success"
                 }
             };
         }

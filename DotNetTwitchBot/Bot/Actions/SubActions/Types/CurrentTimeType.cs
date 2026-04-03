@@ -1,4 +1,6 @@
-﻿namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
+﻿using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+
+namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "Current Time",
@@ -6,14 +8,52 @@
         icon: MdiIcons.Clock,
         color: "Default",
         tableName: "subactions_currenttime")]
-    public class CurrentTimeType : SimpleSubActionType
+    public class CurrentTimeType : SubActionType, ISubActionUIProvider
     {
         public CurrentTimeType()
         {
             SubActionTypes = SubActionTypes.CurrentTime;
         }
 
-        protected override string TextLabel => "Format string (e.g., HH:mm:ss)";
-        protected override string TextHelperText => "Use date/time format strings. Variables: %user%, %target%, etc.";
+        public List<SubActionUIField> GetUIFields()
+        {
+            return new List<SubActionUIField>
+            {
+                new()
+                {
+                    PropertyName = "info_hint",
+                    Label = "This SubAction gets the current system time. Use DateTime format strings like 'HH:mm:ss' for 24-hour time or 'hh:mm:ss tt' for 12-hour time. The result is available as %currenttime% variable.",
+                    FieldType = UIFieldType.Info,
+                    Severity = "Info",
+                    Dense = true
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                }
+            };
+        }
+
+        public Dictionary<string, object?> GetValues()
+        {
+            return new Dictionary<string, object?>
+            {
+                { nameof(Enabled), Enabled }
+            };
+        }
+
+        public void SetValues(Dictionary<string, object?> values)
+        {
+            if (values.TryGetValue(nameof(Enabled), out var enabled))
+                Enabled = enabled as bool? ?? true;
+        }
+
+        public string? Validate(Dictionary<string, object?> values)
+        {
+            return null;
+        }
     }
 }

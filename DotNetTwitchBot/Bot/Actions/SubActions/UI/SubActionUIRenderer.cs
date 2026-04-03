@@ -63,6 +63,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
                 case UIFieldType.Select:
                     RenderSelect(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
                     break;
+                case UIFieldType.Info:
+                    RenderInfo(builder, ref sequence, field);
+                    break;
             }
         }
 
@@ -83,9 +86,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
 
-            foreach (var attr in field.Attributes)
-                builder.AddAttribute(sequence++, attr.Key, attr.Value);
-
             builder.CloseComponent();
         }
 
@@ -102,14 +102,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Value", value);
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
-            builder.AddAttribute(sequence++, "Lines", field.Attributes.TryGetValue("Lines", out var lines) ? lines : 3);
+            builder.AddAttribute(sequence++, "Lines", field.Lines ?? 3);
             builder.AddAttribute(sequence++, "Required", field.Required);
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
 
-            foreach (var attr in field.Attributes.Where(a => a.Key != "Lines"))
-                builder.AddAttribute(sequence++, attr.Key, attr.Value);
-            
             builder.CloseComponent();
         }
 
@@ -127,15 +124,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<int>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
 
-            if (field.Attributes.TryGetValue("Min", out var min))
-                builder.AddAttribute(sequence++, "Min", min);
-            if (field.Attributes.TryGetValue("Max", out var max))
-                builder.AddAttribute(sequence++, "Max", max);
+            if (field.Min != null)
+                builder.AddAttribute(sequence++, "Min", field.Min);
+            if (field.Max != null)
+                builder.AddAttribute(sequence++, "Max", field.Max);
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
-
-            foreach (var attr in field.Attributes.Where(a => a.Key != "Min" && a.Key != "Max"))
-                builder.AddAttribute(sequence++, attr.Key, attr.Value);
 
             builder.CloseComponent();
         }
@@ -153,19 +147,16 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Value", value);
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<float>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
-            
-            if (field.Attributes.TryGetValue("Min", out var min))
-                builder.AddAttribute(sequence++, "Min", min);
-            if (field.Attributes.TryGetValue("Max", out var max))
-                builder.AddAttribute(sequence++, "Max", max);
-            if (field.Attributes.TryGetValue("Step", out var step))
-                builder.AddAttribute(sequence++, "Step", step);
+
+            if (field.Min != null)
+                builder.AddAttribute(sequence++, "Min", field.Min);
+            if (field.Max != null)
+                builder.AddAttribute(sequence++, "Max", field.Max);
+            if (field.Step != null)
+                builder.AddAttribute(sequence++, "Step", field.Step);
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
-            
-            foreach (var attr in field.Attributes.Where(a => a.Key != "Min" && a.Key != "Max" && a.Key != "Step"))
-                builder.AddAttribute(sequence++, attr.Key, attr.Value);
-            
+
             builder.CloseComponent();
         }
 
@@ -182,14 +173,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Value", value);
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<bool>(receiver, v => onValueChanged(field.PropertyName, v)));
 
-            var color = field.Attributes.TryGetValue("Color", out var colorValue) && colorValue is string colorStr
-                ? Enum.Parse<Color>(colorStr)
+            var color = !string.IsNullOrEmpty(field.SwitchColor)
+                ? Enum.Parse<Color>(field.SwitchColor)
                 : Color.Primary;
             builder.AddAttribute(sequence++, "Color", color);
-            
-            foreach (var attr in field.Attributes.Where(a => a.Key != "Color"))
-                builder.AddAttribute(sequence++, attr.Key, attr.Value);
-            
+
             builder.CloseComponent();
         }
 
@@ -207,11 +195,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
 
-            if (field.Attributes.TryGetValue("Options", out var optionsObj) && optionsObj is string[] options)
+            if (field.Options != null && field.Options.Length > 0)
             {
                 builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
                 {
-                    foreach (var option in options)
+                    foreach (var option in field.Options)
                     {
                         __builder.OpenComponent<MudSelectItem<string>>(0);
                         __builder.AddAttribute(1, "Value", option);
@@ -220,6 +208,53 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
                     }
                 }));
             }
+
+            builder.CloseComponent();
+        }
+
+        private static void RenderInfo(
+            RenderTreeBuilder builder,
+            ref int sequence,
+            SubActionUIField field)
+        {
+            builder.OpenComponent<MudAlert>(sequence++);
+
+            // Set the severity/color, default to Info
+            var severity = !string.IsNullOrEmpty(field.Severity)
+                ? Enum.Parse<Severity>(field.Severity, ignoreCase: true)
+                : Severity.Info;
+            builder.AddAttribute(sequence++, "Severity", severity);
+
+            // Set variant if specified
+            if (!string.IsNullOrEmpty(field.InfoVariant))
+            {
+                var variant = Enum.Parse<Variant>(field.InfoVariant, ignoreCase: true);
+                builder.AddAttribute(sequence++, "Variant", variant);
+            }
+
+            // Set icon if specified
+            if (!string.IsNullOrEmpty(field.Icon))
+            {
+                builder.AddAttribute(sequence++, "Icon", field.Icon);
+            }
+
+            // Set dense/compact if specified
+            if (field.Dense)
+            {
+                builder.AddAttribute(sequence++, "Dense", true);
+            }
+
+            // Set NoIcon if specified
+            if (field.NoIcon)
+            {
+                builder.AddAttribute(sequence++, "NoIcon", true);
+            }
+
+            // Content: Use Label as the message content
+            builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
+            {
+                __builder.AddContent(0, field.Label);
+            }));
 
             builder.CloseComponent();
         }

@@ -35,12 +35,37 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
     /// </summary>
     public class SubActionUIField
     {
+        // Common properties for all field types
         public string PropertyName { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public string? HelperText { get; set; }
         public UIFieldType FieldType { get; set; }
         public bool Required { get; set; }
         public object? DefaultValue { get; set; }
+
+        // Text/TextArea specific
+        public int? Lines { get; set; }
+
+        // Number/Float specific
+        public object? Min { get; set; }
+        public object? Max { get; set; }
+        public object? Step { get; set; }
+
+        // Switch specific
+        public string? SwitchColor { get; set; } = "Primary";
+
+        // Select specific
+        public string[]? Options { get; set; }
+
+        // Info/Alert specific
+        public string? Severity { get; set; } = "Info";  // Info, Success, Warning, Error, Normal
+        public string? InfoVariant { get; set; }  // Text, Filled, Outlined
+        public string? Icon { get; set; }
+        public bool Dense { get; set; }
+        public bool NoIcon { get; set; }
+
+        // Fallback for any custom attributes not covered above
+        [Obsolete("Use strongly-typed properties instead")]
         public Dictionary<string, object> Attributes { get; set; } = new();
     }
 
@@ -51,6 +76,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
         Number,
         Switch,
         Select,
-        Float
+        Float,
+        Info  // Display-only informational message (like MudAlert)
     }
 }

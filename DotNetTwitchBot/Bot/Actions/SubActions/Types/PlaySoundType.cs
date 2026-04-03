@@ -31,17 +31,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     HelperText = audioFiles.Length > 0 
                         ? "Select an audio file from the dropdown" 
                         : "No audio files found in wwwroot/audio directory",
-                    Attributes = new Dictionary<string, object> 
-                    { 
-                        { "Options", audioFiles } 
-                    }
+                    Options = audioFiles
                 },
                 new()
                 {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                    SwitchColor = "Success"
                 }
             };
         }

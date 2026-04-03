@@ -49,28 +49,31 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     PropertyName = nameof(Duration),
                     Label = "Duration (seconds)",
                     FieldType = UIFieldType.Number,
-                    Attributes = new Dictionary<string, object> { { "Min", 1 }, { "Max", 60 } }
+                    Min = 1,
+                    Max = 60
                 },
                 new()
                 {
                     PropertyName = nameof(Volume),
                     Label = "Volume",
                     FieldType = UIFieldType.Float,
-                    Attributes = new Dictionary<string, object> { { "Min", 0f }, { "Max", 1f }, { "Step", 0.1f } }
+                    Min = 0f,
+                    Max = 1f,
+                    Step = 0.1f
                 },
                 new()
                 {
                     PropertyName = nameof(CSS),
                     Label = "Custom CSS",
                     FieldType = UIFieldType.TextArea,
-                    Attributes = new Dictionary<string, object> { { "Lines", 2 } }
+                    Lines = 2
                 },
                 new()
                 {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
-                    Attributes = new Dictionary<string, object> { { "Color", "Success" } }
+                    SwitchColor = "Success"
                 }
             };
         }
