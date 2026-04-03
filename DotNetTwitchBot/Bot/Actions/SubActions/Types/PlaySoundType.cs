@@ -18,15 +18,23 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public List<SubActionUIField> GetUIFields()
         {
+            var audioFiles = AudioFileHelper.GetAudioFiles();
+
             return new List<SubActionUIField>
             {
                 new()
                 {
                     PropertyName = nameof(File),
                     Label = "Sound File",
-                    FieldType = UIFieldType.Text,
+                    FieldType = UIFieldType.Select,
                     Required = true,
-                    HelperText = "Path to audio file"
+                    HelperText = audioFiles.Length > 0 
+                        ? "Select an audio file from the dropdown" 
+                        : "No audio files found in wwwroot/audio directory",
+                    Attributes = new Dictionary<string, object> 
+                    { 
+                        { "Options", audioFiles } 
+                    }
                 },
                 new()
                 {
