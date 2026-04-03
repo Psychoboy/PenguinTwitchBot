@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     {
         public ReplyToMessageType() { SubActionTypes = SubActionTypes.ReplyToMessage; }
 
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new List<SubActionUIField>
             {

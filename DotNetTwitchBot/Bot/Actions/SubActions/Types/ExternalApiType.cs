@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         public string HttpMethod { get; set; } = "GET";
         public string Headers { get; set; } = "Accept: text/plain";
 
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new List<SubActionUIField>
             {

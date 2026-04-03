@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
@@ -15,15 +16,27 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.ChannelPointSetEnabledState;
         }
         public bool EnablePoint { get; set; } = true;
-        public List<SubActionUIField> GetUIFields()
+
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return new()
+            if(serviceProvider == null)
             {
+                return [];
+            }
+
+            using var scope = serviceProvider.CreateScope();
+            var twitchService = scope.ServiceProvider.GetRequiredService<ITwitchService>();
+            var channelPoints = Task.Run(async () => await twitchService.GetChannelPointRewards()).GetAwaiter().GetResult();
+            var names = channelPoints.Select(cp => cp.Title).ToList();
+
+            return
+            [
                 new SubActionUIField
                 {
                     PropertyName = nameof(Text),
                     Label = "Reward Name",
-                    FieldType = UIFieldType.Text,
+                    FieldType = UIFieldType.Select,
+                    Options = [.. names],
                     Required = true,
                     HelperText = "The name of the channel point reward to enable or disable"
                 },
@@ -42,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.Switch,
                     SwitchColor = "Success"
                 }
-            };
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

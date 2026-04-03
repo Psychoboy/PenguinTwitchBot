@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.Uptime;
         }
 
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new List<SubActionUIField>
             {

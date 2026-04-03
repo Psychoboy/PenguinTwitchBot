@@ -11,7 +11,34 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
         /// <summary>
         /// Returns the list of UI fields to display in the configuration dialog.
         /// </summary>
-        List<SubActionUIField> GetUIFields();
+        /// <param name="serviceProvider">Optional service provider for accessing services to populate dynamic fields.
+        /// Example usage:
+        /// <code>
+        /// public List&lt;SubActionUIField&gt; GetUIFields(IServiceProvider? serviceProvider = null)
+        /// {
+        ///     List&lt;string&gt;? rewardNames = null;
+        ///     
+        ///     if (serviceProvider != null)
+        ///     {
+        ///         using var scope = serviceProvider.CreateScope();
+        ///         var rewardService = scope.ServiceProvider.GetRequiredService&lt;IRewardService&gt;();
+        ///         rewardNames = rewardService.GetRewardNames(); // Must be synchronous
+        ///     }
+        ///     
+        ///     return new List&lt;SubActionUIField&gt;
+        ///     {
+        ///         new()
+        ///         {
+        ///             PropertyName = "RewardName",
+        ///             Label = "Reward",
+        ///             FieldType = UIFieldType.Select,
+        ///             Options = rewardNames?.ToArray()
+        ///         }
+        ///     };
+        /// }
+        /// </code>
+        /// </param>
+        List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null);
 
         /// <summary>
         /// Load values from the current instance into a dictionary.

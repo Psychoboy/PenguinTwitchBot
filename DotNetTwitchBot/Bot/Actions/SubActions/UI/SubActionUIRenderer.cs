@@ -19,11 +19,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             ISubActionUIProvider uiProvider,
             Dictionary<string, object?> values,
             object receiver,
-            Action<string, object?> onValueChanged)
+            Action<string, object?> onValueChanged,
+            IServiceProvider? serviceProvider = null)
         {
             return builder =>
             {
-                var fields = uiProvider.GetUIFields();
+                var fields = uiProvider.GetUIFields(serviceProvider);
                 int sequence = 0;
 
                 foreach (var field in fields)

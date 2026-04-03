@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         public int? Min { get; set; } = 0;
         public int? Max { get; set; } = 100;
         public string Name { get; set; } = "";
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new List<SubActionUIField>
             {

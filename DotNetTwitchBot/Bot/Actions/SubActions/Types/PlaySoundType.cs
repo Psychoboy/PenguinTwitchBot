@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public string File { get; set; } = "";
 
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             var audioFiles = AudioFileHelper.GetAudioFiles();
 

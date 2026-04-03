@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         protected virtual bool TextRequired => false;
         protected virtual int TextLines => 1;
 
-        public virtual List<SubActionUIField> GetUIFields()
+        public virtual List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             var fields = new List<SubActionUIField>
             {

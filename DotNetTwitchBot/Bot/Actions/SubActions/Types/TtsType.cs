@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     {
         public TtsType() { SubActionTypes = SubActionTypes.Tts; }
         public string? Name { get; set; }
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new()
             {

@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             File, Duration, Volume, CSS, Text);
         }
 
-        public List<SubActionUIField> GetUIFields()
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return new List<SubActionUIField>
             {
