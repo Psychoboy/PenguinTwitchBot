@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260403214213_addChannelPointType")]
+    partial class addChannelPointType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1961,16 +1964,6 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.ToTable("subactions_channelpointsetenabledstate", (string)null);
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ChannelPointSetPausedStateType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<bool>("IsPaused")
-                        .HasColumnType("tinyint(1)");
-
-                    b.ToTable("subactions_channelpointsetpausedstate", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.CurrentTimeType", b =>
