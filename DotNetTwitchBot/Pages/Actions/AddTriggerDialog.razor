@@ -2,6 +2,7 @@
 @using DotNetTwitchBot.Bot.Models.Commands
 @using DotNetTwitchBot.Bot.Commands
 @using MudBlazor
+@using DotNetTwitchBot.Pages.Components
 
 <MudDialog>
     <DialogContent>
@@ -58,28 +59,16 @@
                 {
                     <MudText Typo="Typo.h6">Configure Command Trigger</MudText>
 
-                    <MudSelect T="int?" Value="_selectedCommandId" Label="Select Command" Variant="Variant.Outlined" 
-                               Required="true" AnchorOrigin="Origin.BottomCenter"
-                               ValueChanged="OnCommandSelected" >
-                        <MudSelectItem T="int?" Value="null">None</MudSelectItem>
-                        @foreach (var command in _commands)
-                        {
-                            <MudSelectItem T="int?" Value="@command.Id">!@command.CommandName</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <CommandSelector SelectedCommandId="_selectedCommandId" 
+                                     SelectedCommandIdChanged="OnCommandSelected"
+                                     OnCommandCreated="OnCommandCreated"
+                                     SelectLabel="Select Command"
+                                     Required="true"
+                                     AllowNone="true"
+                                     AllowCreate="true" />
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Command Trigger" ReadOnly="true" />
-
-                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Or create a new command trigger
-                        </MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
-                                   StartIcon="@Icons.Material.Filled.Add" Disabled="true">
-                            Create New
-                        </MudButton>
-                    </MudStack>
                 }
                 else
                 {
@@ -164,6 +153,16 @@
                 _triggerName = $"!{command.CommandName}";
             }
         }
+    }
+
+    private void OnCommandCreated(ActionCommand command)
+    {
+        // Add the newly created command to the list
+        _commands.Add(command);
+        _commands = _commands.OrderBy(c => c.CommandName).ToList();
+
+        // Auto-populate trigger name with command name (with !)
+        _triggerName = $"!{command.CommandName}";
     }
 
     private bool CanSubmit()

@@ -1,0 +1,275 @@
+@*
+    CommandSelector - A reusable component for selecting or creating commands
+
+    Usage:
+    <CommandSelector SelectedCommandId="_selectedCommandId" 
+                     SelectedCommandIdChanged="OnCommandSelected"
+                     OnCommandCreated="OnCommandCreated"
+                     SelectLabel="Select Command"
+                     Required="true"
+                     AllowNone="true"
+                     AllowCreate="true" />
+
+    Parameters:
+    - SelectedCommandId: The currently selected command ID (two-way binding)
+    - SelectedCommandIdChanged: Event callback when command selection changes
+    - OnCommandCreated: Event callback when a new command is created
+    - SelectLabel: Label for the select dropdown (default: "Select Command")
+    - Required: Whether selection is required (default: true)
+    - AllowNone: Whether to show "None" option (default: true)
+    - AllowCreate: Whether to show "Create New" option (default: true)
+*@
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Core.Points
+@inject IActionCommandService CommandService
+@inject IPointsSystem PointSystem
+@inject MudBlazor.ISnackbar Snackbar
+
+<MudStack Spacing="3">
+    @if (!_showCreateForm)
+    {
+        <!-- Selection Mode -->
+        <MudSelect T="int?" Value="_selectedCommandId" Label="@SelectLabel" Variant="Variant.Outlined" 
+                   Required="@Required" AnchorOrigin="Origin.BottomCenter"
+                   ValueChanged="OnCommandSelectedInternal">
+            @if (AllowNone)
+            {
+                <MudSelectItem T="int?" Value="null">None</MudSelectItem>
+            }
+            @foreach (var command in _commands)
+            {
+                <MudSelectItem T="int?" Value="@command.Id">!@command.CommandName</MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (AllowCreate)
+        {
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Or create a new command
+                </MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="ShowCreateForm">
+                    Create New
+                </MudButton>
+            </MudStack>
+        }
+    }
+    else
+    {
+        <!-- Creation Mode -->
+        <MudText Typo="Typo.h6">Create New Command</MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_newCommand.CommandName" Label="Command Name" 
+                              Required="true" Variant="Variant.Outlined" 
+                              HelperText="Do not include the ! prefix" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="string" @bind-Value="_newCommand.Category" Label="Category" 
+                                 Variant="Variant.Outlined" 
+                                 SearchFunc="@SearchCategories"
+                                 Clearable="true"
+                                 CoerceText="true"
+                                 CoerceValue="false" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_newCommand.Description" Label="Description" 
+                              Lines="2" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="_newCommand.UserCooldown" Label="User Cooldown (seconds)" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="_newCommand.GlobalCooldown" Label="Global Cooldown (seconds)" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="_newCommand.Cost" Label="Cost" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
+                           Variant="Variant.Outlined"
+                           Required="@(_newCommand.Cost > 0)"
+                           ToStringFunc="@(p => p?.Name ?? "None")">
+                    <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
+                    @foreach (var pointType in _pointTypes)
+                    {
+                        <MudSelectItem Value="@pointType">@pointType.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Rank" @bind-Value="_newCommand.MinimumRank" Label="Minimum Rank" 
+                           Variant="Variant.Outlined">
+                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSwitch @bind-Value="_newCommand.Disabled" Label="Disabled" Color="Color.Error" />
+            </MudItem>
+        </MudGrid>
+
+        <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd">
+            <MudButton Variant="Variant.Outlined" OnClick="CancelCreate">
+                Cancel
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                       OnClick="CreateCommand" StartIcon="@Icons.Material.Filled.Save"
+                       Disabled="@(!CanCreate())">
+                Create Command
+            </MudButton>
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public int? SelectedCommandId { get; set; }
+    [Parameter] public EventCallback<int?> SelectedCommandIdChanged { get; set; }
+    [Parameter] public EventCallback<ActionCommand> OnCommandCreated { get; set; }
+    [Parameter] public string SelectLabel { get; set; } = "Select Command";
+    [Parameter] public bool Required { get; set; } = true;
+    [Parameter] public bool AllowNone { get; set; } = true;
+    [Parameter] public bool AllowCreate { get; set; } = true;
+
+    private List<ActionCommand> _commands = new();
+    private List<string> _categories = new();
+    private List<PointType> _pointTypes = new();
+    private int? _selectedCommandId;
+    private bool _showCreateForm = false;
+    private ActionCommand _newCommand = new();
+    private PointType? _selectedPointType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCommands();
+        await LoadPointTypes();
+        _selectedCommandId = SelectedCommandId;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_selectedCommandId != SelectedCommandId)
+        {
+            _selectedCommandId = SelectedCommandId;
+        }
+    }
+
+    private async Task LoadCommands()
+    {
+        _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
+        _categories = _commands.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+    }
+
+    private async Task LoadPointTypes()
+    {
+        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
+    }
+
+    private async Task OnCommandSelectedInternal(int? commandId)
+    {
+        _selectedCommandId = commandId;
+        await SelectedCommandIdChanged.InvokeAsync(commandId);
+    }
+
+    private void ShowCreateForm()
+    {
+        _newCommand = new ActionCommand
+        {
+            CommandName = "",
+            Category = "",
+            Description = "",
+            Disabled = false,
+            UserCooldown = 0,
+            GlobalCooldown = 0,
+            Cost = 0,
+            MinimumRank = Rank.Viewer,
+            SayCooldown = true,
+            SayRankRequirement = false,
+            ExcludeFromUi = false,
+            SourceOnly = true,
+            RunFromBroadcasterOnly = false
+        };
+        _selectedPointType = null;
+        _showCreateForm = true;
+    }
+
+    private void CancelCreate()
+    {
+        _showCreateForm = false;
+        _newCommand = new ActionCommand();
+        _selectedPointType = null;
+    }
+
+    private bool CanCreate()
+    {
+        if (string.IsNullOrWhiteSpace(_newCommand.CommandName)) return false;
+        if (_newCommand.Cost > 0 && _selectedPointType == null) return false;
+        return true;
+    }
+
+    private async Task CreateCommand()
+    {
+        if (!CanCreate()) return;
+
+        try
+        {
+            // Ensure category is never null
+            _newCommand.Category = _newCommand.Category ?? string.Empty;
+
+            // Set point type
+            _newCommand.PointTypeId = _selectedPointType?.Id;
+            _newCommand.PointType = _selectedPointType;
+
+            // Check if command already exists
+            if (await CommandService.CommandExistsAsync(_newCommand.CommandName))
+            {
+                Snackbar.Add($"Command '!{_newCommand.CommandName}' already exists", Severity.Warning);
+                return;
+            }
+
+            // Create the command
+            var createdCommand = await CommandService.AddAsync(_newCommand);
+            Snackbar.Add($"Command '!{createdCommand.CommandName}' created successfully", Severity.Success);
+
+            // Reload commands
+            await LoadCommands();
+
+            // Select the newly created command
+            _selectedCommandId = createdCommand.Id;
+            await SelectedCommandIdChanged.InvokeAsync(createdCommand.Id);
+            await OnCommandCreated.InvokeAsync(createdCommand);
+
+            // Reset form
+            _showCreateForm = false;
+            _newCommand = new ActionCommand();
+            _selectedPointType = null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating command: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(_categories);
+        }
+
+        var filteredCategories = _categories
+            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .AsEnumerable();
+
+        return Task.FromResult(filteredCategories);
+    }
+}
