@@ -17,10 +17,112 @@ namespace DotNetTwitchBot.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.ActionType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ConcurrentAction")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Group")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("QueueName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("RandomAction")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Actions");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ActionTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubActionTypes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActionTypeId");
+
+                    b.ToTable((string)null);
+
+                    b.UseTpcMappingStrategy();
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Actions.Triggers.TriggerType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Configuration")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActionId");
+
+                    b.ToTable("Triggers");
+                });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.AliasModel", b =>
                 {
@@ -124,6 +226,79 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ChannelPointRedeems");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.ActionCommand", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("Cost")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("Disabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ExcludeFromUi")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("GlobalCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinimumRank")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PointTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RunFromBroadcasterOnly")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("SayCooldown")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("SayRankRequirement")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("SourceOnly")
+                        .HasColumnType("tinyint(1)");
+
+                    b.PrimitiveCollection<string>("SpecificRanks")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SpecificUserOnly")
+                        .HasColumnType("longtext");
+
+                    b.PrimitiveCollection<string>("SpecificUsersOnly")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommandName");
+
+                    b.HasIndex("PointTypeId");
+
+                    b.ToTable("ActionCommands");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.AudioCommand", b =>
@@ -1093,6 +1268,41 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("UserPoints");
                 });
 
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Queues.QueueConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsBlocking")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxConcurrentActions")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("QueueConfigurations");
+                });
+
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.QuoteType", b =>
                 {
                     b.Property<int>("Id")
@@ -1204,7 +1414,7 @@ namespace DotNetTwitchBot.Migrations
 
                     b.ToTable("RegisteredVoices");
 
-                    b.HasDiscriminator().HasValue("RegisteredVoice");
+                    b.HasDiscriminator<string>("Discriminator").HasValue("RegisteredVoice");
 
                     b.UseTphMappingStrategy();
                 });
@@ -1722,6 +1932,194 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("WordFilters");
                 });
 
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.AlertType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("CSS")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("int");
+
+                    b.Property<string>("File")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<float>("Volume")
+                        .HasColumnType("float");
+
+                    b.ToTable("subactions_alert", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ChannelPointSetEnabledStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("EnablePoint")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("subactions_channelpointsetenabledstate", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ChannelPointSetPausedStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("subactions_channelpointsetpausedstate", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.CurrentTimeType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_currenttime", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ExternalApiType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Headers")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("HttpMethod")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.ToTable("subactions_externalapi", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.FollowAgeType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_followage", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.GiveawayPrizeType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_giveawayprize", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.MultiCounterType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int?>("Max")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Min")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.ToTable("subactions_multicounter", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.PlaySoundType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("File")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.ToTable("subactions_playsound", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.RandomIntType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("Max")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Min")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_randomint", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ReplyToMessageType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("FallBack")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("StreamOnly")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("UseBot")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("subactions_replytomessage", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SendMessageType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("FallBack")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("StreamOnly")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("UseBot")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("subactions_sendmessage", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.TtsType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("longtext");
+
+                    b.ToTable("subactions_tts", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.UptimeType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_uptime", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.WatchTimeType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_watchtime", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.WriteFileType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("Append")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("File")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.ToTable("subactions_writefile", (string)null);
+                });
+
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.UserRegisteredVoice", b =>
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Models.RegisteredVoice");
@@ -1731,6 +2129,33 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.HasDiscriminator().HasValue("UserRegisteredVoice");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Actions.ActionType", null)
+                        .WithMany("SubActions")
+                        .HasForeignKey("ActionTypeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Actions.Triggers.TriggerType", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Actions.ActionType", "Action")
+                        .WithMany("Triggers")
+                        .HasForeignKey("ActionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Action");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.ActionCommand", b =>
+                {
+                    b.HasOne("DotNetTwitchBot.Bot.Models.Points.PointType", "PointType")
+                        .WithMany()
+                        .HasForeignKey("PointTypeId");
+
+                    b.Navigation("PointType");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Commands.AudioCommand", b =>
@@ -1831,6 +2256,13 @@ namespace DotNetTwitchBot.Migrations
                         .IsRequired();
 
                     b.Navigation("Wheel");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.ActionType", b =>
+                {
+                    b.Navigation("SubActions");
+
+                    b.Navigation("Triggers");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.MusicPlaylist", b =>

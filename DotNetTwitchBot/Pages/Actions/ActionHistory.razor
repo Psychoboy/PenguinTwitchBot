@@ -1,0 +1,278 @@
+@page "/actions/history"
+@using DotNetTwitchBot.Bot.Queues
+@using DotNetTwitchBot.Bot.Models.Queues
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IQueueManager QueueManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>SPTV Twitch Bot - Action History</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">View history of executed actions and their results.</MudText>
+
+    <MudPaper Class="pa-4">
+        <MudTable Items="@_executionLogs" Hover="true" Dense="true" Loading="@_loading" LoadingProgressColor="Color.Primary"
+                  T="ActionExecutionLog" FixedHeader="true" Height="70vh">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Execution Logs</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
+                              DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs"></MudTextField>
+                <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
+                           Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
+                    <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
+                </MudSelect>
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadLogs" Class="ml-2" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>State</MudTh>
+                <MudTh Style="text-align: right;">Variables</MudTh>
+                <MudTh Style="text-align: right;">Duration</MudTh>
+                <MudTh>Queue</MudTh>
+                <MudTh>Queued At</MudTh>
+                <MudTh>Started At</MudTh>
+                <MudTh>Ended At</MudTh>
+                <MudTh Style="text-align: right;">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">
+                    <MudText Typo="Typo.body2">@context.ActionName</MudText>
+                </MudTd>
+                <MudTd DataLabel="State">
+                    <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.State)">
+                        @context.State.ToString()
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Variables" Style="text-align: right;">
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                        @context.VariablesBefore.Count/@context.VariablesAfter?.Count
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Duration" Style="text-align: right;">
+                    @if (context.TotalTime.HasValue)
+                    {
+                        <MudText Typo="Typo.body2">@FormatDuration(context.TotalTime.Value)</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Queue">
+                    <MudChip T="string" Size="Size.Small" Color="@(context.QueueName == "Default" ? Color.Primary : Color.Default)">
+                        @context.QueueName
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Queued At">
+                    <MudText Typo="Typo.body2">@context.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Started At">
+                    @if (context.StartedAt.HasValue)
+                    {
+                        <MudText Typo="Typo.body2">@context.StartedAt.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Ended At">
+                    @if (context.CompletedAt.HasValue)
+                    {
+                        <MudText Typo="Typo.body2">@context.CompletedAt.Value.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Actions" Style="text-align: right;">
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" 
+                               OnClick="@(() => ViewVariables(context))"
+                               StartIcon="@Icons.Material.Filled.Visibility">
+                        View Variables
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No execution logs found.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<ActionExecutionLog> _executionLogs = new();
+    private List<ActionExecutionLog> _allLogs = new();
+    private bool _loading = true;
+    private HubConnection? _hubConnection;
+    private bool _disposed;
+    private string _searchString = "";
+    private ActionExecutionState? _filterState = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/mainHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<ActionExecutionLog>("ActionLogUpdated", async (log) =>
+            {
+                await InvokeAsync(() =>
+                {
+                    // Update or add the log in our collection
+                    var existingLogIndex = _allLogs.FindIndex(l => l.Id == log.Id);
+                    if (existingLogIndex >= 0)
+                    {
+                        _allLogs[existingLogIndex] = log;
+                    }
+                    else
+                    {
+                        _allLogs.Insert(0, log);
+                        // Keep only last 100 logs
+                        if (_allLogs.Count > 100)
+                        {
+                            _allLogs = _allLogs.Take(100).ToList();
+                        }
+                    }
+
+                    FilterLogs();
+                    StateHasChanged();
+                });
+            });
+
+            try
+            {
+                await _hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lost connection to bot. Data may be inaccurate until refresh. Error: {ex.Message}", Severity.Warning);
+            }
+        }
+    }
+
+    private async Task LoadLogs()
+    {
+        if (_disposed) return;
+
+        _loading = true;
+        try
+        {
+            // Get recent logs (last 100)
+            _allLogs = QueueManager.ExecutionLogger.GetRecentLogs(100).ToList();
+            FilterLogs();
+        }
+        catch (Exception ex)
+        {
+            if (!_disposed)
+            {
+                Snackbar.Add($"Error loading execution logs: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void FilterLogs()
+    {
+        var filtered = _allLogs.AsEnumerable();
+
+        // Filter by search string
+        if (!string.IsNullOrWhiteSpace(_searchString))
+        {
+            filtered = filtered.Where(log => log.ActionName.Contains(_searchString, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Filter by state
+        if (_filterState.HasValue)
+        {
+            filtered = filtered.Where(log => log.State == _filterState.Value);
+        }
+
+        _executionLogs = filtered.OrderByDescending(log => log.EnqueuedAt).ToList();
+    }
+
+    private void OnFilterStateChanged(ActionExecutionState? value)
+    {
+        _filterState = value;
+        FilterLogs();
+    }
+
+    private async Task ViewVariables(ActionExecutionLog log)
+    {
+        var parameters = new DialogParameters<ActionVariablesDialog>
+        {
+            { x => x.Log, log }
+        };
+
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true, 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        };
+
+        await DialogService.ShowAsync<ActionVariablesDialog>("Action Variables", parameters, options);
+    }
+
+    private Color GetStateColor(ActionExecutionState state)
+    {
+        return state switch
+        {
+            ActionExecutionState.Pending => Color.Warning,
+            ActionExecutionState.Running => Color.Info,
+            ActionExecutionState.Completed => Color.Success,
+            ActionExecutionState.Failed => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string FormatDuration(TimeSpan duration)
+    {
+        var totalMilliseconds = duration.TotalMilliseconds;
+
+        if (totalMilliseconds < 1000)
+            return $"{totalMilliseconds:F0}ms";
+
+        if (duration.TotalSeconds < 60)
+            return $"{duration.TotalSeconds:F2}s";
+
+        return $"{duration.TotalMinutes:F2}m";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+                _hubConnection = null;
+            }
+        }
+    }
+}

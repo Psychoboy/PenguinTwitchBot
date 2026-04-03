@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Ai;
 using DotNetTwitchBot.Bot.Commands.Alias;
@@ -39,6 +40,8 @@ namespace DotNetTwitchBot.CustomMiddleware
 
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
+            services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
+            services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<ILurkBait, LurkBait>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
@@ -112,6 +115,17 @@ namespace DotNetTwitchBot.CustomMiddleware
             //services.AddSingleton<ITimer, Timer>();
 
             services.AddSingleton<Bot.Markov.TokenisationStrategies.StringMarkov>();
+
+            services.AddScoped<Bot.Actions.IAction, Bot.Actions.Action>();
+
+            // Register SubAction handlers automatically
+            services.AddSubActionHandlers();
+
+            // Register Action Execution Logger
+            services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
+
+            // Register Queue Manager
+            services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
 
             return services;
         }

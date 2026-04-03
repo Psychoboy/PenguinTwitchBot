@@ -6,6 +6,8 @@
 @inject DotNetTwitchBot.Circuit.IpLog ipLog
 @inject DotNetTwitchBot.Bot.StreamSchedule.ISchedule Schedule
 @inject DotNetTwitchBot.Bot.TwitchServices.ITwitchWebsocketHostedService TwitchWebsocketHostedService
+@inject DotNetTwitchBot.Bot.Queues.IQueueManager QueueManager
+@inject MudBlazor.ISnackbar Snackbar
 
 <CascadingAuthenticationState> 
     <AuthorizeView Roles="Streamer">

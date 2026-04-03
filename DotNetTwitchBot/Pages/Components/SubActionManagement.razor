@@ -1,0 +1,188 @@
+@using DotNetTwitchBot.Bot.Actions.SubActions.Types
+@using DotNetTwitchBot.Pages.Actions
+@inject MudBlazor.ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4 mb-4">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h6">SubActions (@SubActions.Count)</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                       OnClick="OpenAddSubActionDialog" Variant="Variant.Filled">
+                Add SubAction
+            </MudButton>
+        </MudStack>
+
+        @if (SubActions.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No subactions configured. Click "Add SubAction" to get started.</MudText>
+        }
+        else
+        {
+            <MudList T="SubActionType" @bind-SelectedValue="_selectedSubAction" Dense="true">
+                @for (int i = 0; i < SubActions.Count; i++)
+                {
+                    var index = i;
+                    var subAction = SubActions[i];
+                    <MudListItem T="SubActionType" Value="@subAction">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudStack>
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
+                                                   Disabled="@(index == 0)" OnClick="@(() => MoveUp(index))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
+                                                   Disabled="@(index == SubActions.Count - 1)" OnClick="@(() => MoveDown(index))" />
+                                </MudStack>
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@GetSubActionDescription(subAction)</MudText>
+                                </MudStack>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
+                                               OnClick="@(() => EditSubAction(index))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                               OnClick="@(() => DeleteSubAction(index))" />
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    @if (index < SubActions.Count - 1)
+                    {
+                        <MudDivider />
+                    }
+                }
+            </MudList>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public List<SubActionType> SubActions { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<SubActionType>> SubActionsChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; } = false;
+
+    private SubActionType? _selectedSubAction;
+
+    private async Task MoveUp(int index)
+    {
+        if (index > 0)
+        {
+            var temp = SubActions[index];
+            SubActions[index] = SubActions[index - 1];
+            SubActions[index - 1] = temp;
+
+            // Update Index properties to reflect new positions
+            SubActions[index].Index = index;
+            SubActions[index - 1].Index = index - 1;
+
+            await NotifyChanged();
+        }
+    }
+
+    private async Task MoveDown(int index)
+    {
+        if (index < SubActions.Count - 1)
+        {
+            var temp = SubActions[index];
+            SubActions[index] = SubActions[index + 1];
+            SubActions[index + 1] = temp;
+
+            // Update Index properties to reflect new positions
+            SubActions[index].Index = index;
+            SubActions[index + 1].Index = index + 1;
+
+            await NotifyChanged();
+        }
+    }
+
+    private async Task OpenAddSubActionDialog()
+    {
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add SubAction", new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is SubActionType newSubAction)
+        {
+            newSubAction.Index = SubActions.Count;
+            SubActions.Add(newSubAction);
+            await NotifyChanged();
+            Snackbar.Add($"{GetSubActionTypeName(newSubAction)} added successfully", Severity.Success);
+        }
+    }
+
+    private async Task EditSubAction(int index)
+    {
+        if (index < 0 || index >= SubActions.Count) return;
+
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ExistingSubAction, SubActions[index] }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit SubAction", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is SubActionType updatedSubAction)
+        {
+            SubActions[index] = updatedSubAction;
+            await NotifyChanged();
+            Snackbar.Add($"{GetSubActionTypeName(updatedSubAction)} updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task DeleteSubAction(int index)
+    {
+        SubActions.RemoveAt(index);
+
+        // Reindex all subactions after the deleted one
+        for (int i = index; i < SubActions.Count; i++)
+        {
+            SubActions[i].Index = i;
+        }
+
+        await NotifyChanged();
+        Snackbar.Add("SubAction removed", Severity.Success);
+    }
+
+    private async Task NotifyChanged()
+    {
+        await SubActionsChanged.InvokeAsync(SubActions);
+    }
+
+    private string GetSubActionTypeName(SubActionType subAction)
+    {
+        return subAction.GetType().Name.Replace("Type", "");
+    }
+
+    private string GetSubActionDescription(SubActionType subAction)
+    {
+        return subAction switch
+        {
+            SendMessageType msg => $"Message: {(msg.Text?.Length > 50 ? msg.Text[..50] + "..." : msg.Text)}",
+            AlertType alert => $"Alert: {alert.Text} ({alert.Duration}s)",
+            PlaySoundType sound => $"Sound: {sound.File}",
+            RandomIntType random => $"Random: {random.Min} to {random.Max}",
+            WriteFileType write => $"Write to: {write.File}",
+            ExternalApiType api => $"API: {api.HttpMethod} {api.Text}",
+            CurrentTimeType => "Gets current time",
+            FollowAgeType => "Gets follow age",
+            UptimeType => "Gets stream uptime",
+            WatchTimeType => "Gets watch time",
+            _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
+        };
+    }
+}

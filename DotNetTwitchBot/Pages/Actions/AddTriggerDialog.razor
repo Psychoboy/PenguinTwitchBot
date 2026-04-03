@@ -1,0 +1,214 @@
+@using DotNetTwitchBot.Bot.Models.Actions.Triggers
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Commands
+@using MudBlazor
+@using DotNetTwitchBot.Pages.Components
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_showTypeSelection)
+            {
+                <MudText Typo="Typo.h6">Select Trigger Type</MudText>
+                <MudList T="string">
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.Command))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Terminal" Color="Color.Primary" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Command</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a chat command is used</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.TwitchEvent))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Event" Color="Color.Secondary" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Twitch Event</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on Twitch events (follows, subs, etc.)</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.Timer))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Info" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Timer</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on a schedule or interval</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.Manual))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Manual</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Manually triggered from UI or API</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                </MudList>
+            }
+            else
+            {
+                <!-- Trigger Configuration based on type -->
+                @if (_selectedType == TriggerTypes.Command)
+                {
+                    <MudText Typo="Typo.h6">Configure Command Trigger</MudText>
+
+                    <CommandSelector SelectedCommandId="_selectedCommandId" 
+                                     SelectedCommandIdChanged="OnCommandSelected"
+                                     OnCommandCreated="OnCommandCreated"
+                                     SelectLabel="Select Command"
+                                     Required="true"
+                                     AllowNone="true"
+                                     AllowCreate="true" />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., My Command Trigger" ReadOnly="true" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
+                    <MudAlert Severity="Severity.Info">
+                        Configuration for @_selectedType triggers will be implemented soon.
+                    </MudAlert>
+                    
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., My Trigger" />
+                    
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Or create a new trigger
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Add" Disabled="true">
+                            Create New
+                        </MudButton>
+                    </MudStack>
+                }
+
+                <MudDivider Class="my-2" />
+                
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" 
+                               OnClick="@(() => _showTypeSelection = true)">
+                        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />
+                        Back
+                    </MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                   Disabled="@(!CanSubmit())">
+            Add Trigger
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public int ActionId { get; set; }
+    [Inject] private IActionCommandService CommandService { get; set; } = null!;
+
+    private bool _showTypeSelection = true;
+    private TriggerTypes? _selectedType;
+    private List<ActionCommand> _commands = new();
+    private int? _selectedCommandId;
+    private string _triggerName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load all action commands for the dropdown
+        _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
+    }
+
+    private void SelectType(TriggerTypes type)
+    {
+        _selectedType = type;
+        _showTypeSelection = false;
+
+        // Set default trigger name based on type
+        _triggerName = $"{type} Trigger";
+    }
+
+    private void OnCommandSelected(int? commandId)
+    {
+        _selectedCommandId = commandId;
+
+        // Auto-populate trigger name with command name (with !)
+        if (commandId.HasValue)
+        {
+            var command = _commands.FirstOrDefault(c => c.Id == commandId);
+            if (command != null)
+            {
+                _triggerName = $"!{command.CommandName}";
+            }
+        }
+    }
+
+    private void OnCommandCreated(ActionCommand command)
+    {
+        // Add the newly created command to the list
+        _commands.Add(command);
+        _commands = _commands.OrderBy(c => c.CommandName).ToList();
+
+        // Auto-populate trigger name with command name (with !)
+        _triggerName = $"!{command.CommandName}";
+    }
+
+    private bool CanSubmit()
+    {
+        if (_showTypeSelection) return false;
+        if (string.IsNullOrWhiteSpace(_triggerName)) return false;
+        
+        // For command type, require a command to be selected
+        if (_selectedType == TriggerTypes.Command && !_selectedCommandId.HasValue)
+            return false;
+            
+        return true;
+    }
+
+    private async Task Submit()
+    {
+        if (!CanSubmit() || !_selectedType.HasValue) return;
+
+        var configuration = "";
+        
+        // Build configuration JSON based on trigger type
+        if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
+        {
+            var command = _commands.FirstOrDefault(c => c.Id == _selectedCommandId);
+            if (command != null)
+            {
+                configuration = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    CommandId = command.Id,
+                    CommandName = command.CommandName
+                });
+            }
+        }
+
+        var result = new
+        {
+            TriggerName = _triggerName,
+            TriggerType = _selectedType.Value,
+            Configuration = configuration
+        };
+
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

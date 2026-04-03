@@ -1,0 +1,281 @@
+@using DotNetTwitchBot.Bot.Actions.SubActions
+@using DotNetTwitchBot.Bot.Actions.SubActions.Types
+@using DotNetTwitchBot.Bot.Actions.SubActions.UI
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_currentStep == WizardStep.SelectType)
+            {
+                <MudText Typo="Typo.h6">Select SubAction Type</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose the type of action you want to add</MudText>
+                
+                <MudTextField @bind-Value="_searchText" Placeholder="Search subactions..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Immediate="true" Margin="Margin.Dense" />
+
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <MudList T="string">
+                        @foreach (var type in GetFilteredSubActionTypes())
+                        {
+                            <MudListItem T="string" OnClick="@(() => SelectType(type))">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1"><b>@GetDisplayName(type)</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
+                                    </MudStack>
+                                </MudStack>
+                            </MudListItem>
+                            <MudDivider />
+                        }
+                    </MudList>
+                </div>
+            }
+            else if (_currentStep == WizardStep.Configure)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                    <MudIcon Icon="@GetIconForType(_selectedType)" Color="@GetColorForType(_selectedType)" />
+                    <MudText Typo="Typo.h6">Configure @GetDisplayName(_selectedType)</MudText>
+                </MudStack>
+
+                @if (_validationError != null)
+                {
+                    <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
+                }
+
+                @RenderConfiguration()
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        @if (_currentStep == WizardStep.Configure)
+        {
+            <MudButton OnClick="BackToTypeSelection" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
+        }
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        @if (_currentStep == WizardStep.Configure)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                       Disabled="@(!IsValid())">
+                @(IsEditMode ? "Update" : "Add") SubAction
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Inject]
+    private IServiceProvider ServiceProvider { get; set; } = null!;
+
+    [Parameter] 
+    public SubActionType? ExistingSubAction { get; set; }
+
+    private enum WizardStep
+    {
+        SelectType,
+        Configure
+    }
+
+    private WizardStep _currentStep = WizardStep.SelectType;
+    private SubActionTypes _selectedType = SubActionTypes.None;
+    private string _searchText = "";
+    private string? _validationError;
+    private bool IsEditMode => ExistingSubAction != null;
+    private SubActionType? _currentSubAction;
+    private Dictionary<string, object?> _fieldValues = new();
+
+    protected override void OnInitialized()
+    {
+        if (IsEditMode && ExistingSubAction != null)
+        {
+            _selectedType = ExistingSubAction.SubActionTypes;
+            _currentStep = WizardStep.Configure;
+            _currentSubAction = ExistingSubAction;
+            
+            if (ExistingSubAction is ISubActionUIProvider uiProvider)
+            {
+                _fieldValues = uiProvider.GetValues();
+            }
+        }
+    }
+
+    private List<SubActionTypes> GetFilteredSubActionTypes()
+    {
+        var types = SubActionRegistry.Metadata.Keys
+            .Where(t => t != SubActionTypes.None)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            types = types.Where(t =>
+            {
+                var metadata = SubActionRegistry.GetMetadata(t);
+                if (metadata == null) return false;
+
+                return metadata.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                       metadata.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+
+        return types;
+    }
+
+    private void SelectType(SubActionTypes type)
+    {
+        _selectedType = type;
+        _currentStep = WizardStep.Configure;
+        
+        var subActionType = SubActionRegistry.GetSubActionType(type);
+        if (subActionType != null)
+        {
+            _currentSubAction = Activator.CreateInstance(subActionType) as SubActionType;
+            if (_currentSubAction is ISubActionUIProvider uiProvider)
+            {
+                _fieldValues = uiProvider.GetValues();
+            }
+        }
+    }
+
+    private void BackToTypeSelection()
+    {
+        _currentStep = WizardStep.SelectType;
+        _validationError = null;
+    }
+
+    private RenderFragment RenderConfiguration()
+    {
+        if (_currentSubAction is ISubActionUIProvider uiProvider)
+        {
+            return SubActionUIRenderer.RenderFields(uiProvider, _fieldValues, this, OnFieldValueChanged, ServiceProvider);
+        }
+        else
+        {
+            return RenderFallbackConfiguration();
+        }
+    }
+
+    private void OnFieldValueChanged(string propertyName, object? value)
+    {
+        _fieldValues[propertyName] = value;
+        _validationError = null;
+        StateHasChanged();
+    }
+
+    private RenderFragment RenderFallbackConfiguration()
+    {
+        return builder =>
+        {
+            builder.OpenComponent<MudTextField<string>>(0);
+            builder.AddAttribute(1, "Label", "Text/Value");
+            builder.AddAttribute(2, "Value", _currentSubAction?.Text ?? "");
+            builder.AddAttribute(3, "ValueChanged", EventCallback.Factory.Create<string>(this, v =>
+            {
+                if (_currentSubAction != null) _currentSubAction.Text = v;
+            }));
+            builder.AddAttribute(4, "Variant", Variant.Outlined);
+            builder.AddAttribute(5, "Lines", 3);
+            builder.CloseComponent();
+
+            builder.OpenComponent<MudSwitch<bool>>(10);
+            builder.AddAttribute(11, "Label", "Enabled");
+            builder.AddAttribute(12, "Value", _currentSubAction?.Enabled ?? true);
+            builder.AddAttribute(13, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+            {
+                if (_currentSubAction != null) _currentSubAction.Enabled = v;
+            }));
+            builder.AddAttribute(14, "Color", Color.Success);
+            builder.CloseComponent();
+        };
+    }
+
+    private bool IsValid()
+    {
+        if (_currentSubAction is ISubActionUIProvider uiProvider)
+        {
+            var error = uiProvider.Validate(_fieldValues);
+            _validationError = error;
+            return string.IsNullOrEmpty(error);
+        }
+        return true;
+    }
+
+    private void Submit()
+    {
+        if (!IsValid()) return;
+        
+        if (_currentSubAction is ISubActionUIProvider uiProvider)
+        {
+            uiProvider.SetValues(_fieldValues);
+        }
+
+        if (IsEditMode && ExistingSubAction != null && _currentSubAction != null)
+        {
+            _currentSubAction.Id = ExistingSubAction.Id;
+            _currentSubAction.Index = ExistingSubAction.Index;
+        }
+        else if (_currentSubAction != null)
+        {
+            _currentSubAction.Id = 0;
+        }
+        
+        MudDialog.Close(DialogResult.Ok(_currentSubAction));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private string GetDisplayName(SubActionTypes type)
+    {
+        var metadata = SubActionRegistry.GetMetadata(type);
+        return metadata?.DisplayName ?? type.ToString();
+    }
+
+    private string GetDescription(SubActionTypes type)
+    {
+        var metadata = SubActionRegistry.GetMetadata(type);
+        return metadata?.Description ?? "Configure this subaction type";
+    }
+
+    private string GetIconForType(SubActionTypes type)
+    {
+        var metadata = SubActionRegistry.GetMetadata(type);
+        return metadata?.Icon switch
+        {
+            "mdi-bell" => Icons.Material.Filled.Notifications,
+            "mdi-volume-high" => Icons.Material.Filled.VolumeUp,
+            "mdi-dice-multiple" => Icons.Material.Filled.Casino,
+            "mdi-content-save" => Icons.Material.Filled.Save,
+            "mdi-clock" => Icons.Material.Filled.Schedule,
+            "mdi-heart" => Icons.Material.Filled.Favorite,
+            "mdi-timer" => Icons.Material.Filled.Timer,
+            "mdi-api" => Icons.Material.Filled.Api,
+            "mdi-eye" => Icons.Material.Filled.Visibility,
+            "mdi-message-text" => Icons.Material.Filled.Message,
+            "mdi-reply" => Icons.Material.Filled.Reply,
+            "mdi-gift" => Icons.Material.Filled.CardGiftcard,
+            _ => Icons.Material.Filled.Extension
+        };
+    }
+
+    private Color GetColorForType(SubActionTypes type)
+    {
+        var metadata = SubActionRegistry.GetMetadata(type);
+        return metadata?.Color switch
+        {
+            "Primary" => Color.Primary,
+            "Secondary" => Color.Secondary,
+            "Success" => Color.Success,
+            "Error" => Color.Error,
+            "Info" => Color.Info,
+            "Warning" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}

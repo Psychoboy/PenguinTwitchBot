@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Actions.SubActions.UI;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -97,12 +98,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 
         public List<string> GetAudioFiles()
         {
-            return Directory.GetFiles("wwwroot/audio")
-            .Select(f => Path.GetFileNameWithoutExtension(f))
-            .Distinct()
-            .ToList();
-
-
+            return AudioFileHelper.GetAudioFiles().ToList();
         }
 
         public async Task RunCommand(CommandEventArgs e)

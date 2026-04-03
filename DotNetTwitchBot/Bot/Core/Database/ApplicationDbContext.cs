@@ -1,9 +1,13 @@
+using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
+using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core.Database
 {
@@ -15,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
+        public DbSet<ActionCommand> ActionCommands { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;
@@ -63,7 +68,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
         
-
+        public DbSet<ActionType> Actions { get; set; } = null!;
+        public DbSet<SubActionType> SubActions { get; set; } = null!;
+        public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
+        public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -116,6 +124,20 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .WithOne(t => t.TimerGroup)
                 .HasForeignKey(t => t.TimerGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure TPC (Table Per Concrete Type) for SubActions
+            modelBuilder.ConfigureSubActions();
+
+            // Configure the relationship between ActionType and TriggerType (one-to-many)
+            modelBuilder.Entity<ActionType>()
+                .HasMany(a => a.Triggers)
+                .WithOne(t => t.Action)
+                .HasForeignKey(t => t.ActionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Models.Queues.QueueConfiguration>()
+                .HasIndex(q => q.Name)
+                .IsUnique();
         }
     }
 }

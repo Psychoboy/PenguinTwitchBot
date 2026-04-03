@@ -1,0 +1,319 @@
+﻿@page "/actions/queues"
+@using DotNetTwitchBot.Bot.Queues
+@using DotNetTwitchBot.Bot.Models.Queues
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IQueueManager QueueManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>SPTV Twitch Bot - Queue Management</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Queue Management</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Manage action execution queues.</MudText>
+
+    <MudPaper Class="pa-4">
+        <MudTable Items="@_queueStats" Hover="true" Dense="true" Loading="@_loading" LoadingProgressColor="Color.Primary"
+                  T="QueueStatistics">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Queues</MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="@AddNewQueue" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadQueues" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Pending</MudTh>
+                <MudTh>Completed</MudTh>
+                <MudTh>Currently Executing</MudTh>
+                <MudTh>Enabled</MudTh>
+                <MudTh>Blocking</MudTh>
+                <MudTh>Max Concurrent</MudTh>
+                <MudTh Style="text-align: right;">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="row">
+                <MudTd DataLabel="Name" @key="@row.QueueName">
+                    <MudChip T="string" Size="Size.Small" Color="@(row.QueueName == "Default" ? Color.Primary : Color.Default)">
+                        @row.QueueName
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Pending">
+                    <MudChip T="string" Size="Size.Small" Color="@(row.PendingActions > 0 ? Color.Warning : Color.Default)">
+                        @row.PendingActions
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Completed">@row.CompletedActions</MudTd>
+                <MudTd DataLabel="Currently Executing">
+                    <MudChip T="string" Size="Size.Small" Color="@(row.CurrentlyExecuting > 0 ? Color.Success : Color.Default)">
+                        @row.CurrentlyExecuting
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Enabled">
+                    <MudIcon Icon="@(row.IsEnabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
+                             Color="@(row.IsEnabled ? Color.Success : Color.Error)" Size="Size.Small" />
+                </MudTd>
+                <MudTd DataLabel="Blocking">
+                    <MudIcon Icon="@(row.IsBlocking ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" 
+                             Color="@(row.IsBlocking ? Color.Info : Color.Default)" Size="Size.Small" 
+                             Title="@(row.IsBlocking ? "Sequential Execution" : "Concurrent Execution")" />
+                </MudTd>
+                <MudTd DataLabel="Max Concurrent">@row.MaxConcurrentActions</MudTd>
+                <MudTd DataLabel="Actions" Style="text-align: right;">
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" 
+                             AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                        <MudMenuItem OnClick="@(() => EditQueue(row))" 
+                                     Disabled="@(row.QueueName == "Default")">
+                            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" /> Edit Queue
+                        </MudMenuItem>
+                        <MudMenuItem OnClick="@(() => ClearQueue(row))">
+                            <MudIcon Icon="@Icons.Material.Filled.ClearAll" Class="mr-2" /> Clear Queue
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem OnClick="@(() => DeleteQueue(row))" 
+                                     Disabled="@(row.QueueName == "Default")">
+                            <MudIcon Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Class="mr-2" /> Delete Queue
+                        </MudMenuItem>
+                    </MudMenu>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No queues found. The default queue should always be present.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<QueueStatistics> _queueStats = new();
+    private bool _loading = true;
+    private HubConnection? _hubConnection;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQueues();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/mainHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<QueueStatistics>("QueueStatsUpdated", async (stats) =>
+            {
+                await InvokeAsync(() =>
+                {
+                    // Update or add the queue statistics in our collection
+                    var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == stats.QueueName);
+                    if (existingStatsIndex >= 0)
+                    {
+                        _queueStats[existingStatsIndex] = stats;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        // Insert new queue in sorted position to avoid recreating the list
+                        var insertIndex = _queueStats.Count;
+                        if (stats.QueueName == "Default")
+                        {
+                            insertIndex = 0;
+                        }
+                        else
+                        {
+                            // Find insertion point to maintain sorted order (Default first, then alphabetical)
+                            for (int i = 0; i < _queueStats.Count; i++)
+                            {
+                                if (_queueStats[i].QueueName == "Default") continue;
+                                if (string.Compare(_queueStats[i].QueueName, stats.QueueName, StringComparison.Ordinal) > 0)
+                                {
+                                    insertIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                        _queueStats.Insert(insertIndex, stats);
+                        StateHasChanged();
+                    }
+                });
+            });
+
+            try
+            {
+                await _hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lost connection to bot. Data may be inaccurate until refresh. Error: {ex.Message}", Severity.Warning);
+            }
+        }
+    }
+
+    private async Task LoadQueues()
+    {
+        if (_disposed) return;
+
+        _loading = true;
+        try
+        {
+            _queueStats = await QueueManager.GetAllQueueStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            if (!_disposed)
+            {
+                Snackbar.Add($"Error loading queues: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task AddNewQueue()
+    {
+        var parameters = new DialogParameters<QueueEditDialog>
+        {
+            { x => x.Queue, new QueueConfiguration { Name = "", IsBlocking = true, Enabled = true, MaxConcurrentActions = 1 } },
+            { x => x.IsNew, true }
+        };
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<QueueEditDialog>("Add New Queue", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is QueueConfiguration newQueue)
+        {
+            try
+            {
+                await QueueManager.CreateQueueAsync(newQueue);
+                Snackbar.Add($"Queue '{newQueue.Name}' created successfully", Severity.Success);
+                await LoadQueues();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error creating queue: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task EditQueue(QueueStatistics queueStats)
+    {
+        if (queueStats.QueueName == "Default")
+        {
+            Snackbar.Add("Cannot edit the Default queue", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var configs = await QueueManager.GetAllQueuesAsync();
+            var config = configs.FirstOrDefault(q => q.Name == queueStats.QueueName);
+
+            if (config == null)
+            {
+                Snackbar.Add("Queue configuration not found", Severity.Error);
+                return;
+            }
+
+            // Create a copy for editing to avoid modifying the original
+            var queueCopy = new QueueConfiguration
+            {
+                Id = config.Id,
+                Name = config.Name,
+                IsBlocking = config.IsBlocking,
+                Enabled = config.Enabled,
+                MaxConcurrentActions = config.MaxConcurrentActions,
+                CreatedAt = config.CreatedAt,
+                UpdatedAt = config.UpdatedAt
+            };
+
+            var parameters = new DialogParameters<QueueEditDialog>
+            {
+                { x => x.Queue, queueCopy },
+                { x => x.IsNew, false }
+            };
+
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+            var dialog = await DialogService.ShowAsync<QueueEditDialog>("Edit Queue", parameters, options);
+            var result = await dialog.Result;
+
+            if (result is not null && !result.Canceled && result.Data is QueueConfiguration updatedQueue)
+            {
+                await QueueManager.UpdateQueueAsync(updatedQueue);
+                Snackbar.Add($"Queue '{updatedQueue.Name}' updated successfully", Severity.Success);
+                await LoadQueues();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error editing queue: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteQueue(QueueStatistics queueStats)
+    {
+        if (queueStats.QueueName == "Default")
+        {
+            Snackbar.Add("Cannot delete the Default queue", Severity.Warning);
+            return;
+        }
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Queue",
+            $"Are you sure you want to delete the queue '{queueStats.QueueName}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await QueueManager.DeleteQueueAsync(queueStats.QueueName);
+                Snackbar.Add($"Queue '{queueStats.QueueName}' deleted successfully", Severity.Success);
+                await LoadQueues();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting queue: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ClearQueue(QueueStatistics queueStats)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Clear Queue",
+            $"Are you sure you want to clear all pending actions from the queue '{queueStats.QueueName}'?",
+            yesText: "Clear",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            Snackbar.Add($"Queue '{queueStats.QueueName}' would be cleared (feature not yet implemented)", Severity.Info);
+            // Note: Clear functionality would need to be added to IQueueManager
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+                _hubConnection = null;
+            }
+        }
+    }
+}
+

@@ -1,0 +1,116 @@
+@using DotNetTwitchBot.Bot.Models.Queues
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudTextField @bind-Value="Queue.Name" 
+                          Label="Queue Name" 
+                          Required="true" 
+                          RequiredError="Queue name is required"
+                          Disabled="@(!IsNew)"
+                          HelperText="@(IsNew ? "Choose a unique name for this queue" : "Queue name cannot be changed")"
+                          Validation="@(new Func<string, string?>(ValidateQueueName))" />
+
+            <MudSwitch T="bool" @bind-Value="Queue.IsBlocking" 
+                       Label="Blocking Queue" 
+                       Color="Color.Primary"
+                       Class="mt-4">
+                <MudText Typo="Typo.caption" Class="ml-8">
+                    @(Queue.IsBlocking ? "Actions execute sequentially (one at a time)" : "Actions execute concurrently")
+                </MudText>
+            </MudSwitch>
+
+            <MudSwitch T="bool" @bind-Value="Queue.Enabled" 
+                       Label="Enabled" 
+                       Color="Color.Success"
+                       Class="mt-2">
+                <MudText Typo="Typo.caption" Class="ml-8">
+                    @(Queue.Enabled ? "Queue is active and processing actions" : "Queue is paused")
+                </MudText>
+            </MudSwitch>
+
+            <MudNumericField @bind-Value="Queue.MaxConcurrentActions" 
+                             Label="Max Concurrent Actions" 
+                             Min="1" 
+                             Max="100"
+                             Required="true"
+                             Class="mt-4"
+                             HelperText="@(Queue.IsBlocking ? "Ignored for blocking queues (always 1)" : "Maximum number of actions to run simultaneously")"
+                             Disabled="@Queue.IsBlocking" />
+
+            @if (!IsNew)
+            {
+                <MudText Typo="Typo.caption" Class="mt-4">
+                    <strong>Created:</strong> @Queue.CreatedAt.ToString("g")<br />
+                    <strong>Last Updated:</strong> @Queue.UpdatedAt.ToString("g")
+                </MudText>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Disabled="@(!_isValid)" OnClick="Submit">
+            @(IsNew ? "Create" : "Update")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public QueueConfiguration Queue { get; set; } = new();
+
+    [Parameter]
+    public bool IsNew { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+
+    private string? ValidateQueueName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "Queue name is required";
+
+        if (name.Length < 2)
+            return "Queue name must be at least 2 characters";
+
+        if (name.Length > 50)
+            return "Queue name must be less than 50 characters";
+
+        if (name.Equals("Default", StringComparison.OrdinalIgnoreCase) && IsNew)
+            return "Cannot use 'Default' as a queue name";
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z0-9_-]+$"))
+            return "Queue name can only contain letters, numbers, hyphens, and underscores";
+
+        return null;
+    }
+
+    private void Submit()
+    {
+        if (_isValid)
+        {
+            if (!Queue.IsBlocking)
+            {
+                // Ensure max concurrent is at least 1 for non-blocking queues
+                if (Queue.MaxConcurrentActions < 1)
+                    Queue.MaxConcurrentActions = 1;
+            }
+            else
+            {
+                // Force max concurrent to 1 for blocking queues
+                Queue.MaxConcurrentActions = 1;
+            }
+
+            MudDialog.Close(DialogResult.Ok(Queue));
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
