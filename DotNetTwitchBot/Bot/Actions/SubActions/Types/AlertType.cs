@@ -19,6 +19,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         public int Duration { get; set; } = 3;
         public float Volume { get; set; } = 0.8f;
         public string CSS { get; set; } = "";
+        public string File { get; set; } = "";
 
         public string Generate()
         {

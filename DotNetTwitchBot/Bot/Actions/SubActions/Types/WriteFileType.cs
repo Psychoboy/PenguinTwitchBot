@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         }
 
         public bool Append { get; set; } = true;
+        public string File { get; set; } = "";
 
         public List<SubActionUIField> GetUIFields()
         {

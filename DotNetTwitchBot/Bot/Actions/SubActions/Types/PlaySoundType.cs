@@ -16,6 +16,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             SubActionTypes = SubActionTypes.PlaySound;
         }
 
+        public string File { get; set; } = "";
+
         public List<SubActionUIField> GetUIFields()
         {
             var audioFiles = AudioFileHelper.GetAudioFiles();
