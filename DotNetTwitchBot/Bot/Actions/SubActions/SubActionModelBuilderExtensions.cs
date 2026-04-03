@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Reflection;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions
@@ -46,15 +47,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
             var entityTypeBuilder = entityMethod.Invoke(modelBuilder, null);
             if (entityTypeBuilder == null) return;
 
-            // Get the ToTable method
-            var toTableMethod = entityTypeBuilder.GetType()
-                .GetMethod(nameof(Microsoft.EntityFrameworkCore.RelationalEntityTypeBuilderExtensions.ToTable), 
-                    new[] { typeof(string) });
+            // Get the ToTable extension method from RelationalEntityTypeBuilderExtensions
+            var entityTypeBuilderType = entityTypeBuilder.GetType();
+            var toTableMethod = typeof(Microsoft.EntityFrameworkCore.RelationalEntityTypeBuilderExtensions)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .FirstOrDefault(m => m.Name == nameof(Microsoft.EntityFrameworkCore.RelationalEntityTypeBuilderExtensions.ToTable) 
+                    && m.GetParameters().Length == 2 
+                    && m.GetParameters()[1].ParameterType == typeof(string));
 
             if (toTableMethod == null) return;
 
-            // Call .ToTable(tableName)
-            toTableMethod.Invoke(entityTypeBuilder, new object[] { metadata.TableName });
+            // Call .ToTable(tableName) - extension methods need the instance as first parameter
+            toTableMethod.Invoke(null, new object[] { entityTypeBuilder, metadata.TableName });
         }
     }
 }
