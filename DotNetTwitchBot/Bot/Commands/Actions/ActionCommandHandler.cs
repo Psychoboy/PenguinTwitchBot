@@ -31,11 +31,17 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
 
             // Check broadcaster-only restriction
             if (!CommandHandler.CheckToRunBroadcasterOnly(notification.EventArgs, actionCommand))
+            { 
+                logger.LogWarning("User {User} attempted to run broadcaster-only command {Command}", notification.EventArgs.DisplayName, actionCommand.CommandName);
                 return;
+            }
 
             // Check permissions
             if (!await commandHandler.CheckPermission(actionCommand, notification.EventArgs))
+            {
+                logger.LogWarning("User {User} does not have permission to run command {Command}", notification.EventArgs.DisplayName, actionCommand.CommandName);
                 return;
+            }
 
             // Check cooldowns
             if (actionCommand.SayCooldown)

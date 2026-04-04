@@ -10,7 +10,7 @@
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.h6">Triggers (@ActionTriggers.Count)</MudText>
             <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
-                       OnClick="OpenAddTriggerDialog" Variant="Variant.Filled" Disabled="@(ActionId == null)">
+                       OnClick="OpenAddTriggerDialog" Variant="Variant.Filled">
                 Add Trigger
             </MudButton>
         </MudStack>
@@ -18,14 +18,7 @@
         @if (ActionTriggers.Count == 0)
         {
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @if (ActionId == null)
-                {
-                    <text>Save the action first before adding triggers.</text>
-                }
-                else
-                {
-                    <text>No triggers configured. Click "Add Trigger" to get started.</text>
-                }
+                No triggers configured. Click "Add Trigger" to get started.
             </MudText>
         }
         else
@@ -91,12 +84,12 @@
 
     private async Task OpenAddTriggerDialog()
     {
-        if (!ActionId.HasValue) return;
+        var parameters = new DialogParameters<AddTriggerDialog>();
 
-        var parameters = new DialogParameters<AddTriggerDialog>
+        if (ActionId.HasValue)
         {
-            { x => x.ActionId, ActionId.Value }
-        };
+            parameters.Add(x => x.ActionId, ActionId.Value);
+        }
 
         var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions 
         { 
@@ -115,23 +108,32 @@
                 TriggerTypes triggerType = data.TriggerType;
                 string configuration = data.Configuration;
 
-                // Create a new trigger linked directly to the action
+                // Create a new trigger
                 var newTrigger = new TriggerType
                 {
                     Name = triggerName,
                     Type = triggerType,
                     Configuration = configuration,
-                    Enabled = true,
-                    ActionId = ActionId.Value
+                    Enabled = true
                 };
 
-                var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
+                // If we have an ActionId, save the trigger immediately
+                // Otherwise, just add to local list and it will be saved when the action is created
+                if (ActionId.HasValue)
+                {
+                    newTrigger.ActionId = ActionId.Value;
+                    var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
+                    ActionTriggers.Add(createdTrigger);
+                    Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
+                }
+                else
+                {
+                    // For new actions, just add to the list - will be saved with the action
+                    ActionTriggers.Add(newTrigger);
+                    Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
+                }
 
-                // Add to local list
-                ActionTriggers.Add(createdTrigger);
                 await ActionTriggersChanged.InvokeAsync(ActionTriggers);
-
-                Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
             }
             catch (Exception ex)
             {
@@ -157,6 +159,7 @@
 
         if (result == true)
         {
+            // Only delete from database if it has been saved (Id > 0)
             if (trigger.Id > 0)
             {
                 await ActionService.DeleteTriggerAsync(trigger.Id);
