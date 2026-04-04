@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
             // Get the action command to check its properties
             var actionCommands = await actionCommandService.GetAllAsync();
             var actionCommand = actionCommands.FirstOrDefault(c => 
-                c.CommandName.Equals(notification.EventArgs.Command, StringComparison.OrdinalIgnoreCase));
+                c.CommandName.Equals( notification.EventArgs.Command, StringComparison.OrdinalIgnoreCase));
 
             if (actionCommand == null) return;
 

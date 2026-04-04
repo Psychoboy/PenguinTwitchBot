@@ -23,11 +23,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             writeFileType.Text = VariableReplacer.ReplaceVariables(writeFileType.Text, variables);
             if (writeFileType.Append)
             {
-                await File.AppendAllTextAsync(writeFileType.File, writeFileType.Text + Environment.NewLine);
+                await File.AppendAllTextAsync(writeFileType.File, Environment.NewLine + writeFileType.Text);
             }
             else
             {
-                await File.WriteAllTextAsync(writeFileType.File, writeFileType.Text + Environment.NewLine);
+                await File.WriteAllTextAsync(writeFileType.File, Environment.NewLine + writeFileType.Text);
             }
         }
     }
