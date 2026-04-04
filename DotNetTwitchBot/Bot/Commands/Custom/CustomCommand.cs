@@ -466,7 +466,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                             var actionCommands = await actionCommandService.GetAllAsync();
                             var actionCommand = actionCommands.FirstOrDefault(c =>
-                                c.CommandName.Equals(e.Arg), StringComparison.OrdinalIgnoreCase));
+                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
 
                             if (actionCommand != null)
                             {
