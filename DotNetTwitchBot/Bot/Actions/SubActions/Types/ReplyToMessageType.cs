@@ -71,7 +71,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         public void SetValues(Dictionary<string, object?> values)
         {
             if (values.TryGetValue(nameof(Text), out var text))
-                Text = text as string ?? "";
+                Text = text as string ?? "%message%";
             if (values.TryGetValue(nameof(UseBot), out var useBot))
                 UseBot = useBot as bool? ?? true;
             if (values.TryGetValue(nameof(FallBack), out var fallBack))
