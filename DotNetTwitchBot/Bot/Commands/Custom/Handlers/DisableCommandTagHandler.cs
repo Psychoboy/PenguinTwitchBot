@@ -4,7 +4,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class DisableCommandTagHandler(IServiceScopeFactory serviceScopeFactory, ILogger<EnableCommandTagHandler> logger) : IRequestHandler<DisableCommandTag, CustomCommandResult>
+    public class DisableCommandTagHandler(IServiceScopeFactory serviceScopeFactory, ILogger<DisableCommandTagHandler> logger) : IRequestHandler<DisableCommandTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(DisableCommandTag request, CancellationToken cancellationToken)
         {
