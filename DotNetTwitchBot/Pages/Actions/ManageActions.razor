@@ -110,6 +110,10 @@
                                 </MudButton>
                                 @if (!_isNewAction)
                                 {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" 
+                                               OnClick="DuplicateAction" StartIcon="@Icons.Material.Filled.ContentCopy">
+                                        Duplicate
+                                    </MudButton>
                                     <MudButton Variant="Variant.Filled" Color="Color.Error" 
                                                OnClick="DeleteAction" StartIcon="@Icons.Material.Filled.Delete">
                                         Delete
@@ -330,6 +334,76 @@
         {
             Snackbar.Add($"Error saving action: {ex.Message}", Severity.Error);
         }
+    }
+
+    private void DuplicateAction()
+    {
+        if (_selectedAction == null) return;
+
+        // Create a deep copy of the action
+        var duplicatedAction = new ActionType
+        {
+            Name = $"Copy of {_selectedAction.Name}",
+            Group = _selectedAction.Group,
+            Enabled = _selectedAction.Enabled,
+            RandomAction = _selectedAction.RandomAction,
+            ConcurrentAction = _selectedAction.ConcurrentAction,
+            QueueName = _selectedAction.QueueName,
+            SubActions = new List<SubActionType>(),
+            Triggers = new List<TriggerType>()
+        };
+
+        // Deep copy SubActions
+        foreach (var subAction in _selectedAction.SubActions)
+        {
+            // Use reflection to create a new instance of the same type
+            var subActionType = subAction.GetType();
+            var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
+
+            // Copy common properties
+            duplicatedSubAction.Id = 0; // New ID will be assigned on save
+            duplicatedSubAction.Index = subAction.Index;
+            duplicatedSubAction.Text = subAction.Text;
+            duplicatedSubAction.Enabled = subAction.Enabled;
+            duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
+
+            // Copy all other properties using reflection
+            foreach (var prop in subActionType.GetProperties())
+            {
+                if (prop.CanWrite && prop.CanRead && 
+                    prop.Name != "Id" && prop.Name != "Index" && prop.Name != "Text" && 
+                    prop.Name != "Enabled" && prop.Name != "SubActionTypes")
+                {
+                    var value = prop.GetValue(subAction);
+                    prop.SetValue(duplicatedSubAction, value);
+                }
+            }
+
+            duplicatedAction.SubActions.Add(duplicatedSubAction);
+        }
+
+        // Deep copy Triggers
+        var duplicatedTriggers = new List<TriggerType>();
+        foreach (var trigger in _actionTriggers)
+        {
+            var duplicatedTrigger = new TriggerType
+            {
+                Id = 0, // New ID will be assigned on save
+                Name = trigger.Name,
+                Type = trigger.Type,
+                Configuration = trigger.Configuration,
+                Enabled = trigger.Enabled,
+                ActionId = null // Will be set when the action is saved
+            };
+            duplicatedTriggers.Add(duplicatedTrigger);
+        }
+
+        // Set the duplicated action as the current selection
+        _selectedAction = duplicatedAction;
+        _actionTriggers = duplicatedTriggers;
+        _isNewAction = true;
+
+        Snackbar.Add("Action duplicated. Click Save to create the copy.", Severity.Info);
     }
 
     private async Task DeleteAction()
