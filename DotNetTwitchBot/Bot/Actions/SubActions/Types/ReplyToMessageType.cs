@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     Label = "Message",
                     FieldType = UIFieldType.TextArea,
                     Required = true,
-                    HelperText = "Use variables like %user%, %target%, %random.1-100%, etc.",
+                    HelperText = "Use variables like %user%, %target%, %random.1-100%, %message%.",
                     Lines = 3
                 },
                 new()

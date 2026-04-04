@@ -22,7 +22,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             replyToMessage.Text = VariableReplacer.ReplaceVariables(replyToMessage.Text, variables);
 
-            if (variables.TryGetValue("OriginalEventArgs", out var originalEventArgs) && JsonUtils.DeserializeJson(originalEventArgs, out ChatMessageEventArgs? eventArgs) && eventArgs != null)
+            if (variables.TryGetValue("OriginalEventArgs", out var originalEventArgs) && JsonUtils.DeserializeJson(originalEventArgs, out ChatMessageEventArgs? eventArgs) && eventArgs != null 
+                && !string.IsNullOrWhiteSpace(eventArgs.MessageId))
             {
                 return chatBot.ReplyToMessage(eventArgs.Name, eventArgs.MessageId, eventArgs.Message, replyToMessage.StreamOnly);
             }
