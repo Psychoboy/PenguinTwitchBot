@@ -236,7 +236,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             if (e.Message.StartsWith("!")) return; //Ignore commands
             bool match = false;
-            foreach (var keyword in Keywords)
+            foreach (var keyword in Keywords.ToList())
             {
                 if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
@@ -411,20 +411,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "disablecommand":
                     {
-                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
-                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
-                            if (command == null)
-                            {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
-                                return;
-                            }
-                            command.Disabled = true;
-                            value.Disabled = true;
-                            db.CustomCommands.Update(command);
-                            await db.SaveChangesAsync();
                             var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                             var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
                             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
@@ -440,12 +428,46 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                                 _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
                             }
                         }
+                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
+                            if (command == null)
+                            {
+                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
+                                return;
+                            }
+                            command.Disabled = true;
+                            value.Disabled = true;
+                            db.CustomCommands.Update(command);
+                            await db.SaveChangesAsync();
+                           
+                        }
+                        
                         await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
                         return;
                     }
 
                 case "enablecommand":
                     {
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
+
+                            var actionCommands = await actionCommandService.GetAllAsync();
+                            var actionCommand = actionCommands.FirstOrDefault(c =>
+                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+
+                            if (actionCommand != null)
+                            {
+                                actionCommand.Disabled = false;
+                                await actionCommandService.UpdateAsync(actionCommand);
+                                _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
+                            }
+                        }
                         if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
@@ -460,21 +482,8 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             value.Disabled = false;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
-                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
-                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
-
-                            var actionCommands = await actionCommandService.GetAllAsync();
-                            var actionCommand = actionCommands.FirstOrDefault(c =>
-                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
-
-                            if (actionCommand != null)
-                            {
-                                actionCommand.Disabled = true;
-                                await actionCommandService.UpdateAsync(actionCommand);
-                                _logger.LogInformation("Action command '{CommandName}' has been enabled.", actionCommand.CommandName);
-                            }
                         }
+                        
                         await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
                         return;
                     }
