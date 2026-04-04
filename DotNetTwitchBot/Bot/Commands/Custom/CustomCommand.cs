@@ -13,7 +13,6 @@ using DotNetTwitchBot.Repository;
 using MediatR;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using static Google.Rpc.Context.AttributeContext.Types;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
