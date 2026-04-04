@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags.PlayerSound;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -12,6 +13,7 @@ using DotNetTwitchBot.Repository;
 using MediatR;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using static Google.Rpc.Context.AttributeContext.Types;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
@@ -423,6 +425,20 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             value.Disabled = true;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
+                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
+
+                            var actionCommands = await actionCommandService.GetAllAsync();
+                            var actionCommand = actionCommands.FirstOrDefault(c =>
+                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+
+                            if (actionCommand != null)
+                            {
+                                actionCommand.Disabled = true;
+                                await actionCommandService.UpdateAsync(actionCommand);
+                                _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
+                            }
                         }
                         await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
                         return;
@@ -444,6 +460,20 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             value.Disabled = false;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
+                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
+
+                            var actionCommands = await actionCommandService.GetAllAsync();
+                            var actionCommand = actionCommands.FirstOrDefault(c =>
+                                c.CommandName.Equals(e.Arg), StringComparison.OrdinalIgnoreCase));
+
+                            if (actionCommand != null)
+                            {
+                                actionCommand.Disabled = true;
+                                await actionCommandService.UpdateAsync(actionCommand);
+                                _logger.LogInformation("Action command '{CommandName}' has been enabled.", actionCommand.CommandName);
+                            }
                         }
                         await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
                         return;
