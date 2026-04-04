@@ -268,8 +268,14 @@
 
         var filteredCategories = _categories
             .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .AsEnumerable();
+            .ToList();
 
-        return Task.FromResult(filteredCategories);
+        // If the typed value doesn't exist in the list, add it as the first option
+        if (!filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredCategories.Insert(0, value);
+        }
+
+        return Task.FromResult(filteredCategories.AsEnumerable());
     }
 }
