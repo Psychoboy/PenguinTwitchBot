@@ -464,7 +464,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             {
                                 actionCommand.Disabled = false;
                                 await actionCommandService.UpdateAsync(actionCommand);
-                                _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
+                                _logger.LogInformation("Action command '{CommandName}' has been enabled.", actionCommand.CommandName);
                             }
                         }
                         if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
