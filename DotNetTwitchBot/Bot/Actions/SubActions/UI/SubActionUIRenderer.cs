@@ -198,7 +198,20 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
 
-            if (field.Options != null && field.Options.Length > 0)
+            if (field.SelectOptions != null && field.SelectOptions.Count > 0)
+            {
+                builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
+                {
+                    foreach (var option in field.SelectOptions)
+                    {
+                        __builder.OpenComponent<MudSelectItem<string>>(0);
+                        __builder.AddAttribute(1, "Value", option.Id.ToString());
+                        __builder.AddAttribute(2, "ChildContent", (RenderFragment)(__builder2 => __builder2.AddContent(3, option.Name)));
+                        __builder.CloseComponent();
+                    }
+                }));
+            }
+            else if (field.Options != null && field.Options.Length > 0)
             {
                 builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
                 {

@@ -84,6 +84,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
 
         // Select specific
         public string[]? Options { get; set; }
+        public List<SelectOption>? SelectOptions { get; set; }
 
         // Info/Alert specific
         public string? Severity { get; set; } = "Info";  // Info, Success, Warning, Error, Normal
@@ -106,5 +107,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
         Select,
         Float,
         Info  // Display-only informational message (like MudAlert)
+    }
+
+    /// <summary>
+    /// Represents a dropdown option with separate display name and value.
+    /// </summary>
+    public class SelectOption
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Id { get; set; }
     }
 }
