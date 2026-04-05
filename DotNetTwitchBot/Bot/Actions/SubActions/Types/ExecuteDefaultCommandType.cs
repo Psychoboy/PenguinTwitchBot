@@ -129,9 +129,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 return "Command to Execute is required";
             }
 
-            if(!values.TryGetValue(nameof(ElevatedCommand), out var elevatedCommand) || (elevatedCommand is bool elevatedCommandBool))
+            var elevatedCommand = false;
+            if (values.TryGetValue(nameof(ElevatedCommand), out var elevatedValue))
             {
-                if(!values.TryGetValue(nameof(RankToExecuteAs), out var rankToExecuteAs) || string.IsNullOrEmpty(rankToExecuteAs as string))
+                elevatedCommand =
+                    elevatedValue as bool? ??
+                    (bool.TryParse(elevatedValue?.ToString(), out var parsedElevatedCommand) && parsedElevatedCommand);
+            }
+
+            if (elevatedCommand)
+            {
+                if (!values.TryGetValue(nameof(RankToExecuteAs), out var rankToExecuteAs) ||
+                    string.IsNullOrWhiteSpace(rankToExecuteAs?.ToString()))
                 {
                     return "Rank to Execute As is required when Elevated Command is enabled";
                 }
