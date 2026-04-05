@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags.PlayerSound;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -234,7 +235,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             if (e.Message.StartsWith("!")) return; //Ignore commands
             bool match = false;
-            foreach (var keyword in Keywords)
+            foreach (var keyword in Keywords.ToList())
             {
                 if (await CommandHandler.IsCoolDownExpired(e.Name, "keyword " + keyword.Keyword.CommandName) == false) continue;
                 if (keyword.Keyword.IsRegex)
@@ -409,6 +410,21 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
                 case "disablecommand":
                     {
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
+
+                            var actionCommands = await actionCommandService.GetAllAsync();
+                            var actionCommand = actionCommands.FirstOrDefault(c =>
+                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+
+                            if (actionCommand != null)
+                            {
+                                actionCommand.Disabled = true;
+                                await actionCommandService.UpdateAsync(actionCommand);
+                                _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
+                            }
+                        }
                         if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
@@ -423,13 +439,30 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             value.Disabled = true;
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
+                           
                         }
+                        
                         await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
                         return;
                     }
 
                 case "enablecommand":
                     {
+                        await using (var scope = _scopeFactory.CreateAsyncScope())
+                        {
+                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
+
+                            var actionCommands = await actionCommandService.GetAllAsync();
+                            var actionCommand = actionCommands.FirstOrDefault(c =>
+                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+
+                            if (actionCommand != null)
+                            {
+                                actionCommand.Disabled = false;
+                                await actionCommandService.UpdateAsync(actionCommand);
+                                _logger.LogInformation("Action command '{CommandName}' has been enabled.", actionCommand.CommandName);
+                            }
+                        }
                         if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
@@ -445,6 +478,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                             db.CustomCommands.Update(command);
                             await db.SaveChangesAsync();
                         }
+                        
                         await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
                         return;
                     }

@@ -30,7 +30,7 @@
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
                                   OnDebounceIntervalElapsed="FilterCommands" />
 
-                    <MudSelect T="string" @bind-Value="_filterCategory" Label="Filter by Category" Dense="true">
+                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
                         <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
                         @foreach (var category in _categories)
                         {
@@ -268,6 +268,12 @@
         }).OrderBy(c => c.CommandName).ToList();
     }
 
+    private void OnCategoryFilterChanged(string category)
+    {
+        _filterCategory = category;
+        FilterCommands();
+    }
+
     private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -275,11 +281,19 @@
             return Task.FromResult<IEnumerable<string>>(_categories);
         }
 
+        value = value.Trim();
+
         var filteredCategories = _categories
             .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .AsEnumerable();
+            .ToList();
 
-        return Task.FromResult(filteredCategories);
+        // If the typed value doesn't exist in the list, add it as the first option
+        if (!string.IsNullOrWhiteSpace(value) && !filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredCategories.Insert(0, value);
+        }
+
+        return Task.FromResult(filteredCategories.AsEnumerable());
     }
 
     private void OnCommandSelected(ActionCommand? command)

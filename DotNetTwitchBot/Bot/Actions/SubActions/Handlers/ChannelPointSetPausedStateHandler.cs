@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         ILogger<ChannelPointSetPausedStateHandler> logger,
         ITwitchService twitchService) : ISubActionHandler
     {
-        public SubActionTypes SupportedType => throw new NotImplementedException();
+        public SubActionTypes SupportedType => SubActionTypes.ChannelPointSetPausedState;
 
         public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
         {

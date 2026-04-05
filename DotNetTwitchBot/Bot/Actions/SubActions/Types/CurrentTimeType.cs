@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 new()
                 {
                     PropertyName = "info_hint",
-                    Label = "The result is available as %currenttime% variable.",
+                    Label = "The result is available as %current_time% variable.",
                     FieldType = UIFieldType.Info,
                     Severity = "Info",
                     Dense = true

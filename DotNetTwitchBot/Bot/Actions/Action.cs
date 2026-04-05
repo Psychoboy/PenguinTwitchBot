@@ -54,7 +54,10 @@ namespace DotNetTwitchBot.Bot.Actions
                 return;
             }
 
-            action.SubActions.OrderBy(subAction => subAction.Index).ToList().ForEach(subAction => RunSubAction(subAction, variables).Wait());
+            foreach (var subAction in action.SubActions.OrderBy(subAction => subAction.Index))
+            {
+                await RunSubAction(subAction, variables);
+            }
         }
 
         private async Task RunSubAction(SubActionType subAction, Dictionary<string, string> variables)

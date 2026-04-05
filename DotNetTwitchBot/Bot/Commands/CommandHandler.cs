@@ -3,7 +3,9 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
+using MediatR;
 using System.Collections.Concurrent;
+using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -228,6 +230,20 @@ namespace DotNetTwitchBot.Bot.Commands
                 {
                     await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command.CommandName)));
                 }
+
+                return false;
+            }
+            return true;
+        }
+
+        public async Task<bool> IsGlobalCoolDownExpiredWithMessageForAction(string user, string displayName, string command)
+        {
+            if (!await IsCoolDownExpired(user, command))
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var serviceBackbone = scope.ServiceProvider.GetRequiredService<Core.IServiceBackbone>();
+
+                await serviceBackbone.SendChatMessage(displayName, string.Format("!{0} is still on cooldown {1}", command, await CooldownLeft(user, command)));
 
                 return false;
             }

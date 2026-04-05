@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Queues
 {
     public class QueueManager : IQueueManager, IHostedService
     {
-        private readonly ConcurrentDictionary<string, IActionQueue> _queues = new();
+        private readonly ConcurrentDictionary<string, IActionQueue> _queues = new(StringComparer.OrdinalIgnoreCase);
         private readonly ILogger<QueueManager> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILoggerFactory _loggerFactory;
