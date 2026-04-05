@@ -1,8 +1,10 @@
 @page "/timermessages/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
+@using DotNetTwitchBot.Bot.Actions
 @using System.ComponentModel.DataAnnotations
 @inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers Timers
+@inject DotNetTwitchBot.Bot.Actions.IActionManagementService ActionService
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 <PageTitle>SPTV Twitch Bot - Timer Group Edit</PageTitle>
 
@@ -46,6 +48,7 @@
         </MudItem>
         <MudItem xs="12">
             <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Messages</MudText>
                 <MudTable Items="@timerGroup.Messages">
                     <HeaderContent>
                         <MudTh>Message</MudTh>
@@ -69,6 +72,56 @@
                 </MudTable>
             </MudPaper>
         </MudItem>
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Actions</MudText>
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Spacing="2">
+                        <MudSelect T="ActionType" @bind-Value="selectedAction" Label="Select Action" Variant="Variant.Outlined" Style="flex: 1">
+                            @if (availableActions != null)
+                            {
+                                @foreach (var action in availableActions)
+                                {
+                                    <MudSelectItem T="ActionType" Value="@action">@action.Name</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddAction" Disabled="@(selectedAction == null)">
+                            Add Action
+                        </MudButton>
+                    </MudStack>
+                    @if (timerActions != null && timerActions.Any())
+                    {
+                        <MudTable Items="@timerActions" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Action Name</MudTh>
+                                <MudTh>Group</MudTh>
+                                <MudTh>Enabled</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Name">@context.Name</MudTd>
+                                <MudTd DataLabel="Group">@context.Group</MudTd>
+                                <MudTd DataLabel="Enabled">
+                                    <MudChip T="string" Size="Size.Small" Color="@(context.Enabled ? Color.Success : Color.Error)">
+                                        @(context.Enabled ? "Enabled" : "Disabled")
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Remove">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => RemoveAction(context)">
+                                        Remove
+                                    </MudButton>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No actions configured for this timer.</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
     </MudGrid>
 }
 
@@ -79,10 +132,17 @@
 
     private string? Message;
     private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? timerGroup;
+    private List<ActionType>? availableActions;
+    private List<ActionType>? timerActions;
+    private ActionType? selectedAction;
+
     [Inject] private IDialogService DialogService { get; set; } = default!;
-    protected override async void OnParametersSet()
+
+    protected override async Task OnParametersSetAsync()
     {
         timerGroup = await Timers.GetTimerGroupAsync(id);
+        availableActions = await ActionService.GetAllActionsAsync();
+        timerActions = await Timers.GetActionsForTimerGroup(id);
         StateHasChanged();
     }
 
@@ -119,9 +179,38 @@
                 };
             timerGroup.Messages.Add(message);
             await Timers.UpdateTimerGroup(timerGroup);
+            Message = null;
             StateHasChanged();
         }
     }
+
+    private async Task AddAction()
+    {
+        if (selectedAction != null && selectedAction.Id.HasValue && timerGroup != null)
+        {
+            await Timers.AddActionToTimerGroup(id, selectedAction.Id.Value);
+            timerActions = await Timers.GetActionsForTimerGroup(id);
+            selectedAction = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveAction(ActionType action)
+    {
+        if (!action.Id.HasValue) return;
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Warning",
+            $"Remove action '{action.Name}' from this timer?",
+            yesText: "Remove", cancelText: "Cancel");
+        if (result != null && timerGroup != null)
+        {
+            await Timers.RemoveActionFromTimerGroup(id, action.Id.Value);
+            timerActions = await Timers.GetActionsForTimerGroup(id);
+            StateHasChanged();
+        }
+    }
+
     public async void OnEdit()
     {
         if (timerGroup == null) return;

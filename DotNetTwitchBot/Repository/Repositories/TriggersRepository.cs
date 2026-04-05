@@ -39,6 +39,8 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a.SubActions)
                 .Where(t => t.Type == type)
                 .OrderBy(t => t.Name)
                 .ToListAsync();

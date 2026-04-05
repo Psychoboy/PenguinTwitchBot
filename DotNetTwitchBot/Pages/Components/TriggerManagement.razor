@@ -1,9 +1,12 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Actions
 @using DotNetTwitchBot.Pages.Actions
+@using System.Text.Json
+@using System.Text.RegularExpressions
 @inject IActionManagementService ActionService
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -31,7 +34,19 @@
                     <MudTh Style="text-align: right;">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Trigger Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Trigger Name">
+                        @if (context.Type == TriggerTypes.Timer && context.Name.StartsWith("TimerGroup_"))
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Timer Trigger</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            @context.Name
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Type">
                         <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Type)">
                             @context.Type.ToString()
@@ -64,12 +79,58 @@
     [Parameter]
     public bool ReadOnly { get; set; } = false;
 
+    private Dictionary<int, string> _timerGroupNames = new();
+
     protected override async Task OnParametersSetAsync()
     {
         if (ActionId.HasValue && ActionTriggers.Count == 0)
         {
             await LoadTriggers();
         }
+
+        await LoadTimerGroupNames();
+    }
+
+    private async Task LoadTimerGroupNames()
+    {
+        _timerGroupNames.Clear();
+        var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && t.Name.StartsWith("TimerGroup_")).ToList();
+
+        foreach (var trigger in timerTriggers)
+        {
+            var timerGroupId = ExtractTimerGroupId(trigger.Name);
+            if (timerGroupId.HasValue && !_timerGroupNames.ContainsKey(timerGroupId.Value))
+            {
+                var timerGroup = await TimersService.GetTimerGroupAsync(timerGroupId.Value);
+                if (timerGroup != null)
+                {
+                    _timerGroupNames[timerGroupId.Value] = timerGroup.Name;
+                }
+            }
+        }
+    }
+
+    private int? ExtractTimerGroupId(string triggerName)
+    {
+        if (triggerName.StartsWith("TimerGroup_"))
+        {
+            var idPart = triggerName.Substring("TimerGroup_".Length);
+            if (int.TryParse(idPart, out var id))
+            {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    private string GetTimerGroupDisplayName(string triggerName)
+    {
+        var timerGroupId = ExtractTimerGroupId(triggerName);
+        if (timerGroupId.HasValue && _timerGroupNames.TryGetValue(timerGroupId.Value, out var name))
+        {
+            return name;
+        }
+        return triggerName;
     }
 
     private async Task LoadTriggers()
@@ -79,6 +140,7 @@
             var triggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
             ActionTriggers = triggers;
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            await LoadTimerGroupNames();
         }
     }
 
@@ -124,12 +186,14 @@
                     newTrigger.ActionId = ActionId.Value;
                     var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
                     ActionTriggers.Add(createdTrigger);
+                    await LoadTimerGroupNames();
                     Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
                 }
                 else
                 {
                     // For new actions, just add to the list - will be saved with the action
                     ActionTriggers.Add(newTrigger);
+                    await LoadTimerGroupNames();
                     Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
                 }
 
