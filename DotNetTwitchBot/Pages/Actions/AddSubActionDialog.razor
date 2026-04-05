@@ -248,18 +248,368 @@
         var metadata = SubActionRegistry.GetMetadata(type);
         return metadata?.Icon switch
         {
-            "mdi-bell" => Icons.Material.Filled.Notifications,
-            "mdi-volume-high" => Icons.Material.Filled.VolumeUp,
-            "mdi-dice-multiple" => Icons.Material.Filled.Casino,
-            "mdi-content-save" => Icons.Material.Filled.Save,
-            "mdi-clock" => Icons.Material.Filled.Schedule,
-            "mdi-heart" => Icons.Material.Filled.Favorite,
-            "mdi-timer" => Icons.Material.Filled.Timer,
-            "mdi-api" => Icons.Material.Filled.Api,
-            "mdi-eye" => Icons.Material.Filled.Visibility,
+            // Communication & Chat
             "mdi-message-text" => Icons.Material.Filled.Message,
+            "mdi-message" => Icons.Material.Filled.Message,
+            "mdi-message-reply" => Icons.Material.Filled.Reply,
+            "mdi-message-processing" => Icons.Material.Filled.Message,
+            "mdi-chat" => Icons.Material.Filled.Chat,
+            "mdi-chat-processing" => Icons.Material.Filled.Chat,
+            "mdi-comment" => Icons.Material.Filled.Comment,
+            "mdi-comment-multiple" => Icons.Material.Filled.Comment,
+            "mdi-send" => Icons.Material.Filled.Send,
+            "mdi-email" => Icons.Material.Filled.Email,
+            "mdi-forum" => Icons.Material.Filled.Forum,
             "mdi-reply" => Icons.Material.Filled.Reply,
+
+            // Notifications & Alerts
+            "mdi-bell" => Icons.Material.Filled.Notifications,
+            "mdi-bell-ring" => Icons.Material.Filled.NotificationsActive,
+            "mdi-bell-alert" => Icons.Material.Filled.NotificationImportant,
+            "mdi-bell-outline" => Icons.Material.Filled.NotificationsNone,
+            "mdi-alert" => Icons.Material.Filled.Warning,
+            "mdi-alert-circle" => Icons.Material.Filled.Error,
+            "mdi-alert-octagon" => Icons.Material.Filled.ReportProblem,
+            "mdi-information" => Icons.Material.Filled.Info,
+
+            // Media & Audio
+            "mdi-volume-high" => Icons.Material.Filled.VolumeUp,
+            "mdi-volume-source" => Icons.Material.Filled.VolumeUp,
+            "mdi-volume-medium" => Icons.Material.Filled.VolumeMute,
+            "mdi-volume-low" => Icons.Material.Filled.VolumeDown,
+            "mdi-volume-off" => Icons.Material.Filled.VolumeOff,
+            "mdi-music" => Icons.Material.Filled.MusicNote,
+            "mdi-music-note" => Icons.Material.Filled.MusicNote,
+            "mdi-play" => Icons.Material.Filled.PlayArrow,
+            "mdi-pause" => Icons.Material.Filled.Pause,
+            "mdi-stop" => Icons.Material.Filled.Stop,
+            "mdi-skip-next" => Icons.Material.Filled.SkipNext,
+            "mdi-playlist-music" => Icons.Material.Filled.QueueMusic,
+
+            // Files & Storage
+            "mdi-file" => Icons.Material.Filled.InsertDriveFile,
+            "mdi-file-document" => Icons.Material.Filled.Description,
+            "mdi-folder" => Icons.Material.Filled.Folder,
+            "mdi-folder-open" => Icons.Material.Filled.FolderOpen,
+            "mdi-content-copy" => Icons.Material.Filled.ContentCopy,
+            "mdi-content-paste" => Icons.Material.Filled.ContentPaste,
+            "mdi-content-save" => Icons.Material.Filled.Save,
+            "mdi-download" => Icons.Material.Filled.Download,
+            "mdi-upload" => Icons.Material.Filled.Upload,
+            "mdi-cloud-download" => Icons.Material.Filled.CloudDownload,
+            "mdi-cloud-upload" => Icons.Material.Filled.CloudUpload,
+            "mdi-download-outline" => Icons.Material.Filled.GetApp,
+            "mdi-upload-outline" => Icons.Material.Filled.Publish,
+
+            // Time & Date
+            "mdi-clock" => Icons.Material.Filled.Schedule,
+            "mdi-clock-outline" => Icons.Material.Filled.AccessTime,
+            "mdi-clock-alert" => Icons.Material.Filled.AlarmOn,
+            "mdi-history" => Icons.Material.Filled.History,
+            "mdi-calendar" => Icons.Material.Filled.CalendarToday,
+            "mdi-calendar-clock" => Icons.Material.Filled.Event,
+            "mdi-timer" => Icons.Material.Filled.Timer,
+            "mdi-timer-outline" => Icons.Material.Filled.TimerOff,
+            "mdi-stopwatch" => Icons.Material.Filled.Timer,
+            "mdi-hourglass-empty" => Icons.Material.Filled.HourglassEmpty,
+
+            // Users & Social
+            "mdi-account" => Icons.Material.Filled.Person,
+            "mdi-account-multiple" => Icons.Material.Filled.People,
+            "mdi-account-group" => Icons.Material.Filled.Group,
+            "mdi-account-circle" => Icons.Material.Filled.AccountCircle,
+            "mdi-account-star" => Icons.Material.Filled.Stars,
+            "mdi-account-check" => Icons.Material.Filled.VerifiedUser,
+            "mdi-heart" => Icons.Material.Filled.Favorite,
+            "mdi-heart-outline" => Icons.Material.Filled.FavoriteBorder,
+            "mdi-heart-multiple" => Icons.Material.Filled.Favorite,
+            "mdi-star" => Icons.Material.Filled.Star,
+            "mdi-star-outline" => Icons.Material.Filled.StarBorder,
+            "mdi-thumb-up" => Icons.Material.Filled.ThumbUp,
+            "mdi-thumb-down" => Icons.Material.Filled.ThumbDown,
+
+            // Gaming & Entertainment
+            "mdi-dice-multiple" => Icons.Material.Filled.Casino,
+            "mdi-dice-6" => Icons.Material.Filled.Casino,
+            "mdi-dice-1" => Icons.Material.Filled.Filter1,
+            "mdi-dice-2" => Icons.Material.Filled.Filter2,
+            "mdi-dice-3" => Icons.Material.Filled.Filter3,
+            "mdi-dice-4" => Icons.Material.Filled.Filter4,
+            "mdi-dice-5" => Icons.Material.Filled.Filter5,
+            "mdi-controller" => Icons.Material.Filled.SportsEsports,
+            "mdi-gamepad-variant" => Icons.Material.Filled.Gamepad,
+            "mdi-trophy" => Icons.Material.Filled.EmojiEvents,
+            "mdi-trophy-variant" => Icons.Material.Filled.EmojiEvents,
+            "mdi-medal" => Icons.Material.Filled.MilitaryTech,
+            "mdi-sword" => Icons.Material.Filled.Security,
+            "mdi-shield" => Icons.Material.Filled.Shield,
+            "mdi-poker-chip" => Icons.Material.Filled.Circle,
+            "mdi-cards" => Icons.Material.Filled.Style,
+            "mdi-slot-machine" => Icons.Material.Filled.Casino,
+            "mdi-casino-chip" => Icons.Material.Filled.Casino,
+
+            // Actions & Commands
+            "mdi-play-circle" => Icons.Material.Filled.PlayCircle,
+            "mdi-pause-circle" => Icons.Material.Filled.PauseCircle,
+            "mdi-stop-circle" => Icons.Material.Filled.StopCircle,
+            "mdi-refresh" => Icons.Material.Filled.Refresh,
+            "mdi-sync" => Icons.Material.Filled.Sync,
+            "mdi-plus" => Icons.Material.Filled.Add,
+            "mdi-plus-circle" => Icons.Material.Filled.AddCircle,
+            "mdi-minus" => Icons.Material.Filled.Remove,
+            "mdi-minus-circle" => Icons.Material.Filled.RemoveCircle,
+            "mdi-close" => Icons.Material.Filled.Close,
+            "mdi-close-circle" => Icons.Material.Filled.Cancel,
+            "mdi-check" => Icons.Material.Filled.Check,
+            "mdi-check-circle" => Icons.Material.Filled.CheckCircle,
+            "mdi-delete" => Icons.Material.Filled.Delete,
+            "mdi-delete-forever" => Icons.Material.Filled.DeleteForever,
+
+            // Navigation & UI
+            "mdi-menu" => Icons.Material.Filled.Menu,
+            "mdi-dots-vertical" => Icons.Material.Filled.MoreVert,
+            "mdi-dots-horizontal" => Icons.Material.Filled.MoreHoriz,
+            "mdi-chevron-left" => Icons.Material.Filled.ChevronLeft,
+            "mdi-chevron-right" => Icons.Material.Filled.ChevronRight,
+            "mdi-chevron-up" => Icons.Material.Filled.ExpandLess,
+            "mdi-chevron-down" => Icons.Material.Filled.ExpandMore,
+            "mdi-arrow-left" => Icons.Material.Filled.ArrowBack,
+            "mdi-arrow-right" => Icons.Material.Filled.ArrowForward,
+            "mdi-arrow-up" => Icons.Material.Filled.ArrowUpward,
+            "mdi-arrow-down" => Icons.Material.Filled.ArrowDownward,
+            "mdi-home" => Icons.Material.Filled.Home,
+            "mdi-view-dashboard" => Icons.Material.Filled.Dashboard,
+
+            // Settings & Configuration
+            "mdi-cog" => Icons.Material.Filled.Settings,
+            "mdi-wrench" => Icons.Material.Filled.Build,
+            "mdi-tune-variant" => Icons.Material.Filled.Tune,
+            "mdi-tune" => Icons.Material.Filled.Tune,
+            "mdi-pencil" => Icons.Material.Filled.Edit,
+
+            // Status & Indicators
+            "mdi-eye" => Icons.Material.Filled.Visibility,
+            "mdi-eye-off" => Icons.Material.Filled.VisibilityOff,
+            "mdi-eye-off-outline" => Icons.Material.Filled.VisibilityOff,
+            "mdi-checkbox-marked" => Icons.Material.Filled.CheckBox,
+            "mdi-checkbox-blank-outline" => Icons.Material.Filled.CheckBoxOutlineBlank,
+            "mdi-radiobox-marked" => Icons.Material.Filled.RadioButtonChecked,
+            "mdi-radiobox-blank" => Icons.Material.Filled.RadioButtonUnchecked,
+            "mdi-toggle-switch" => Icons.Material.Filled.ToggleOn,
+            "mdi-loading" => Icons.Material.Filled.HourglassEmpty,
+            "mdi-circle" => Icons.Material.Filled.Circle,
+            "mdi-circle-outline" => Icons.Material.Filled.Circle,
+
+            // Network & API
+            "mdi-api" => Icons.Material.Filled.Api,
+            "mdi-web" => Icons.Material.Filled.Language,
+            "mdi-cloud-outline" => Icons.Material.Filled.Cloud,
+            "mdi-database" => Icons.Material.Filled.Storage,
+            "mdi-server" => Icons.Material.Filled.Dns,
+            "mdi-webhook" => Icons.Material.Filled.Webhook,
+            "mdi-link" => Icons.Material.Filled.Link,
+            "mdi-link-variant" => Icons.Material.Filled.InsertLink,
+
+            // Lists & Data
+            "mdi-format-list-bulleted" => Icons.Material.Filled.FormatListBulleted,
+            "mdi-format-list-numbered" => Icons.Material.Filled.FormatListNumbered,
+            "mdi-table" => Icons.Material.Filled.TableChart,
+            "mdi-view-list" => Icons.Material.Filled.ViewList,
+            "mdi-view-grid" => Icons.Material.Filled.ViewModule,
+            "mdi-sort-ascending" => Icons.Material.Filled.ArrowUpward,
+            "mdi-sort-descending" => Icons.Material.Filled.ArrowDownward,
+            "mdi-filter-variant" => Icons.Material.Filled.FilterList,
+            "mdi-magnify" => Icons.Material.Filled.Search,
+
+            // Editor & Text
+            "mdi-format-bold" => Icons.Material.Filled.FormatBold,
+            "mdi-format-italic" => Icons.Material.Filled.FormatItalic,
+            "mdi-format-underline" => Icons.Material.Filled.FormatUnderlined,
+            "mdi-format-color-fill" => Icons.Material.Filled.FormatColorFill,
+            "mdi-format-color-text" => Icons.Material.Filled.FormatColorText,
+            "mdi-format-size" => Icons.Material.Filled.FormatSize,
+            "mdi-textbox" => Icons.Material.Filled.TextFields,
+            "mdi-text-box" => Icons.Material.Filled.TextFields,
+            "mdi-code-braces" => Icons.Material.Filled.Code,
+            "mdi-code-tags" => Icons.Material.Filled.Code,
+            "mdi-text" => Icons.Material.Filled.TextFields,
+            "mdi-form-textbox" => Icons.Material.Filled.TextFields,
+            "mdi-clipboard" => Icons.Material.Filled.Assignment,
+            "mdi-clipboard-text" => Icons.Material.Filled.Assignment,
+            "mdi-note" => Icons.Material.Filled.Note,
+            "mdi-note-text" => Icons.Material.Filled.Note,
+
+            // Moderation & Security
+            "mdi-shield-account" => Icons.Material.Filled.Security,
+            "mdi-shield-check" => Icons.Material.Filled.VerifiedUser,
+            "mdi-lock" => Icons.Material.Filled.Lock,
+            "mdi-lock-open" => Icons.Material.Filled.LockOpen,
+            "mdi-key" => Icons.Material.Filled.VpnKey,
+            "mdi-cancel" => Icons.Material.Filled.Block,
+            "mdi-block-helper" => Icons.Material.Filled.Block,
+            "mdi-gavel" => Icons.Material.Filled.Gavel,
+
+            // Stream & Video
+            "mdi-video" => Icons.Material.Filled.Videocam,
+            "mdi-camera" => Icons.Material.Filled.Camera,
+            "mdi-broadcast" => Icons.Material.Filled.Sensors,
+            "mdi-record-circle" => Icons.Material.Filled.FiberManualRecord,
+            "mdi-microphone" => Icons.Material.Filled.Mic,
+            "mdi-microphone-off" => Icons.Material.Filled.MicOff,
+            "mdi-monitor" => Icons.Material.Filled.Monitor,
+            "mdi-television" => Icons.Material.Filled.Tv,
+
+            // Money & Commerce
+            "mdi-cash-multiple" => Icons.Material.Filled.Payments,
+            "mdi-currency-usd" => Icons.Material.Filled.AttachMoney,
+            "mdi-credit-card" => Icons.Material.Filled.CreditCard,
+            "mdi-wallet" => Icons.Material.Filled.AccountBalanceWallet,
             "mdi-gift" => Icons.Material.Filled.CardGiftcard,
+            "mdi-gift-outline" => Icons.Material.Filled.CardGiftcard,
+            "mdi-cart" => Icons.Material.Filled.ShoppingCart,
+            "mdi-tag" => Icons.Material.Filled.LocalOffer,
+            "mdi-tag-multiple" => Icons.Material.Filled.Style,
+
+            // Charts & Analytics
+            "mdi-chart-line" => Icons.Material.Filled.ShowChart,
+            "mdi-chart-bar" => Icons.Material.Filled.BarChart,
+            "mdi-chart-pie" => Icons.Material.Filled.PieChart,
+            "mdi-trending-up" => Icons.Material.Filled.TrendingUp,
+            "mdi-trending-down" => Icons.Material.Filled.TrendingDown,
+            "mdi-poll" => Icons.Material.Filled.Poll,
+            "mdi-finance" => Icons.Material.Filled.Assessment,
+
+            // Devices & Hardware
+            "mdi-laptop" => Icons.Material.Filled.Laptop,
+            "mdi-cellphone" => Icons.Material.Filled.PhoneAndroid,
+            "mdi-tablet" => Icons.Material.Filled.Tablet,
+            "mdi-desktop-tower" => Icons.Material.Filled.Computer,
+            "mdi-keyboard" => Icons.Material.Filled.Keyboard,
+            "mdi-mouse" => Icons.Material.Filled.Mouse,
+            "mdi-headphones" => Icons.Material.Filled.Headset,
+
+            // Emotes & Reactions
+            "mdi-emoticon" => Icons.Material.Filled.SentimentSatisfied,
+            "mdi-emoticon-happy" => Icons.Material.Filled.SentimentVerySatisfied,
+            "mdi-emoticon-sad" => Icons.Material.Filled.SentimentDissatisfied,
+            "mdi-emoticon-excited" => Icons.Material.Filled.SentimentVerySatisfied,
+            "mdi-emoticon-cool" => Icons.Material.Filled.SentimentSatisfied,
+            "mdi-emoticon-wink" => Icons.Material.Filled.SentimentSatisfied,
+            "mdi-sticker" => Icons.Material.Filled.Style,
+            "mdi-sticker-emoji" => Icons.Material.Filled.EmojiEmotions,
+            "mdi-fire" => Icons.Material.Filled.LocalFireDepartment,
+            "mdi-lightning-bolt" => Icons.Material.Filled.Bolt,
+            "mdi-lightning-bolt-outline" => Icons.Material.Filled.Bolt,
+
+            // Weather & Environment
+            "mdi-weather-night" => Icons.Material.Filled.NightsStay,
+            "mdi-weather-sunny" => Icons.Material.Filled.WbSunny,
+            "mdi-weather-cloudy" => Icons.Material.Filled.Cloud,
+            "mdi-weather-rainy" => Icons.Material.Filled.WaterDrop,
+            "mdi-moon-waning-crescent" => Icons.Material.Filled.Brightness3,
+            "mdi-white-balance-sunny" => Icons.Material.Filled.WbSunny,
+
+            // Tools & Utilities
+            "mdi-hammer" => Icons.Material.Filled.Construction,
+            "mdi-screwdriver" => Icons.Material.Filled.Build,
+            "mdi-toolbox" => Icons.Material.Filled.Build,
+            "mdi-bug" => Icons.Material.Filled.BugReport,
+            "mdi-puzzle" => Icons.Material.Filled.Extension,
+            "mdi-lightbulb" => Icons.Material.Filled.Lightbulb,
+
+            // Rewards & Points
+            "mdi-diamond-stone" => Icons.Material.Filled.Diamond,
+            "mdi-circle-multiple" => Icons.Material.Filled.FiberManualRecord,
+            "mdi-crown" => Icons.Material.Filled.EmojiEvents,
+            "mdi-crown-outline" => Icons.Material.Filled.EmojiEvents,
+            "mdi-ticket" => Icons.Material.Filled.ConfirmationNumber,
+            "mdi-ticket-percent" => Icons.Material.Filled.ConfirmationNumber,
+
+            // Counters & Numbers
+            "mdi-counter" => Icons.Material.Filled.Calculate,
+            "mdi-numeric" => Icons.Material.Filled.Numbers,
+            "mdi-plus-box" => Icons.Material.Filled.AddBox,
+            "mdi-minus-box" => Icons.Material.Filled.IndeterminateCheckBox,
+            "mdi-equal" => Icons.Material.Filled.DragHandle,
+
+            // Images & Media
+            "mdi-image" => Icons.Material.Filled.Image,
+            "mdi-image-multiple" => Icons.Material.Filled.Collections,
+            "mdi-file-image" => Icons.Material.Filled.Image,
+            "mdi-gif" => Icons.Material.Filled.Gif,
+
+            // Social & Followers
+            "mdi-account-plus" => Icons.Material.Filled.PersonAdd,
+            "mdi-account-minus" => Icons.Material.Filled.PersonRemove,
+            "mdi-account-heart" => Icons.Material.Filled.Favorite,
+            "mdi-account-clock" => Icons.Material.Filled.Schedule,
+            "mdi-hand-heart" => Icons.Material.Filled.VolunteerActivism,
+            "mdi-human-greeting" => Icons.Material.Filled.WavingHand,
+
+            // Power & Control
+            "mdi-power" => Icons.Material.Filled.Power,
+            "mdi-power-on" => Icons.Material.Filled.PowerSettingsNew,
+            "mdi-power-off" => Icons.Material.Filled.PowerOff,
+            "mdi-flash-circle" => Icons.Material.Filled.FlashOn,
+            "mdi-reload" => Icons.Material.Filled.Cached,
+
+            // Programming & Code
+            "mdi-code" => Icons.Material.Filled.Code,
+            "mdi-code-json" => Icons.Material.Filled.DataObject,
+            "mdi-console" => Icons.Material.Filled.Terminal,
+            "mdi-console-line" => Icons.Material.Filled.Terminal,
+            "mdi-function" => Icons.Material.Filled.Functions,
+            "mdi-variable" => Icons.Material.Filled.Code,
+
+            // Events & Triggers
+            "mdi-gesture-tap" => Icons.Material.Filled.TouchApp,
+            "mdi-target" => Icons.Material.Filled.MyLocation,
+            "mdi-bullseye-arrow" => Icons.Material.Filled.GpsFixed,
+            "mdi-flag" => Icons.Material.Filled.Flag,
+            "mdi-flag-checkered" => Icons.Material.Filled.Flag,
+
+            // Help & Support
+            "mdi-help" => Icons.Material.Filled.Help,
+            "mdi-help-circle" => Icons.Material.Filled.HelpOutline,
+            "mdi-help-circle-outline" => Icons.Material.Filled.HelpOutline,
+            "mdi-comment-question" => Icons.Material.Filled.QuestionMark,
+            "mdi-book" => Icons.Material.Filled.MenuBook,
+            "mdi-book-open" => Icons.Material.Filled.AutoStories,
+
+            // Colors & Design
+            "mdi-palette" => Icons.Material.Filled.Palette,
+            "mdi-palette-advanced" => Icons.Material.Filled.Palette,
+            "mdi-brush" => Icons.Material.Filled.Brush,
+            "mdi-eyedropper" => Icons.Material.Filled.Colorize,
+            "mdi-palette-swatch" => Icons.Material.Filled.Palette,
+
+            // Badges & Achievements
+            "mdi-badge-account" => Icons.Material.Filled.Badge,
+            "mdi-shield-star" => Icons.Material.Filled.VerifiedUser,
+            "mdi-ribbon" => Icons.Material.Filled.MilitaryTech,
+            "mdi-certificate" => Icons.Material.Filled.CardMembership,
+
+            // Common UI Icons
+            "mdi-trash-can" => Icons.Material.Filled.Delete,
+            "mdi-trash-can-outline" => Icons.Material.Filled.DeleteOutline,
+            "mdi-content-duplicate" => Icons.Material.Filled.ContentCopy,
+            "mdi-export" => Icons.Material.Filled.IosShare,
+            "mdi-import" => Icons.Material.Filled.Download,
+
+            // Visibility & Privacy
+            "mdi-eye-settings" => Icons.Material.Filled.Visibility,
+            "mdi-incognito" => Icons.Material.Filled.VisibilityOff,
+            "mdi-glasses" => Icons.Material.Filled.Visibility,
+
+            // Special & Misc
+            "mdi-rocket" => Icons.Material.Filled.Rocket,
+            "mdi-rocket-launch" => Icons.Material.Filled.RocketLaunch,
+            "mdi-party-popper" => Icons.Material.Filled.Celebration,
+            "mdi-cake-variant" => Icons.Material.Filled.Cake,
+            "mdi-balloon" => Icons.Material.Filled.Celebration,
+            "mdi-auto-fix" => Icons.Material.Filled.AutoFixHigh,
+            "mdi-magic-staff" => Icons.Material.Filled.AutoAwesome,
+
             _ => Icons.Material.Filled.Extension
         };
     }

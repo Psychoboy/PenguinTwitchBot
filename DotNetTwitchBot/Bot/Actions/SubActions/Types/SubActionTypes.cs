@@ -25,6 +25,7 @@
         GivePoints,
         CheckPoints,
         SendMessage,
-        ReplyToMessage
+        ReplyToMessage,
+        ExecuteAction
     }
 }
