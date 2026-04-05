@@ -4,7 +4,6 @@ using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
-
 namespace DotNetTwitchBot.Bot.Commands
 {
     public class CommandHandler(
