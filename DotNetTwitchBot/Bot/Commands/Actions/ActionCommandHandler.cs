@@ -24,9 +24,7 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
                 var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
                 // Get the action command to check its properties
-                var actionCommands = await actionCommandService.GetAllAsync();
-                var actionCommand = actionCommands.FirstOrDefault(c =>
-                    c.CommandName.Equals(notification.EventArgs.Command, StringComparison.OrdinalIgnoreCase));
+                var actionCommand = await actionCommandService.GetByCommandNameAsync(notification.EventArgs.Command); 
 
                 if (actionCommand == null) return;
 

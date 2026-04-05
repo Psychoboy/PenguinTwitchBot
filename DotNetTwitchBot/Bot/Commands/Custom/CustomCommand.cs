@@ -414,9 +414,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         {
                             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
-                            var actionCommands = await actionCommandService.GetAllAsync();
-                            var actionCommand = actionCommands.FirstOrDefault(c =>
-                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+                            var actionCommand = await actionCommandService.GetByCommandNameAsync(e.Arg);
 
                             if (actionCommand != null)
                             {
@@ -452,9 +450,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                         {
                             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
-                            var actionCommands = await actionCommandService.GetAllAsync();
-                            var actionCommand = actionCommands.FirstOrDefault(c =>
-                                c.CommandName.Equals(e.Arg, StringComparison.OrdinalIgnoreCase));
+                            var actionCommand = await actionCommandService.GetByCommandNameAsync(e.Arg);
 
                             if (actionCommand != null)
                             {
