@@ -41,7 +41,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                         DisplayName = serviceBackbone.BroadcasterName,
                         IsMod = rankToExecuteAs >= Rank.Moderator,
                         IsBroadcaster = rankToExecuteAs >= Rank.Streamer,
-                        IsSub = rankToExecuteAs >= Rank.Subscriber
+                        IsSub = rankToExecuteAs >= Rank.Subscriber,
+                        IsVip = rankToExecuteAs >= Rank.Vip,
                     };
                 } else
                 {
@@ -49,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     eventArgs.IsMod = rankToExecuteAs >= Rank.Moderator || eventArgs.IsMod;
                     eventArgs.IsBroadcaster = rankToExecuteAs >= Rank.Streamer || eventArgs.IsBroadcaster;
                     eventArgs.IsSub = rankToExecuteAs >= Rank.Subscriber || eventArgs.IsSub;
+                    eventArgs.IsVip = rankToExecuteAs >= Rank.Vip || eventArgs.IsVip;
                 }
             } else
             {
