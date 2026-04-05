@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 { 
                     Name = a.Name, 
                     Id = a.Id!.Value 
-                }).ToList();
+                }).OrderBy(a => a.Name).ToList();
 
             return [
                 new SubActionUIField
