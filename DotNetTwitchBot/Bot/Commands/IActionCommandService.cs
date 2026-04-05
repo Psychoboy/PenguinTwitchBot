@@ -10,5 +10,6 @@ namespace DotNetTwitchBot.Bot.Commands
         Task<ActionCommand> UpdateAsync(ActionCommand command);
         Task DeleteAsync(int id);
         Task<bool> CommandExistsAsync(string commandName);
+        Task<ActionCommand?> GetByCommandNameAsync(string commandName);
     }
 }

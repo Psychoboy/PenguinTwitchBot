@@ -4,33 +4,30 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public class ActionCommandService : IActionCommandService
+    public class ActionCommandService(
+        IUnitOfWork unitOfWork,
+        ICommandHelper commandHelper,
+        IActionManagementService actionManagementService,
+        ILogger<ActionCommandService> logger) : IActionCommandService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly ICommandHelper _commandHelper;
-        private readonly IActionManagementService _actionManagementService;
-        private readonly ILogger<ActionCommandService> _logger;
-
-        public ActionCommandService(
-            IUnitOfWork unitOfWork, 
-            ICommandHelper commandHelper, 
-            IActionManagementService actionManagementService,
-            ILogger<ActionCommandService> logger)
-        {
-            _unitOfWork = unitOfWork;
-            _commandHelper = commandHelper;
-            _actionManagementService = actionManagementService;
-            _logger = logger;
-        }
-
         public async Task<List<ActionCommand>> GetAllAsync()
         {
-            return await _unitOfWork.ActionCommands.GetAsync(includeProperties: "PointType");
+            return await unitOfWork.ActionCommands.GetAsync(includeProperties: "PointType");
         }
 
         public async Task<ActionCommand?> GetByIdAsync(int id)
         {
-            return await _unitOfWork.ActionCommands.GetByIdAsync(id);
+            return await unitOfWork.ActionCommands.GetByIdAsync(id);
+        }
+
+        public async Task<ActionCommand?> GetByCommandNameAsync(string commandName)
+        {
+            var normalizedCommandName = commandName.ToLower();
+
+            var result = await unitOfWork.ActionCommands.GetAsync(
+                filter: c => c.CommandName.ToLower() == normalizedCommandName,
+                includeProperties: "PointType");
+            return result.FirstOrDefault();
         }
 
         public async Task<ActionCommand> AddAsync(ActionCommand command)
@@ -41,8 +38,8 @@ namespace DotNetTwitchBot.Bot.Commands
             // Clear navigation property to avoid EF tracking issues
             command.PointType = null;
 
-            await _unitOfWork.ActionCommands.AddAsync(command);
-            await _unitOfWork.SaveChangesAsync();
+            await unitOfWork.ActionCommands.AddAsync(command);
+            await unitOfWork.SaveChangesAsync();
 
             return command;
         }
@@ -55,37 +52,37 @@ namespace DotNetTwitchBot.Bot.Commands
             // Clear navigation property to avoid EF tracking issues
             command.PointType = null;
 
-            _unitOfWork.ActionCommands.Update(command);
-            await _unitOfWork.SaveChangesAsync();
+            unitOfWork.ActionCommands.Update(command);
+            await unitOfWork.SaveChangesAsync();
 
             return command;
         }
 
         public async Task DeleteAsync(int id)
         {
-            var command = await _unitOfWork.ActionCommands.GetByIdAsync(id);
+            var command = await unitOfWork.ActionCommands.GetByIdAsync(id);
             if (command != null)
             {
                 try
                 {
                     // Delete all triggers that reference this command
-                    await _actionManagementService.DeleteTriggersForCommandAsync(id);
-                    _logger.LogInformation("Deleted triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
+                    await actionManagementService.DeleteTriggersForCommandAsync(id);
+                    logger.LogInformation("Deleted triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error deleting triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
+                    logger.LogError(ex, "Error deleting triggers for command {CommandName} (ID: {CommandId})", command.CommandName, id);
                     // Continue with command deletion even if trigger deletion fails
                 }
 
-                _unitOfWork.ActionCommands.Remove(command);
-                await _unitOfWork.SaveChangesAsync();
+                unitOfWork.ActionCommands.Remove(command);
+                await unitOfWork.SaveChangesAsync();
             }
         }
 
         public async Task<bool> CommandExistsAsync(string commandName)
         {
-            return await _commandHelper.CommandExists(commandName);
+            return await commandHelper.CommandExists(commandName);
         }
     }
 }

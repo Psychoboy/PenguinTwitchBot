@@ -18,9 +18,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             await using var scope = serviceScopeFactory.CreateAsyncScope();
             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
-            var actionCommands = await actionCommandService.GetAllAsync();
-            var actionCommand = actionCommands.FirstOrDefault(c =>
-                c.CommandName.Equals(request.Args.Trim(), StringComparison.OrdinalIgnoreCase));
+            var actionCommand = await actionCommandService.GetByCommandNameAsync(request.Args.Trim());
 
             if (actionCommand != null)
             {
