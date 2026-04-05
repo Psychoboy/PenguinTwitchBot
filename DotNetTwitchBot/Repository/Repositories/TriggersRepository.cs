@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Triggers
                 .AsNoTracking()
                 .Include(t => t.Action)
-                    .ThenInclude(a => a.SubActions)
+                    .ThenInclude(a => a!.SubActions)
                 .Where(t => t.Type == type)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Triggers
                 .AsNoTracking()
                 .Include(t => t.Action)
-                    .ThenInclude(a => a.SubActions)
+                    .ThenInclude(a => a!.SubActions)
                 .Where(t => t.Type == TriggerTypes.Timer && t.Configuration.Contains($"\"TimerGroupId\":{timerId}"))
                 .ToListAsync();
         }
