@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Actions
 
             if (action.RandomAction)
             {
-                var subAction = action.SubActions.RandomElementOrDefault();
+                var subAction = action.SubActions.Where(x => x.Enabled == true).RandomElementOrDefault();
                 if (subAction != null)
                 {
                     await RunSubAction(subAction, variables);
@@ -48,13 +48,13 @@ namespace DotNetTwitchBot.Bot.Actions
 
             if (action.ConcurrentAction)
             {
-                var subActions = action.SubActions;
+                var subActions = action.SubActions.Where(x => x.Enabled == true);
                 var tasks = subActions.Select(item => RunSubAction(item, variables));
                 await Task.WhenAll(tasks);
                 return;
             }
 
-            foreach (var subAction in action.SubActions.OrderBy(subAction => subAction.Index))
+            foreach (var subAction in action.SubActions.Where(x => x.Enabled == true).OrderBy(subAction => subAction.Index))
             {
                 await RunSubAction(subAction, variables);
             }
