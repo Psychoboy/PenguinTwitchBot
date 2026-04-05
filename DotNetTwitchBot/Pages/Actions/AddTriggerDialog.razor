@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Models.Commands
 @using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Bot.Models.Timers
 @using MudBlazor
 @using DotNetTwitchBot.Pages.Components
 
@@ -70,16 +71,33 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Command Trigger" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.Timer)
+                {
+                    <MudText Typo="Typo.h6">Configure Timer Trigger</MudText>
+
+                    <MudSelect T="TimerGroup" Value="_selectedTimerGroup" 
+                               ValueChanged="OnTimerGroupChanged"
+                               Label="Select Timer Group" Variant="Variant.Outlined" 
+                               Required="true" AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var timerGroup in _timerGroups)
+                        {
+                            <MudSelectItem T="TimerGroup" Value="@timerGroup">@timerGroup.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., My Timer Trigger" ReadOnly="true" />
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
                     <MudAlert Severity="Severity.Info">
                         Configuration for @_selectedType triggers will be implemented soon.
                     </MudAlert>
-                    
+
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Trigger" />
-                    
+
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
                             Or create a new trigger
@@ -118,17 +136,23 @@
 
     [Parameter] public int ActionId { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
+    [Inject] private DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
     private List<ActionCommand> _commands = new();
+    private List<TimerGroup> _timerGroups = new();
     private int? _selectedCommandId;
+    private TimerGroup? _selectedTimerGroup;
     private string _triggerName = "";
 
     protected override async Task OnInitializedAsync()
     {
         // Load all action commands for the dropdown
         _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
+
+        // Load all timer groups for the dropdown
+        _timerGroups = (await TimersService.GetTimerGroupsAsync()).OrderBy(t => t.Name).ToList();
     }
 
     private void SelectType(TriggerTypes type)
@@ -155,6 +179,17 @@
         }
     }
 
+    private void OnTimerGroupChanged(TimerGroup? timerGroup)
+    {
+        _selectedTimerGroup = timerGroup;
+
+        // Auto-populate trigger name with timer group format
+        if (timerGroup?.Id.HasValue == true)
+        {
+            _triggerName = $"TimerGroup_{timerGroup.Id.Value}";
+        }
+    }
+
     private void OnCommandCreated(ActionCommand command)
     {
         // Add the newly created command to the list
@@ -169,11 +204,15 @@
     {
         if (_showTypeSelection) return false;
         if (string.IsNullOrWhiteSpace(_triggerName)) return false;
-        
+
         // For command type, require a command to be selected
         if (_selectedType == TriggerTypes.Command && !_selectedCommandId.HasValue)
             return false;
-            
+
+        // For timer type, require a timer group to be selected
+        if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup == null)
+            return false;
+
         return true;
     }
 
@@ -182,7 +221,7 @@
         if (!CanSubmit() || !_selectedType.HasValue) return;
 
         var configuration = "";
-        
+
         // Build configuration JSON based on trigger type
         if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
         {
@@ -195,6 +234,13 @@
                     CommandName = command.CommandName
                 });
             }
+        }
+        else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup?.Id.HasValue == true)
+        {
+            configuration = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                TimerGroupId = _selectedTimerGroup.Id.Value
+            });
         }
 
         var result = new

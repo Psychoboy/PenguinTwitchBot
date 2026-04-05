@@ -39,6 +39,8 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             return await _context.Triggers
                 .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
                 .Where(t => t.Type == type)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
@@ -58,6 +60,16 @@ namespace DotNetTwitchBot.Repository.Repositories
             return await _context.Triggers
                 .AsNoTracking()
                 .Where(t => t.Type == TriggerTypes.Command && t.Configuration.Contains($"\"CommandId\":{commandId}"))
+                .ToListAsync();
+        }
+
+        public async Task<List<TriggerType>> GetTriggersByTimerGroupIdAsync(int timerId)
+        {
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
+                .Where(t => t.Type == TriggerTypes.Timer && t.Configuration.Contains($"\"TimerGroupId\":{timerId}"))
                 .ToListAsync();
         }
 

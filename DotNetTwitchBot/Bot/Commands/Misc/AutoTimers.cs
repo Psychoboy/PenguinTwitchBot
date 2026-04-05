@@ -1,5 +1,7 @@
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
@@ -168,10 +170,25 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (CheckEnoughMessagesAndUpdate(group) == false) return;
             try
             {
-                if (group.Messages.Where(x => x.Enabled == true).Any() == false) return;
-                var message = group.Messages.Where(x => x.Enabled == true).ToList().RandomElementOrDefault(_logger);
-                await SendMessage(message);
+                if (group.Messages.Where(x => x.Enabled == true).Any())
+                {
+                    var message = group.Messages.Where(x => x.Enabled == true).ToList().RandomElementOrDefault(_logger);
+                    await SendMessage(message);
+                }
 
+                if (group.Id.HasValue)
+                {
+                    var actions = await GetActionsForTimerGroup(group.Id.Value);
+                    var enabledActions = actions.Where(x => x.Enabled == true).ToList();
+                    if (enabledActions.Any())
+                    {
+                        var action = enabledActions.RandomElementOrDefault(_logger);
+                        if (action != null)
+                        {
+                            await ExecuteAction(action, group);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -238,6 +255,80 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             else
             {
                 await SendChatMessage(message.Message);
+            }
+        }
+
+        public async Task<List<ActionType>> GetActionsForTimerGroup(int timerGroupId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var triggers = await db.Triggers.GetTriggersByTimerGroupIdAsync(timerGroupId);
+            var timerTriggers = triggers.Where(t => t.Action != null).ToList();
+
+            return [.. timerTriggers.Select(t => t.Action!)];
+        }
+
+        private async Task ExecuteAction(ActionType action, TimerGroup group)
+        {
+            try
+            {
+                var variables = new Dictionary<string, string>
+                {
+                    { "timer_name", group.Name },
+                    { "timer_id", group.Id?.ToString() ?? "0" }
+                };
+
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                await actionService.EnqueueAction(variables, action);
+                _logger.LogDebug("Enqueued action {ActionName} for timer {TimerName}", action.Name, group.Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action for timer group");
+            }
+        }
+
+        public async Task AddActionToTimerGroup(int timerGroupId, int actionId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var triggerName = $"TimerGroup_{timerGroupId}";
+            var triggers = await db.Triggers.GetTriggersForActionAsync(actionId);
+            var existingTrigger = triggers.FirstOrDefault(t => t.Name == triggerName);
+
+            if (existingTrigger == null)
+            {
+                var trigger = new TriggerType
+                {
+                    Name = triggerName,
+                    Type = TriggerTypes.Timer,
+                    ActionId = actionId,
+                    Enabled = true,
+                    Configuration = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                            TimerGroupId = timerGroupId
+                    })
+                };
+
+                await db.Triggers.AddAsync(trigger);
+            }
+        }
+
+        public async Task RemoveActionFromTimerGroup(int timerGroupId, int actionId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var triggerName = $"TimerGroup_{timerGroupId}";
+            var triggers = await db.Triggers.GetTriggersForActionAsync(actionId);
+            var trigger = triggers.FirstOrDefault(t => t.Name == triggerName);
+
+            if (trigger != null)
+            {
+                await db.Triggers.DeleteAsync(trigger.Id);
             }
         }
 

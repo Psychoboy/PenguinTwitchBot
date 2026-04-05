@@ -14,5 +14,6 @@ namespace DotNetTwitchBot.Repository
         Task<TriggerType> UpdateAsync(TriggerType trigger);
         Task DeleteAsync(int id);
         Task<bool> ExistsAsync(string name);
+        Task<List<TriggerType>> GetTriggersByTimerGroupIdAsync(int timerId);
     }
 }
