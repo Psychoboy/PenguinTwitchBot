@@ -108,42 +108,16 @@ namespace DotNetTwitchBot.Bot.Queues
 
         private async Task ProcessBlockingQueueAsync(CancellationToken cancellationToken)
         {
-            await foreach (var queuedAction in _channel.Reader.ReadAllAsync(cancellationToken))
+            try
             {
-                if (!IsEnabled)
+                await foreach (var queuedAction in _channel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    _logger.LogDebug("Queue {QueueName} is disabled, skipping action", Name);
-                    continue;
-                }
+                    if (!IsEnabled)
+                    {
+                        _logger.LogDebug("Queue {QueueName} is disabled, skipping action", Name);
+                        continue;
+                    }
 
-                try
-                {
-                    await ExecuteActionAsync(queuedAction, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error processing action {ActionName} in queue {QueueName}", 
-                        queuedAction.Action.Name, Name);
-                }
-            }
-        }
-
-        private async Task ProcessNonBlockingQueueAsync(CancellationToken cancellationToken)
-        {
-            var tasks = new List<Task>();
-
-            await foreach (var queuedAction in _channel.Reader.ReadAllAsync(cancellationToken))
-            {
-                if (!IsEnabled)
-                {
-                    _logger.LogDebug("Queue {QueueName} is disabled, skipping action", Name);
-                    continue;
-                }
-
-                await _semaphore.WaitAsync(cancellationToken);
-
-                var task = Task.Run(async () =>
-                {
                     try
                     {
                         await ExecuteActionAsync(queuedAction, cancellationToken);
@@ -153,20 +127,68 @@ namespace DotNetTwitchBot.Bot.Queues
                         _logger.LogError(ex, "Error processing action {ActionName} in queue {QueueName}", 
                             queuedAction.Action.Name, Name);
                     }
-                    finally
-                    {
-                        _semaphore.Release();
-                    }
-                }, cancellationToken);
-
-                tasks.Add(task);
-
-                // Clean up completed tasks
-                tasks.RemoveAll(t => t.IsCompleted);
+                }
             }
+            catch (OperationCanceledException)
+            {
+                // Expected when the queue is stopping - log as debug only
+                _logger.LogDebug("Queue {QueueName} processing cancelled during shutdown", Name);
+            }
+        }
 
-            // Wait for all remaining tasks to complete
-            await Task.WhenAll(tasks);
+        private async Task ProcessNonBlockingQueueAsync(CancellationToken cancellationToken)
+        {
+            var tasks = new List<Task>();
+
+            try
+            {
+                await foreach (var queuedAction in _channel.Reader.ReadAllAsync(cancellationToken))
+                {
+                    if (!IsEnabled)
+                    {
+                        _logger.LogDebug("Queue {QueueName} is disabled, skipping action", Name);
+                        continue;
+                    }
+
+                    await _semaphore.WaitAsync(cancellationToken);
+
+                    var task = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ExecuteActionAsync(queuedAction, cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing action {ActionName} in queue {QueueName}", 
+                                queuedAction.Action.Name, Name);
+                        }
+                        finally
+                        {
+                            _semaphore.Release();
+                        }
+                    }, cancellationToken);
+
+                    tasks.Add(task);
+
+                    // Clean up completed tasks
+                    tasks.RemoveAll(t => t.IsCompleted);
+                }
+
+                // Wait for all remaining tasks to complete
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when the queue is stopping - log as debug only
+                _logger.LogDebug("Queue {QueueName} processing cancelled during shutdown", Name);
+
+                // Wait for any in-flight tasks to complete
+                if (tasks.Any())
+                {
+                    await Task.WhenAll(tasks);
+                }
+            }
         }
 
         private async Task ExecuteActionAsync(QueuedAction queuedAction, CancellationToken cancellationToken)
