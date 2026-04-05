@@ -9,10 +9,12 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
         ICommandHandler commandHandler,
         ILogger<ActionCommandHandler> logger) : INotificationHandler<RunCommandNotification>
     {
+        SemaphoreSlim cmdLock = new(1, 1);
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             try
             {
+                await cmdLock.WaitAsync(cancellationToken);
                 if (notification.EventArgs == null || string.IsNullOrWhiteSpace(notification.EventArgs.Command))
                     return;
 
@@ -48,10 +50,10 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
                 // Check cooldowns
                 if (actionCommand.SayCooldown)
                 {
-                    if (!await commandHandler.IsCoolDownExpiredWithMessage(
+                    if (!await commandHandler.IsGlobalCoolDownExpiredWithMessageForAction(
                         notification.EventArgs.Name,
                         notification.EventArgs.DisplayName,
-                        actionCommand))
+                        actionCommand.CommandName))
                         return;
                 }
                 else
@@ -91,6 +93,10 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error handling action command {Command}", notification.EventArgs?.Command);
+            }
+            finally
+            {
+                cmdLock.Release();
             }
         }
     }

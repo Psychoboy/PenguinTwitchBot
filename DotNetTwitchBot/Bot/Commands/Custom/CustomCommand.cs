@@ -412,8 +412,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     {
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
-                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
                             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
                             var actionCommands = await actionCommandService.GetAllAsync();
@@ -452,8 +450,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     {
                         await using (var scope = _scopeFactory.CreateAsyncScope())
                         {
-                            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
                             var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
 
                             var actionCommands = await actionCommandService.GetAllAsync();
