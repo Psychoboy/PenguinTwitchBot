@@ -167,7 +167,7 @@ namespace DotNetTwitchBot.Bot.Queues
                         {
                             _semaphore.Release();
                         }
-                    }, cancellationToken);
+                    });
 
                     tasks.Add(task);
 
@@ -186,7 +186,13 @@ namespace DotNetTwitchBot.Bot.Queues
                 // Wait for any in-flight tasks to complete
                 if (tasks.Any())
                 {
-                    await Task.WhenAll(tasks);
+                    try
+                    {
+                        await Task.WhenAll(tasks);
+                    } catch (OperationCanceledException)
+                    {
+                        _logger.LogDebug("Some tasks in queue {QueueName} were cancelled during shutdown", Name);
+                    }
                 }
             }
         }
