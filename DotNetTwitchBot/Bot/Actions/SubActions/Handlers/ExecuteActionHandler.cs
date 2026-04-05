@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 logger.LogError("No action found with ID: {ActionId}", actionId);
                 return;
             }
-            await action.EnqueueAction(variables, actionItem);
+            await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
         }
     }
 }
