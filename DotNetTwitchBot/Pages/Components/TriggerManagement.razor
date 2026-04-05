@@ -94,6 +94,10 @@
     {
         _timerGroupNames.Clear();
         var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && t.Name.StartsWith("TimerGroup_")).ToList();
+        if (timerTriggers.Count == 0)
+        {
+            return;
+        }
         var timerGroups = await TimersService.GetTimerGroupsAsync();
         foreach (var trigger in timerTriggers)
         {
