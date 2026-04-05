@@ -22,8 +22,10 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<ActionCommand?> GetByCommandNameAsync(string commandName)
         {
+            var normalizedCommandName = commandName.ToLower();
+
             var result = await unitOfWork.ActionCommands.GetAsync(
-                filter: c => c.CommandName.Equals(commandName, StringComparison.OrdinalIgnoreCase),
+                filter: c => c.CommandName.ToLower() == normalizedCommandName,
                 includeProperties: "PointType");
             return result.FirstOrDefault();
         }
