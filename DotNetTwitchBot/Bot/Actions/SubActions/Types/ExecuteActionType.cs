@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         tableName: "subactions_executeaction")]
     public class ExecuteActionType : SubActionType, ISubActionUIProvider
     {
-        public string ActionId { get; set; } = "";
+        public int ActionId { get; set; }
 
         public ExecuteActionType()
         {
@@ -27,11 +27,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             using var scope = serviceProvider.CreateScope();
             var actionService = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
             var actions = Task.Run(async () => await actionService.GetAllActionsAsync()).GetAwaiter().GetResult();
-            var actionOptions = actions.Select(a => new SelectOption 
-            { 
-                Name = a.Name, 
-                Id = a.Id?.ToString() ?? string.Empty 
-            }).ToList();
+            var actionOptions = actions
+                .Where(a => a.Id.HasValue)
+                .Select(a => new SelectOption 
+                { 
+                    Name = a.Name, 
+                    Id = a.Id!.Value 
+                }).ToList();
 
             return [
                 new SubActionUIField
@@ -56,16 +58,16 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(ActionId), ActionId },
+                { nameof(ActionId), ActionId.ToString() },
                 { nameof(Enabled), Enabled }
             };
         }
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(ActionId), out var actionId))
+            if (values.TryGetValue(nameof(ActionId), out var actionId) && int.TryParse(actionId?.ToString(), out var parsedId))
             {
-                ActionId = actionId?.ToString() ?? string.Empty;
+                ActionId = parsedId;
             }
 
             if (values.TryGetValue(nameof(Enabled), out var enabled))
@@ -76,7 +78,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if (!values.TryGetValue(nameof(ActionId), out var actionId) || string.IsNullOrWhiteSpace(actionId?.ToString()))
+            if (!values.TryGetValue(nameof(ActionId), out var actionId) ||
+                !int.TryParse(actionId?.ToString(), out var parsedId) || parsedId <= 0)
             {
                 return "Action to Execute is required";
             }

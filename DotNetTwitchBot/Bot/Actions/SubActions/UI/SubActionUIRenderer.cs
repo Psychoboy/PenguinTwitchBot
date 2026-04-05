@@ -205,7 +205,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
                     foreach (var option in field.SelectOptions)
                     {
                         __builder.OpenComponent<MudSelectItem<string>>(0);
-                        __builder.AddAttribute(1, "Value", option.Id);
+                        __builder.AddAttribute(1, "Value", option.Id.ToString());
                         __builder.AddAttribute(2, "ChildContent", (RenderFragment)(__builder2 => __builder2.AddContent(3, option.Name)));
                         __builder.CloseComponent();
                     }

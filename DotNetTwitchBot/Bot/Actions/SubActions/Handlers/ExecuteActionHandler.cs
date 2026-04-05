@@ -14,10 +14,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            var actionIdString = executeAction.ActionId;
-            if(!int.TryParse(actionIdString, out var actionId))
+            var actionId = executeAction.ActionId;
+            if(actionId == 0)
             {
-                logger.LogError("Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionIdString);
+                logger.LogError("Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionId);
                 return;
             }
 
