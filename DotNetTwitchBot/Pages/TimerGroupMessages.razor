@@ -203,7 +203,7 @@
             "Warning",
             $"Remove action '{action.Name}' from this timer?",
             yesText: "Remove", cancelText: "Cancel");
-        if (result != null && timerGroup != null)
+        if (result == true && timerGroup != null)
         {
             await Timers.RemoveActionFromTimerGroup(id, action.Id.Value);
             timerActions = await Timers.GetActionsForTimerGroup(id);

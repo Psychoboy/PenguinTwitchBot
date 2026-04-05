@@ -63,6 +63,16 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<TriggerType>> GetTriggersByTimerGroupIdAsync(int timerId)
+        {
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a.SubActions)
+                .Where(t => t.Type == TriggerTypes.Timer && t.Configuration.Contains($"\"TimerGroupId\":{timerId}"))
+                .ToListAsync();
+        }
+
         public new async Task<TriggerType> AddAsync(TriggerType trigger)
         {
             trigger.CreatedAt = DateTime.UtcNow;

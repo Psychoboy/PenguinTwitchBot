@@ -263,11 +263,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var triggers = await db.Triggers.GetByTypeAsync(TriggerTypes.Timer);
-            var triggerName = $"TimerGroup_{timerGroupId}";
-            var timerTriggers = triggers.Where(t => t.Name == triggerName && t.Action != null).ToList();
+            var triggers = await db.Triggers.GetTriggersByTimerGroupIdAsync(timerGroupId);
+            var timerTriggers = triggers.Where(t => t.Action != null).ToList();
 
-            return timerTriggers.Select(t => t.Action!).ToList();
+            return [.. timerTriggers.Select(t => t.Action!)];
         }
 
         private async Task ExecuteAction(ActionType action, TimerGroup group)
@@ -308,7 +307,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     Type = TriggerTypes.Timer,
                     ActionId = actionId,
                     Enabled = true,
-                    Configuration = $"{{\"TimerGroupId\": {timerGroupId}}}"
+                    Configuration = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                            TimerGroupId = timerGroupId
+                    })
                 };
 
                 await db.Triggers.AddAsync(trigger);
@@ -325,21 +327,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var trigger = triggers.FirstOrDefault(t => t.Name == triggerName);
 
             if (trigger != null)
-            {
-                await db.Triggers.DeleteAsync(trigger.Id);
-            }
-        }
-
-        private async Task RemoveTimerTriggersFromActions(int timerGroupId)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            var triggerName = $"TimerGroup_{timerGroupId}";
-            var allTriggers = await db.Triggers.GetByTypeAsync(TriggerTypes.Timer);
-            var triggers = allTriggers.Where(t => t.Name == triggerName).ToList();
-
-            foreach (var trigger in triggers)
             {
                 await db.Triggers.DeleteAsync(trigger.Id);
             }

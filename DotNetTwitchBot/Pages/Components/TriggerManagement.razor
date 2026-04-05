@@ -95,13 +95,13 @@
     {
         _timerGroupNames.Clear();
         var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && t.Name.StartsWith("TimerGroup_")).ToList();
-
+        var timerGroups = await TimersService.GetTimerGroupsAsync();
         foreach (var trigger in timerTriggers)
         {
             var timerGroupId = ExtractTimerGroupId(trigger.Name);
             if (timerGroupId.HasValue && !_timerGroupNames.ContainsKey(timerGroupId.Value))
             {
-                var timerGroup = await TimersService.GetTimerGroupAsync(timerGroupId.Value);
+                var timerGroup = timerGroups.FirstOrDefault(tg => tg.Id == timerGroupId.Value);
                 if (timerGroup != null)
                 {
                     _timerGroupNames[timerGroupId.Value] = timerGroup.Name;
