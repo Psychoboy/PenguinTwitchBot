@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             {
                 Name = a.CustomCommandName,
                 Id = a.Id!.Value
-            });
+            }).OrderBy(a => a.Name);
             return [
                 new()
                 {
