@@ -1,7 +1,6 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
