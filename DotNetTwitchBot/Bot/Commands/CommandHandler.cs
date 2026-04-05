@@ -423,6 +423,8 @@ namespace DotNetTwitchBot.Bot.Commands
             return Rank.Viewer;
         }
 
+
+
         public async Task ResetCooldown(CurrentCooldowns cooldown)
         {
             await using var scope = scopeFactory.CreateAsyncScope();

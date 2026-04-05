@@ -26,6 +26,7 @@
         CheckPoints,
         SendMessage,
         ReplyToMessage,
-        ExecuteAction
+        ExecuteAction,
+        ExecuteDefaultCommand
     }
 }
