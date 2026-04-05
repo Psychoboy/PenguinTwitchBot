@@ -5,7 +5,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExecuteDefaultCommandHandler(ILogger<ExecuteDefaultCommandHandler> logger, ICommandHandler commandHandler, IMediator mediator, IServiceBackbone serviceBackbone) : ISubActionHandler
+    public class ExecuteDefaultCommandHandler(ILogger<ExecuteDefaultCommandHandler> logger, ICommandHandler commandHandler, IServiceBackbone serviceBackbone) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteDefaultCommand;
 
@@ -44,6 +44,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                         IsBroadcaster = rankToExecuteAs >= Rank.Streamer,
                         IsSub = rankToExecuteAs >= Rank.Subscriber
                     };
+                } else
+                {
+                    //If there is already a user in the event args, we override their permissions based on the selected rank to execute as.
+                    eventArgs.IsMod = rankToExecuteAs >= Rank.Moderator || eventArgs.IsMod;
+                    eventArgs.IsBroadcaster = rankToExecuteAs >= Rank.Streamer || eventArgs.IsBroadcaster;
+                    eventArgs.IsSub = rankToExecuteAs >= Rank.Subscriber || eventArgs.IsSub;
                 }
             } else
             {
@@ -58,11 +64,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
             eventArgs.Command = command.CustomCommandName;
             var args = VariableReplacer.ReplaceVariables(executeDefaultCommand.Text, variables);
-            eventArgs.Args = [.. args.Split(' ')];
+            eventArgs.Args = string.IsNullOrWhiteSpace(args) ?[] : [.. args.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
             eventArgs.Arg = args;
             if (eventArgs.Args.Count > 0)
             {
-                eventArgs.TargetUser = eventArgs.Args[0];
+                eventArgs.TargetUser = eventArgs.Args[0].TrimStart('@');
             }
             else
             {

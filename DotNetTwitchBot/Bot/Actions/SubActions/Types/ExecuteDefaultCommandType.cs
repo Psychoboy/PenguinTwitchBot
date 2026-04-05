@@ -129,6 +129,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 return "Command to Execute is required";
             }
 
+            if(!values.TryGetValue(nameof(ElevatedCommand), out var elevatedCommand) || (elevatedCommand is bool elevatedCommandBool))
+            {
+                if(!values.TryGetValue(nameof(RankToExecuteAs), out var rankToExecuteAs) || string.IsNullOrEmpty(rankToExecuteAs as string))
+                {
+                    return "Rank to Execute As is required when Elevated Command is enabled";
+                }
+            }
+
             return null;
         }
     }
