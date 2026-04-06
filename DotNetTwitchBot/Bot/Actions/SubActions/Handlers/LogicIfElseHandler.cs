@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.CustomMiddleware;
+using System.Globalization;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -117,7 +118,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
         private bool CompareNumbers(string left, string right, Func<double, double, bool> comparison)
         {
-            if (double.TryParse(left, out var leftNum) && double.TryParse(right, out var rightNum))
+            if (double.TryParse(left, NumberStyles.Any, CultureInfo.InvariantCulture, out var leftNum) && double.TryParse(right, NumberStyles.Any, CultureInfo.InvariantCulture, out var rightNum))
             {
                 return comparison(leftNum, rightNum);
             }

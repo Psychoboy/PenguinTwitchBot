@@ -1,6 +1,6 @@
 ﻿namespace DotNetTwitchBot.Bot.WebSocketEvents
 {
-    public class WsSubsriptionTypes
+    public class WsSubscriptionTypes
     {
         public enum Raw { Action }
     }

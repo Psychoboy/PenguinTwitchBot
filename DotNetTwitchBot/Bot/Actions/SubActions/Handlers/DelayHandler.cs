@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.Delay;
 
-        public Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
         {
             if(subAction is not DelayType delaySubAction)
                 throw new ArgumentException($"Expected {nameof(DelayType)} but got {subAction.GetType().Name}");
@@ -15,9 +15,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             var durationStr = VariableReplacer.ReplaceVariables(delaySubAction.Duration, variables);
             if (int.TryParse(durationStr, out var duration))
             {
-                Thread.Sleep(duration);
+                await Task.Delay(duration);
             }
-            return Task.CompletedTask;
         }
     }
 }

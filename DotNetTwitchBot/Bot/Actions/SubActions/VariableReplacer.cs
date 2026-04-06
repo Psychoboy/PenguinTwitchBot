@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
             }
             catch
             {
-                return expression; // If it's not a valid expression, return the original input
+                return expression; // If it's not a valid expression, return the matchedinput unchanged
             }
         }
     }

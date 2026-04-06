@@ -36,19 +36,6 @@ namespace DotNetTwitchBot.Bot.Actions
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
             var queue = await queueManager.GetQueueAsync(action.QueueName);
-            //if(action.Id.HasValue && action.Id > 0 && variables.TryGetValue("ExecutedActions", out var executedActions))
-            //{
-            //    if(executedActions.Split(',').Contains(action.Id.Value.ToString()))
-            //    {
-            //        logger.LogWarning("Action {ActionName} with Id {ActionId} has already been executed in this chain of actions, skipping to prevent infinite loop", action.Name, action.Id);
-            //        return;
-            //    }
-            //    variables["ExecutedActions"] = $"{executedActions},{action.Id}";
-            //}
-            //else if (action.Id.HasValue && action.Id > 0)
-            //{
-            //    variables["ExecutedActions"] = action.Id.HasValue ? action.Id.Value.ToString() : string.Empty;
-            //}
             await queue.EnqueueAsync(action, variables);
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }

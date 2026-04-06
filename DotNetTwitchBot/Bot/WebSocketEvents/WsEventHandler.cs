@@ -184,7 +184,7 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    var bytes = Encoding.Default.GetBytes(JsonSerializer.Serialize(message, serializerOptions));
+                    var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, serializerOptions));
                     var arraySegment = new ArraySegment<byte>(bytes);
                     await websocketConnection.WebSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
                 }

@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 new()
                 {
                     PropertyName = nameof(Duration),
-                    Label = "Duration (seconds)",
+                    Label = "Duration (milliseconds)",
                     FieldType = UIFieldType.Text,
                     Required = true,
                     HelperText = "You can enter a %variable% or a number. The value is in milliseconds."
