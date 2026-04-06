@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
     {
         public static List<TwitchEventInfo> GetAvailableEvents()
         {
-            return new List<TwitchEventInfo>
+            var events = new List<TwitchEventInfo>
             {
                 new TwitchEventInfo
                 {
@@ -160,6 +160,9 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                     }
                 }
             };
+
+            // Sort by DisplayName alphabetically
+            return events.OrderBy(e => e.DisplayName).ToList();
         }
 
         public static TwitchEventInfo? GetEventInfo(string eventName)

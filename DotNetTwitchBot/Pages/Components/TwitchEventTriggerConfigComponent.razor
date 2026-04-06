@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Actions.Triggers
 @using TwitchEventConfig = DotNetTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using MudBlazor
+@using DotNetTwitchBot.Bot.TwitchServices
 
 <MudStack Spacing="3">
     <MudText Typo="Typo.h6">Configure Twitch Event Trigger</MudText>
@@ -97,7 +98,21 @@
                     <MudStack Spacing="2">
                         <MudText Typo="Typo.body2">Specific Reward Titles</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY reward. Add multiple to trigger on any of them.</MudText>
-                        
+
+                        @* Dropdown to select from existing rewards *@
+                        <MudSelect T="string" 
+                                   Label="Add from existing rewards" 
+                                   Variant="Variant.Outlined"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   Clearable="true"
+                                   HelperText="Select a channel point reward or type manually below"
+                                   ValueChanged="@(async (string value) => await OnRewardSelected(value))">
+                            @foreach (var reward in _availableRewards)
+                            {
+                                <MudSelectItem T="string" Value="@reward.Title">@reward.Title</MudSelectItem>
+                            }
+                        </MudSelect>
+
                         @foreach (var (title, index) in Config.RewardTitles.Select((t, i) => (t, i)))
                         {
                             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
@@ -114,7 +129,7 @@
                                    Color="Color.Primary" 
                                    StartIcon="@Icons.Material.Filled.Add"
                                    OnClick="AddRewardTitle">
-                            Add Reward Title
+                            Add Reward Title Manually
                         </MudButton>
                     </MudStack>
                 }
@@ -205,15 +220,34 @@
     [Parameter]
     public EventCallback<TwitchEventConfig> ConfigChanged { get; set; }
 
+    [Inject]
+    private ITwitchService TwitchService { get; set; } = null!;
+
     private List<TwitchEventInfo> _availableEvents = new();
+    private List<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward> _availableRewards = new();
     private bool _tier1Selected;
     private bool _tier2Selected;
     private bool _tier3Selected;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _availableEvents = TwitchEventTypeInfo.GetAvailableEvents();
+        await LoadChannelPointRewards();
         UpdateTierSelections();
+    }
+
+    private async Task LoadChannelPointRewards()
+    {
+        try
+        {
+            var rewards = await TwitchService.GetChannelPointRewards();
+            _availableRewards = rewards.OrderBy(r => r.Title).ToList();
+        }
+        catch (Exception)
+        {
+            // If loading fails, just continue with empty list
+            _availableRewards = new List<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward>();
+        }
     }
 
     private async Task OnEventNameChanged(string eventName)
@@ -224,6 +258,16 @@
         // Reset config when event type changes
         Config = new TwitchEventConfig { EventName = eventName };
         await ConfigChanged.InvokeAsync(Config);
+    }
+
+    private async Task OnRewardSelected(string? rewardTitle)
+    {
+        if (!string.IsNullOrEmpty(rewardTitle) && !Config.RewardTitles.Contains(rewardTitle))
+        {
+            Config.RewardTitles.Add(rewardTitle);
+            await ConfigChanged.InvokeAsync(Config);
+            StateHasChanged();
+        }
     }
 
     private void AddRewardTitle()
