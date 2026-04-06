@@ -2,6 +2,7 @@
 @using DotNetTwitchBot.Bot.Models.Commands
 @using DotNetTwitchBot.Bot.Commands
 @using DotNetTwitchBot.Bot.Models.Timers
+@using DotNetTwitchBot.Bot.Actions.Triggers
 @using MudBlazor
 @using DotNetTwitchBot.Pages.Components
 
@@ -88,6 +89,15 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Timer Trigger" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.TwitchEvent)
+                {
+                    <TwitchEventTriggerConfigComponent SelectedEventName="@_selectedTwitchEvent"
+                                              SelectedEventNameChanged="OnTwitchEventSelected"
+                                              Config="@_twitchEventConfig"
+                                              ConfigChanged="@OnTwitchEventConfigChanged" />
+
+                    @* Trigger name is auto-set to the event name and hidden from user *@
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
@@ -144,6 +154,8 @@
     private List<TimerGroup> _timerGroups = new();
     private int? _selectedCommandId;
     private TimerGroup? _selectedTimerGroup;
+    private string _selectedTwitchEvent = "";
+    private Bot.Actions.Triggers.TwitchEventTriggerConfig _twitchEventConfig = new();
     private string _triggerName = "";
 
     protected override async Task OnInitializedAsync()
@@ -190,6 +202,20 @@
         }
     }
 
+    private void OnTwitchEventSelected(string eventName)
+    {
+        _selectedTwitchEvent = eventName;
+
+        // Set trigger name to the internal event name (not display name)
+        // This is what the handler will search for
+        _triggerName = eventName;
+    }
+
+    private void OnTwitchEventConfigChanged(Bot.Actions.Triggers.TwitchEventTriggerConfig config)
+    {
+        _twitchEventConfig = config;
+    }
+
     private void OnCommandCreated(ActionCommand command)
     {
         // Add the newly created command to the list
@@ -211,6 +237,10 @@
 
         // For timer type, require a timer group to be selected
         if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup == null)
+            return false;
+
+        // For Twitch event type, require an event to be selected
+        if (_selectedType == TriggerTypes.TwitchEvent && string.IsNullOrEmpty(_selectedTwitchEvent))
             return false;
 
         return true;
@@ -241,6 +271,11 @@
             {
                 TimerGroupId = _selectedTimerGroup.Id.Value
             });
+        }
+        else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
+        {
+            _twitchEventConfig.EventName = _selectedTwitchEvent;
+            configuration = _twitchEventConfig.ToJson();
         }
 
         var result = new

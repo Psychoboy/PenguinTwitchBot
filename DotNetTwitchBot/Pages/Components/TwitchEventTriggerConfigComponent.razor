@@ -1,0 +1,265 @@
+@using DotNetTwitchBot.Bot.Actions.Triggers
+@using TwitchEventConfig = DotNetTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
+@using MudBlazor
+
+<MudStack Spacing="3">
+    <MudText Typo="Typo.h6">Configure Twitch Event Trigger</MudText>
+
+    <MudSelect T="string" 
+               Value="@SelectedEventName" 
+               ValueChanged="OnEventNameChanged"
+               Label="Select Twitch Event" 
+               Variant="Variant.Outlined" 
+               Required="true" 
+               AnchorOrigin="Origin.BottomCenter"
+               HelperText="Choose which Twitch event should trigger this action">
+        @foreach (var eventInfo in _availableEvents)
+        {
+            <MudSelectItem T="string" Value="@eventInfo.Name">
+                <MudStack Row="false" Spacing="0">
+                    <MudText Typo="Typo.body1">@eventInfo.DisplayName</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@eventInfo.Description</MudText>
+                </MudStack>
+            </MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (!string.IsNullOrEmpty(SelectedEventName))
+    {
+        var eventInfo = _availableEvents.FirstOrDefault(e => e.Name == SelectedEventName);
+        if (eventInfo != null)
+        {
+            @if (eventInfo.SupportsFiltering)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3">Filter Options (Optional)</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty to trigger on ALL @eventInfo.DisplayName events</MudText>
+
+                @* Amount Range Filters (for Cheers) *@
+                @if (eventInfo.FilterOptions.Contains("MinAmount") || eventInfo.FilterOptions.Contains("MaxAmount"))
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MinAmount" 
+                                         Label="Min Bits" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Minimum bits amount" />
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MaxAmount" 
+                                         Label="Max Bits" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Maximum bits amount" />
+                    </MudStack>
+                }
+
+                @* Viewer Range Filters (for Raids) *@
+                @if (eventInfo.FilterOptions.Contains("MinViewers") || eventInfo.FilterOptions.Contains("MaxViewers"))
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MinViewers" 
+                                         Label="Min Viewers" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Minimum viewer count" />
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MaxViewers" 
+                                         Label="Max Viewers" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Maximum viewer count" />
+                    </MudStack>
+                }
+
+                @* Gift Amount Range Filters (for Sub Gifts) *@
+                @if (eventInfo.FilterOptions.Contains("MinGiftAmount") || eventInfo.FilterOptions.Contains("MaxGiftAmount"))
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MinGiftAmount" 
+                                         Label="Min Gifts" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Minimum gift count" />
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MaxGiftAmount" 
+                                         Label="Max Gifts" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Maximum gift count" />
+                    </MudStack>
+                }
+
+                @* Reward Titles Filter (for Channel Points) *@
+                @if (eventInfo.FilterOptions.Contains("RewardTitles"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Specific Reward Titles</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY reward. Add multiple to trigger on any of them.</MudText>
+                        
+                        @foreach (var (title, index) in Config.RewardTitles.Select((t, i) => (t, i)))
+                        {
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                <MudTextField @bind-Value="Config.RewardTitles[index]" 
+                                              Label="@($"Reward {index + 1}")" 
+                                              Variant="Variant.Outlined" 
+                                              Style="flex: 1" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Color="Color.Error" 
+                                               OnClick="@(() => RemoveRewardTitle(index))" />
+                            </MudStack>
+                        }
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddRewardTitle">
+                            Add Reward Title
+                        </MudButton>
+                    </MudStack>
+                }
+
+                @* Subscription Tiers Filter *@
+                @if (eventInfo.FilterOptions.Contains("SubscriptionTiers"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Subscription Tiers</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY tier</MudText>
+
+                        <MudStack Row="true" Spacing="2">
+                            <MudCheckBox T="bool" Value="_tier1Selected" 
+                                         Label="Tier 1" 
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnTierChanged("1000", val))" />
+                            <MudCheckBox T="bool" Value="_tier2Selected" 
+                                         Label="Tier 2" 
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnTierChanged("2000", val))" />
+                            <MudCheckBox T="bool" Value="_tier3Selected" 
+                                         Label="Tier 3" 
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnTierChanged("3000", val))" />
+                        </MudStack>
+                    </MudStack>
+                }
+
+                @* Ad Break Filters *@
+                @if (eventInfo.FilterOptions.Contains("IsAutomatic"))
+                {
+                    <MudSelect T="bool?" 
+                               @bind-Value="Config.IsAutomatic"
+                               Label="Ad Type" 
+                               Variant="Variant.Outlined"
+                               Clearable="true"
+                               HelperText="Filter by automatic or manual ads">
+                        <MudSelectItem T="bool?" Value="@((bool?)null)">Any</MudSelectItem>
+                        <MudSelectItem T="bool?" Value="@true">Automatic</MudSelectItem>
+                        <MudSelectItem T="bool?" Value="@false">Manual</MudSelectItem>
+                    </MudSelect>
+                }
+
+                @if (eventInfo.FilterOptions.Contains("MinAdDuration") || eventInfo.FilterOptions.Contains("MaxAdDuration"))
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MinAdDuration" 
+                                         Label="Min Duration (sec)" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Minimum ad duration" />
+                        <MudNumericField T="int?" 
+                                         @bind-Value="Config.MaxAdDuration" 
+                                         Label="Max Duration (sec)" 
+                                         Variant="Variant.Outlined" 
+                                         Min="1"
+                                         HelperText="Maximum ad duration" />
+                    </MudStack>
+                }
+            }
+
+            @* Show available variables *@
+            <MudPaper Class="pa-3 mt-3" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Available Variables</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">These variables can be used in your actions:</MudText>
+                <MudChipSet T="string" Class="mt-2">
+                    @foreach (var variable in eventInfo.AvailableVariables)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Text="@($"{{{variable}}}")" />
+                    }
+                </MudChipSet>
+            </MudPaper>
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter]
+    public string SelectedEventName { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SelectedEventNameChanged { get; set; }
+
+    [Parameter]
+    public TwitchEventConfig Config { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<TwitchEventConfig> ConfigChanged { get; set; }
+
+    private List<TwitchEventInfo> _availableEvents = new();
+    private bool _tier1Selected;
+    private bool _tier2Selected;
+    private bool _tier3Selected;
+
+    protected override void OnInitialized()
+    {
+        _availableEvents = TwitchEventTypeInfo.GetAvailableEvents();
+        UpdateTierSelections();
+    }
+
+    private async Task OnEventNameChanged(string eventName)
+    {
+        SelectedEventName = eventName;
+        await SelectedEventNameChanged.InvokeAsync(eventName);
+
+        // Reset config when event type changes
+        Config = new TwitchEventConfig { EventName = eventName };
+        await ConfigChanged.InvokeAsync(Config);
+    }
+
+    private void AddRewardTitle()
+    {
+        Config.RewardTitles.Add("");
+        StateHasChanged();
+    }
+
+    private void RemoveRewardTitle(int index)
+    {
+        if (index >= 0 && index < Config.RewardTitles.Count)
+        {
+            Config.RewardTitles.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void OnTierChanged(string tier, bool selected)
+    {
+        if (selected && !Config.SubscriptionTiers.Contains(tier))
+        {
+            Config.SubscriptionTiers.Add(tier);
+        }
+        else if (!selected && Config.SubscriptionTiers.Contains(tier))
+        {
+            Config.SubscriptionTiers.Remove(tier);
+        }
+
+        UpdateTierSelections();
+        StateHasChanged();
+    }
+
+    private void UpdateTierSelections()
+    {
+        _tier1Selected = Config.SubscriptionTiers.Contains("1000");
+        _tier2Selected = Config.SubscriptionTiers.Contains("2000");
+        _tier3Selected = Config.SubscriptionTiers.Contains("3000");
+    }
+}

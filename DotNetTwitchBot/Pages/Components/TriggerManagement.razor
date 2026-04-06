@@ -1,5 +1,7 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Actions
+@using DotNetTwitchBot.Bot.Actions.Triggers
+@using TwitchEventConfig = DotNetTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using DotNetTwitchBot.Pages.Actions
 @using System.Text.Json
 @inject IActionManagementService ActionService
@@ -39,6 +41,13 @@
                             <MudStack Spacing="0">
                                 <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Timer Trigger</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.TwitchEvent)
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@GetTwitchEventDisplayName(context.Name)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTwitchEventFilterSummary(context.Configuration)</MudText>
                             </MudStack>
                         }
                         else
@@ -247,5 +256,96 @@
             TriggerTypes.Manual => Color.Default,
             _ => Color.Default
         };
+    }
+
+    private string GetTwitchEventDisplayName(string triggerName)
+    {
+        var eventInfo = TwitchEventTypeInfo.GetEventInfo(triggerName);
+        return eventInfo?.DisplayName ?? triggerName;
+    }
+
+    private string GetTwitchEventFilterSummary(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return "No filters (triggers on all events)";
+        }
+
+        try
+        {
+            var config = TwitchEventConfig.FromJson(configurationJson);
+            var filters = new List<string>();
+
+            if (config.MinAmount.HasValue || config.MaxAmount.HasValue)
+            {
+                if (config.MinAmount.HasValue && config.MaxAmount.HasValue)
+                    filters.Add($"Bits: {config.MinAmount}-{config.MaxAmount}");
+                else if (config.MinAmount.HasValue)
+                    filters.Add($"Bits: {config.MinAmount}+");
+                else
+                    filters.Add($"Bits: up to {config.MaxAmount}");
+            }
+
+            if (config.MinViewers.HasValue || config.MaxViewers.HasValue)
+            {
+                if (config.MinViewers.HasValue && config.MaxViewers.HasValue)
+                    filters.Add($"Viewers: {config.MinViewers}-{config.MaxViewers}");
+                else if (config.MinViewers.HasValue)
+                    filters.Add($"Viewers: {config.MinViewers}+");
+                else
+                    filters.Add($"Viewers: up to {config.MaxViewers}");
+            }
+
+            if (config.MinGiftAmount.HasValue || config.MaxGiftAmount.HasValue)
+            {
+                if (config.MinGiftAmount.HasValue && config.MaxGiftAmount.HasValue)
+                    filters.Add($"Gifts: {config.MinGiftAmount}-{config.MaxGiftAmount}");
+                else if (config.MinGiftAmount.HasValue)
+                    filters.Add($"Gifts: {config.MinGiftAmount}+");
+                else
+                    filters.Add($"Gifts: up to {config.MaxGiftAmount}");
+            }
+
+            if (config.RewardTitles.Count > 0)
+            {
+                if (config.RewardTitles.Count == 1)
+                    filters.Add($"Reward: {config.RewardTitles[0]}");
+                else
+                    filters.Add($"Rewards: {string.Join(", ", config.RewardTitles.Take(2))}{(config.RewardTitles.Count > 2 ? "..." : "")}");
+            }
+
+            if (config.SubscriptionTiers.Count > 0)
+            {
+                var tierNames = config.SubscriptionTiers.Select(t => t switch
+                {
+                    "1000" => "T1",
+                    "2000" => "T2",
+                    "3000" => "T3",
+                    _ => t
+                }).ToList();
+                filters.Add($"Tiers: {string.Join(", ", tierNames)}");
+            }
+
+            if (config.IsAutomatic.HasValue)
+            {
+                filters.Add(config.IsAutomatic.Value ? "Automatic ads" : "Manual ads");
+            }
+
+            if (config.MinAdDuration.HasValue || config.MaxAdDuration.HasValue)
+            {
+                if (config.MinAdDuration.HasValue && config.MaxAdDuration.HasValue)
+                    filters.Add($"Duration: {config.MinAdDuration}-{config.MaxAdDuration}s");
+                else if (config.MinAdDuration.HasValue)
+                    filters.Add($"Duration: {config.MinAdDuration}s+");
+                else
+                    filters.Add($"Duration: up to {config.MaxAdDuration}s");
+            }
+
+            return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";
+        }
+        catch
+        {
+            return "Invalid configuration";
+        }
     }
 }
