@@ -94,6 +94,7 @@
   <ItemGroup>
     <Folder Include="Application\Alias\" />
     <Folder Include="Application\Metrics\Notifications\" />
+    <Folder Include="Bot\Utilities\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
@@ -30,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 Amount = 0
             };
 
-            var eventArgs = Utilities.CommandEventArgsConverter.FromDictionary(variables);
+            var eventArgs = CommandEventArgsConverter.FromDictionary(variables);
             if(eventArgs.Args.Count > 0 && (eventArgs.IsBroadcaster || eventArgs.IsMod))
             {
                 var modifier = eventArgs.Args[0];

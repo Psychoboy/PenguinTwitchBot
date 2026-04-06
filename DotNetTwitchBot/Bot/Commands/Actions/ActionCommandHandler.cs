@@ -1,5 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Actions;
-using DotNetTwitchBot.Bot.Utilities;
+using DotNetTwitchBot.Bot.Actions.Utilities;
 using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Actions

@@ -1,5 +1,5 @@
+using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Utilities;
 using Xunit;
 
 namespace DotNetTwitchBot.Test.Bot.Utilities

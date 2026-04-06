@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Bot.Commands
             }
             else
             {
-                Commands[commandProperties.CommandName] = new Command(commandProperties, commandService);
+                logger.LogWarning("Trying to add a command that is not of type DefaultCommand. This should not happen. Command name: {CommandName}", commandProperties.CommandName);
             }
         }
 

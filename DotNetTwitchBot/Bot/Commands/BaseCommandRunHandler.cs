@@ -1,74 +1,46 @@
-﻿using DotNetTwitchBot.Bot.Events.Chat;
+﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.Utilities;
+using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Queues;
 using MediatR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
-    public class BaseCommandRunHandler(ICommandHandler commandHandler, ILogger<BaseCommandRunHandler> logger) : INotificationHandler<RunCommandNotification>
+    public class BaseCommandRunHandler(
+        ICommandHandler commandHandler, 
+        IServiceScopeFactory serviceScopeFactory, 
+        ILogger<BaseCommandRunHandler> logger) : INotificationHandler<RunCommandNotification>
     {
-        static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new ConcurrentDictionary<string, SemaphoreSlim>();
-        private string lastCommand = string.Empty;
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             var eventArgs = notification.EventArgs;
-            SemaphoreSlim? lockInstance = null;
-            try
+            if(eventArgs == null)
             {
-                if (eventArgs == null) throw new ArgumentNullException("eventArgs");
+                logger.LogError("RunCommandNotification EventArgs is null");
+                return;
+            }
 
-                if (eventArgs.SkipLock == false)
+            var commandService = commandHandler.GetCommand(eventArgs.Command);
+            if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckIfAllowedInSharedChat(eventArgs, commandService.CommandProperties))
+            {
+                var action = new ActionType
                 {
-                    lockInstance = CommandLock.GetOrAdd(eventArgs.Command, x => new SemaphoreSlim(1));
-                    if (await lockInstance.WaitAsync(10000, cancellationToken) == false)
-                    {
-                        logger.LogWarning("BaseCommand Lock expired while waiting... Last Locked Command: {lastCommand}", lastCommand);
-                    }
-                    lastCommand = eventArgs.Command;
-                }
-                var commandService = commandHandler.GetCommand(eventArgs.Command);
-                if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckIfAllowedInSharedChat(eventArgs, commandService.CommandProperties))
-                {
-                    if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
-                    {
-                        if (commandService.CommandProperties.SayCooldown)
-                        {
-                            if (await commandHandler.IsCoolDownExpiredWithMessage(eventArgs.Name, eventArgs.DisplayName, commandService.CommandProperties) == false) return;
-                        }
-                        else
-                        {
-                            if (await commandHandler.IsCoolDownExpired(eventArgs.Name, commandService.CommandProperties.CommandName) == false) return;
-                        }
-                        //This will throw a SkipCooldownException if the command fails to by pass setting cooldown
-                        await commandService.CommandService.OnCommand(this, eventArgs);
-                    }
-                    else
-                    {
-                        return;
-                    }
+                    Name = commandService.CommandProperties.CommandName,
+                    Group = "Default Command",
+                    Enabled = true,
+                    RandomAction = false,
+                    ConcurrentAction = false,
+                    OnlineOnly = false,
+                    QueueName = QueueManager.DefaultQueueName
+                };
 
-                    if (commandService.CommandProperties.GlobalCooldown > 0)
-                    {
-                        await commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
-                    }
-
-                    if (commandService.CommandProperties.UserCooldown > 0)
-                    {
-                        await commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
-                    }
-                }
-            }
-            catch (SkipCooldownException)
-            {
-                //ignore
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error running command: {command}", notification.EventArgs?.Command);
-            }
-            finally
-            {
-                if (eventArgs?.SkipLock == false)
-                    lockInstance?.Release();
+                var subAction = new RuntimeDefaultCommandType();
+                action.SubActions = new List<SubActionType> { subAction };
+                await using var scope = serviceScopeFactory.CreateAsyncScope();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+                await actionService.EnqueueAction(CommandEventArgsConverter.ToDictionary(eventArgs), action);
             }
         }
     }
