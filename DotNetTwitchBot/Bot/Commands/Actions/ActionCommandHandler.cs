@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
                 if (actionCommand.Disabled) return;
 
                 // Check broadcaster-only restriction
-                if (!CommandHandler.CheckToRunBroadcasterOnly(notification.EventArgs, actionCommand))
+                if (!CommandHandler.CheckIfAllowedInSharedChat(notification.EventArgs, actionCommand))
                 {
                     logger.LogWarning("User {User} attempted to run broadcaster-only command {Command}", notification.EventArgs.DisplayName, actionCommand.CommandName);
                     return;

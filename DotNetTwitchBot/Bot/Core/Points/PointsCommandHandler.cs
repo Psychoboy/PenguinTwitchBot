@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var pointCommand = await pointsSystem.GetPointCommand(eventArgs.Command);
                 if (pointCommand == null) return;
                 if(pointCommand.Disabled) return;
-                if(CommandHandler.CheckToRunBroadcasterOnly(eventArgs, pointCommand) == false) return;
+                if(CommandHandler.CheckIfAllowedInSharedChat(eventArgs, pointCommand) == false) return;
                 if(await commandHandler.CheckPermission(pointCommand, eventArgs) == false) return;
 
                 bool isCoolDownExpired = false;

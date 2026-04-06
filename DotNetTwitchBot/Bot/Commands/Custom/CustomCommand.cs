@@ -299,7 +299,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 return;
             }
 
-            if(Bot.Commands.CommandHandler.CheckToRunBroadcasterOnly(e, Commands[e.Command]) == false) return;
+            if(Bot.Commands.CommandHandler.CheckIfAllowedInSharedChat(e, Commands[e.Command]) == false) return;
 
             if ((await CommandHandler.CheckPermission(Commands[e.Command], e)) == false)
             {
