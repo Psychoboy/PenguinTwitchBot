@@ -1,6 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands;
-using MediatR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
@@ -79,6 +78,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 //ignore
             }
+            //All other exceptions bubble up and are handled by the calling code, which will log them and handle any necessary cleanup.
+            //We only catch SkipCooldownException here to prevent cooldowns from being set when a command fails to bypass cooldown settings.
             finally
             {
                 if (eventArgs?.SkipLock == false)
