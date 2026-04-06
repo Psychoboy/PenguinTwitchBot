@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -19,6 +20,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         private readonly ILogger<AlertHandler> alertHandlerLogger;
         private readonly IMediator mediator;
         private readonly IServiceScopeFactory scopeFactory;
+        private readonly IServiceBackbone serviceBackbone;
         private readonly ITwitchService twitchService;
         private readonly DotNetTwitchBot.Bot.Actions.Action action;
         private readonly Dictionary<string, string> variables;
@@ -30,6 +32,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             alertHandlerLogger = Substitute.For<ILogger<AlertHandler>>();
             mediator = Substitute.For<IMediator>();
             twitchService = Substitute.For<ITwitchService>();
+            serviceBackbone = Substitute.For<IServiceBackbone>();
 
             // Setup service provider and scope factory
             var serviceCollection = new ServiceCollection();
@@ -47,7 +50,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var serviceProvider = serviceCollection.BuildServiceProvider();
             scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
-            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory);
+            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone);
             variables = new Dictionary<string, string>
             {
                 { "user", "testUser" },
