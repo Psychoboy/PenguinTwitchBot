@@ -21,7 +21,7 @@
         ChannelPointSetEnabledState,
         ChannelPointSetPausedState,
         TimerGroupSetEnabledState,
-        CommandSetEnabledState,
+        ToggleCommandDisabledState,
         GivePoints,
         CheckPoints,
         SendMessage,

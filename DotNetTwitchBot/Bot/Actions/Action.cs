@@ -1,14 +1,13 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions
 {
-    public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory) : IAction
+    public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone) : IAction
     {
         public async Task<ActionType> AddAction(ActionType action)
         {
@@ -21,6 +20,12 @@ namespace DotNetTwitchBot.Bot.Actions
 
         public async Task EnqueueAction(Dictionary<string, string> variables, ActionType action)
         {
+            if(action.OnlineOnly && !serviceBackbone.IsOnline)
+            {
+                logger.LogInformation("Action {ActionName} is set to only run when streamer is online, but streamer is currently offline, skipping", action.Name);
+                return;
+            }
+
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
             var queue = await queueManager.GetQueueAsync(action.QueueName);
