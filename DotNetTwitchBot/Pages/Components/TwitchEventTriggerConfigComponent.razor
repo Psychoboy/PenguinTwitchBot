@@ -236,6 +236,12 @@
         UpdateTierSelections();
     }
 
+    protected override void OnParametersSet()
+    {
+        // Fix: Update tier selections when Config is replaced via parameters
+        UpdateTierSelections();
+    }
+
     private async Task LoadChannelPointRewards()
     {
         try
@@ -257,6 +263,7 @@
 
         // Reset config when event type changes
         Config = new TwitchEventConfig { EventName = eventName };
+        UpdateTierSelections(); // Fix: Recalculate tier checkbox state
         await ConfigChanged.InvokeAsync(Config);
     }
 
@@ -265,27 +272,29 @@
         if (!string.IsNullOrEmpty(rewardTitle) && !Config.RewardTitles.Contains(rewardTitle))
         {
             Config.RewardTitles.Add(rewardTitle);
-            await ConfigChanged.InvokeAsync(Config);
+            await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
             StateHasChanged();
         }
     }
 
-    private void AddRewardTitle()
+    private async Task AddRewardTitle()
     {
         Config.RewardTitles.Add("");
+        await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
         StateHasChanged();
     }
 
-    private void RemoveRewardTitle(int index)
+    private async Task RemoveRewardTitle(int index)
     {
         if (index >= 0 && index < Config.RewardTitles.Count)
         {
             Config.RewardTitles.RemoveAt(index);
+            await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
             StateHasChanged();
         }
     }
 
-    private void OnTierChanged(string tier, bool selected)
+    private async Task OnTierChanged(string tier, bool selected)
     {
         if (selected && !Config.SubscriptionTiers.Contains(tier))
         {
@@ -297,6 +306,7 @@
         }
 
         UpdateTierSelections();
+        await ConfigChanged.InvokeAsync(Config); // Fix: Invoke ConfigChanged when mutating
         StateHasChanged();
     }
 

@@ -91,6 +91,31 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         }
 
         /// <summary>
+        /// Try to deserialize from JSON string
+        /// </summary>
+        /// <returns>True if deserialization succeeded, false if JSON is invalid</returns>
+        public static bool TryFromJson(string json, out TwitchEventTriggerConfig? config)
+        {
+            config = null;
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                config = new TwitchEventTriggerConfig();
+                return true;
+            }
+
+            try
+            {
+                config = JsonSerializer.Deserialize<TwitchEventTriggerConfig>(json);
+                return config != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Serialize to JSON string
         /// </summary>
         public string ToJson()
