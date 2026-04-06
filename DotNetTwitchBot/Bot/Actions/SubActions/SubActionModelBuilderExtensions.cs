@@ -1,7 +1,9 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Repository.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions
 {
@@ -32,6 +34,35 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 .HasMany(a => a.SubActions)
                 .WithOne()
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure JSON serialization for LogicIfElseType nested subactions
+            var jsonOptions = new JsonSerializerOptions
+            {
+                TypeInfoResolver = new SubActionTypeResolver()
+            };
+
+            var valueComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<SubActionType>>(
+                (c1, c2) => JsonSerializer.Serialize(c1, jsonOptions) == JsonSerializer.Serialize(c2, jsonOptions),
+                c => JsonSerializer.Serialize(c, jsonOptions).GetHashCode(),
+                c => JsonSerializer.Deserialize<List<SubActionType>>(JsonSerializer.Serialize(c, jsonOptions), jsonOptions) ?? new List<SubActionType>());
+
+            modelBuilder.Entity<LogicIfElseType>()
+                .Property(l => l.TrueSubActions)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, jsonOptions),
+                    v => string.IsNullOrWhiteSpace(v) 
+                        ? new List<SubActionType>() 
+                        : JsonSerializer.Deserialize<List<SubActionType>>(v, jsonOptions) ?? new List<SubActionType>())
+                .Metadata.SetValueComparer(valueComparer);
+
+            modelBuilder.Entity<LogicIfElseType>()
+                .Property(l => l.FalseSubActions)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, jsonOptions),
+                    v => string.IsNullOrWhiteSpace(v) 
+                        ? new List<SubActionType>() 
+                        : JsonSerializer.Deserialize<List<SubActionType>>(v, jsonOptions) ?? new List<SubActionType>())
+                .Metadata.SetValueComparer(valueComparer);
         }
 
         private static void ConfigureSubActionType(ModelBuilder modelBuilder, SubActionMetadata metadata)

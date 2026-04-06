@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Queues;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
@@ -14,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IActionExecutionLogger _executionLogger;
         private readonly IHubContext<MainHub>? _hubContext;
+        private readonly IWsEventHandler _wsEventHandler;
         private readonly SemaphoreSlim _semaphore;
         private long _completedCount;
         private int _currentlyExecuting;
@@ -36,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Queues
             ILogger<ActionQueue> logger,
             IServiceScopeFactory scopeFactory,
             IActionExecutionLogger executionLogger,
+            IWsEventHandler wsEventHandler,
             IHubContext<MainHub>? hubContext = null)
         {
             Name = name;
@@ -46,6 +49,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _scopeFactory = scopeFactory;
             _executionLogger = executionLogger;
             _hubContext = hubContext;
+            _wsEventHandler = wsEventHandler;
 
             var channelOptions = new UnboundedChannelOptions
             {
@@ -70,8 +74,27 @@ namespace DotNetTwitchBot.Bot.Queues
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
 
+            await SendEventToWs(queuedAction);
+
             // Notify clients about queue statistics change
             await SendQueueStatsUpdateAsync();
+        }
+
+        private async Task SendEventToWs(QueuedAction queuedAction)
+        {
+            var wsEvent = new WsEvent
+            {
+                TimeStamp = DateTime.UtcNow,
+                Event = new WsEventType { Source = "Raw", Type = "Action" },
+                Data = new Dictionary<string, object>
+                {
+                    { "queueName", Name },
+                    { "name", queuedAction.Action.Name },
+                    { "variables", queuedAction.Variables },
+                    { "logId", queuedAction.LogId }
+                }
+            };
+            await _wsEventHandler.AddToQueue(wsEvent);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

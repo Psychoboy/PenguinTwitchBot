@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406170846_addDelay")]
+    partial class addDelay
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1935,13 +1938,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("subactions_alert", (string)null);
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.BreakType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.ToTable("subactions_break", (string)null);
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ChannelPointSetEnabledStateType", b =>
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
@@ -2035,32 +2031,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("subactions_giveawayprize", (string)null);
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.LogicIfElseType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<string>("FalseSubActions")
-                        .IsRequired()
-                        .HasColumnType("json");
-
-                    b.Property<string>("LeftValue")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Operator")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RightValue")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("TrueSubActions")
-                        .IsRequired()
-                        .HasColumnType("json");
-
-                    b.ToTable("subactions_logic_if_else", (string)null);
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.MultiCounterType", b =>
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
@@ -2132,17 +2102,6 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.ToTable("subactions_sendmessage", (string)null);
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SetVariableType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.ToTable("subactions_setvariable", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ToggleCommandDisabledType", b =>

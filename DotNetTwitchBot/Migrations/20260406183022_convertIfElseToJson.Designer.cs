@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406183022_convertIfElseToJson")]
+    partial class convertIfElseToJson
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2132,17 +2135,6 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.ToTable("subactions_sendmessage", (string)null);
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SetVariableType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.ToTable("subactions_setvariable", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ToggleCommandDisabledType", b =>

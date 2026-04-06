@@ -1,0 +1,293 @@
+@using DotNetTwitchBot.Bot.Actions.SubActions.Types
+@using DotNetTwitchBot.Pages.Actions
+@inject IDialogService DialogService
+@inject MudBlazor.ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Configure the subactions to execute when the condition is True or False.
+            </MudAlert>
+
+            <!-- True Branch -->
+            <MudPaper Class="pa-3" Outlined="true">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6" Color="Color.Success">✓ If True - Execute These</MudText>
+                        <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Success" Size="Size.Small" 
+                                   OnClick="AddTrueSubAction" Variant="Variant.Filled">
+                            Add SubAction
+                        </MudButton>
+                    </MudStack>
+
+                    @if (IfElseType.TrueSubActions.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No subactions configured</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="SubActionType" Dense="true">
+                            @for (int i = 0; i < IfElseType.TrueSubActions.Count; i++)
+                            {
+                                var index = i;
+                                var subAction = IfElseType.TrueSubActions[i];
+                                <MudListItem T="SubActionType" Value="@subAction">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudStack>
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
+                                                               Disabled="@(index == 0)" OnClick="@(() => MoveTrueUp(index))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
+                                                               Disabled="@(index == IfElseType.TrueSubActions.Count - 1)" OnClick="@(() => MoveTrueDown(index))" />
+                                            </MudStack>
+                                            <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
+                                                           OnClick="@(() => EditTrueSubAction(index))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                                           OnClick="@(() => DeleteTrueSubAction(index))" />
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
+                                @if (index < IfElseType.TrueSubActions.Count - 1)
+                                {
+                                    <MudDivider />
+                                }
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- False Branch -->
+            <MudPaper Class="pa-3" Outlined="true">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6" Color="Color.Error">✗ If False - Execute These</MudText>
+                        <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Error" Size="Size.Small" 
+                                   OnClick="AddFalseSubAction" Variant="Variant.Filled">
+                            Add SubAction
+                        </MudButton>
+                    </MudStack>
+
+                    @if (IfElseType.FalseSubActions.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No subactions configured</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="SubActionType" Dense="true">
+                            @for (int i = 0; i < IfElseType.FalseSubActions.Count; i++)
+                            {
+                                var index = i;
+                                var subAction = IfElseType.FalseSubActions[i];
+                                <MudListItem T="SubActionType" Value="@subAction">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudStack>
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" 
+                                                               Disabled="@(index == 0)" OnClick="@(() => MoveFalseUp(index))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
+                                                               Disabled="@(index == IfElseType.FalseSubActions.Count - 1)" OnClick="@(() => MoveFalseDown(index))" />
+                                            </MudStack>
+                                            <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
+                                                           OnClick="@(() => EditFalseSubAction(index))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                                           OnClick="@(() => DeleteFalseSubAction(index))" />
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
+                                @if (index < IfElseType.FalseSubActions.Count - 1)
+                                {
+                                    <MudDivider />
+                                }
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public LogicIfElseType IfElseType { get; set; } = null!;
+
+    private async Task AddTrueSubAction()
+    {
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add True SubAction", new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SubActionType newSubAction)
+        {
+            newSubAction.Id = 0; // Ensure new entity for EF Core tracking
+            newSubAction.Index = IfElseType.TrueSubActions.Count;
+            IfElseType.TrueSubActions.Add(newSubAction);
+            StateHasChanged();
+            Snackbar.Add($"{GetSubActionTypeName(newSubAction)} added to True branch", Severity.Success);
+        }
+    }
+
+    private async Task EditTrueSubAction(int index)
+    {
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ExistingSubAction, IfElseType.TrueSubActions[index] }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit True SubAction", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SubActionType updatedSubAction)
+        {
+            IfElseType.TrueSubActions[index] = updatedSubAction;
+            StateHasChanged();
+            Snackbar.Add($"{GetSubActionTypeName(updatedSubAction)} updated", Severity.Success);
+        }
+    }
+
+    private void DeleteTrueSubAction(int index)
+    {
+        IfElseType.TrueSubActions.RemoveAt(index);
+        for (int i = index; i < IfElseType.TrueSubActions.Count; i++)
+        {
+            IfElseType.TrueSubActions[i].Index = i;
+        }
+        StateHasChanged();
+        Snackbar.Add("SubAction removed from True branch", Severity.Success);
+    }
+
+    private void MoveTrueUp(int index)
+    {
+        if (index > 0)
+        {
+            var temp = IfElseType.TrueSubActions[index];
+            IfElseType.TrueSubActions[index] = IfElseType.TrueSubActions[index - 1];
+            IfElseType.TrueSubActions[index - 1] = temp;
+            IfElseType.TrueSubActions[index].Index = index;
+            IfElseType.TrueSubActions[index - 1].Index = index - 1;
+            StateHasChanged();
+        }
+    }
+
+    private void MoveTrueDown(int index)
+    {
+        if (index < IfElseType.TrueSubActions.Count - 1)
+        {
+            var temp = IfElseType.TrueSubActions[index];
+            IfElseType.TrueSubActions[index] = IfElseType.TrueSubActions[index + 1];
+            IfElseType.TrueSubActions[index + 1] = temp;
+            IfElseType.TrueSubActions[index].Index = index;
+            IfElseType.TrueSubActions[index + 1].Index = index + 1;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddFalseSubAction()
+    {
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add False SubAction", new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SubActionType newSubAction)
+        {
+            newSubAction.Id = 0; // Ensure new entity for EF Core tracking
+            newSubAction.Index = IfElseType.FalseSubActions.Count;
+            IfElseType.FalseSubActions.Add(newSubAction);
+            StateHasChanged();
+            Snackbar.Add($"{GetSubActionTypeName(newSubAction)} added to False branch", Severity.Success);
+        }
+    }
+
+    private async Task EditFalseSubAction(int index)
+    {
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ExistingSubAction, IfElseType.FalseSubActions[index] }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit False SubAction", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SubActionType updatedSubAction)
+        {
+            IfElseType.FalseSubActions[index] = updatedSubAction;
+            StateHasChanged();
+            Snackbar.Add($"{GetSubActionTypeName(updatedSubAction)} updated", Severity.Success);
+        }
+    }
+
+    private void DeleteFalseSubAction(int index)
+    {
+        IfElseType.FalseSubActions.RemoveAt(index);
+        for (int i = index; i < IfElseType.FalseSubActions.Count; i++)
+        {
+            IfElseType.FalseSubActions[i].Index = i;
+        }
+        StateHasChanged();
+        Snackbar.Add("SubAction removed from False branch", Severity.Success);
+    }
+
+    private void MoveFalseUp(int index)
+    {
+        if (index > 0)
+        {
+            var temp = IfElseType.FalseSubActions[index];
+            IfElseType.FalseSubActions[index] = IfElseType.FalseSubActions[index - 1];
+            IfElseType.FalseSubActions[index - 1] = temp;
+            IfElseType.FalseSubActions[index].Index = index;
+            IfElseType.FalseSubActions[index - 1].Index = index - 1;
+            StateHasChanged();
+        }
+    }
+
+    private void MoveFalseDown(int index)
+    {
+        if (index < IfElseType.FalseSubActions.Count - 1)
+        {
+            var temp = IfElseType.FalseSubActions[index];
+            IfElseType.FalseSubActions[index] = IfElseType.FalseSubActions[index + 1];
+            IfElseType.FalseSubActions[index + 1] = temp;
+            IfElseType.FalseSubActions[index].Index = index;
+            IfElseType.FalseSubActions[index + 1].Index = index + 1;
+            StateHasChanged();
+        }
+    }
+
+    private string GetSubActionTypeName(SubActionType subAction)
+    {
+        return subAction.GetType().Name.Replace("Type", "");
+    }
+
+    private void Close()
+    {
+        MudDialog.Close(DialogResult.Ok(IfElseType));
+    }
+}

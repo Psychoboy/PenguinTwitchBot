@@ -39,6 +39,12 @@
                                 </MudStack>
                             </MudStack>
                             <MudStack Row="true" Spacing="1">
+                                @if (subAction is LogicIfElseType)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
+                                                   OnClick="@(() => EditLogicIfElse(index))" 
+                                                   aria-label="Edit True/False branches" />
+                                }
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
                                                OnClick="@(() => EditSubAction(index))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
@@ -158,6 +164,31 @@
         Snackbar.Add("SubAction removed", Severity.Success);
     }
 
+    private async Task EditLogicIfElse(int index)
+    {
+        if (index < 0 || index >= SubActions.Count) return;
+
+        if (SubActions[index] is not LogicIfElseType ifElseType)
+        {
+            Snackbar.Add("This subaction is not a Logic If/Else type", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<LogicIfElseEditor>
+        {
+            { x => x.IfElseType, ifElseType }
+        };
+
+        var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit True/False Branches", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Large, 
+            FullWidth = true 
+        });
+
+        await dialog.Result;
+        await NotifyChanged();
+    }
+
     private async Task NotifyChanged()
     {
         await SubActionsChanged.InvokeAsync(SubActions);
@@ -186,6 +217,7 @@
             ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
             ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
             TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
+            LogicIfElseType ifElse => $"If {ifElse.LeftValue} {ifElse.Operator} {ifElse.RightValue} (True: {ifElse.TrueSubActions.Count}, False: {ifElse.FalseSubActions.Count})",
             _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
         };
     }

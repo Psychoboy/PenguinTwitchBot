@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Queues;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 
@@ -26,22 +27,15 @@ namespace DotNetTwitchBot.Bot.Actions
                 return;
             }
 
+            if(action.Enabled == false)
+            {
+                logger.LogInformation("Action {ActionName} is disabled, skipping", action.Name);
+                return;
+            }
+
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
             var queue = await queueManager.GetQueueAsync(action.QueueName);
-            if(action.Id.HasValue && action.Id > 0 && variables.TryGetValue("ExecutedActions", out var executedActions))
-            {
-                if(executedActions.Split(',').Contains(action.Id.Value.ToString()))
-                {
-                    logger.LogWarning("Action {ActionName} with Id {ActionId} has already been executed in this chain of actions, skipping to prevent infinite loop", action.Name, action.Id);
-                    return;
-                }
-                variables["ExecutedActions"] = $"{executedActions},{action.Id}";
-            }
-            else if (action.Id.HasValue && action.Id > 0)
-            {
-                variables["ExecutedActions"] = action.Id.HasValue ? action.Id.Value.ToString() : string.Empty;
-            }
             await queue.EnqueueAsync(action, variables);
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }
@@ -54,30 +48,39 @@ namespace DotNetTwitchBot.Bot.Actions
                 return;
             }
 
+
+
             var enabledSubActions = action.SubActions.Where(x => x.Enabled == true).ToList();
 
-            if (action.RandomAction)
+            try
             {
-                var subAction = enabledSubActions.RandomElementOrDefault();
-                if (subAction != null)
+                if (action.RandomAction)
                 {
-                    await RunSubAction(subAction, variables);
+                    var subAction = enabledSubActions.RandomElementOrDefault();
+                    if (subAction != null)
+                    {
+                        await RunSubAction(subAction, variables);
+                        return;
+                    }
+                }
+
+                if (action.ConcurrentAction)
+                {
+                    var subActions = enabledSubActions;
+                    var tasks = subActions.Select(item => RunSubAction(item, variables));
+                    await Task.WhenAll(tasks);
                     return;
                 }
+
+                foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
+                {
+                    await RunSubAction(subAction, variables);
+                }
+            } catch (BreakException)
+            {
+                // Do nothing, just break out of the action execution
             }
 
-            if (action.ConcurrentAction)
-            {
-                var subActions = enabledSubActions;
-                var tasks = subActions.Select(item => RunSubAction(item, variables));
-                await Task.WhenAll(tasks);
-                return;
-            }
-
-            foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
-            {
-                await RunSubAction(subAction, variables);
-            }
         }
 
         private async Task RunSubAction(SubActionType subAction, Dictionary<string, string> variables)

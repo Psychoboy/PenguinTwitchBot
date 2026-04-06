@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ActionService = DotNetTwitchBot.Bot.Actions.Action;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 
 namespace DotNetTwitchBot.Test.Bot.Queues
 {
@@ -21,6 +22,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var wsEventHandler = Substitute.For<IWsEventHandler>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
@@ -35,7 +37,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
                 maxConcurrentActions: 1,
                 logger,
                 scopeFactory,
-                executionLogger);
+                executionLogger,
+                wsEventHandler);
 
             var action = new ActionType
             {
@@ -71,6 +74,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
+            var wsEventHandler = Substitute.For<IWsEventHandler>();
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
@@ -84,7 +88,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
                 maxConcurrentActions: 1,
                 logger,
                 scopeFactory,
-                executionLogger);
+                executionLogger,
+                wsEventHandler);
 
             var action = new ActionType
             {

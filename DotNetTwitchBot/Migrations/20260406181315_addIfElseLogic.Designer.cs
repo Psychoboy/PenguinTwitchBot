@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406181315_addIfElseLogic")]
+    partial class addIfElseLogic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -73,6 +76,12 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("Index")
                         .HasColumnType("int");
 
+                    b.Property<int?>("LogicIfElseType_FalseSubActions_Id")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LogicIfElseType_TrueSubActions_Id")
+                        .HasColumnType("int");
+
                     b.Property<int>("SubActionTypes")
                         .HasColumnType("int");
 
@@ -83,6 +92,10 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ActionTypeId");
+
+                    b.HasIndex("LogicIfElseType_FalseSubActions_Id");
+
+                    b.HasIndex("LogicIfElseType_TrueSubActions_Id");
 
                     b.ToTable((string)null);
 
@@ -2039,10 +2052,6 @@ namespace DotNetTwitchBot.Migrations
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
 
-                    b.Property<string>("FalseSubActions")
-                        .IsRequired()
-                        .HasColumnType("json");
-
                     b.Property<string>("LeftValue")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -2053,10 +2062,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<string>("RightValue")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<string>("TrueSubActions")
-                        .IsRequired()
-                        .HasColumnType("json");
 
                     b.ToTable("subactions_logic_if_else", (string)null);
                 });
@@ -2134,17 +2139,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("subactions_sendmessage", (string)null);
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.SetVariableType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.ToTable("subactions_setvariable", (string)null);
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ToggleCommandDisabledType", b =>
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
@@ -2213,6 +2207,17 @@ namespace DotNetTwitchBot.Migrations
                         .WithMany("SubActions")
                         .HasForeignKey("ActionTypeId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("DotNetTwitchBot.Bot.Actions.SubActions.Types.LogicIfElseType", null)
+                        .WithMany("FalseSubActions")
+                        .HasForeignKey("LogicIfElseType_FalseSubActions_Id")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("DotNetTwitchBot.Bot.Actions.SubActions.Types.LogicIfElseType", null)
+                        .WithMany("TrueSubActions")
+                        .HasForeignKey("LogicIfElseType_TrueSubActions_Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("FK_subactions_channelpointsetenabledstate_subactions_logic_if_~1");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Actions.Triggers.TriggerType", b =>
@@ -2361,6 +2366,13 @@ namespace DotNetTwitchBot.Migrations
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.Wheel", b =>
                 {
                     b.Navigation("Properties");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.LogicIfElseType", b =>
+                {
+                    b.Navigation("FalseSubActions");
+
+                    b.Navigation("TrueSubActions");
                 });
 #pragma warning restore 612, 618
         }
