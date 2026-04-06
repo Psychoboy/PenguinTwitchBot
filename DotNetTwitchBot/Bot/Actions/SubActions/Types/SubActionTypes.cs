@@ -27,6 +27,7 @@
         SendMessage,
         ReplyToMessage,
         ExecuteAction,
-        ExecuteDefaultCommand
+        ExecuteDefaultCommand,
+        RuntimeDefaultCommand,
     }
 }

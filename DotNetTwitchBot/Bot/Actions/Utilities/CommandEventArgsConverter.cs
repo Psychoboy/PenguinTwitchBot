@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Events.Chat;
 using System.Text.Json;
 
-namespace DotNetTwitchBot.Bot.Utilities
+namespace DotNetTwitchBot.Bot.Actions.Utilities
 {
     /// <summary>
     /// Utility class for converting CommandEventArgs to Dictionary for variable substitution
@@ -98,6 +98,22 @@ namespace DotNetTwitchBot.Bot.Utilities
             catch
             {
                 return new CommandEventArgs();
+            }
+        }
+
+        public static CommandEventArgs? FromDictionaryOrNull(Dictionary<string, string> dictionary)
+        {
+            if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
+            {
+                return null;
+            }
+            try
+            {
+                return JsonSerializer.Deserialize<CommandEventArgs>(json);
+            }
+            catch
+            {
+                return null;
             }
         }
 

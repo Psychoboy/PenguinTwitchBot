@@ -32,9 +32,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
         [Fact]
         public void AddCommand_ShouldAddCommand()
         {
-            var commandProperties = new BaseCommandProperties
+            var commandProperties = new DefaultCommand
             {
-                CommandName = "testCommand"
+                CommandName = "testCommand",
+                CustomCommandName = "testCommand",
             };
             var commandServiceMock = new Mock<IBaseCommandService>();
 
@@ -64,9 +65,10 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
         [Fact]
         public void UpdateCommandName_ShouldUpdateCommandName()
         {
-            var commandProperties = new BaseCommandProperties
+            var commandProperties = new DefaultCommand
             {
-                CommandName = "oldCommandName"
+                CommandName = "oldCommandName",
+                CustomCommandName = "oldCommandName"
             };
             var commandServiceMock = new Mock<IBaseCommandService>();
 

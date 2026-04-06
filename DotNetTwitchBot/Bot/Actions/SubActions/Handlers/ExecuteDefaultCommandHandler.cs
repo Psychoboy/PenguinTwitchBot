@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 
@@ -23,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            var eventArgs = Utilities.CommandEventArgsConverter.FromDictionary(variables);
+            var eventArgs = CommandEventArgsConverter.FromDictionaryOrNull(variables);
             if (executeDefaultCommand.ElevatedCommand)
             {
 
@@ -32,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     logger.LogError("Invalid rank specified for elevated command execution: {Rank}", executeDefaultCommand.RankToExecuteAs);
                     return;
                 }
-                if (string.IsNullOrEmpty(eventArgs.Name))
+                if (eventArgs == null)
                 {
                     //We create a new eventArgs this happens if this sub action is being executed outside of the context of a command, such as from an action queue. We populate it with the broadcaster's name and the appropriate permissions based on the selected rank to execute as.
                     eventArgs = new Events.Chat.CommandEventArgs
@@ -54,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 }
             } else
             {
-                if(string.IsNullOrEmpty(eventArgs.Name))
+                if(eventArgs == null)
                 {
                     eventArgs = new Events.Chat.CommandEventArgs
                     {
