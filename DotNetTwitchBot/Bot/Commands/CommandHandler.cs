@@ -22,14 +22,12 @@ namespace DotNetTwitchBot.Bot.Commands
             return null;
         }
 
-        public static bool CheckToRunBroadcasterOnly(CommandEventArgs eventArgs, BaseCommandProperties commandProperties)
+        public static bool CheckIfAllowedInSharedChat(CommandEventArgs eventArgs, BaseCommandProperties commandProperties)
         {
             if(commandProperties.SourceOnly && eventArgs.FromOwnChannel == false)
             {
                 return false;
             }
-            if (commandProperties.RunFromBroadcasterOnly == false) return true;
-            if (eventArgs.FromOwnChannel == false) return false;
             return true;
         }
 

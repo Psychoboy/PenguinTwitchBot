@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Commands
                     lastCommand = eventArgs.Command;
                 }
                 var commandService = commandHandler.GetCommand(eventArgs.Command);
-                if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckToRunBroadcasterOnly(eventArgs, commandService.CommandProperties))
+                if (commandService != null && commandService.CommandProperties.Disabled == false && CommandHandler.CheckIfAllowedInSharedChat(eventArgs, commandService.CommandProperties))
                 {
                     if (await commandHandler.CheckPermission(commandService.CommandProperties, eventArgs))
                     {

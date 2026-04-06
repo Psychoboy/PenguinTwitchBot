@@ -25,7 +25,6 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public bool SourceOnly { get; set; } = true;
         public string Category { get; set; } = "";
         public string Description { get; set; } = "";
-        public bool RunFromBroadcasterOnly { get; set; } = false;
         public string? SpecificUserOnly { get; set; } = null;
         public List<string> SpecificUsersOnly { get; set; } = [];
         public List<Rank> SpecificRanks { get; set; } = [];

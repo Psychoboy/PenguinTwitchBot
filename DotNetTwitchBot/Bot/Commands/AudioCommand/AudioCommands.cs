@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             var command = Commands[e.Command];
             if (command.Disabled) return;
 
-            if (Bot.Commands.CommandHandler.CheckToRunBroadcasterOnly(e, Commands[e.Command]) == false) return;
+            if (Bot.Commands.CommandHandler.CheckIfAllowedInSharedChat(e, Commands[e.Command]) == false) return;
 
             if (command.SayCooldown)
             {
