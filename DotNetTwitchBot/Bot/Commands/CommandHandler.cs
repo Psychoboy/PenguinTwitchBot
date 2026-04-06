@@ -28,8 +28,6 @@ namespace DotNetTwitchBot.Bot.Commands
             {
                 return false;
             }
-            if (commandProperties.RunFromBroadcasterOnly == false) return true;
-            if (eventArgs.FromOwnChannel == false) return false;
             return true;
         }
 
