@@ -15,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Actions
         public bool Enabled { get; set; } = true;
         public bool RandomAction { get; set; } = false;
         public bool ConcurrentAction { get; set; } = false;
+        public bool OnlineOnly { get; set; } = false;
         public string QueueName { get; set; } = "default";
         public List<SubActionType> SubActions { get; set; } = [];
 
