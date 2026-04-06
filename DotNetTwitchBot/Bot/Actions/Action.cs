@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Queues;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 
@@ -23,6 +24,12 @@ namespace DotNetTwitchBot.Bot.Actions
             if(action.OnlineOnly && !serviceBackbone.IsOnline)
             {
                 logger.LogInformation("Action {ActionName} is set to only run when streamer is online, but streamer is currently offline, skipping", action.Name);
+                return;
+            }
+
+            if(action.Enabled == false)
+            {
+                logger.LogInformation("Action {ActionName} is disabled, skipping", action.Name);
                 return;
             }
 
@@ -54,30 +61,39 @@ namespace DotNetTwitchBot.Bot.Actions
                 return;
             }
 
+
+
             var enabledSubActions = action.SubActions.Where(x => x.Enabled == true).ToList();
 
-            if (action.RandomAction)
+            try
             {
-                var subAction = enabledSubActions.RandomElementOrDefault();
-                if (subAction != null)
+                if (action.RandomAction)
                 {
-                    await RunSubAction(subAction, variables);
+                    var subAction = enabledSubActions.RandomElementOrDefault();
+                    if (subAction != null)
+                    {
+                        await RunSubAction(subAction, variables);
+                        return;
+                    }
+                }
+
+                if (action.ConcurrentAction)
+                {
+                    var subActions = enabledSubActions;
+                    var tasks = subActions.Select(item => RunSubAction(item, variables));
+                    await Task.WhenAll(tasks);
                     return;
                 }
+
+                foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
+                {
+                    await RunSubAction(subAction, variables);
+                }
+            } catch (BreakException)
+            {
+                // Do nothing, just break out of the action execution
             }
 
-            if (action.ConcurrentAction)
-            {
-                var subActions = enabledSubActions;
-                var tasks = subActions.Select(item => RunSubAction(item, variables));
-                await Task.WhenAll(tasks);
-                return;
-            }
-
-            foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
-            {
-                await RunSubAction(subAction, variables);
-            }
         }
 
         private async Task RunSubAction(SubActionType subAction, Dictionary<string, string> variables)

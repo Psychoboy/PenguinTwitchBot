@@ -29,5 +29,9 @@
         ExecuteAction,
         ExecuteDefaultCommand,
         RuntimeDefaultCommand,
+        Delay,
+        Break,
+        LogicIfElse,
+        SetVariable
     }
 }

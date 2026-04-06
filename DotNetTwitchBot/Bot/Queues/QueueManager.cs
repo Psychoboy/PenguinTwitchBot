@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Queues;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 using DotNetTwitchBot.Repository;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
@@ -14,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly ILoggerFactory _loggerFactory;
         private readonly IActionExecutionLogger _executionLogger;
         private readonly IHubContext<MainHub> _hubContext;
+        private readonly IWsEventHandler _wsEventHandler;
         private CancellationTokenSource? _cancellationTokenSource;
 
         public const string DefaultQueueName = "Default";
@@ -25,6 +27,7 @@ namespace DotNetTwitchBot.Bot.Queues
             IServiceScopeFactory scopeFactory,
             ILoggerFactory loggerFactory,
             IActionExecutionLogger executionLogger,
+            IWsEventHandler wsEventHandler,
             IHubContext<MainHub> hubContext)
         {
             _logger = logger;
@@ -32,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _loggerFactory = loggerFactory;
             _executionLogger = executionLogger;
             _hubContext = hubContext;
+            _wsEventHandler = wsEventHandler;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ namespace DotNetTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
+                _wsEventHandler,
                 _hubContext);
 
             _queues.TryAdd(DefaultQueueName, defaultQueue);
@@ -106,6 +111,7 @@ namespace DotNetTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
+                _wsEventHandler,
                 _hubContext)
             {
                 IsEnabled = config.Enabled
@@ -162,6 +168,7 @@ namespace DotNetTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
+                _wsEventHandler,
                 _hubContext)
             {
                 IsEnabled = existing.Enabled
@@ -335,6 +342,7 @@ namespace DotNetTwitchBot.Bot.Queues
                         _loggerFactory.CreateLogger<ActionQueue>(),
                         _scopeFactory,
                         _executionLogger,
+                        _wsEventHandler,
                         _hubContext)
                     {
                         IsEnabled = config.Enabled

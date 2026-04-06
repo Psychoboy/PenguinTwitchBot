@@ -32,6 +32,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
 
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
+            services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
 
             services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
 
