@@ -26,6 +26,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
+            services.AddSingleton<ITwitchEventActionHandler, TwitchEventActionHandler>();
             services.AddTransient<ISchedule, Schedule>();
             services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
             services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
