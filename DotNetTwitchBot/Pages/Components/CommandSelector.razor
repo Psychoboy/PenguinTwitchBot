@@ -23,9 +23,11 @@
 @using DotNetTwitchBot.Bot.Commands
 @using DotNetTwitchBot.Bot.Models.Points
 @using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Pages.Components
 @inject IActionCommandService CommandService
 @inject IPointsSystem PointSystem
 @inject MudBlazor.ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudStack Spacing="3">
     @if (!_showCreateForm)
@@ -60,74 +62,11 @@
     else
     {
         <!-- Creation Mode -->
-        <MudText Typo="Typo.h6">Create New Command</MudText>
-
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_newCommand.CommandName" Label="Command Name" 
-                              Required="true" Variant="Variant.Outlined" 
-                              HelperText="Do not include the ! prefix" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudAutocomplete T="string" @bind-Value="_newCommand.Category" Label="Category" 
-                                 Variant="Variant.Outlined" 
-                                 SearchFunc="@SearchCategories"
-                                 Clearable="true"
-                                 CoerceText="true"
-                                 CoerceValue="false" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="_newCommand.Description" Label="Description" 
-                              Lines="2" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="_newCommand.UserCooldown" Label="User Cooldown (seconds)" 
-                                 Variant="Variant.Outlined" Min="0" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="_newCommand.GlobalCooldown" Label="Global Cooldown (seconds)" 
-                                 Variant="Variant.Outlined" Min="0" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="_newCommand.Cost" Label="Cost" 
-                                 Variant="Variant.Outlined" Min="0" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
-                           Variant="Variant.Outlined"
-                           Required="@(_newCommand.Cost > 0)"
-                           ToStringFunc="@(p => p?.Name ?? "None")">
-                    <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
-                    @foreach (var pointType in _pointTypes)
-                    {
-                        <MudSelectItem Value="@pointType">@pointType.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="Rank" @bind-Value="_newCommand.MinimumRank" Label="Minimum Rank" 
-                           Variant="Variant.Outlined">
-                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
-                    {
-                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSwitch @bind-Value="_newCommand.Disabled" Label="Disabled" Color="Color.Error" />
-            </MudItem>
-        </MudGrid>
-
-        <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd">
-            <MudButton Variant="Variant.Outlined" OnClick="CancelCreate">
-                Cancel
-            </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                       OnClick="CreateCommand" StartIcon="@Icons.Material.Filled.Save"
-                       Disabled="@(!CanCreate())">
-                Create Command
-            </MudButton>
-        </MudStack>
+        <CommandEditor Command="_newCommand" 
+                       OnSave="CreateCommand"
+                       OnCancel="CancelCreate"
+                       IsNewCommand="true"
+                       ShowActions="true" />
     }
 </MudStack>
 
@@ -141,17 +80,13 @@
     [Parameter] public bool AllowCreate { get; set; } = true;
 
     private List<ActionCommand> _commands = new();
-    private List<string> _categories = new();
-    private List<PointType> _pointTypes = new();
     private int? _selectedCommandId;
     private bool _showCreateForm = false;
     private ActionCommand _newCommand = new();
-    private PointType? _selectedPointType;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadCommands();
-        await LoadPointTypes();
         _selectedCommandId = SelectedCommandId;
     }
 
@@ -166,12 +101,6 @@
     private async Task LoadCommands()
     {
         _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
-        _categories = _commands.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
-    }
-
-    private async Task LoadPointTypes()
-    {
-        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
     }
 
     private async Task OnCommandSelectedInternal(int? commandId)
@@ -197,7 +126,6 @@
             ExcludeFromUi = false,
             SourceOnly = true
         };
-        _selectedPointType = null;
         _showCreateForm = true;
     }
 
@@ -205,38 +133,25 @@
     {
         _showCreateForm = false;
         _newCommand = new ActionCommand();
-        _selectedPointType = null;
     }
 
-    private bool CanCreate()
+    private async Task CreateCommand(ActionCommand command)
     {
-        if (string.IsNullOrWhiteSpace(_newCommand.CommandName)) return false;
-        if (_newCommand.Cost > 0 && _selectedPointType == null) return false;
-        return true;
-    }
-
-    private async Task CreateCommand()
-    {
-        if (!CanCreate()) return;
-
         try
         {
-            // Ensure category is never null
-            _newCommand.Category = _newCommand.Category ?? string.Empty;
-
-            // Set point type
-            _newCommand.PointTypeId = _selectedPointType?.Id;
-            _newCommand.PointType = _selectedPointType;
-
             // Check if command already exists
-            if (await CommandService.CommandExistsAsync(_newCommand.CommandName))
+            if (await CommandService.CommandExistsAsync(command.CommandName))
             {
-                Snackbar.Add($"Command '!{_newCommand.CommandName}' already exists", Severity.Warning);
-                return;
+                bool? result = await DialogService.ShowMessageBoxAsync(
+                    "Warning",
+                    $"Command '!{command.CommandName}' already exists. Do you want to continue?",
+                    yesText: "Yes", cancelText: "Cancel");
+
+                if (result != true) return;
             }
 
             // Create the command
-            var createdCommand = await CommandService.AddAsync(_newCommand);
+            var createdCommand = await CommandService.AddAsync(command);
             Snackbar.Add($"Command '!{createdCommand.CommandName}' created successfully", Severity.Success);
 
             // Reload commands
@@ -250,33 +165,10 @@
             // Reset form
             _showCreateForm = false;
             _newCommand = new ActionCommand();
-            _selectedPointType = null;
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error creating command: {ex.Message}", Severity.Error);
         }
-    }
-
-    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return Task.FromResult<IEnumerable<string>>(_categories);
-        }
-
-        value = value.Trim();
-
-        var filteredCategories = _categories
-            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        // If the typed value doesn't exist in the list, add it as the first option
-        if (!string.IsNullOrWhiteSpace(value) && !filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
-        {
-            filteredCategories.Insert(0, value);
-        }
-
-        return Task.FromResult(filteredCategories.AsEnumerable());
     }
 }
