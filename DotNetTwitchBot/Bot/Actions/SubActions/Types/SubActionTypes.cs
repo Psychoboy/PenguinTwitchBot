@@ -32,6 +32,9 @@
         Delay,
         Break,
         LogicIfElse,
-        SetVariable
+        SetVariable,
+        ObsTriggerHotkey,
+        ObsSetScene,
+        ObsSetSceneFilterState
     }
 }

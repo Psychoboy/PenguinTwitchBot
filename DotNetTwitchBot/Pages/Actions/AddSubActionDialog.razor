@@ -163,7 +163,31 @@
     {
         _fieldValues[propertyName] = value;
         _validationError = null;
+
+        // Check if any fields depend on the changed field
+        if (ShouldRefreshUIFields(propertyName))
+        {
+            if (_currentSubAction is ISubActionUIProvider uiProvider)
+            {
+                // Apply current values to the SubAction instance
+                uiProvider.SetValues(_fieldValues);
+                // UI will re-render with the updated SubAction state
+            }
+        }
+
         StateHasChanged();
+    }
+
+    private bool ShouldRefreshUIFields(string propertyName)
+    {
+        // Check if any field declares a dependency on the changed property
+        if (_currentSubAction is ISubActionUIProvider uiProvider)
+        {
+            var fields = uiProvider.GetUIFields(ServiceProvider);
+            return fields.Any(f => f.DependsOn != null && f.DependsOn.Contains(propertyName));
+        }
+
+        return false;
     }
 
     private RenderFragment RenderFallbackConfiguration()

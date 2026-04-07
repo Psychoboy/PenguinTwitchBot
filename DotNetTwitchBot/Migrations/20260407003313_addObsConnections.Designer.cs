@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260407003313_addObsConnections")]
+    partial class addObsConnections
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2125,27 +2128,6 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.ToTable("subactions_multicounter", (string)null);
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSceneFilterStateType", b =>
-                {
-                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<bool>("FilterEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("FilterName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("OBSConnectionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SceneName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.ToTable("subactions_obs_setscenefilterstate", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSceneType", b =>

@@ -16,6 +16,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.ServiceTools;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Bot.ObsConnector;
 
 namespace DotNetTwitchBot.CustomMiddleware
 {
@@ -31,6 +32,10 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<DotNetTwitchBot.Bot.Commands.ICommandHandler, DotNetTwitchBot.Bot.Commands.CommandHandler>();
             services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
             services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
+
+            // OBS WebSocket Services
+            services.AddSingleton<IOBSConnectionManager, OBSConnectionManager>();
+            services.AddHostedService<OBSConnectionHostedService>();
 
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
             services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
