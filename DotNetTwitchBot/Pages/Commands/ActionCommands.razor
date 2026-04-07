@@ -2,6 +2,7 @@
 @using DotNetTwitchBot.Bot.Models.Commands
 @using DotNetTwitchBot.Bot.Models.Points
 @using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Pages.Components
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.IActionCommandService CommandService
 @inject IDialogService DialogService
@@ -88,135 +89,12 @@
             else
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
-                    <MudStack Spacing="3">
-                        <!-- Command Header -->
-                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                            <MudText Typo="Typo.h5">
-                                @(_isNewCommand ? "New Command" : $"!{_selectedCommand.CommandName}")
-                            </MudText>
-                            <MudStack Row="true" Spacing="1">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                                           OnClick="SaveCommand" StartIcon="@Icons.Material.Filled.Save">
-                                    Save
-                                </MudButton>
-                                @if (!_isNewCommand)
-                                {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
-                                               OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete">
-                                        Delete
-                                    </MudButton>
-                                }
-                                <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
-                                    Cancel
-                                </MudButton>
-                            </MudStack>
-                        </MudStack>
-
-                        <MudDivider />
-
-                        <!-- Command Configuration -->
-                        <MudPaper Class="pa-4" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.h6" Class="mb-3">Command Configuration</MudText>
-                            <MudGrid>
-                                <MudItem xs="12" md="6">
-                                    <MudTextField @bind-Value="_selectedCommand.CommandName" Label="Command Name" 
-                                                  Required="true" Variant="Variant.Outlined" 
-                                                  HelperText="Do not include the ! prefix" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudAutocomplete T="string" @bind-Value="_selectedCommand.Category" Label="Category" 
-                                                     Variant="Variant.Outlined" 
-                                                     SearchFunc="@SearchCategories"
-                                                     Clearable="true"
-                                                     CoerceText="true"
-                                                     CoerceValue="false" />
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudTextField @bind-Value="_selectedCommand.Description" Label="Description" 
-                                                  Lines="3" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudNumericField @bind-Value="_selectedCommand.UserCooldown" Label="User Cooldown (seconds)" 
-                                                     Variant="Variant.Outlined" Min="0" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudNumericField @bind-Value="_selectedCommand.GlobalCooldown" Label="Global Cooldown (seconds)" 
-                                                     Variant="Variant.Outlined" Min="0" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudNumericField @bind-Value="_selectedCommand.Cost" Label="Cost" 
-                                                     Variant="Variant.Outlined" Min="0" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
-                                               Variant="Variant.Outlined"
-                                               Required="@(_selectedCommand.Cost > 0)"
-                                               ToStringFunc="@(p => p?.Name ?? "None")">
-                                        <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
-                                        @foreach (var pointType in _pointTypes)
-                                        {
-                                            <MudSelectItem Value="@pointType">@pointType.Name</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudSelect T="Rank" @bind-Value="_selectedCommand.MinimumRank" Label="Minimum Rank" 
-                                               Variant="Variant.Outlined">
-                                        @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
-                                        {
-                                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudTextField @bind-Value="_selectedCommand.SpecificUserOnly" Label="Specific User Only" 
-                                                  Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudStack Spacing="2">
-                                        <MudText Typo="Typo.body2">Specific Users Only</MudText>
-                                        <MudStack Row="true" Spacing="1">
-                                            <MudTextField @bind-Value="_newSpecificUser" Label="Add User" 
-                                                          Variant="Variant.Outlined" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" 
-                                                           OnClick="AddSpecificUser" />
-                                        </MudStack>
-                                        @if (_selectedCommand.SpecificUsersOnly.Any())
-                                        {
-                                            <MudStack Row="true" Spacing="1">
-                                                @foreach (var user in _selectedCommand.SpecificUsersOnly)
-                                                {
-                                                    <MudChip T="string" OnClose="@(() => RemoveSpecificUser(user))">@user</MudChip>
-                                                }
-                                            </MudStack>
-                                        }
-                                    </MudStack>
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudSelect T="Rank" Label="Specific Ranks" MultiSelection="true" 
-                                               SelectedValues="_selectedRanks" SelectedValuesChanged="OnSelectedRanksChanged" Variant="Variant.Outlined">
-                                        @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
-                                        {
-                                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudStack Row="true" Spacing="3">
-                                        <MudSwitch @bind-Value="_selectedCommand.Disabled" Label="Disabled" Color="Color.Error" />
-                                        <MudSwitch @bind-Value="_selectedCommand.SayCooldown" Label="Say Cooldown" Color="Color.Info" />
-                                        <MudSwitch @bind-Value="_selectedCommand.SayRankRequirement" Label="Say Rank Requirement" Color="Color.Info" />
-                                    </MudStack>
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudStack Row="true" Spacing="3">
-                                        <MudSwitch @bind-Value="_selectedCommand.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
-                                        <MudSwitch @bind-Value="_selectedCommand.SourceOnly" Label="Source Only" Color="Color.Warning" />
-                                    </MudStack>
-                                </MudItem>
-                            </MudGrid>
-                        </MudPaper>
-                    </MudStack>
+                    <CommandEditor Command="_selectedCommand"
+                                   OnSave="SaveCommand"
+                                   OnCancel="CancelEdit"
+                                   OnDelete="DeleteCommand"
+                                   IsNewCommand="_isNewCommand"
+                                   ShowActions="true" />
                 </MudPaper>
             }
         </MudItem>
@@ -227,19 +105,14 @@
     private List<ActionCommand> _commands = new();
     private List<ActionCommand> _filteredCommands = new();
     private List<string> _categories = new();
-    private List<PointType> _pointTypes = new();
     private ActionCommand? _selectedCommand;
-    private PointType? _selectedPointType;
-    private IReadOnlyCollection<Rank> _selectedRanks = new List<Rank>();
     private bool _isNewCommand = false;
     private string _searchString = "";
     private string _filterCategory = "";
-    private string _newSpecificUser = "";
 
     protected override async Task OnInitializedAsync()
     {
         await LoadCommands();
-        await LoadPointTypes();
     }
 
     private async Task LoadCommands()
@@ -247,11 +120,6 @@
         _commands = await CommandService.GetAllAsync();
         _categories = _commands.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
         FilterCommands();
-    }
-
-    private async Task LoadPointTypes()
-    {
-        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
     }
 
     private void FilterCommands()
@@ -273,47 +141,11 @@
         FilterCommands();
     }
 
-    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return Task.FromResult<IEnumerable<string>>(_categories);
-        }
-
-        value = value.Trim();
-
-        var filteredCategories = _categories
-            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        // If the typed value doesn't exist in the list, add it as the first option
-        if (!string.IsNullOrWhiteSpace(value) && !filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
-        {
-            filteredCategories.Insert(0, value);
-        }
-
-        return Task.FromResult(filteredCategories.AsEnumerable());
-    }
-
     private void OnCommandSelected(ActionCommand? command)
     {
         if (command == null) return;
-
         _selectedCommand = command;
         _isNewCommand = false;
-
-        // Load related data
-        _selectedPointType = command.PointType;
-        _selectedRanks = command.SpecificRanks;
-    }
-
-    private void OnSelectedRanksChanged(IEnumerable<Rank> ranks)
-    {
-        _selectedRanks = ranks.ToList();
-        if (_selectedCommand != null)
-        {
-            _selectedCommand.SpecificRanks = _selectedRanks.ToList();
-        }
     }
 
     private void CreateNewCommand()
@@ -333,55 +165,23 @@
             ExcludeFromUi = false,
             SourceOnly = true
         };
-        _selectedPointType = null;
-        _selectedRanks = new List<Rank>();
         _isNewCommand = true;
     }
 
-    private void AddSpecificUser()
+    private async Task SaveCommand(ActionCommand command)
     {
-        if (string.IsNullOrWhiteSpace(_newSpecificUser) || _selectedCommand == null) return;
-
-        if (!_selectedCommand.SpecificUsersOnly.Contains(_newSpecificUser))
-        {
-            _selectedCommand.SpecificUsersOnly.Add(_newSpecificUser);
-            _newSpecificUser = "";
-        }
-    }
-
-    private void RemoveSpecificUser(string user)
-    {
-        _selectedCommand?.SpecificUsersOnly.Remove(user);
-    }
-
-    private async Task SaveCommand()
-    {
-        if (_selectedCommand == null || string.IsNullOrWhiteSpace(_selectedCommand.CommandName)) 
+        if (command == null || string.IsNullOrWhiteSpace(command.CommandName)) 
         {
             Snackbar.Add("Command name is required", Severity.Error);
             return;
         }
 
-        if (_selectedCommand.Cost > 0 && _selectedPointType == null)
-        {
-            Snackbar.Add("Point type is required when cost is set", Severity.Error);
-            return;
-        }
-
         try
         {
-            // Ensure category is never null
-            _selectedCommand.Category = _selectedCommand.Category ?? string.Empty;
-
-            // Update references from the UI selections
-            _selectedCommand.PointTypeId = _selectedPointType?.Id;
-            _selectedCommand.PointType = _selectedPointType;
-            _selectedCommand.SpecificRanks = _selectedRanks.ToList();
-
             if (_isNewCommand)
             {
                 // Check if command already exists
-                if (await CommandService.CommandExistsAsync(_selectedCommand.CommandName))
+                if (await CommandService.CommandExistsAsync(command.CommandName))
                 {
                     bool? result = await DialogService.ShowMessageBoxAsync(
                         "Warning",
@@ -391,20 +191,18 @@
                     if (result != true) return;
                 }
 
-                await CommandService.AddAsync(_selectedCommand);
+                await CommandService.AddAsync(command);
                 _isNewCommand = false;
-                Snackbar.Add($"Command '!{_selectedCommand.CommandName}' created successfully", Severity.Success);
+                Snackbar.Add($"Command '!{command.CommandName}' created successfully", Severity.Success);
             }
             else
             {
-                await CommandService.UpdateAsync(_selectedCommand);
-                Snackbar.Add($"Command '!{_selectedCommand.CommandName}' updated successfully", Severity.Success);
+                await CommandService.UpdateAsync(command);
+                Snackbar.Add($"Command '!{command.CommandName}' updated successfully", Severity.Success);
             }
 
             await LoadCommands();
             _selectedCommand = null;
-            _selectedPointType = null;
-            _selectedRanks = new List<Rank>();
         }
         catch (Exception ex)
         {
@@ -412,13 +210,13 @@
         }
     }
 
-    private async Task DeleteCommand()
+    private async Task DeleteCommand(ActionCommand command)
     {
-        if (_selectedCommand == null || !_selectedCommand.Id.HasValue) return;
+        if (command == null || !command.Id.HasValue) return;
 
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Delete Command",
-            $"Are you sure you want to delete the command '!{_selectedCommand.CommandName}'? This action cannot be undone.",
+            $"Are you sure you want to delete the command '!{command.CommandName}'? This action cannot be undone.",
             yesText: "Delete",
             cancelText: "Cancel");
 
@@ -426,11 +224,9 @@
         {
             try
             {
-                await CommandService.DeleteAsync(_selectedCommand.Id.Value);
-                Snackbar.Add($"Command '!{_selectedCommand.CommandName}' deleted successfully", Severity.Success);
+                await CommandService.DeleteAsync(command.Id.Value);
+                Snackbar.Add($"Command '!{command.CommandName}' deleted successfully", Severity.Success);
                 _selectedCommand = null;
-                _selectedPointType = null;
-                _selectedRanks = new List<Rank>();
                 await LoadCommands();
             }
             catch (Exception ex)
@@ -443,8 +239,6 @@
     private void CancelEdit()
     {
         _selectedCommand = null;
-        _selectedPointType = null;
-        _selectedRanks = new List<Rank>();
         _isNewCommand = false;
     }
 }
