@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<bool> CommandExistsAsync(string commandName)
         {
-            var actionCommand = GetByCommandNameAsync(commandName);
+            var actionCommand = await GetByCommandNameAsync(commandName);
             if (actionCommand != null) return true;
             return await commandHelper.CommandExists(commandName);
         }
