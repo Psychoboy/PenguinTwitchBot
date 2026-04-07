@@ -124,7 +124,7 @@ namespace DotNetTwitchBot.Bot.ObsConnector
             }
 
             _reconnectAttempts++;
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Scheduling reconnect to OBS '{Name}' in {Delay}ms (attempt {Attempt})",
                 _config.Name, delay, _reconnectAttempts);
 
@@ -153,7 +153,7 @@ namespace DotNetTwitchBot.Bot.ObsConnector
             LastDisconnected = DateTime.UtcNow;
 
             var reason = e.DisconnectReason ?? "Unknown";
-            _logger.LogInformation("Disconnected from OBS '{Name}': {Reason}", _config.Name, reason);
+            _logger.LogDebug("Disconnected from OBS '{Name}': {Reason}", _config.Name, reason);
 
             Disconnected?.Invoke(this, new OBSConnectionEventArgs(_config.Id, _config.Name));
 
