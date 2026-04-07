@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     public class ToggleCommandDisabledType : SubActionType, ISubActionUIProvider
     {
         public ToggleCommandDisabledType() { SubActionTypes = SubActionTypes.ToggleCommandDisabledState; }
-        public int? CommandId { get; set; }
+        public string CommandName { get; set; } = string.Empty;
         public bool IsDisabled { get; set; } = false;
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -24,18 +24,17 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             var commandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
             var commands = Task.Run(async () => await commandService.GetAllAsync()).GetAwaiter().GetResult();
             var commandOptions = commands
-                .Where(a => a.Id.HasValue)
                 .Select(a => new SelectOption
                 {
                     Name = a.CommandName,
-                    Id = a.Id!.Value
+                    Value = a.CommandName
                 }).OrderBy(a => a.Name).ToList();
 
             return [
                 new SubActionUIField
                 {
                     Label = "Command",
-                    PropertyName = nameof(CommandId),
+                    PropertyName = nameof(CommandName),
                     FieldType = UIFieldType.Select,
                     Required = true,
                     SelectOptions = commandOptions
@@ -63,7 +62,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(CommandId), CommandId.ToString() },
+                { nameof(CommandName), CommandName },
                 { nameof(IsDisabled), IsDisabled },
                 { nameof(Enabled), Enabled }
             };
@@ -71,9 +70,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if(values.TryGetValue(nameof(CommandId), out var commandId) && int.TryParse(commandId?.ToString(), out var parsedId) ) 
+            if(values.TryGetValue(nameof(CommandName), out var commandName)) 
             {
-                CommandId = parsedId;
+                CommandName = commandName?.ToString() ?? string.Empty;
             }
             if(values.TryGetValue(nameof(IsDisabled), out var isDisabled) && bool.TryParse(isDisabled?.ToString(), out var parsedIsDisabled) ) 
             {
@@ -87,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if(!values.TryGetValue(nameof(CommandId), out var commandId) || !int.TryParse(commandId?.ToString(), out var parsedId) || parsedId <= 0 )
+            if(!values.TryGetValue(nameof(CommandName), out var commandName) || string.IsNullOrWhiteSpace(commandName?.ToString()))
             {
                 return "Command is required";
             }
