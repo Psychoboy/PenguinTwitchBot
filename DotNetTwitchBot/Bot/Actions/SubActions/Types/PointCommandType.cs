@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     PropertyName = nameof(Arguments),
                     Label = "Command Arguments",
                     FieldType = UIFieldType.Text,
-                    HelperText = "Optional arguments to pass to the command. Separate multiple arguments with spaces."
+                    HelperText = "Optional arguments to pass to the command. Separate multiple arguments with spaces. Typical usage is %user% AMOUNT."
                 },
                 new()
                 {
