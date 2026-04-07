@@ -20,6 +20,8 @@ namespace DotNetTwitchBot.Bot.ObsConnector
         private int _reconnectAttempts;
         private const int MaxReconnectDelay = 30000; // 30 seconds max
         private const int InitialReconnectDelay = 1000; // 1 second initial
+        private static readonly int MaxReconnectAttemptsBeforeCap = 
+            (int)Math.Floor(Math.Log2((double)MaxReconnectDelay / InitialReconnectDelay));
         
         public int Id => _config.Id;
         public string Name => _config.Name;
@@ -111,10 +113,15 @@ namespace DotNetTwitchBot.Bot.ObsConnector
                 return;
 
             // Exponential backoff with max delay
-            var delay = Math.Min(
-                InitialReconnectDelay * (int)Math.Pow(2, _reconnectAttempts),
-                MaxReconnectDelay
-            );
+            int delay;
+            if (_reconnectAttempts > MaxReconnectAttemptsBeforeCap)
+            {
+                delay = MaxReconnectDelay;
+            }
+            else
+            {
+                delay = InitialReconnectDelay * (int)Math.Pow(2, _reconnectAttempts);
+            }
 
             _reconnectAttempts++;
             _logger.LogInformation(

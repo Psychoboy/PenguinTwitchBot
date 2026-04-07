@@ -150,17 +150,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             foreach (var group in timerGroups)
             {
-                if (group.Repeat == false)
-                {
-                    if (ExecutedTimerGroups.Where(x => x.Id == group.Id).Any())
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        ExecutedTimerGroups.Add(group);
-                    }
-                }
                 await RunGroup(group);
             }
         }
@@ -188,6 +177,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                             await ExecuteAction(action, group);
                         }
                     }
+                }
+
+                if (group.Repeat == false)
+                {
+                    group.Active = false;
+                    await UpdateTimerGroup(group);
                 }
             }
             catch (Exception ex)
