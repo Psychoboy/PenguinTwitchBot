@@ -15,16 +15,16 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            if(!toggleCommandDisabled.CommandId.HasValue)
+            if(string.IsNullOrWhiteSpace(toggleCommandDisabled.CommandName))
             {
-                logger.LogError("No command id provided for ToggleCommandDisabledHandler");
+                logger.LogError("No command name provided for ToggleCommandDisabledHandler");
                 return;
             }
 
-            var command = await commandService.GetByIdAsync(toggleCommandDisabled.CommandId.Value);
+            var command = await commandService.GetByCommandNameAsync(toggleCommandDisabled.CommandName);
             if (command == null)
             {
-                logger.LogError("No command found with id {CommandId} for ToggleCommandDisabledHandler", toggleCommandDisabled.CommandId.Value);
+                logger.LogError("No command found with name '{CommandName}' for ToggleCommandDisabledHandler", toggleCommandDisabled.CommandName);
                 return;
             }
 

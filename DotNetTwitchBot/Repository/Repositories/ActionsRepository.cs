@@ -464,6 +464,9 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Fifth Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
             await RemapTimerGroupSubActionIds(_context, actions, logger);
 
+            // Sixth Pass: Validate ToggleCommandDisabled SubAction CommandNames
+            await RemapToggleCommandDisabledSubActions(_context, actions, logger);
+
             logger?.LogInformation("Completed post-restore entity reference remapping");
         }
 
@@ -588,6 +591,37 @@ namespace DotNetTwitchBot.Repository.Repositories
                     if (timerGroupSubAction.TimerGroupId == timerGroupId && timerGroupSubAction.TimerGroupName != newName)
                     {
                         timerGroupSubAction.TimerGroupName = newName;
+                        hasChanges = true;
+                    }
+                }
+            }
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Updates CommandName for all ToggleCommandDisabledType subactions (including nested) referencing the given command.
+        /// </summary>
+        public async Task UpdateToggleCommandDisabledNamesForRenamedCommand(string oldCommandName, string newCommandName)
+        {
+            // Load all actions with their subactions
+            // Note: We need to load all because we can't efficiently filter by nested ToggleCommandDisabledType in a query
+            var allActions = await _context.Actions
+                .Include(a => a.SubActions)
+                .ToListAsync();
+
+            bool hasChanges = false;
+            foreach (var action in allActions)
+            {
+                var allToggleCommandSubActions = GetAllToggleCommandDisabledSubActions(action.SubActions);
+                foreach (var toggleCommandSubAction in allToggleCommandSubActions)
+                {
+                    if (string.Equals(toggleCommandSubAction.CommandName, oldCommandName, StringComparison.OrdinalIgnoreCase) && 
+                        toggleCommandSubAction.CommandName != newCommandName)
+                    {
+                        toggleCommandSubAction.CommandName = newCommandName;
                         hasChanges = true;
                     }
                 }
@@ -892,6 +926,93 @@ namespace DotNetTwitchBot.Repository.Repositories
                 {
                     result.AddRange(GetAllTimerGroupSubActions(logic.TrueSubActions));
                     result.AddRange(GetAllTimerGroupSubActions(logic.FalseSubActions));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Remaps ToggleCommandDisabled SubAction CommandNames after restore.
+        /// This ensures that command references are maintained even if command IDs change.
+        /// Note: CommandName should already be populated during restore, but this validates and fixes any issues.
+        /// </summary>
+        private async Task RemapToggleCommandDisabledSubActions(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var toggleCommandSubActions = records
+                .SelectMany(a => GetAllToggleCommandDisabledSubActions(a.SubActions))
+                .ToList();
+
+            if (!toggleCommandSubActions.Any())
+            {
+                logger?.LogDebug("No ToggleCommandDisabled subactions to remap");
+                return;
+            }
+
+            // Load all action commands from the database
+            var actionCommands = await context.Set<Bot.Models.Commands.ActionCommand>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var commandNameSet = new HashSet<string>(
+                actionCommands.Select(ac => ac.CommandName),
+                StringComparer.OrdinalIgnoreCase);
+
+            int validatedCount = 0;
+            int failedCount = 0;
+
+            foreach (var subAction in toggleCommandSubActions)
+            {
+                try
+                {
+                    // Check if CommandName exists in the current database
+                    if (!string.IsNullOrEmpty(subAction.CommandName))
+                    {
+                        if (commandNameSet.Contains(subAction.CommandName))
+                        {
+                            validatedCount++;
+                            logger?.LogDebug("Validated ToggleCommandDisabled subaction for command '{CommandName}'", subAction.CommandName);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("ToggleCommandDisabled subaction references unknown command: {CommandName}", subAction.CommandName);
+                        }
+                    }
+                    else
+                    {
+                        // Empty CommandName
+                        failedCount++;
+                        logger?.LogWarning("ToggleCommandDisabled subaction has empty CommandName");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to validate ToggleCommandDisabled subaction. CommandName: {CommandName}", 
+                        subAction.CommandName);
+                }
+            }
+
+            logger?.LogInformation("Validated {ValidatedCount} ToggleCommandDisabled subactions, {FailedCount} failed", 
+                validatedCount, failedCount);
+        }
+
+        /// <summary>
+        /// Recursively finds all ToggleCommandDisabledType subactions, including those nested in LogicIfElseType.
+        /// </summary>
+        private List<ToggleCommandDisabledType> GetAllToggleCommandDisabledSubActions(IEnumerable<SubActionType> subActions)
+        {
+            var result = new List<ToggleCommandDisabledType>();
+            foreach (var subAction in subActions)
+            {
+                if (subAction is ToggleCommandDisabledType toggleCommand)
+                {
+                    result.Add(toggleCommand);
+                }
+                else if (subAction is LogicIfElseType logic)
+                {
+                    result.AddRange(GetAllToggleCommandDisabledSubActions(logic.TrueSubActions));
+                    result.AddRange(GetAllToggleCommandDisabledSubActions(logic.FalseSubActions));
                 }
             }
             return result;
