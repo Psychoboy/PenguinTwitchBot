@@ -35,6 +35,7 @@
         SetVariable,
         ObsTriggerHotkey,
         ObsSetScene,
-        ObsSetSceneFilterState
+        ObsSetSceneFilterState,
+        ExecutePointCommand
     }
 }

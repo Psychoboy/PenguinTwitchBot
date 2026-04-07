@@ -413,6 +413,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
             return (await db.PointCommands.GetAsync(x => x.CommandName.Equals(pointTypeCommand), includeProperties: "PointType")).FirstOrDefault();
         }
 
+        public async Task<List<PointCommand>> GetAllPointCommands()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.PointCommands.GetAsync(includeProperties: "PointType");
+        }
+
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
             var command = CommandHandler.GetCommandDefaultName(e.Command);
