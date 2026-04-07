@@ -75,7 +75,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 catch (Exception ex)
                 {
                     // If we can't get scenes, fall back to text input
-                    // Log error but don't break the UI
                 }
             }
 
