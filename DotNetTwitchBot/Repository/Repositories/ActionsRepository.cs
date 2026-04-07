@@ -410,6 +410,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             var actions = await _context.Actions
                 .Include(a => a.Triggers)
                 .Include(a => a.SubActions)
+                .AsSplitQuery()
                 .ToListAsync();
 
             // Third Pass: Remap Timer trigger IDs based on TimerGroupName
