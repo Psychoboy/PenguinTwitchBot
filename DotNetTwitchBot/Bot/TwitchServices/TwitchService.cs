@@ -418,7 +418,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception)
             {
-                _logger.LogCritical("Failed getting user");
+                _logger.LogCritical("GetUserByName - Failed getting user: {user}", user);
                 return null;
             }
         }
@@ -438,7 +438,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception)
             {
-                _logger.LogCritical("Failed getting user");
+                _logger.LogCritical("GetUserById - Failed getting user: {user}", userId);
                 return null;
             }
         }
@@ -462,7 +462,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
             catch (Exception)
             {
-                _logger.LogCritical("Failed getting user");
+                _logger.LogCritical("Failed getting users: {users}", string.Join(", ", userNames));
                 return null;
             }
         }
