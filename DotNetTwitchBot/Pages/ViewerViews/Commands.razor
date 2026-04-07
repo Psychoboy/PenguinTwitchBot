@@ -23,7 +23,7 @@
         }
         else
         {
-            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+            <MudTable Items="@originalCommands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6">Commands</MudText>
                     <MudSpacer />
@@ -260,7 +260,6 @@
 
         originalCommands = commands.DistinctBy(x => x.Command).ToList();
         availableCategories = originalCommands.Select(x => x.Category).Distinct().OrderBy(x => x).ToList();
-        commands = commands.Where(x => x.isAlias == false).ToList();
     }
 
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
