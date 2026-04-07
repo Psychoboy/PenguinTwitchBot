@@ -52,11 +52,11 @@
                     else
                     {
                         <MudList T="ActionType" @bind-SelectedValue="_selectedAction" Dense="true">
-                            @foreach (var group in _filteredActions.Select(a => a.Group.Trim()).Distinct().Order())
+                            @foreach (var group in _filteredActions.Select(a => (a.Group ?? string.Empty).Trim()).Distinct().Order())
                             {
                                 <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)">
                                     <NestedList>
-                                @foreach (var action in _filteredActions.Where(a => a.Group == group))
+                                @foreach (var action in _filteredActions.Where(a => (a.Group ?? string.Empty) == group))
                                 {
                                     <MudListItem T="ActionType" Value="@action" OnClick="@(() => OnActionSelected(action))">
                                         <MudStack Spacing="0">

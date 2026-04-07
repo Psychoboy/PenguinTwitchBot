@@ -18,12 +18,20 @@ namespace DotNetTwitchBot.Pages.Components
                 FollowAgeType => "Gets follow age",
                 UptimeType => "Gets stream uptime",
                 WatchTimeType => "Gets watch time",
-                MultiCounterType multi => $"{multi.Name} counter",
+                MultiCounterType multi => $"{multi.Name} counter. Variable: %counter_{multi.Name}%",
                 ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
                 ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
                 TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
                 LogicIfElseType ifElse => $"If {ifElse.LeftValue} {ifElse.Operator} {ifElse.RightValue} (True: {ifElse.TrueSubActions.Count}, False: {ifElse.FalseSubActions.Count})",
                 ExecuteActionType exec => $"Execute Action: {exec.ActionName}",
+                BreakType => "Breaks from current Action",
+                DelayType delay => $"Delay: {delay.Duration}ms",
+                ExecuteDefaultCommandType execCmd => $"Execute Command: {execCmd.CommandId}",
+                ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
+                ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
+                ReplyToMessageType reply => $"Reply: {(reply.Text?.Length > 50 ? reply.Text[..50] + "..." : reply.Text)}",
+                SetVariableType setVar => $"Set Variable: {setVar.Text} = {setVar.Value}",
+                ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandId} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }
