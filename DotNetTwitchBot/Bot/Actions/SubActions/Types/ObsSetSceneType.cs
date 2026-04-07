@@ -1,5 +1,6 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.ObsConnector;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
@@ -56,7 +57,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 try
                 {
                     var managedConnections = connectionManager.GetAllManagedConnections();
-                    var connectedConnection = managedConnections.FirstOrDefault(c => c.IsConnected);
+                    ManagedOBSConnection? connectedConnection = null;
+                    if (OBSConnectionId.HasValue)
+                    {
+                        connectedConnection = managedConnections.FirstOrDefault(x => x.Id == OBSConnectionId.Value && x.IsConnected);
+                    }
 
                     if (connectedConnection != null)
                     {
@@ -85,7 +90,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     Options = scenes,
                     HelperText = scenes != null 
                         ? "Select the OBS scene to switch to" 
-                        : "Scene name (connect an OBS instance to see available scenes)"
+                        : "Scene name (connect an OBS instance to see available scenes)",
+                    DependsOn = [nameof(OBSConnectionId)]  // Declare that SceneName depends on OBSConnectionId
                 },
                 new SubActionUIField
                 {
