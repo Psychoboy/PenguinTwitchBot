@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Pages.Components
                 ExecuteActionType exec => $"Execute Action: {exec.ActionName}",
                 BreakType => "Breaks from current Action",
                 DelayType delay => $"Delay: {delay.Duration}ms",
-                ExecuteDefaultCommandType execCmd => $"Execute Command: {execCmd.CommandId}",
+                ExecuteDefaultCommandType execCmd => $"Execute Command: {execCmd.CommandName}",
                 ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
                 ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
                 ReplyToMessageType reply => $"Reply: {(reply.Text?.Length > 50 ? reply.Text[..50] + "..." : reply.Text)}",

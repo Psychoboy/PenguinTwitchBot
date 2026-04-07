@@ -113,6 +113,13 @@ namespace DotNetTwitchBot.Bot.Commands
             return await db.DefaultCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
+        public async Task<DefaultCommand?> GetDefaultCommandByDefaultCommandName(string defaultCommandName)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.DefaultCommands.Find(x => x.CommandName.Equals(defaultCommandName)).FirstOrDefaultAsync();
+        }
+
         public async Task<List<DefaultCommand>> GetDefaultCommandsFromDb()
         {
             await using var scope = scopeFactory.CreateAsyncScope();

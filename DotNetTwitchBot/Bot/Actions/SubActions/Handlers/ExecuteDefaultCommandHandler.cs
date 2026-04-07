@@ -17,10 +17,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 return;
             }
 
-            var command = await commandHandler.GetDefaultCommandById(executeDefaultCommand.CommandId);
+            var command = await commandHandler.GetDefaultCommandByDefaultCommandName(executeDefaultCommand.CommandName);
             if (command == null)
             {
-                logger.LogError("No default command found with ID: {CommandId}", executeDefaultCommand.CommandId);
+                logger.LogError("No default command found with name: {CommandName}", executeDefaultCommand.CommandName);
                 return;
             }
 
