@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         displayName: "Point Command",
         description: "Run a point command.",
         icon: MdiIcons.Coin,
-        color: "Yellow",
+        color: "Warning",
         tableName: "subactions_pointcommand")]
     public class PointCommandType : SubActionType, ISubActionUIProvider
     {
@@ -109,6 +109,23 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             {
                 return "Point Command Name is required.";
             }
+            var elevatedCommand = false;
+            if (values.TryGetValue(nameof(ElevatedCommand), out var elevatedValue))
+            {
+                elevatedCommand =
+                    elevatedValue as bool? ??
+                    (bool.TryParse(elevatedValue?.ToString(), out var parsedElevatedCommand) && parsedElevatedCommand);
+            }
+
+            if (elevatedCommand)
+            {
+                if (!values.TryGetValue(nameof(RankToExecuteAs), out var rankToExecuteAs) ||
+                    string.IsNullOrWhiteSpace(rankToExecuteAs?.ToString()))
+                {
+                    return "Rank to Execute As is required when Elevated Command is enabled";
+                }
+            }
+
             return null;
         }
     }

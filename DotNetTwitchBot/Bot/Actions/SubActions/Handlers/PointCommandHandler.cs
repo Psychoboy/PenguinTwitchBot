@@ -70,9 +70,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             eventArgs.Command = pointCommand.CommandName;
-            pointCommandType.Arguments = VariableReplacer.ReplaceVariables(pointCommandType.Arguments, variables);
-            eventArgs.Args = string.IsNullOrWhiteSpace(pointCommandType.Arguments) ? [] : [.. pointCommandType.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
-            eventArgs.Arg = pointCommandType.Arguments;
+            var args = VariableReplacer.ReplaceVariables(pointCommandType.Arguments, variables);
+            eventArgs.Args = string.IsNullOrWhiteSpace(args) ? [] : [.. args.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+            eventArgs.Arg = args;
             if (eventArgs.Args.Count > 0)
             {
                 eventArgs.TargetUser = eventArgs.Args[0].TrimStart('@');

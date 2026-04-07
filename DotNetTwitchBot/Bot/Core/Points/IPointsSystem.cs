@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<ViewerMessageCountWithRank> GetUserMessagesAndRank(string name);
         Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType);
         Task<UserPointsWithRank> GetPointsWithRankByUsername(string username, int pointType);
-        public Task<List<PointGamePair>> GetPointTypesForGames();
+        Task<List<PointGamePair>> GetPointTypesForGames();
         Task<List<PointCommand>> GetAllPointCommands();
     }
 }
