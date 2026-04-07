@@ -182,6 +182,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
 
         }
 
+        public async Task<PointType?> GetPointTypeByName(string name)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.PointTypes.GetAsync(x => x.Name.ToLower() == name.ToLower())).FirstOrDefault();
+        }
+
         public async Task<IEnumerable<PointType>> GetPointTypes()
         {
             await using var scope = scopeFactory.CreateAsyncScope();

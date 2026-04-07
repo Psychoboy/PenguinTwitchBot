@@ -339,6 +339,9 @@ namespace DotNetTwitchBot.Bot.ObsConnector
 
         private async void OnConnectionConnected(object? sender, OBSConnectionEventArgs e)
         {
+            if (_isDisposed)
+                return;
+
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -361,6 +364,9 @@ namespace DotNetTwitchBot.Bot.ObsConnector
 
         private async void OnConnectionDisconnected(object? sender, OBSConnectionEventArgs e)
         {
+            if (_isDisposed)
+                return;
+
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -394,6 +400,10 @@ namespace DotNetTwitchBot.Bot.ObsConnector
                 {
                     try
                     {
+                        // Unsubscribe from events before stopping to prevent events during disposal
+                        connection.Connected -= OnConnectionConnected;
+                        connection.Disconnected -= OnConnectionDisconnected;
+
                         connection.StopAsync().GetAwaiter().GetResult();
                         connection.Dispose();
                     }

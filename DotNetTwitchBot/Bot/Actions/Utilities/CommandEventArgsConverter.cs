@@ -51,9 +51,9 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
 
             if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
-                dictionary["targetorself"] = eventArgs.Args[0];
-                dictionary["target"] = eventArgs.Args[0];
-                dictionary["args"] = string.Join(" ", eventArgs.Args);
+                dictionary["targetorself"] = eventArgs.Args[0].Replace("@", "").Trim();
+                dictionary["target"] = eventArgs.Args[0].Replace("@", "").Trim();
+                dictionary["args"] = eventArgs.Arg ?? string.Empty;
             } else
             {
                 dictionary["targetorself"] = eventArgs.Name ?? string.Empty;

@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Timers;
@@ -106,6 +107,7 @@ namespace DotNetTwitchBot.Bot.Validation
 
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var pointsSystem = scope.ServiceProvider.GetRequiredService<IPointsSystem>();
 
             // Get all actions with their subactions
             var allActions = await db.Actions.GetAllWithDetailsAsync();
@@ -121,9 +123,13 @@ namespace DotNetTwitchBot.Bot.Validation
             var defaultCommands = await db.DefaultCommands.GetAllAsync();
             var defaultCommandNames = new HashSet<string>(defaultCommands.Select(dc => dc.CommandName), StringComparer.OrdinalIgnoreCase);
 
+            // Get all point types for CheckPoints validation
+            var pointTypes = await pointsSystem.GetPointTypes();
+            var pointTypeNames = new HashSet<string>(pointTypes.Select(pt => pt.Name), StringComparer.OrdinalIgnoreCase);
+
             foreach (var action in allActions)
             {
-                ValidateSubActionList(action.SubActions, commandIds, actionIds, defaultCommandNames, result, action.Id, action.Name);
+                ValidateSubActionList(action.SubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, action.Id, action.Name);
             }
 
             _logger.LogDebug("SubAction validation found {IssueCount} issues", result.Issues.Count);
@@ -135,6 +141,7 @@ namespace DotNetTwitchBot.Bot.Validation
             HashSet<int> commandIds, 
             HashSet<int> actionIds,
             HashSet<string> defaultCommandNames,
+            HashSet<string> pointTypeNames,
             ValidationResult result,
             int? parentActionId,
             string parentActionName)
@@ -213,19 +220,53 @@ namespace DotNetTwitchBot.Bot.Validation
                     }
                 }
 
+                // Validate CheckPoints subactions
+                if (subAction is CheckPointsType checkPoints)
+                {
+                    if (!string.IsNullOrWhiteSpace(checkPoints.PointTypeName) && 
+                        !pointTypeNames.Contains(checkPoints.PointTypeName))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionPointTypeNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "Check Points",
+                            Message = $"SubAction 'Check Points' references non-existent Point Type: '{checkPoints.PointTypeName}'",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                    else if (string.IsNullOrWhiteSpace(checkPoints.PointTypeName))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionPointTypeNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "Check Points",
+                            Message = "SubAction 'Check Points' has missing or empty PointTypeName",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                }
+
                 // Validate nested subactions in LogicIfElse
                 if (subAction is LogicIfElseType logicIfElse)
                 {
                     // Recursively validate TrueSubActions
                     if (logicIfElse.TrueSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, actionIds, defaultCommandNames, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
                     }
 
                     // Recursively validate FalseSubActions
                     if (logicIfElse.FalseSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, actionIds, defaultCommandNames, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
                     }
                 }
             }

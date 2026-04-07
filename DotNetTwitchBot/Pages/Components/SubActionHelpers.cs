@@ -33,6 +33,7 @@ namespace DotNetTwitchBot.Pages.Components
                 SetVariableType setVar => $"Set Variable: {setVar.Text} = {setVar.Value}",
                 ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandId} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
                 TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {timerGroup.TimerGroupName} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
+                CheckPointsType checkPoints => $"Gets {checkPoints.PointTypeName} points for {checkPoints.TargetUser} Variables: %TargetPoints% and %TargetPointsFormatted%",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }
