@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Validation
         SubActionCommandNotFound,
         SubActionActionNotFound,
         SubActionDefaultCommandNotFound,
+        SubActionPointTypeNotFound,
         TriggerMissingConfiguration,
         TriggerInvalidConfiguration,
         TriggerConfigurationMismatch,
