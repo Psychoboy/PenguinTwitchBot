@@ -87,22 +87,25 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
+        public async Task UpdateTimerGroup(TimerGroup group, string oldName, string newName)
+        {
+            if(!group.Id.HasValue)
+            {
+                _logger.LogWarning("Cannot update timer group: Timer group ID is null");
+                return;
+            }
+
+            if (!oldName.Equals(newName, StringComparison.OrdinalIgnoreCase))
+            {
+                // Name has changed - update trigger configurations
+                await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id.Value, oldName, newName);
+            }
+        }
+
         public async Task UpdateTimerGroup(TimerGroup group)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            // Check if the name has changed
-            if (group.Id.HasValue)
-            {
-                var existingGroup = await db.TimerGroups.Find(x => x.Id == group.Id.Value).AsNoTracking().FirstOrDefaultAsync();
-                if (existingGroup != null && existingGroup.Name != group.Name)
-                {
-                    // Name has changed - update trigger configurations
-                    await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id.Value, existingGroup.Name, group.Name);
-                }
-            }
-
             db.TimerGroups.Update(group);
             await db.SaveChangesAsync();
         }

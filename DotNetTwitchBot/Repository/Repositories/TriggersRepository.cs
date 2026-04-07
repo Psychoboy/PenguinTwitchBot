@@ -31,7 +31,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         public async Task<List<TriggerType>> GetByTypeAsync(TriggerTypes type)
         {
             return await _context.Triggers
-                .AsNoTracking()
                 .Include(t => t.Action)
                     .ThenInclude(a => a!.SubActions)
                 .Where(t => t.Type == type)
