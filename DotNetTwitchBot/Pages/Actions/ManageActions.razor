@@ -183,6 +183,9 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "actionId")]
+    public int? ActionIdFromQuery { get; set; }
+
     private List<ActionType> _actions = new();
     private List<ActionType> _filteredActions = new();
     private List<string> _groups = new();
@@ -222,6 +225,16 @@
         _actions = await ActionService.GetAllActionsAsync();
         _groups = _actions.Select(a => a.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g).ToList();
         FilterActions();
+
+        // If actionId is provided in query string, select that action
+        if (ActionIdFromQuery.HasValue)
+        {
+            var actionToSelect = _actions.FirstOrDefault(a => a.Id == ActionIdFromQuery.Value);
+            if (actionToSelect != null)
+            {
+                await OnActionSelected(actionToSelect);
+            }
+        }
     }
 
     private void FilterActions()

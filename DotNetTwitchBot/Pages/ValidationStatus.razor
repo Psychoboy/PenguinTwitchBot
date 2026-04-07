@@ -143,7 +143,7 @@
                                 <MudTd DataLabel="Related Action">
                                     @if (context.RelatedActionId.HasValue && !string.IsNullOrEmpty(context.RelatedActionName))
                                     {
-                                        <MudLink Href="@($"/actions/edit/{context.RelatedActionId}")">@context.RelatedActionName</MudLink>
+                                        <MudLink Href="@($"/actions/manage?actionId={context.RelatedActionId}")">@context.RelatedActionName</MudLink>
                                     }
                                     else
                                     {
@@ -181,7 +181,7 @@
                                 <MudTd DataLabel="Related Action">
                                     @if (context.RelatedActionId.HasValue && !string.IsNullOrEmpty(context.RelatedActionName))
                                     {
-                                        <MudLink Href="@($"/actions/edit/{context.RelatedActionId}")">@context.RelatedActionName</MudLink>
+                                        <MudLink Href="@($"/actions/manage?actionId={context.RelatedActionId}")">@context.RelatedActionName</MudLink>
                                     }
                                     else
                                     {
