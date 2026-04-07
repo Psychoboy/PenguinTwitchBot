@@ -32,6 +32,7 @@ namespace DotNetTwitchBot.Pages.Components
                 ReplyToMessageType reply => $"Reply: {(reply.Text?.Length > 50 ? reply.Text[..50] + "..." : reply.Text)}",
                 SetVariableType setVar => $"Set Variable: {setVar.Text} = {setVar.Value}",
                 ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandId} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
+                TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {timerGroup.TimerGroupName} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

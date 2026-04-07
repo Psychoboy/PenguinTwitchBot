@@ -20,5 +20,10 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         public int? ActionId { get; set; }
         [JsonIgnore]
         public ActionType? Action { get; set; }
+
+        // Nullable reference columns for efficient querying (instead of JSON deserialization)
+        // These are populated based on trigger type and stored alongside Configuration JSON
+        public int? TimerGroupId { get; set; } // For TriggerTypes.Timer
+        public int? CommandId { get; set; }     // For TriggerTypes.Command
     }
 }

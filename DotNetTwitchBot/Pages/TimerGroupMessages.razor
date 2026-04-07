@@ -132,6 +132,7 @@
 
     private string? Message;
     private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? timerGroup;
+    private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? originalGroup;
     private List<ActionType>? availableActions;
     private List<ActionType>? timerActions;
     private ActionType? selectedAction;
@@ -143,7 +144,31 @@
         timerGroup = await Timers.GetTimerGroupAsync(id);
         availableActions = await ActionService.GetAllActionsAsync();
         timerActions = await Timers.GetActionsForTimerGroup(id);
+        CopyGroupToOriginal();
         StateHasChanged();
+    }
+
+    private void CopyGroupToOriginal()
+    {
+        if (timerGroup != null)
+        {
+            originalGroup = new DotNetTwitchBot.Bot.Models.Timers.TimerGroup
+            {
+                Id = timerGroup.Id,
+                Name = timerGroup.Name,
+                IntervalMinimum = timerGroup.IntervalMinimum,
+                IntervalMaximum = timerGroup.IntervalMaximum,
+                MinimumMessages = timerGroup.MinimumMessages,
+                Active = timerGroup.Active,
+                Repeat = timerGroup.Repeat,
+                Messages = timerGroup.Messages.Select(m => new DotNetTwitchBot.Bot.Models.Timers.TimerMessage
+                {
+                    Id = m.Id,
+                    Message = m.Message,
+                    Enabled = m.Enabled
+                }).ToList()
+            };
+        }
     }
 
     private async Task Toggle(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
@@ -215,6 +240,11 @@
     {
         if (timerGroup == null) return;
         await Timers.UpdateTimerGroup(timerGroup);
+        if(originalGroup != null && originalGroup.Name != timerGroup.Name)
+        {
+            await Timers.UpdateTimerGroup(timerGroup, originalGroup.Name, timerGroup.Name);
+            CopyGroupToOriginal();
+        };
         StateHasChanged();
     }
 }

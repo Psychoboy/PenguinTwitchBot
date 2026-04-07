@@ -20,13 +20,6 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .FirstOrDefaultAsync(t => t.Id == id);
         }
 
-        public async Task<TriggerType?> GetByNameAsync(string name)
-        {
-            return await _context.Triggers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Name == name);
-        }
-
         public new async Task<List<TriggerType>> GetAllAsync()
         {
             return await _context.Triggers
@@ -38,7 +31,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         public async Task<List<TriggerType>> GetByTypeAsync(TriggerTypes type)
         {
             return await _context.Triggers
-                .AsNoTracking()
                 .Include(t => t.Action)
                     .ThenInclude(a => a!.SubActions)
                 .Where(t => t.Type == type)
@@ -52,24 +44,6 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .AsNoTracking()
                 .Where(t => t.ActionId == actionId)
                 .OrderBy(t => t.Name)
-                .ToListAsync();
-        }
-
-        public async Task<List<TriggerType>> GetTriggersByCommandIdAsync(int commandId)
-        {
-            return await _context.Triggers
-                .AsNoTracking()
-                .Where(t => t.Type == TriggerTypes.Command && t.Configuration.Contains($"\"CommandId\":{commandId}"))
-                .ToListAsync();
-        }
-
-        public async Task<List<TriggerType>> GetTriggersByTimerGroupIdAsync(int timerId)
-        {
-            return await _context.Triggers
-                .AsNoTracking()
-                .Include(t => t.Action)
-                    .ThenInclude(a => a!.SubActions)
-                .Where(t => t.Type == TriggerTypes.Timer && t.Configuration.Contains($"\"TimerGroupId\":{timerId}"))
                 .ToListAsync();
         }
 
@@ -100,9 +74,32 @@ namespace DotNetTwitchBot.Repository.Repositories
             }
         }
 
-        public async Task<bool> ExistsAsync(string name)
+        /// <summary>
+        /// Efficiently queries triggers by TimerGroupId using the reference column instead of JSON deserialization.
+        /// </summary>
+        public async Task<List<TriggerType>> GetByTimerGroupIdAsync(int timerGroupId)
         {
-            return await _context.Triggers.AsNoTracking().AnyAsync(t => t.Name == name);
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
+                .Where(t => t.Type == TriggerTypes.Timer && t.TimerGroupId == timerGroupId)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Efficiently queries triggers by CommandId using the reference column instead of JSON deserialization.
+        /// </summary>
+        public async Task<List<TriggerType>> GetByCommandIdAsync(int commandId)
+        {
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
+                .Where(t => t.Type == TriggerTypes.Command && t.CommandId == commandId)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
         }
 
         public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)

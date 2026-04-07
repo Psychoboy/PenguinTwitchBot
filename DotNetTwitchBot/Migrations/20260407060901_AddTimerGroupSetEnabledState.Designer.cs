@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260407060901_AddTimerGroupSetEnabledState")]
+    partial class AddTimerGroupSetEnabledState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -100,9 +103,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int?>("ActionId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CommandId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Configuration")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -116,9 +116,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<int?>("TimerGroupId")
-                        .HasColumnType("int");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -2262,10 +2259,6 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int?>("TimerGroupId")
                         .HasColumnType("int");
-
-                    b.Property<string>("TimerGroupName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
 
                     b.ToTable("subactions_timergroupsetenabled", (string)null);
                 });

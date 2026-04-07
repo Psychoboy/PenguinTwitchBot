@@ -46,6 +46,17 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<ActionCommand> UpdateAsync(ActionCommand command)
         {
+            // Check if the command name has changed
+            if (command.Id.HasValue)
+            {
+                var existingCommand = await unitOfWork.ActionCommands.Find(x => x.Id == command.Id.Value).AsNoTracking().FirstOrDefaultAsync();
+                if (existingCommand != null && existingCommand.CommandName != command.CommandName)
+                {
+                    // Command name has changed - update trigger configurations
+                    await unitOfWork.Actions.UpdateCommandTriggerConfigurationsForRenamedCommand(command.Id.Value, existingCommand.CommandName, command.CommandName);
+                }
+            }
+
             // Ensure category is never null
             command.Category = command.Category ?? string.Empty;
 

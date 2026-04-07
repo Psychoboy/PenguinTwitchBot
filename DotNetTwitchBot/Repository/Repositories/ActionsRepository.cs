@@ -50,7 +50,10 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             // Populate ActionName for ExecuteActionType subactions before save
             if(action.SubActions != null)
+            {
                 await PopulateExecuteActionNamesBeforeSave(action.SubActions);
+                await PopulateTimerGroupNamesBeforeSave(action.SubActions);
+            }
 
             await _context.Actions.AddAsync(action);
             await _context.SaveChangesAsync();
@@ -160,6 +163,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             // Populate ActionName for ExecuteActionType subactions before save
             await PopulateExecuteActionNamesBeforeSave(existingAction.SubActions);
+            await PopulateTimerGroupNamesBeforeSave(existingAction.SubActions);
 
             await _context.SaveChangesAsync();
 
@@ -226,6 +230,44 @@ namespace DotNetTwitchBot.Repository.Repositories
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Populates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) before save.
+        /// Only queries timer groups that are actually referenced.
+        /// </summary>
+        private async Task PopulateTimerGroupNamesBeforeSave(List<SubActionType> subActions)
+        {
+            var allTimerGroupSubActions = GetAllTimerGroupSubActions(subActions);
+            if (!allTimerGroupSubActions.Any()) return;
+
+            // Get distinct TimerGroupIds that need to be resolved
+            var timerGroupIdsToResolve = allTimerGroupSubActions
+                .Where(tg => tg.TimerGroupId.HasValue)
+                .Select(tg => tg.TimerGroupId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!timerGroupIdsToResolve.Any()) return;
+
+            // Query only the timer groups we need
+            var referencedTimerGroups = await _context.Set<Bot.Models.Timers.TimerGroup>()
+                .AsNoTracking()
+                .Where(tg => tg.Id.HasValue && timerGroupIdsToResolve.Contains(tg.Id.Value))
+                .Select(tg => new { tg.Id, tg.Name })
+                .ToListAsync();
+
+            var timerGroupIdToNameMap = referencedTimerGroups.ToDictionary(tg => tg.Id!.Value, tg => tg.Name);
+
+            // Populate TimerGroupName for each TimerGroupSetEnabledState subaction
+            foreach (var timerGroupSubAction in allTimerGroupSubActions)
+            {
+                if (timerGroupSubAction.TimerGroupId.HasValue &&
+                    timerGroupIdToNameMap.TryGetValue(timerGroupSubAction.TimerGroupId.Value, out var timerGroupName))
+                {
+                    timerGroupSubAction.TimerGroupName = timerGroupName;
+                }
+            }
         }
 
         public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName)
@@ -380,22 +422,49 @@ namespace DotNetTwitchBot.Repository.Repositories
                         }
                     }
 
-                    // Save ExecuteAction subactions
-                    await context.SaveChangesAsync();
-                    logger?.LogDebug("Restored {ExecuteActionCount} ExecuteAction subactions (second pass)", 
-                        executeActionSubActions.Count);
-                }
+                        // Save ExecuteAction subactions
+                        await context.SaveChangesAsync();
+                        logger?.LogDebug("Restored {ExecuteActionCount} ExecuteAction subactions (second pass)", 
+                            executeActionSubActions.Count);
+                    }
 
-                var subActionCount = records.Sum(r => r.SubActions.Count);
-                var triggerCount = records.Sum(r => r.Triggers.Count);
-                logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
-                    records.Count, subActionCount, triggerCount);
+                    var subActionCount = records.Sum(r => r.SubActions.Count);
+                    var triggerCount = records.Sum(r => r.Triggers.Count);
+                    logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
+                        records.Count, subActionCount, triggerCount);
             }
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Failed to restore ActionType");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Post-restore method to remap all entity references after all tables have been restored.
+        /// This must be called AFTER all tables are restored so TimerGroups and ActionCommands have their new IDs.
+        /// </summary>
+        public async Task RemapEntityReferencesAfterRestore(ILogger? logger = null)
+        {
+            logger?.LogInformation("Starting post-restore entity reference remapping...");
+
+            // Load all actions with triggers and subactions
+            var actions = await _context.Actions
+                .Include(a => a.Triggers)
+                .Include(a => a.SubActions)
+                .AsSplitQuery()
+                .ToListAsync();
+
+            // Third Pass: Remap Timer trigger IDs based on TimerGroupName
+            await RemapTimerTriggerIds(_context, actions, logger);
+
+            // Fourth Pass: Remap Command trigger IDs based on CommandName
+            await RemapCommandTriggerIds(_context, actions, logger);
+
+            // Fifth Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
+            await RemapTimerGroupSubActionIds(_context, actions, logger);
+
+            logger?.LogInformation("Completed post-restore entity reference remapping");
         }
 
         /// <summary>
@@ -449,6 +518,383 @@ namespace DotNetTwitchBot.Repository.Repositories
             {
                 await _context.SaveChangesAsync();
             }
+        }
+
+        /// <summary>
+        /// Updates CommandName in all Command trigger configurations when a command is renamed.
+        /// </summary>
+        public async Task UpdateCommandTriggerConfigurationsForRenamedCommand(int commandId, string oldCommandName, string newCommandName)
+        {
+
+
+            var commandTriggers = await _context.Triggers
+                .Where(x => x.Type == TriggerTypes.Command && x.Name == "!" + oldCommandName).ToListAsync();
+
+            var updatedCount = 0;
+            foreach (var trigger in commandTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
+                    if (config == null) continue;
+                    // Update the CommandName in the configuration
+                    var newConfig = new
+                    {
+                        CommandId = commandId,
+                        CommandName = newCommandName
+                    };
+                    trigger.Configuration = JsonSerializer.Serialize(newConfig);
+                    trigger.Name = "!" + newCommandName;
+
+                    // Update the reference column as well
+                    trigger.CommandId = commandId;
+
+                    // Explicitly mark the properties as modified
+                    _context.Entry(trigger).Property(t => t.Configuration).IsModified = true;
+                    _context.Entry(trigger).Property(t => t.Name).IsModified = true;
+                    _context.Entry(trigger).Property(t => t.CommandId).IsModified = true;
+                    updatedCount++;
+                }
+                catch (Exception)
+                {
+                    // Skip triggers with invalid configuration
+                    continue;
+                }
+            }
+
+            if (updatedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Updates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) referencing the given timerGroupId.
+        /// </summary>
+        public async Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName)
+        {
+            // Load all actions with their subactions
+            // Note: We need to load all because we can't efficiently filter by nested TimerGroupSetEnabledStateType in a query
+            var allActions = await _context.Actions
+                .Include(a => a.SubActions)
+                .ToListAsync();
+
+            bool hasChanges = false;
+            foreach (var action in allActions)
+            {
+                var allTimerGroupSubActions = GetAllTimerGroupSubActions(action.SubActions);
+                foreach (var timerGroupSubAction in allTimerGroupSubActions)
+                {
+                    if (timerGroupSubAction.TimerGroupId == timerGroupId && timerGroupSubAction.TimerGroupName != newName)
+                    {
+                        timerGroupSubAction.TimerGroupName = newName;
+                        hasChanges = true;
+                    }
+                }
+            }
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Remaps Timer trigger IDs based on TimerGroupName after restore.
+        /// Timer Group IDs change during restore, so we use names to re-establish the relationships.
+        /// </summary>
+        private async Task RemapTimerTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var timerTriggers = records
+                .SelectMany(a => a.Triggers)
+                .Where(t => t.Type == TriggerTypes.Timer && !string.IsNullOrEmpty(t.Configuration))
+                .ToList();
+
+            if (!timerTriggers.Any())
+            {
+                logger?.LogDebug("No timer triggers to remap");
+                return;
+            }
+
+            // Load all timer groups from the database (with their new IDs)
+            var timerGroups = await context.Set<Bot.Models.Timers.TimerGroup>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var timerGroupNameToIdMap = timerGroups
+                .Where(tg => tg.Id.HasValue)
+                .GroupBy(tg => tg.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => 
+                    {
+                        if (g.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple timer groups found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
+                        }
+                        return g.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            int remappedCount = 0;
+            int failedCount = 0;
+
+            foreach (var trigger in timerTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
+                    if (config == null) continue;
+
+                    // Try to get TimerGroupName (new format)
+                    if (config.TryGetValue("TimerGroupName", out var timerGroupNameElement))
+                    {
+                        var timerGroupName = timerGroupNameElement.GetString();
+                        if (!string.IsNullOrEmpty(timerGroupName) && 
+                            timerGroupNameToIdMap.TryGetValue(timerGroupName, out var newTimerGroupId))
+                        {
+                            // Update the configuration with the new TimerGroupId
+                            var newConfig = new
+                            {
+                                TimerGroupId = newTimerGroupId,
+                                TimerGroupName = timerGroupName
+                            };
+                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
+
+                            // Update the reference column as well
+                            trigger.TimerGroupId = newTimerGroupId;
+
+                            // Update the trigger name to match the new ID
+                            trigger.Name = $"TimerGroup_{newTimerGroupId}";
+
+                            remappedCount++;
+                            logger?.LogDebug("Remapped timer trigger for '{TimerGroupName}': old trigger name was {OldName}, new ID is {NewId}", 
+                                timerGroupName, trigger.Name, newTimerGroupId);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("Timer trigger references unknown timer group: {TimerGroupName}", timerGroupName);
+                        }
+                    }
+                    else
+                    {
+                        // Old format - only has TimerGroupId, cannot remap
+                        failedCount++;
+                        logger?.LogWarning("Timer trigger uses old format (TimerGroupId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap timer trigger. Configuration: {Config}", trigger.Configuration);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} timer triggers, {FailedCount} failed", remappedCount, failedCount);
+            }
+        }
+
+        /// <summary>
+        /// Remaps Command trigger IDs based on CommandName after restore.
+        /// Command IDs change during restore, so we use names to re-establish the relationships.
+        /// </summary>
+        private async Task RemapCommandTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var commandTriggers = records
+                .SelectMany(a => a.Triggers)
+                .Where(t => t.Type == TriggerTypes.Command && !string.IsNullOrEmpty(t.Configuration))
+                .ToList();
+
+            if (!commandTriggers.Any())
+            {
+                logger?.LogDebug("No command triggers to remap");
+                return;
+            }
+
+            // Load all action commands from the database (with their new IDs)
+            var actionCommands = await context.Set<Bot.Models.Commands.ActionCommand>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var commandNameToIdMap = actionCommands
+                .Where(ac => ac.Id.HasValue)
+                .GroupBy(ac => ac.CommandName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => 
+                    {
+                        if (g.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple commands found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
+                        }
+                        return g.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            int remappedCount = 0;
+            int failedCount = 0;
+
+            foreach (var trigger in commandTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
+                    if (config == null) continue;
+
+                    // Try to get CommandName
+                    if (config.TryGetValue("CommandName", out var commandNameElement))
+                    {
+                        var commandName = commandNameElement.GetString();
+                        if (!string.IsNullOrEmpty(commandName) && 
+                            commandNameToIdMap.TryGetValue(commandName, out var newCommandId))
+                        {
+                            // Update the configuration with the new CommandId
+                            var newConfig = new
+                            {
+                                CommandId = newCommandId,
+                                CommandName = commandName
+                            };
+                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
+
+                            // Update the reference column as well
+                            trigger.CommandId = newCommandId;
+
+                            remappedCount++;
+                            logger?.LogDebug("Remapped command trigger for '!{CommandName}': new ID is {NewId}", commandName, newCommandId);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("Command trigger references unknown command: {CommandName}", commandName);
+                        }
+                    }
+                    else
+                    {
+                        // Old format - only has CommandId, cannot remap
+                        failedCount++;
+                        logger?.LogWarning("Command trigger uses old format (CommandId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap command trigger. Configuration: {Config}", trigger.Configuration);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} command triggers, {FailedCount} failed", remappedCount, failedCount);
+            }
+        }
+
+        /// <summary>
+        /// Remaps TimerGroupSetEnabledState SubAction IDs based on TimerGroupName after restore.
+        /// Timer Group IDs change during restore, so we use names to re-establish the relationships.
+        /// </summary>
+        private async Task RemapTimerGroupSubActionIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var timerGroupSubActions = records
+                .SelectMany(a => GetAllTimerGroupSubActions(a.SubActions))
+                .ToList();
+
+            if (!timerGroupSubActions.Any())
+            {
+                logger?.LogDebug("No TimerGroupSetEnabledState subactions to remap");
+                return;
+            }
+
+            // Load all timer groups from the database (with their new IDs)
+            var timerGroups = await context.Set<Bot.Models.Timers.TimerGroup>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var timerGroupNameToIdMap = timerGroups
+                .Where(tg => tg.Id.HasValue)
+                .GroupBy(tg => tg.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => 
+                    {
+                        if (g.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple timer groups found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
+                        }
+                        return g.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            int remappedCount = 0;
+            int failedCount = 0;
+
+            foreach (var subAction in timerGroupSubActions)
+            {
+                try
+                {
+                    // Check if we have a TimerGroupName to remap with
+                    if (!string.IsNullOrEmpty(subAction.TimerGroupName))
+                    {
+                        if (timerGroupNameToIdMap.TryGetValue(subAction.TimerGroupName, out var newTimerGroupId))
+                        {
+                            subAction.TimerGroupId = newTimerGroupId;
+                            remappedCount++;
+                            logger?.LogDebug("Remapped TimerGroupSetEnabledState subaction for '{TimerGroupName}': new ID is {NewId}", 
+                                subAction.TimerGroupName, newTimerGroupId);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("TimerGroupSetEnabledState subaction references unknown timer group: {TimerGroupName}", 
+                                subAction.TimerGroupName);
+                        }
+                    }
+                    else
+                    {
+                        // Old format - only has TimerGroupId, cannot remap
+                        failedCount++;
+                        logger?.LogWarning("TimerGroupSetEnabledState subaction uses old format (TimerGroupId only) and cannot be remapped. TimerGroupId: {TimerGroupId}", 
+                            subAction.TimerGroupId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap TimerGroupSetEnabledState subaction. TimerGroupId: {TimerGroupId}, TimerGroupName: {TimerGroupName}", 
+                        subAction.TimerGroupId, subAction.TimerGroupName);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} TimerGroupSetEnabledState subactions, {FailedCount} failed", 
+                    remappedCount, failedCount);
+            }
+        }
+
+        /// <summary>
+        /// Recursively finds all TimerGroupSetEnabledStateType subactions, including those nested in LogicIfElseType.
+        /// </summary>
+        private List<TimerGroupSetEnabledStateType> GetAllTimerGroupSubActions(IEnumerable<SubActionType> subActions)
+        {
+            var result = new List<TimerGroupSetEnabledStateType>();
+            foreach (var subAction in subActions)
+            {
+                if (subAction is TimerGroupSetEnabledStateType timerGroup)
+                {
+                    result.Add(timerGroup);
+                }
+                else if (subAction is LogicIfElseType logic)
+                {
+                    result.AddRange(GetAllTimerGroupSubActions(logic.TrueSubActions));
+                    result.AddRange(GetAllTimerGroupSubActions(logic.FalseSubActions));
+                }
+            }
+            return result;
         }
     }
 }

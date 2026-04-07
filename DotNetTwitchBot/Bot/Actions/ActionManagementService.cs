@@ -212,7 +212,7 @@ namespace DotNetTwitchBot.Bot.Actions
 
             try
             {
-                var triggers = await unitOfWork.Triggers.GetTriggersByCommandIdAsync(commandId);
+                var triggers = await unitOfWork.Triggers.GetByCommandIdAsync(commandId);
                 _logger.LogInformation("Deleting {Count} triggers for command ID {CommandId}", triggers.Count, commandId);
 
                 foreach (var trigger in triggers)

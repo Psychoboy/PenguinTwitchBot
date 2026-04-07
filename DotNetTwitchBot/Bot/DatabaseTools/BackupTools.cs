@@ -165,6 +165,11 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
             logger?.LogInformation("Database committing final changes");
             await context.SaveChangesAsync();
 
+            // Post-restore: Remap entity references now that all tables have their new IDs
+            logger?.LogInformation("Starting post-restore entity reference remapping");
+            var actionsRepository = new Repository.Repositories.ActionsRepository((ApplicationDbContext)context);
+            await actionsRepository.RemapEntityReferencesAfterRestore(logger);
+
             if (!string.IsNullOrEmpty(errors))
             {
                 logger?.LogError("Errors occurred during restore:\n{Errors}", errors);
