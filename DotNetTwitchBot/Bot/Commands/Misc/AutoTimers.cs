@@ -99,6 +99,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 // Name has changed - update trigger configurations
                 await UpdateTriggerConfigurationsForRenamedTimerGroup(group.Id.Value, oldName, newName);
+
+                // Also update subaction references
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                await db.Actions.UpdateTimerGroupNamesForRenamedTimerGroup(group.Id.Value, newName);
             }
         }
 

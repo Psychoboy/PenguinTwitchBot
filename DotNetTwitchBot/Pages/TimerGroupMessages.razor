@@ -144,7 +144,13 @@
         timerGroup = await Timers.GetTimerGroupAsync(id);
         availableActions = await ActionService.GetAllActionsAsync();
         timerActions = await Timers.GetActionsForTimerGroup(id);
-        if(timerGroup != null)
+        CopyGroupToOriginal();
+        StateHasChanged();
+    }
+
+    private void CopyGroupToOriginal()
+    {
+        if (timerGroup != null)
         {
             originalGroup = new DotNetTwitchBot.Bot.Models.Timers.TimerGroup
             {
@@ -163,7 +169,6 @@
                 }).ToList()
             };
         }
-        StateHasChanged();
     }
 
     private async Task Toggle(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
@@ -238,6 +243,7 @@
         if(originalGroup != null && originalGroup.Name != timerGroup.Name)
         {
             await Timers.UpdateTimerGroup(timerGroup, originalGroup.Name, timerGroup.Name);
+            CopyGroupToOriginal();
         };
         StateHasChanged();
     }

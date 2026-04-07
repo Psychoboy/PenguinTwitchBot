@@ -569,6 +569,36 @@ namespace DotNetTwitchBot.Repository.Repositories
         }
 
         /// <summary>
+        /// Updates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) referencing the given timerGroupId.
+        /// </summary>
+        public async Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName)
+        {
+            // Load all actions with their subactions
+            // Note: We need to load all because we can't efficiently filter by nested TimerGroupSetEnabledStateType in a query
+            var allActions = await _context.Actions
+                .Include(a => a.SubActions)
+                .ToListAsync();
+
+            bool hasChanges = false;
+            foreach (var action in allActions)
+            {
+                var allTimerGroupSubActions = GetAllTimerGroupSubActions(action.SubActions);
+                foreach (var timerGroupSubAction in allTimerGroupSubActions)
+                {
+                    if (timerGroupSubAction.TimerGroupId == timerGroupId && timerGroupSubAction.TimerGroupName != newName)
+                    {
+                        timerGroupSubAction.TimerGroupName = newName;
+                        hasChanges = true;
+                    }
+                }
+            }
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
         /// Remaps Timer trigger IDs based on TimerGroupName after restore.
         /// Timer Group IDs change during restore, so we use names to re-establish the relationships.
         /// </summary>

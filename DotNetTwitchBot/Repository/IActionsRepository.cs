@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Repository
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
         Task UpdateExecuteActionNamesForRenamedAction(int actionId, string newName);
         Task UpdateCommandTriggerConfigurationsForRenamedCommand(int commandId, string oldCommandName, string newCommandName);
+        Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName);
         Task RemapEntityReferencesAfterRestore(ILogger? logger = null);
     }
 }
