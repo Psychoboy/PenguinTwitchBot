@@ -36,6 +36,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 },
                 new()
                 {
+                    PropertyName = "info_hint",
+                    Label = "The variable is %ExternalApiResponse%",
+                    FieldType = UIFieldType.Info,
+                    Severity = "Info",
+                    Dense = true
+                },
+                new()
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
