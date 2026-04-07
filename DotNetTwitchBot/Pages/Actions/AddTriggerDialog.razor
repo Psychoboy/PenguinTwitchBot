@@ -269,7 +269,8 @@
         {
             configuration = System.Text.Json.JsonSerializer.Serialize(new
             {
-                TimerGroupId = _selectedTimerGroup.Id.Value
+                TimerGroupId = _selectedTimerGroup.Id.Value,
+                TimerGroupName = _selectedTimerGroup.Name
             });
         }
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
