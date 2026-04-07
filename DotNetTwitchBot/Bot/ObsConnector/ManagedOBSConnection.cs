@@ -90,7 +90,7 @@ namespace DotNetTwitchBot.Bot.ObsConnector
                 if (IsConnected)
                     return;
 
-                _logger.LogInformation("Connecting to OBS '{Name}' at {Url}", _config.Name, _config.Url);
+                _logger.LogDebug("Connecting to OBS '{Name}' at {Url}", _config.Name, _config.Url);
                 _obs.ConnectAsync(_config.Url, _config.Password);
             }
             catch (Exception ex)
@@ -146,7 +146,7 @@ namespace DotNetTwitchBot.Bot.ObsConnector
             LastDisconnected = DateTime.UtcNow;
 
             var reason = e.DisconnectReason ?? "Unknown";
-            _logger.LogWarning("Disconnected from OBS '{Name}': {Reason}", _config.Name, reason);
+            _logger.LogInformation("Disconnected from OBS '{Name}': {Reason}", _config.Name, reason);
 
             Disconnected?.Invoke(this, new OBSConnectionEventArgs(_config.Id, _config.Name));
 
