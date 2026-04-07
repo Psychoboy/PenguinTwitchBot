@@ -93,6 +93,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
         public bool Dense { get; set; }
         public bool NoIcon { get; set; }
 
+        // Dynamic field dependencies
+        /// <summary>
+        /// Names of other fields that this field depends on.
+        /// When any of these fields change, the UI will be refreshed to regenerate this field.
+        /// Example: A "Filter" field that depends on "Scene" would set DependsOn = ["SceneName"]
+        /// </summary>
+        public string[]? DependsOn { get; set; }
+
         // Fallback for any custom attributes not covered above
         [Obsolete("Use strongly-typed properties instead")]
         public Dictionary<string, object> Attributes { get; set; } = new();

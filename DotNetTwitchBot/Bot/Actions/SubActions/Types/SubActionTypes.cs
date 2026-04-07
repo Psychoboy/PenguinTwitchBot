@@ -34,6 +34,7 @@
         LogicIfElse,
         SetVariable,
         ObsTriggerHotkey,
-        ObsSetScene
+        ObsSetScene,
+        ObsSetSceneFilterState
     }
 }
