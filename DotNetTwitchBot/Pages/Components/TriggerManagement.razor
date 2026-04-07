@@ -8,6 +8,7 @@
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService
+@inject DotNetTwitchBot.Bot.Validation.IValidationService ValidationService
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -242,6 +243,17 @@
                 Snackbar.Add($"Error adding trigger: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    private async Task RunValidationCheck()
+    {
+        var dialog = await DialogService.ShowAsync<ValidationResultsDialog>("Validation Check", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true
+        });
+
+        await dialog.Result;
     }
 
     private async Task ToggleTriggerEnabled(TriggerType trigger, bool enabled)
