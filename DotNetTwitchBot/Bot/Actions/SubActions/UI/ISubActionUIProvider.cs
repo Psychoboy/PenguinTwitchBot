@@ -116,5 +116,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
     {
         public string Name { get; set; } = string.Empty;
         public int Id { get; set; }
+
+        /// <summary>
+        /// Optional string value. When set, this will be used instead of Id.ToString().
+        /// Useful for storing enum names or other string-based values.
+        /// </summary>
+        public string? Value { get; set; }
     }
 }

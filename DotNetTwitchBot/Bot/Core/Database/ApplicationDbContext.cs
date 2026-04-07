@@ -7,6 +7,7 @@ using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
+using DotNetTwitchBot.Bot.Models.Obs;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core.Database
@@ -72,6 +73,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<SubActionType> SubActions { get; set; } = null!;
         public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
         public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
+        public DbSet<OBSConnection> OBSConnections { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

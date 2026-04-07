@@ -1,0 +1,120 @@
+@using DotNetTwitchBot.Bot.Models.Obs
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_connection.Name"
+                          Label="Connection Name"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          HelperText="A friendly name for this connection"
+                          Placeholder="Main OBS" />
+
+            <MudTextField @bind-Value="_connection.Url"
+                          Label="WebSocket URL"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          HelperText="e.g., ws://localhost:4455"
+                          Placeholder="ws://localhost:4455" />
+
+            <MudTextField @bind-Value="_connection.Password"
+                          Label="Password"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          HelperText="OBS WebSocket password (optional)" />
+
+            <MudStack Spacing="1">
+                <MudSwitch @bind-Value="_connection.Enabled"
+                           Label="Enabled"
+                           Color="Color.Success" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Start connection automatically</MudText>
+            </MudStack>
+
+            @if (!string.IsNullOrEmpty(_validationError))
+            {
+                <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">
+            @(IsNew ? "Add" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public OBSConnection? Connection { get; set; }
+
+    [Parameter]
+    public bool IsNew { get; set; }
+
+    private OBSConnection _connection = new();
+    private string? _validationError;
+
+    protected override void OnInitialized()
+    {
+        if (Connection != null && !IsNew)
+        {
+            // Clone the connection to avoid modifying the original until saved
+            _connection = new OBSConnection
+            {
+                Id = Connection.Id,
+                Name = Connection.Name,
+                Url = Connection.Url,
+                Password = Connection.Password,
+                Enabled = Connection.Enabled,
+                IsConnected = Connection.IsConnected,
+                LastConnected = Connection.LastConnected,
+                LastDisconnected = Connection.LastDisconnected,
+                LastError = Connection.LastError,
+                CreatedAt = Connection.CreatedAt,
+                UpdatedAt = Connection.UpdatedAt
+            };
+        }
+        else
+        {
+            _connection = new OBSConnection
+            {
+                Enabled = true
+            };
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Submit()
+    {
+        _validationError = null;
+
+        // Validate
+        if (string.IsNullOrWhiteSpace(_connection.Name))
+        {
+            _validationError = "Connection name is required";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_connection.Url))
+        {
+            _validationError = "WebSocket URL is required";
+            return;
+        }
+
+        if (!_connection.Url.StartsWith("ws://") && !_connection.Url.StartsWith("wss://"))
+        {
+            _validationError = "WebSocket URL must start with ws:// or wss://";
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(_connection));
+    }
+}

@@ -1,0 +1,283 @@
+@page "/obs/connections"
+@using DotNetTwitchBot.Bot.Models.Obs
+@using DotNetTwitchBot.Bot.ObsConnector
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IOBSConnectionManager ConnectionManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>SPTV Twitch Bot - OBS Connections</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">OBS WebSocket Connections</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Manage multiple OBS WebSocket connections. These connections are used by SubActions to control OBS.
+    </MudText>
+
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="3">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h6">Connections (@_connections.Count)</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton StartIcon="@Icons.Material.Filled.Refresh"
+                               Color="Color.Default"
+                               Variant="Variant.Outlined"
+                               OnClick="RefreshConnections">
+                        Refresh
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Add"
+                               Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               OnClick="AddConnection">
+                        Add Connection
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+
+            @if (_loading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (_connections.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">
+                    No OBS connections configured. Click "Add Connection" to create one.
+                </MudAlert>
+            }
+            else
+            {
+                <MudTable Items="@_connections" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>URL</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Last Connected</MudTh>
+                        <MudTh>Enabled</MudTh>
+                        <MudTh Style="text-align: right;">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudStack Spacing="0">
+                                <MudText>@context.Name</MudText>
+                                @if (!string.IsNullOrEmpty(context.LastError))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">
+                                        Error: @context.LastError
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="URL">@context.Url</MudTd>
+                        <MudTd DataLabel="Status">
+                            @if (context.IsConnected)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">Connected</MudChip>
+                            }
+                            else if (!context.Enabled)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default">Disabled</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Disconnected</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Last Connected">
+                            @if (context.LastConnected.HasValue)
+                            {
+                                <MudText Typo="Typo.body2">
+                                    @context.LastConnected.Value.ToLocalTime().ToString("g")
+                                </MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Never</MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Enabled">
+                            <MudSwitch T="bool" Value="@context.Enabled"
+                                       ValueChanged="@(async (bool val) => await ToggleEnabled(context, val))"
+                                       Color="Color.Success" />
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Style="text-align: right;">
+                            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Cable"
+                                               Size="Size.Small"
+                                               Color="Color.Info"
+                                               OnClick="@(() => TestConnection(context))"
+                                               Tooltip="Test Connection" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => EditConnection(context))"
+                                               Tooltip="Edit" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => DeleteConnection(context))"
+                                               Tooltip="Delete" />
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<OBSConnection> _connections = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConnections();
+    }
+
+    private async Task LoadConnections()
+    {
+        _loading = true;
+        try
+        {
+            _connections = await ConnectionManager.GetAllConnectionsAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RefreshConnections()
+    {
+        await LoadConnections();
+        Snackbar.Add("Connections refreshed", Severity.Success);
+    }
+
+    private async Task AddConnection()
+    {
+        var parameters = new DialogParameters<OBSConnectionDialog>
+        {
+            { x => x.IsNew, true }
+        };
+
+        var dialog = await DialogService.ShowAsync<OBSConnectionDialog>(
+            "Add OBS Connection",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is OBSConnection connection)
+        {
+            try
+            {
+                await ConnectionManager.CreateConnectionAsync(connection);
+                await LoadConnections();
+                Snackbar.Add($"Connection '{connection.Name}' added successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error adding connection: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task EditConnection(OBSConnection connection)
+    {
+        var parameters = new DialogParameters<OBSConnectionDialog>
+        {
+            { x => x.Connection, connection },
+            { x => x.IsNew, false }
+        };
+
+        var dialog = await DialogService.ShowAsync<OBSConnectionDialog>(
+            "Edit OBS Connection",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is OBSConnection updatedConnection)
+        {
+            try
+            {
+                await ConnectionManager.UpdateConnectionAsync(updatedConnection);
+                await LoadConnections();
+                Snackbar.Add($"Connection '{updatedConnection.Name}' updated successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating connection: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteConnection(OBSConnection connection)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Connection",
+            $"Are you sure you want to delete the connection '{connection.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await ConnectionManager.DeleteConnectionAsync(connection.Id);
+                await LoadConnections();
+                Snackbar.Add($"Connection '{connection.Name}' deleted", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting connection: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ToggleEnabled(OBSConnection connection, bool enabled)
+    {
+        connection.Enabled = enabled;
+        try
+        {
+            await ConnectionManager.UpdateConnectionAsync(connection);
+            await LoadConnections();
+            
+            var status = enabled ? "enabled" : "disabled";
+            Snackbar.Add($"Connection '{connection.Name}' {status}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating connection: {ex.Message}", Severity.Error);
+            await LoadConnections(); // Reload to revert the change in UI
+        }
+    }
+
+    private async Task TestConnection(OBSConnection connection)
+    {
+        var testing = Snackbar.Add($"Testing connection to '{connection.Name}'...", Severity.Info);
+        
+        try
+        {
+            var success = await ConnectionManager.TestConnectionAsync(connection.Url, connection.Password);
+
+            if (testing != null)
+                Snackbar.Remove(testing);
+            
+            if (success)
+            {
+                Snackbar.Add($"Connection to '{connection.Name}' successful!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Failed to connect to '{connection.Name}'", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (testing != null)
+                Snackbar.Remove(testing);
+            Snackbar.Add($"Error testing connection: {ex.Message}", Severity.Error);
+        }
+    }
+}
