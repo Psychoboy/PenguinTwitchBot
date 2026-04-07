@@ -65,9 +65,28 @@ namespace DotNetTwitchBot.Bot.Actions
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            
+
             try
             {
+                // Check if the name has changed to update ExecuteAction references
+                if (action.Id.HasValue)
+                {
+                    var existingAction = await unitOfWork.Actions.GetByIdWithDetailsAsync(action.Id.Value);
+                    if (existingAction != null && existingAction.Name != action.Name)
+                    {
+                        _logger.LogInformation("Action name changed from '{OldName}' to '{NewName}', updating ExecuteAction references", 
+                            existingAction.Name, action.Name);
+
+                        // Update the action first
+                        var updatedAction = await unitOfWork.Actions.UpdateActionAsync(action);
+
+                        // Then update all ExecuteAction references to the new name
+                        await unitOfWork.Actions.UpdateExecuteActionNamesForRenamedAction(action.Id.Value, action.Name);
+
+                        return updatedAction;
+                    }
+                }
+
                 return await unitOfWork.Actions.UpdateActionAsync(action);
             }
             catch (Exception ex)

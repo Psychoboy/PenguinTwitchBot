@@ -41,7 +41,10 @@
                                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
                                                                Disabled="@(index == IfElseType.TrueSubActions.Count - 1)" OnClick="@(() => MoveTrueDown(index))" />
                                             </MudStack>
-                                            <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
+                                            </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
@@ -92,7 +95,10 @@
                                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" 
                                                                Disabled="@(index == IfElseType.FalseSubActions.Count - 1)" OnClick="@(() => MoveFalseDown(index))" />
                                             </MudStack>
-                                            <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
+                                            </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 

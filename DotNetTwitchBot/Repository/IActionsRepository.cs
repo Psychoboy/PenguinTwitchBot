@@ -11,5 +11,6 @@ namespace DotNetTwitchBot.Repository
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(int id);
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
+        Task UpdateExecuteActionNamesForRenamedAction(int actionId, string newName);
     }
 }

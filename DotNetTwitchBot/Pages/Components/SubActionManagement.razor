@@ -35,7 +35,7 @@
                                 </MudStack>
                                 <MudStack Spacing="0">
                                     <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@GetSubActionDescription(subAction)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
                                 </MudStack>
                             </MudStack>
                             <MudStack Row="true" Spacing="1">
@@ -197,28 +197,5 @@
     private string GetSubActionTypeName(SubActionType subAction)
     {
         return subAction.GetType().Name.Replace("Type", "");
-    }
-
-    private string GetSubActionDescription(SubActionType subAction)
-    {
-        return subAction switch
-        {
-            SendMessageType msg => $"Message: {(msg.Text?.Length > 50 ? msg.Text[..50] + "..." : msg.Text)}",
-            AlertType alert => $"Alert: {alert.Text} ({alert.Duration}s)",
-            PlaySoundType sound => $"Sound: {sound.File}",
-            RandomIntType random => $"Random: {random.Min} to {random.Max}",
-            WriteFileType write => $"Write to: {write.File}",
-            ExternalApiType api => $"API: {api.HttpMethod} {api.Text}",
-            CurrentTimeType => "Gets current time",
-            FollowAgeType => "Gets follow age",
-            UptimeType => "Gets stream uptime",
-            WatchTimeType => "Gets watch time",
-            MultiCounterType multi => $"{multi.Name} counter",
-            ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
-            ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
-            TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
-            LogicIfElseType ifElse => $"If {ifElse.LeftValue} {ifElse.Operator} {ifElse.RightValue} (True: {ifElse.TrueSubActions.Count}, False: {ifElse.FalseSubActions.Count})",
-            _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
-        };
     }
 }
