@@ -50,7 +50,10 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             // Populate ActionName for ExecuteActionType subactions before save
             if(action.SubActions != null)
+            {
                 await PopulateExecuteActionNamesBeforeSave(action.SubActions);
+                await PopulateTimerGroupNamesBeforeSave(action.SubActions);
+            }
 
             await _context.Actions.AddAsync(action);
             await _context.SaveChangesAsync();
@@ -160,6 +163,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             // Populate ActionName for ExecuteActionType subactions before save
             await PopulateExecuteActionNamesBeforeSave(existingAction.SubActions);
+            await PopulateTimerGroupNamesBeforeSave(existingAction.SubActions);
 
             await _context.SaveChangesAsync();
 
@@ -226,6 +230,44 @@ namespace DotNetTwitchBot.Repository.Repositories
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Populates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) before save.
+        /// Only queries timer groups that are actually referenced.
+        /// </summary>
+        private async Task PopulateTimerGroupNamesBeforeSave(List<SubActionType> subActions)
+        {
+            var allTimerGroupSubActions = GetAllTimerGroupSubActions(subActions);
+            if (!allTimerGroupSubActions.Any()) return;
+
+            // Get distinct TimerGroupIds that need to be resolved
+            var timerGroupIdsToResolve = allTimerGroupSubActions
+                .Where(tg => tg.TimerGroupId.HasValue)
+                .Select(tg => tg.TimerGroupId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!timerGroupIdsToResolve.Any()) return;
+
+            // Query only the timer groups we need
+            var referencedTimerGroups = await _context.Set<Bot.Models.Timers.TimerGroup>()
+                .AsNoTracking()
+                .Where(tg => tg.Id.HasValue && timerGroupIdsToResolve.Contains(tg.Id.Value))
+                .Select(tg => new { tg.Id, tg.Name })
+                .ToListAsync();
+
+            var timerGroupIdToNameMap = referencedTimerGroups.ToDictionary(tg => tg.Id!.Value, tg => tg.Name);
+
+            // Populate TimerGroupName for each TimerGroupSetEnabledState subaction
+            foreach (var timerGroupSubAction in allTimerGroupSubActions)
+            {
+                if (timerGroupSubAction.TimerGroupId.HasValue &&
+                    timerGroupIdToNameMap.TryGetValue(timerGroupSubAction.TimerGroupId.Value, out var timerGroupName))
+                {
+                    timerGroupSubAction.TimerGroupName = timerGroupName;
+                }
+            }
         }
 
         public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName)
