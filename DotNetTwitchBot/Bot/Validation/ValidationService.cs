@@ -116,6 +116,7 @@ namespace DotNetTwitchBot.Bot.Validation
             // Get all commands and actions for validation
             var commands = await db.ActionCommands.GetAsync();
             var commandIds = new HashSet<int>(commands.Where(c => c.Id.HasValue).Select(c => c.Id!.Value));
+            var commandNames = new HashSet<string>(commands.Select(c => c.CommandName), StringComparer.OrdinalIgnoreCase);
 
             var actionIds = new HashSet<int>(allActions.Where(a => a.Id.HasValue).Select(a => a.Id!.Value));
 
@@ -129,7 +130,7 @@ namespace DotNetTwitchBot.Bot.Validation
 
             foreach (var action in allActions)
             {
-                ValidateSubActionList(action.SubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, action.Id, action.Name);
+                ValidateSubActionList(action.SubActions, commandIds, commandNames, actionIds, defaultCommandNames, pointTypeNames, result, action.Id, action.Name);
             }
 
             _logger.LogDebug("SubAction validation found {IssueCount} issues", result.Issues.Count);
@@ -138,7 +139,8 @@ namespace DotNetTwitchBot.Bot.Validation
 
         private void ValidateSubActionList(
             List<SubActionType> subActions, 
-            HashSet<int> commandIds, 
+            HashSet<int> commandIds,
+            HashSet<string> commandNames,
             HashSet<int> actionIds,
             HashSet<string> defaultCommandNames,
             HashSet<string> pointTypeNames,
@@ -151,7 +153,7 @@ namespace DotNetTwitchBot.Bot.Validation
                 // Validate ToggleCommandDisabled subactions
                 if (subAction is ToggleCommandDisabledType toggleCommand)
                 {
-                    if (toggleCommand.CommandId.HasValue && !commandIds.Contains(toggleCommand.CommandId.Value))
+                    if (!string.IsNullOrWhiteSpace(toggleCommand.CommandName) && !commandNames.Contains(toggleCommand.CommandName))
                     {
                         result.Issues.Add(new ValidationIssue
                         {
@@ -160,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Validation
                             EntityType = "SubAction",
                             EntityId = subAction.Id,
                             EntityName = "Toggle Command Disabled",
-                            Message = $"SubAction 'Toggle Command Disabled' references non-existent Command ID: {toggleCommand.CommandId}",
+                            Message = $"SubAction 'Toggle Command Disabled' references non-existent Command: {toggleCommand.CommandName}",
                             RelatedActionId = parentActionId,
                             RelatedActionName = parentActionName
                         });
@@ -260,13 +262,13 @@ namespace DotNetTwitchBot.Bot.Validation
                     // Recursively validate TrueSubActions
                     if (logicIfElse.TrueSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, commandNames, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
                     }
 
                     // Recursively validate FalseSubActions
                     if (logicIfElse.FalseSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, commandNames, actionIds, defaultCommandNames, pointTypeNames, result, parentActionId, parentActionName);
                     }
                 }
             }

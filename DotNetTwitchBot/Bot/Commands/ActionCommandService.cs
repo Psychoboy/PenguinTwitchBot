@@ -52,8 +52,9 @@ namespace DotNetTwitchBot.Bot.Commands
                 var existingCommand = await unitOfWork.ActionCommands.Find(x => x.Id == command.Id.Value).AsNoTracking().FirstOrDefaultAsync();
                 if (existingCommand != null && existingCommand.CommandName != command.CommandName)
                 {
-                    // Command name has changed - update trigger configurations
+                    // Command name has changed - update trigger configurations and subactions
                     await unitOfWork.Actions.UpdateCommandTriggerConfigurationsForRenamedCommand(command.Id.Value, existingCommand.CommandName, command.CommandName);
+                    await unitOfWork.Actions.UpdateToggleCommandDisabledNamesForRenamedCommand(existingCommand.CommandName, command.CommandName);
                 }
             }
 
