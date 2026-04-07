@@ -134,6 +134,9 @@ namespace DotNetTwitchBot.CustomMiddleware
             // Register Queue Manager
             services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
 
+            // Register Validation Service (Singleton for cross-scope result caching)
+            services.AddSingleton<Bot.Validation.IValidationService, Bot.Validation.ValidationService>();
+
             return services;
         }
 

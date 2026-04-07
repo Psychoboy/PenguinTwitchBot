@@ -8,15 +8,22 @@
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService
+@inject DotNetTwitchBot.Bot.Validation.IValidationService ValidationService
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.h6">Triggers (@ActionTriggers.Count)</MudText>
-            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
-                       OnClick="OpenAddTriggerDialog" Variant="Variant.Filled">
-                Add Trigger
-            </MudButton>
+            <MudStack Row="true" Spacing="2">
+                <MudButton StartIcon="@Icons.Material.Filled.BugReport" Color="Color.Secondary" Size="Size.Small" 
+                           OnClick="RunValidationCheck" Variant="Variant.Outlined">
+                    Validate
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                           OnClick="OpenAddTriggerDialog" Variant="Variant.Filled">
+                    Add Trigger
+                </MudButton>
+            </MudStack>
         </MudStack>
 
         @if (ActionTriggers.Count == 0)
@@ -242,6 +249,17 @@
                 Snackbar.Add($"Error adding trigger: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    private async Task RunValidationCheck()
+    {
+        var dialog = await DialogService.ShowAsync<ValidationResultsDialog>("Validation Check", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true
+        });
+
+        await dialog.Result;
     }
 
     private async Task ToggleTriggerEnabled(TriggerType trigger, bool enabled)

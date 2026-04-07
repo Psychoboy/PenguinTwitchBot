@@ -1,0 +1,150 @@
+@using DotNetTwitchBot.Bot.Validation
+@inject IValidationService ValidationService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.BugReport" Class="mr-2" /> Validation Results
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-4">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.body1">Running validation checks...</MudText>
+            </MudStack>
+        }
+        else if (_result != null)
+        {
+            <MudStack Spacing="3">
+                @if (!_result.HasIssues)
+                {
+                    <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                        No validation issues found! All triggers and subactions reference valid entities.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                        Found <strong>@_result.ErrorCount error(s)</strong> and <strong>@_result.WarningCount warning(s)</strong>
+                    </MudAlert>
+
+                    <MudExpansionPanels MultiExpansion="true">
+                        @if (_result.Issues.Any(i => i.EntityType == "Trigger"))
+                        {
+                            <MudExpansionPanel Text="Trigger Issues" isexpanded="true">
+                                <MudSimpleTable Dense="true" Hover="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Severity</th>
+                                            <th>Trigger Name</th>
+                                            <th>Issue</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var issue in _result.Issues.Where(i => i.EntityType == "Trigger"))
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @if (issue.Severity == ValidationSeverity.Error)
+                                                    {
+                                                        <MudBadge Color="Color.Error" Dot="false" Content="@("Error")" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudBadge Color="Color.Warning" Dot="false" Content="@("Warning")" />
+                                                    }
+                                                </td>
+                                                <td>@issue.EntityName</td>
+                                                <td>@issue.Message</td>
+                                                <td>@(issue.RelatedActionName ?? "N/A")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudExpansionPanel>
+                        }
+
+                        @if (_result.Issues.Any(i => i.EntityType == "SubAction"))
+                        {
+                            <MudExpansionPanel Text="SubAction Issues" isexpanded="true">
+                                <MudSimpleTable Dense="true" Hover="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Severity</th>
+                                            <th>SubAction Type</th>
+                                            <th>Issue</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var issue in _result.Issues.Where(i => i.EntityType == "SubAction"))
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @if (issue.Severity == ValidationSeverity.Error)
+                                                    {
+                                                        <MudBadge Color="Color.Error" Dot="false" Content="@("Error")" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudBadge Color="Color.Warning" Dot="false" Content="@("Warning")" />
+                                                    }
+                                                </td>
+                                                <td>@issue.EntityName</td>
+                                                <td>@issue.Message</td>
+                                                <td>@(issue.RelatedActionName ?? "N/A")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudExpansionPanel>
+                        }
+                    </MudExpansionPanels>
+                }
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Validation completed at @_result.ValidationDate.ToLocalTime().ToString("g")
+                </MudText>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Primary">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private bool _isLoading = true;
+    private ValidationResult? _result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RunValidation();
+    }
+
+    private async Task RunValidation()
+    {
+        _isLoading = true;
+        try
+        {
+            _result = await ValidationService.ValidateTriggersAndSubActionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error running validation: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

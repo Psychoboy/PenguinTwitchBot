@@ -173,6 +173,14 @@ internal class Program
                 .WithIdentity("UpdatePostedSchedule-Trigger")
                 .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 00)) //Every day at 10AM
             );
+
+            var validationSanityCheckKey = new JobKey("ValidationSanityCheck");
+            q.AddJob<DotNetTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey));
+            q.AddTrigger(opts => opts
+                .ForJob(validationSanityCheckKey)
+                .WithIdentity("ValidationSanityCheck-Trigger")
+                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(5, 00)) //Every day at 5AM
+            );
         });
         builder.Services.AddQuartzServer(
             q => q.WaitForJobsToComplete = true

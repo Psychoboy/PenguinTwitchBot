@@ -1,0 +1,244 @@
+@page "/validation-status"
+@using DotNetTwitchBot.Bot.Validation
+@inject IValidationService ValidationService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+<PageTitle>Validation Status</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.BugReport" /> Validation Status
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Last Validation Run</MudText>
+                    @if (_lastResult != null)
+                    {
+                        <MudText Typo="Typo.body1">
+                            @_lastResult.ValidationDate.ToLocalTime().ToString("g")
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            No validation run yet
+                        </MudText>
+                    }
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="RunValidation"
+                               Disabled="_isRunning">
+                        @if (_isRunning)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ml-2">Running...</MudText>
+                        }
+                        else
+                        {
+                            <span>Run Validation Now</span>
+                        }
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Summary</MudText>
+                    @if (_lastResult != null)
+                    {
+                        <MudGrid>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Class="pa-3" Elevation="0" Style="background-color: #d32f2f; color: white;">
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Default" Size="Size.Large" />
+                                        <MudText Typo="Typo.h4">@_lastResult.ErrorCount</MudText>
+                                        <MudText Typo="Typo.body2">Errors</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Class="pa-3" Elevation="0" Style="background-color: #f57c00; color: white;">
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Default" Size="Size.Large" />
+                                        <MudText Typo="Typo.h4">@_lastResult.WarningCount</MudText>
+                                        <MudText Typo="Typo.body2">Warnings</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Class="pa-3" Elevation="0" Style="background-color: #0288d1; color: white;">
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Default" Size="Size.Large" />
+                                        <MudText Typo="Typo.h4">@_lastResult.Issues.Count</MudText>
+                                        <MudText Typo="Typo.body2">Total Issues</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Class="pa-3" Elevation="0" Style="@(_lastResult.HasIssues ? "background-color: #d32f2f; color: white;" : "background-color: #388e3c; color: white;")">
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        @if (_lastResult.HasIssues)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Default" Size="Size.Large" />
+                                            <MudText Typo="Typo.h6">Failed</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Default" Size="Size.Large" />
+                                            <MudText Typo="Typo.h6">Passed</MudText>
+                                        }
+                                        <MudText Typo="Typo.body2">Status</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Run a validation to see results
+                        </MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (_lastResult != null && _lastResult.HasIssues)
+    {
+        <MudPaper Class="pa-4 mt-4">
+            <MudText Typo="Typo.h5" Class="mb-4">Validation Issues</MudText>
+
+            <MudTabs Elevation="2" Rounded="true" Color="Color.Primary">
+                @if (_lastResult.Issues.Any(i => i.EntityType == "Trigger"))
+                {
+                    <MudTabPanel Text="Trigger Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Trigger")" BadgeColor="Color.Error">
+                        <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "Trigger")" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Severity</MudTh>
+                                <MudTh>Trigger Name</MudTh>
+                                <MudTh>Issue</MudTh>
+                                <MudTh>Related Action</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Severity">
+                                    @if (context.Severity == ValidationSeverity.Error)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Error</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">Warning</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Trigger Name">@context.EntityName</MudTd>
+                                <MudTd DataLabel="Issue">@context.Message</MudTd>
+                                <MudTd DataLabel="Related Action">
+                                    @if (context.RelatedActionId.HasValue && !string.IsNullOrEmpty(context.RelatedActionName))
+                                    {
+                                        <MudLink Href="@($"/actions/manage?actionId={context.RelatedActionId}")">@context.RelatedActionName</MudLink>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                }
+
+                @if (_lastResult.Issues.Any(i => i.EntityType == "SubAction"))
+                {
+                    <MudTabPanel Text="SubAction Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "SubAction")" BadgeColor="Color.Error">
+                        <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "SubAction")" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Severity</MudTh>
+                                <MudTh>SubAction Type</MudTh>
+                                <MudTh>Issue</MudTh>
+                                <MudTh>Related Action</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Severity">
+                                    @if (context.Severity == ValidationSeverity.Error)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Error</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">Warning</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="SubAction Type">@context.EntityName</MudTd>
+                                <MudTd DataLabel="Issue">@context.Message</MudTd>
+                                <MudTd DataLabel="Related Action">
+                                    @if (context.RelatedActionId.HasValue && !string.IsNullOrEmpty(context.RelatedActionName))
+                                    {
+                                        <MudLink Href="@($"/actions/manage?actionId={context.RelatedActionId}")">@context.RelatedActionName</MudLink>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                }
+            </MudTabs>
+        </MudPaper>
+    }
+    else if (_lastResult != null && !_lastResult.HasIssues)
+    {
+        <MudPaper Class="pa-4 mt-4">
+            <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                <MudText Typo="Typo.h6">All Clear! ✅</MudText>
+                <MudText Typo="Typo.body1">No validation issues found. All triggers and subactions reference valid entities.</MudText>
+            </MudAlert>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private ValidationResult? _lastResult;
+    private bool _isRunning = false;
+
+    protected override void OnInitialized()
+    {
+        _lastResult = ValidationService.GetLastValidationResult();
+    }
+
+    private async Task RunValidation()
+    {
+        _isRunning = true;
+        try
+        {
+            Snackbar.Add("Running validation...", Severity.Info);
+            _lastResult = await ValidationService.ValidateTriggersAndSubActionsAsync();
+            
+            if (_lastResult.HasIssues)
+            {
+                Snackbar.Add($"Validation completed with {_lastResult.ErrorCount} error(s) and {_lastResult.WarningCount} warning(s)", Severity.Warning);
+            }
+            else
+            {
+                Snackbar.Add("Validation completed successfully with no issues!", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error running validation: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRunning = false;
+        }
+    }
+}
