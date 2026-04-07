@@ -117,9 +117,13 @@ namespace DotNetTwitchBot.Bot.Validation
 
             var actionIds = new HashSet<int>(allActions.Where(a => a.Id.HasValue).Select(a => a.Id!.Value));
 
+            // Get all default commands for ExecuteDefaultCommand validation
+            var defaultCommands = await db.DefaultCommands.GetAllAsync();
+            var defaultCommandNames = new HashSet<string>(defaultCommands.Select(dc => dc.CommandName), StringComparer.OrdinalIgnoreCase);
+
             foreach (var action in allActions)
             {
-                ValidateSubActionList(action.SubActions, commandIds, actionIds, result, action.Id, action.Name);
+                ValidateSubActionList(action.SubActions, commandIds, actionIds, defaultCommandNames, result, action.Id, action.Name);
             }
 
             _logger.LogDebug("SubAction validation found {IssueCount} issues", result.Issues.Count);
@@ -129,7 +133,8 @@ namespace DotNetTwitchBot.Bot.Validation
         private void ValidateSubActionList(
             List<SubActionType> subActions, 
             HashSet<int> commandIds, 
-            HashSet<int> actionIds, 
+            HashSet<int> actionIds,
+            HashSet<string> defaultCommandNames,
             ValidationResult result,
             int? parentActionId,
             string parentActionName)
@@ -174,19 +179,53 @@ namespace DotNetTwitchBot.Bot.Validation
                     }
                 }
 
+                // Validate ExecuteDefaultCommand subactions
+                if (subAction is ExecuteDefaultCommandType executeDefaultCommand)
+                {
+                    if (!string.IsNullOrWhiteSpace(executeDefaultCommand.CommandName) && 
+                        !defaultCommandNames.Contains(executeDefaultCommand.CommandName))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionDefaultCommandNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "Execute Default Command",
+                            Message = $"SubAction 'Execute Default Command' references non-existent Default Command: '{executeDefaultCommand.CommandName}'",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                    else if (string.IsNullOrWhiteSpace(executeDefaultCommand.CommandName))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.SubActionDefaultCommandNotFound,
+                            Severity = ValidationSeverity.Error,
+                            EntityType = "SubAction",
+                            EntityId = subAction.Id,
+                            EntityName = "Execute Default Command",
+                            Message = "SubAction 'Execute Default Command' has missing or empty CommandName",
+                            RelatedActionId = parentActionId,
+                            RelatedActionName = parentActionName
+                        });
+                    }
+                }
+
                 // Validate nested subactions in LogicIfElse
                 if (subAction is LogicIfElseType logicIfElse)
                 {
                     // Recursively validate TrueSubActions
                     if (logicIfElse.TrueSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, actionIds, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.TrueSubActions, commandIds, actionIds, defaultCommandNames, result, parentActionId, parentActionName);
                     }
 
                     // Recursively validate FalseSubActions
                     if (logicIfElse.FalseSubActions?.Count > 0)
                     {
-                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, actionIds, result, parentActionId, parentActionName);
+                        ValidateSubActionList(logicIfElse.FalseSubActions, commandIds, actionIds, defaultCommandNames, result, parentActionId, parentActionName);
                     }
                 }
             }

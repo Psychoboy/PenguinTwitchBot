@@ -51,11 +51,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     logger.LogError("Failed to get channel point");
                     return;
                 }
+
+                var channelPointRedeemEventArgs = new ChannelPointRedeemEventArgs
+                {
+                    UserId = args.Payload.Event.ChatterUserId,
+                    Sender = args.Payload.Event.ChatterUserName,
+                    Username = args.Payload.Event.ChatterUserLogin,
+                    Title = channelPoint.Title,
+                    UserInput = messageText
+                };
+
                 await eventService.OnChannelPointRedeem(
                     args.Payload.Event.ChatterUserId,
                    args.Payload.Event.ChatterUserName.ToLower(),
                    channelPoint.Title,
-                   args.Payload.Event.Message.Text);
+                   messageText);
+                await twitchEventActionHandler.HandleChannelPointRedemptionAsync(channelPointRedeemEventArgs);
                 logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, args.Payload.Event.ChatterUserName, messageText);
             }
             else

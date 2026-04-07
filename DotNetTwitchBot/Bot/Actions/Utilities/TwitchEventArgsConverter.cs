@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
                 ["User"] = eventArgs.DisplayName ?? string.Empty,
                 ["FollowDate"] = eventArgs.FollowDate.ToString("o"),
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["FollowEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -44,7 +44,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["Message"] = eventArgs.Message ?? string.Empty,
                 ["Amount"] = eventArgs.Amount.ToString(),
                 ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["CheerEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -70,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["IsRenewal"] = eventArgs.IsRenewal.ToString(),
                 ["HadPreviousSub"] = eventArgs.HadPreviousSub.ToString(),
                 ["Message"] = eventArgs.Message ?? string.Empty,
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["SubscriptionEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -91,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["User"] = eventArgs.DisplayName ?? string.Empty,
                 ["GiftAmount"] = eventArgs.GiftAmount.ToString(),
                 ["TotalGifted"] = eventArgs.TotalGifted?.ToString() ?? string.Empty,
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["SubscriptionGiftEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
                 ["User"] = eventArgs.Name ?? string.Empty,
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["SubscriptionEndEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -130,7 +130,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["User"] = eventArgs.DisplayName ?? string.Empty,
                 ["NumberOfViewers"] = eventArgs.NumberOfViewers.ToString(),
                 ["Viewers"] = eventArgs.NumberOfViewers.ToString(),
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["RaidEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -147,6 +147,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Sender"] = eventArgs.Sender ?? string.Empty,
+                ["Name"] = eventArgs.Sender ?? string.Empty,
                 ["Username"] = eventArgs.Username ?? eventArgs.Sender ?? string.Empty,
                 ["DisplayName"] = eventArgs.Sender ?? string.Empty,
                 ["User"] = eventArgs.Sender ?? string.Empty,
@@ -154,7 +155,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["RewardName"] = eventArgs.Title ?? string.Empty,
                 ["UserInput"] = eventArgs.UserInput ?? string.Empty,
                 ["Message"] = eventArgs.UserInput ?? string.Empty,
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["ChannelPointRedeemEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -172,7 +173,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["Length"] = eventArgs.Length.ToString(),
                 ["Automatic"] = eventArgs.Automatic.ToString(),
                 ["StartedAt"] = eventArgs.StartedAt.ToString("o"),
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["AdBreakStartEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;
@@ -192,7 +193,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
                 ["User"] = eventArgs.Name ?? string.Empty,
                 ["IsUnBan"] = eventArgs.IsUnBan.ToString(),
                 ["BanEndsAt"] = eventArgs.BanEndsAt?.ToString("o") ?? string.Empty,
-                ["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs)
+                ["BanEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;

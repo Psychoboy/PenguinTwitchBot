@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         tableName: "subactions_executedefaultcommand")]
     public class ExecuteDefaultCommandType : SubActionType, ISubActionUIProvider
     {
-        public int CommandId { get; set; }
+        public string CommandName { get; set; } = null!;
         public bool ElevatedCommand { get; set; }
         public string? RankToExecuteAs { get; set; }
 
@@ -29,12 +29,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             var commands = defaultCommands.Select(a => new SelectOption
             {
                 Name = a.CustomCommandName,
-                Id = a.Id!.Value
+                Value = a.CommandName
             }).OrderBy(a => a.Name);
             return [
                 new()
                 {
-                    PropertyName = nameof(CommandId),
+                    PropertyName = nameof(CommandName),
                     Label = "Command",
                     FieldType = UIFieldType.Select,
                     Required = true,
@@ -85,7 +85,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(CommandId), CommandId.ToString() },
+                { nameof(CommandName), CommandName },
                 {  nameof(Text), Text  },
                 {  nameof(ElevatedCommand), ElevatedCommand  },
                 { nameof(RankToExecuteAs), RankToExecuteAs },
@@ -95,9 +95,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(CommandId), out var commandId) && int.TryParse(commandId?.ToString(), out var parsedId))
+            if (values.TryGetValue(nameof(CommandName), out var commandName))
             {
-                CommandId = parsedId;
+                CommandName = commandName as string ?? "";
             }
 
             if (values.TryGetValue(nameof(Text), out var text))
@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             {
                 ElevatedCommand = elevatedCommand as bool? ?? false;
             }
-    
+
             if (values.TryGetValue(nameof(RankToExecuteAs), out var permission))
             {
                 RankToExecuteAs = permission as string ?? "";
@@ -123,8 +123,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if (!values.TryGetValue(nameof(CommandId), out var commandId) ||
-                !int.TryParse(commandId?.ToString(), out var parsedId) || parsedId <= 0)
+            if (!values.TryGetValue(nameof(CommandName), out var commandName) ||
+                string.IsNullOrWhiteSpace(commandName?.ToString()))
             {
                 return "Command to Execute is required";
             }

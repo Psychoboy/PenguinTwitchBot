@@ -31,5 +31,6 @@ namespace DotNetTwitchBot.Bot.Commands
         Task ResetCooldown(CurrentCooldowns cooldown);
         Task<List<CurrentCooldowns>> GetCurrentCooldowns();
         Task<bool> IsGlobalCoolDownExpiredWithMessageForAction(string user, string displayName, string command);
+        Task<DefaultCommand?> GetDefaultCommandByDefaultCommandName(string defaultCommandName);
     }
 }
