@@ -26,14 +26,14 @@
             <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6">Commands</MudText>
-                    <MudChipSet T="string" SelectedValuesChanged="e => ChipsChanged(e)" SelectionMode="SelectionMode.MultiSelection" CheckMark=true>
-                        <MudChip Text="Giveaway"></MudChip>
-                        <MudChip Text="HFX"></MudChip>
-                        <MudChip Text="Sounds"></MudChip>
-                        <MudChip Text="Ticket Games"></MudChip>
-                        <MudChip Text="Pasties & Games"></MudChip>
-                        <MudChip Text="Include Aliases"></MudChip>
-                    </MudChipSet>
+                    <MudSpacer />
+                    <MudSelect T="string" Label="Category" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="selectedCategory" Clearable="true" Style="min-width: 200px; margin-right: 16px;">
+                        @foreach (var category in availableCategories)
+                        {
+                            <MudSelectItem Value="@category">@category</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudCheckBox @bind-Value="includeAliases" Label="Include Aliases" Color="Color.Primary"></MudCheckBox>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
                 </ToolBarContent>
@@ -68,8 +68,9 @@
     private List<CommandModel> originalCommands = new();
     private List<CommandModel> commands = new();
     private string searchString1 = "";
-    //MudChip[]? selected;
-    private IReadOnlyCollection<string> _selected = [];
+    private string? selectedCategory = null;
+    private bool includeAliases = false;
+    private List<string> availableCategories = new();
     private bool dataLoaded = false;
 
     public class CommandModel
@@ -258,83 +259,20 @@
         }
 
         originalCommands = commands.DistinctBy(x => x.Command).ToList();
+        availableCategories = originalCommands.Select(x => x.Category).Distinct().OrderBy(x => x).ToList();
         commands = commands.Where(x => x.isAlias == false).ToList();
-    }
-
-    private void ChipsChanged(IEnumerable<string> selected)
-    {
-        var includeAliases = selected.Where(x => x.Equals("Include Aliases")).Any();
-        if (selected.Count() == 0)
-        {
-            commands = originalCommands.Where(x => x.isAlias == false).OrderBy(x => x.Command).ToList();
-            return;
-        }
-        else if (selected.Count() == 1 && includeAliases)
-        {
-            commands = originalCommands.OrderBy(x => x.Command).ToList();
-            return;
-        }
-
-        commands = new();
-        if (selected.Where(x => x.Equals("Giveaway")).Any())
-        {
-            commands.AddRange(originalCommands.Where(x => 
-                x.Category.Contains("Giveaway") ||
-                x.Category.Contains("Tickets") ||
-                x.Category.Contains("Bacon") ||
-                x.Category.Contains("Duel") ||
-                x.Category.Contains("ModSpam") ||
-                x.Category.Contains("Pancake") ||
-                x.Category.Contains("Roulette") ||
-                x.Category.Contains("Waffle")
-            ));
-        }
-        if (selected.Where(x => x.Equals("HFX")).Any())
-        {
-            commands.AddRange(originalCommands.Where(x => x.Category.Equals("HFX")));
-        }
-        if (selected.Where(x => x.Equals("Sounds")).Any())
-        {
-            commands.AddRange(originalCommands.Where(x => x.Category.Equals("Sounds")));
-        }
-        if (selected.Where(x => x.Equals("Ticket Games")).Any())
-        {
-            commands.AddRange(originalCommands.Where(x =>
-                x.Category.Contains("Bacon") ||
-                x.Category.Contains("Duel") ||
-                x.Category.Contains("ModSpam") ||
-                x.Category.Contains("Pancake") ||
-                x.Category.Contains("Roulette") ||
-                x.Category.Contains("Waffle") ||
-                x.Category.Contains("Ticket Games")
-            ));
-        }
-        if (selected.Where(x => x.Equals("Pasties & Games")).Any())
-        {
-            commands.AddRange(originalCommands.Where(x => 
-                 x.Category.Contains("Pastie") ||
-                x.Category.Contains("defuse") ||
-                x.Category.Contains("FFA") ||
-                x.Category.Contains("Gamble") ||
-                x.Category.Contains("Heist") ||
-                x.Category.Contains("Roll") ||
-                x.Category.Contains("Slots") ||
-                x.Category.Contains("Loyalty")
-            ));
-        }
-
-        if (!includeAliases)
-        {
-            commands = commands.Where(x => x.isAlias == false).ToList();
-        };
-
-        commands = commands.DistinctBy(x => x.Command).OrderBy(x => x.Command).ToList();
     }
 
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
 
     private bool FilterFunc(CommandModel element, string searchString)
     {
+        if (!includeAliases && element.isAlias)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(selectedCategory) && !element.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
         if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
