@@ -201,19 +201,43 @@ namespace DotNetTwitchBot.Bot.ObsConnector
 
         public ManagedOBSConnection? GetManagedConnection(int id)
         {
-            _connections.TryGetValue(id, out var connection);
-            return connection;
+            _lock.Wait();
+            try
+            {
+                _connections.TryGetValue(id, out var connection);
+                return connection;
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
         public ManagedOBSConnection? GetManagedConnection(string name)
         {
-            return _connections.Values.FirstOrDefault(c => 
-                c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            _lock.Wait();
+            try
+            {
+                return _connections.Values.FirstOrDefault(c => 
+                    c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
         public List<ManagedOBSConnection> GetAllManagedConnections()
         {
-            return _connections.Values.ToList();
+            _lock.Wait();
+            try
+            {
+                return _connections.Values.ToList();
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
         public async Task ReloadConnectionsAsync()
@@ -232,12 +256,11 @@ namespace DotNetTwitchBot.Bot.ObsConnector
                 // Load connections from database
                 var connections = await GetAllConnectionsAsync();
 
-                // Start enabled connections in parallel (fire-and-forget)
+                // Start enabled connections (within the lock)
                 var enabledConnections = connections.Where(c => c.Enabled).ToList();
                 foreach (var config in enabledConnections)
                 {
-                    // Start without awaiting to avoid blocking
-                    _ = StartConnectionAsync(config);
+                    await StartConnectionCoreAsync(config);
                 }
 
                 _logger.LogInformation("Reloaded {Count} OBS connection(s), {EnabledCount} enabled", 
@@ -254,33 +277,39 @@ namespace DotNetTwitchBot.Bot.ObsConnector
             await _lock.WaitAsync();
             try
             {
-                // Remove existing if present
-                if (_connections.TryGetValue(config.Id, out var existing))
-                {
-                    await existing.StopAsync();
-                    existing.Dispose();
-                    _connections.Remove(config.Id);
-                }
-
-                // Create new managed connection
-                using var scope = _scopeFactory.CreateScope();
-                var logger = scope.ServiceProvider.GetRequiredService<ILogger<ManagedOBSConnection>>();
-                var obsWebsocket = new OBSWebsocket();
-
-                var managedConnection = new ManagedOBSConnection(config, obsWebsocket, logger);
-
-                // Wire up events to update database
-                managedConnection.Connected += OnConnectionConnected;
-                managedConnection.Disconnected += OnConnectionDisconnected;
-
-                _connections[config.Id] = managedConnection;
-
-                await managedConnection.StartAsync();
+                await StartConnectionCoreAsync(config);
             }
             finally
             {
                 _lock.Release();
             }
+        }
+
+        private async Task StartConnectionCoreAsync(OBSConnection config)
+        {
+            // This method assumes the caller already holds the lock
+            // Remove existing if present
+            if (_connections.TryGetValue(config.Id, out var existing))
+            {
+                await existing.StopAsync();
+                existing.Dispose();
+                _connections.Remove(config.Id);
+            }
+
+            // Create new managed connection
+            using var scope = _scopeFactory.CreateScope();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<ManagedOBSConnection>>();
+            var obsWebsocket = new OBSWebsocket();
+
+            var managedConnection = new ManagedOBSConnection(config, obsWebsocket, logger);
+
+            // Wire up events to update database
+            managedConnection.Connected += OnConnectionConnected;
+            managedConnection.Disconnected += OnConnectionDisconnected;
+
+            _connections[config.Id] = managedConnection;
+
+            await managedConnection.StartAsync();
         }
 
         private async Task RestartConnectionAsync(OBSConnection config)
@@ -299,7 +328,7 @@ namespace DotNetTwitchBot.Bot.ObsConnector
                 // Start if enabled
                 if (config.Enabled)
                 {
-                    await StartConnectionAsync(config);
+                    await StartConnectionCoreAsync(config);
                 }
             }
             finally
@@ -358,20 +387,29 @@ namespace DotNetTwitchBot.Bot.ObsConnector
 
             _isDisposed = true;
 
-            foreach (var connection in _connections.Values)
+            _lock.Wait();
+            try
             {
-                try
+                foreach (var connection in _connections.Values)
                 {
-                    connection.StopAsync().GetAwaiter().GetResult();
-                    connection.Dispose();
+                    try
+                    {
+                        connection.StopAsync().GetAwaiter().GetResult();
+                        connection.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error disposing OBS connection '{Name}'", connection.Name);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error disposing OBS connection '{Name}'", connection.Name);
-                }
+
+                _connections.Clear();
+            }
+            finally
+            {
+                _lock.Release();
             }
 
-            _connections.Clear();
             _lock.Dispose();
         }
     }
