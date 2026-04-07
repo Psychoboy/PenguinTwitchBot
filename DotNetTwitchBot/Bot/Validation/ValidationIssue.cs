@@ -12,6 +12,7 @@ namespace DotNetTwitchBot.Bot.Validation
         TriggerTimerGroupNotFound,
         SubActionCommandNotFound,
         SubActionActionNotFound,
+        SubActionDefaultCommandNotFound,
         TriggerMissingConfiguration,
         TriggerInvalidConfiguration,
         TriggerConfigurationMismatch,
