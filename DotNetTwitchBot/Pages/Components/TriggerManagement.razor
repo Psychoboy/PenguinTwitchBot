@@ -191,6 +191,32 @@
                     Enabled = true
                 };
 
+                // Populate reference columns based on trigger type for efficient querying
+                if (triggerType == TriggerTypes.Command && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("CommandId", out var commandIdElement))
+                        {
+                            newTrigger.CommandId = commandIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+                else if (triggerType == TriggerTypes.Timer && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("TimerGroupId", out var timerGroupIdElement))
+                        {
+                            newTrigger.TimerGroupId = timerGroupIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+
                 // If we have an ActionId, save the trigger immediately
                 // Otherwise, just add to local list and it will be saved when the action is created
                 if (ActionId.HasValue)

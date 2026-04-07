@@ -545,10 +545,14 @@ namespace DotNetTwitchBot.Repository.Repositories
                     };
                     trigger.Configuration = JsonSerializer.Serialize(newConfig);
                     trigger.Name = "!" + newCommandName;
-                    
-                    // Explicitly mark the Configuration property as modified
+
+                    // Update the reference column as well
+                    trigger.CommandId = commandId;
+
+                    // Explicitly mark the properties as modified
                     _context.Entry(trigger).Property(t => t.Configuration).IsModified = true;
                     _context.Entry(trigger).Property(t => t.Name).IsModified = true;
+                    _context.Entry(trigger).Property(t => t.CommandId).IsModified = true;
                     updatedCount++;
                 }
                 catch (Exception)
@@ -625,6 +629,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                                 TimerGroupName = timerGroupName
                             };
                             trigger.Configuration = JsonSerializer.Serialize(newConfig);
+
+                            // Update the reference column as well
+                            trigger.TimerGroupId = newTimerGroupId;
 
                             // Update the trigger name to match the new ID
                             trigger.Name = $"TimerGroup_{newTimerGroupId}";
@@ -721,6 +728,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                                 CommandName = commandName
                             };
                             trigger.Configuration = JsonSerializer.Serialize(newConfig);
+
+                            // Update the reference column as well
+                            trigger.CommandId = newCommandId;
 
                             remappedCount++;
                             logger?.LogDebug("Remapped command trigger for '!{CommandName}': new ID is {NewId}", commandName, newCommandId);
