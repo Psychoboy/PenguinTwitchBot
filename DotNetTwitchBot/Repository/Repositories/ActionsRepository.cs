@@ -49,7 +49,8 @@ namespace DotNetTwitchBot.Repository.Repositories
             }
 
             // Populate ActionName for ExecuteActionType subactions before save
-            await PopulateExecuteActionNamesBeforeSave(action.SubActions);
+            if(action.SubActions != null)
+                await PopulateExecuteActionNamesBeforeSave(action.SubActions);
 
             await _context.Actions.AddAsync(action);
             await _context.SaveChangesAsync();
