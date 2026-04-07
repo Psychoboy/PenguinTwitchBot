@@ -10,6 +10,7 @@
 @inject DotNetTwitchBot.Bot.Commands.Custom.CustomCommand CustomCommand;
 @inject DotNetTwitchBot.Bot.Commands.AudioCommand.AudioCommands AudioCommands;
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem;
+@inject DotNetTwitchBot.Bot.Commands.IActionCommandService ActionCommandService;
 
 <PageTitle>SPTV Twitch Bot - Commands</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
@@ -217,6 +218,22 @@
                     isAlias = true
                 });
         }
+        var actionCommands = await ActionCommandService.GetAllAsync();
+        foreach(var command in actionCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = command.Description,
+                    Category = command.Category,
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
+                });
+        };
 
         // Filter out commands that are not applicable to the user
         if(user.Identity is not null)
