@@ -32,9 +32,9 @@
                     </MudAlert>
 
                     <MudExpansionPanels MultiExpansion="true">
-                        @if (_result.Issues.Any(i => i.IssueType == ValidationIssueType.TriggerCommandNotFound || i.IssueType == ValidationIssueType.TriggerTimerGroupNotFound))
+                        @if (_result.Issues.Any(i => i.EntityType == "Trigger"))
                         {
-                            <MudExpansionPanel Text="Trigger Issues" IsInitiallyExpanded="true">
+                            <MudExpansionPanel Text="Trigger Issues" isexpanded="true">
                                 <MudSimpleTable Dense="true" Hover="true">
                                     <thead>
                                         <tr>
@@ -68,9 +68,9 @@
                             </MudExpansionPanel>
                         }
 
-                        @if (_result.Issues.Any(i => i.IssueType == ValidationIssueType.SubActionCommandNotFound || i.IssueType == ValidationIssueType.SubActionActionNotFound))
+                        @if (_result.Issues.Any(i => i.EntityType == "SubAction"))
                         {
-                            <MudExpansionPanel Text="SubAction Issues" IsInitiallyExpanded="true">
+                            <MudExpansionPanel Text="SubAction Issues" isexpanded="true">
                                 <MudSimpleTable Dense="true" Hover="true">
                                     <thead>
                                         <tr>

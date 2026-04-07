@@ -72,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                         });
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     // If we can't get scenes, fall back to text input
                 }
