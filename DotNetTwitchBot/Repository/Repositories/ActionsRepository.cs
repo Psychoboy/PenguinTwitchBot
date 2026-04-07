@@ -50,6 +50,10 @@ namespace DotNetTwitchBot.Repository.Repositories
 
             await _context.Actions.AddAsync(action);
             await _context.SaveChangesAsync();
+
+            // Update ActionName for ExecuteActionType subactions
+            await UpdateExecuteActionNames(action);
+
             return action;
         }
 
@@ -154,6 +158,10 @@ namespace DotNetTwitchBot.Repository.Repositories
             }
 
             await _context.SaveChangesAsync();
+
+            // Update ActionName for ExecuteActionType subactions
+            await UpdateExecuteActionNames(existingAction);
+
             return existingAction;
         }
 
@@ -165,6 +173,60 @@ namespace DotNetTwitchBot.Repository.Repositories
                 _context.Actions.Remove(action);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        /// <summary>
+        /// Updates the ActionName property for all ExecuteActionType subactions in the given action.
+        /// </summary>
+        private async Task UpdateExecuteActionNames(ActionType action)
+        {
+            var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions);
+            if (!allExecuteActions.Any()) return;
+
+            // Get all actions to create a map from ID to Name
+            var allActions = await _context.Actions.AsNoTracking().ToListAsync();
+            var actionIdToNameMap = allActions
+                .Where(a => a.Id.HasValue)
+                .ToDictionary(a => a.Id!.Value, a => a.Name);
+
+            bool hasChanges = false;
+            foreach (var executeAction in allExecuteActions)
+            {
+                if (actionIdToNameMap.TryGetValue(executeAction.ActionId, out var actionName))
+                {
+                    if (executeAction.ActionName != actionName)
+                    {
+                        executeAction.ActionName = actionName;
+                        hasChanges = true;
+                    }
+                }
+            }
+
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Recursively finds all ExecuteActionType subactions, including those nested in LogicIfElseType.
+        /// </summary>
+        private List<ExecuteActionType> GetAllExecuteActionSubActions(IEnumerable<SubActionType> subActions)
+        {
+            var result = new List<ExecuteActionType>();
+            foreach (var subAction in subActions)
+            {
+                if (subAction is ExecuteActionType exec)
+                {
+                    result.Add(exec);
+                }
+                else if (subAction is LogicIfElseType logic)
+                {
+                    result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
+                    result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
+                }
+            }
+            return result;
         }
 
         public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName)
@@ -190,6 +252,20 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .ToListAsync();
+
+            // Populate ActionName for all ExecuteAction subactions (including nested) based on ActionId
+            var actionIdToNameMap = records.ToDictionary(a => a.Id!.Value, a => a.Name);
+            foreach (var action in records)
+            {
+                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions);
+                foreach (var subAction in allExecuteActions)
+                {
+                    if (actionIdToNameMap.TryGetValue(subAction.ActionId, out var actionName))
+                    {
+                        subAction.ActionName = actionName;
+                    }
+                }
+            }
 
             var options = new JsonSerializerOptions
             {
@@ -236,10 +312,18 @@ namespace DotNetTwitchBot.Repository.Repositories
                 // We need to assign IDs manually before adding to context
                 int nextSubActionId = 1; // Start from 1 since table is empty
 
-                // Add the Actions with all their related entities
+
+                // First Pass: Add actions with non-ExecuteAction subactions (including nested)
+                // ExecuteAction subactions need to be added after all actions are created
+                // so we can map ActionName back to ActionId
+                var executeActionSubActions = new List<(ActionType action, ExecuteActionType subAction, List<SubActionType> parentList)>();
+
                 foreach (var record in records)
                 {
-                    // Assign IDs to SubActions (they're all 0 after deserialization)
+                    // Recursively remove all ExecuteAction subactions and collect them for second pass
+                    RemoveAndCollectExecuteActions(record.SubActions, record, executeActionSubActions, nextSubActionId);
+
+                    // Assign IDs to remaining SubActions
                     foreach (var subAction in record.SubActions)
                     {
                         subAction.Id = nextSubActionId++;
@@ -258,6 +342,39 @@ namespace DotNetTwitchBot.Repository.Repositories
                     context.Set<ActionType>().Add(record);
                 }
 
+                // Save to generate new Action IDs
+                await context.SaveChangesAsync();
+                logger?.LogDebug("Restored {ActionCount} Actions (first pass)", records.Count);
+
+                // Second Pass: Add ExecuteAction subactions with resolved ActionIds
+                if (executeActionSubActions.Any())
+                {
+                    // Build a map from action name to new action ID
+                    var actionNameToIdMap = records
+                        .Where(a => a.Id.HasValue)
+                        .ToDictionary(a => a.Name, a => a.Id!.Value, StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var (action, executeSubAction, parentList) in executeActionSubActions)
+                    {
+                        // Resolve ActionId from ActionName
+                        if (actionNameToIdMap.TryGetValue(executeSubAction.ActionName, out var resolvedActionId))
+                        {
+                            executeSubAction.ActionId = resolvedActionId;
+                            executeSubAction.Id = nextSubActionId++;
+                            parentList.Add(executeSubAction);
+                        }
+                        else
+                        {
+                            logger?.LogWarning("ExecuteAction subaction references unknown action: {ActionName}", executeSubAction.ActionName);
+                        }
+                    }
+
+                    // Save ExecuteAction subactions
+                    await context.SaveChangesAsync();
+                    logger?.LogDebug("Restored {ExecuteActionCount} ExecuteAction subactions (second pass)", 
+                        executeActionSubActions.Count);
+                }
+
                 var subActionCount = records.Sum(r => r.SubActions.Count);
                 var triggerCount = records.Sum(r => r.Triggers.Count);
                 logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
@@ -267,6 +384,28 @@ namespace DotNetTwitchBot.Repository.Repositories
             {
                 logger?.LogError(ex, "Failed to restore ActionType");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Recursively removes all ExecuteActionType subactions from the given list and collects them for later processing.
+        /// Also processes nested LogicIfElseType subactions.
+        /// </summary>
+        private void RemoveAndCollectExecuteActions(List<SubActionType> subActions, ActionType action, List<(ActionType, ExecuteActionType, List<SubActionType>)> collected, int nextSubActionId)
+        {
+            for (int i = subActions.Count - 1; i >= 0; i--)
+            {
+                var subAction = subActions[i];
+                if (subAction is ExecuteActionType exec)
+                {
+                    collected.Add((action, exec, subActions));
+                    subActions.RemoveAt(i);
+                }
+                else if (subAction is LogicIfElseType logic)
+                {
+                    RemoveAndCollectExecuteActions(logic.TrueSubActions, action, collected, nextSubActionId);
+                    RemoveAndCollectExecuteActions(logic.FalseSubActions, action, collected, nextSubActionId);
+                }
             }
         }
     }

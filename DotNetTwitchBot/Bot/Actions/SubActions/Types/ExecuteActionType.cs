@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     public class ExecuteActionType : SubActionType, ISubActionUIProvider
     {
         public int ActionId { get; set; }
+        public string ActionName { get; set; } = string.Empty;
 
         public ExecuteActionType()
         {
@@ -59,7 +60,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             return new Dictionary<string, object?>
             {
                 { nameof(ActionId), ActionId.ToString() },
-                { nameof(Enabled), Enabled }
+                { nameof(Enabled), Enabled },
+                { nameof(ActionName), ActionName }
             };
         }
 
@@ -73,6 +75,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             if (values.TryGetValue(nameof(Enabled), out var enabled))
             {
                 Enabled = enabled as bool? ?? true;
+            }
+
+            if (values.TryGetValue(nameof(ActionName), out var actionName))
+            {
+                ActionName = actionName?.ToString() ?? string.Empty;
             }
         }
 
