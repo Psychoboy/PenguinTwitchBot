@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Pages.Components
                 FollowAgeType => "Gets follow age",
                 UptimeType => "Gets stream uptime",
                 WatchTimeType => "Gets watch time",
-                MultiCounterType multi => $"{multi.Name} counter",
+                MultiCounterType multi => $"{multi.Name} counter. Variable: %counter_{multi.Name}%",
                 ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
                 ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
                 TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
