@@ -76,7 +76,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             return new Dictionary<string, object?>
             {
                 { nameof(Text), Text },
-                { nameof(FromUsername), Text },
+                { nameof(FromUsername), FromUsername },
                 { nameof(TargetName), TargetName },
                 { nameof(Amount), Amount },
                 { nameof(Enabled), Enabled }
