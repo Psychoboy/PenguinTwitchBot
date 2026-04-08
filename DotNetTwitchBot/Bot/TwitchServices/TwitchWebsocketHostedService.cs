@@ -172,6 +172,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     Length = e.Payload.Event.DurationSeconds,
                     StartedAt = e.Payload.Event.StartedAt
                 };
+                await twitchEventActionHandler.HandleAdBreakBeginAsync(ev);
                 await AdBreak(ev);
             }
             catch (Exception ex)

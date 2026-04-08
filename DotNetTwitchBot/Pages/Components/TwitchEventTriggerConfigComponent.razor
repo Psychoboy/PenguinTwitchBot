@@ -196,12 +196,10 @@
             <MudPaper Class="pa-3 mt-3" Outlined="true">
                 <MudText Typo="Typo.subtitle2" Class="mb-2">Available Variables</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">These variables can be used in your actions:</MudText>
-                <MudChipSet T="string" Class="mt-2">
-                    @foreach (var variable in eventInfo.AvailableVariables)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Text="@($"{{{variable}}}")" />
-                    }
-                </MudChipSet>
+                @foreach (var variable in eventInfo.AvailableVariables)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Text="@($"%{variable}%")" />
+                }
             </MudPaper>
         }
     }
