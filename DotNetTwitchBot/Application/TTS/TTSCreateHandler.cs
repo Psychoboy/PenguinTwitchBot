@@ -1,12 +1,11 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
 
 namespace DotNetTwitchBot.Application.TTS
 {
-    public class TTSCreateHandler(ITTSPlayerService ttsPlayerService, IWebSocketMessenger webSocketMessenger, ILogger<TTSCreateHandler> logger) : INotificationHandler<TTSCreateNotification>
+    public class TTSCreateHandler(ITTSPlayerService ttsPlayerService, IWebSocketMessenger webSocketMessenger, ILogger<TTSCreateHandler> logger) : Application.Notifications.INotificationHandler<TTSCreateNotification>
     {
         public async Task Handle(TTSCreateNotification notification, CancellationToken cancellationToken)
         {

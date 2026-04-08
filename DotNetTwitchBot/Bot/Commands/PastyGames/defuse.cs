@@ -6,7 +6,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
-using MediatR;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("DotNetTwitchBot.Test")]
@@ -17,10 +16,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IServiceBackbone serviceBackbone,
         IGameSettingsService gameSettingsService,
         IViewerFeature viewerFeature,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         //For Game Settings
         public static readonly string GAMENAME = "Defuse";
@@ -88,14 +87,14 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 success = await ReplaceVariables(success, nameWithTitle, e.Arg, value, wires);
                 await ServiceBackbone.SendChatMessage(startMessage + success);
 
-                await mediator.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
+                await dispatcher.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
             }
             else
             {
                 var fail = await gameSettingsService.GetStringSetting(GAMENAME, FAIL, "BOOM!!! The bomb explodes, you lose {Points} {PointType}.");
                 fail = await ReplaceVariables(fail, nameWithTitle, e.Arg, cost, wires);
                 await ServiceBackbone.SendChatMessage(startMessage + fail);
-                await mediator.Publish(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
+                await dispatcher.Publish(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
             }
         }
 

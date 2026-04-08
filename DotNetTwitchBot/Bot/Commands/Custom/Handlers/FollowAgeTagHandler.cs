@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Features;
-using MediatR;
 using System;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class FollowAgeTagHandler(IViewerFeature viewerFeature) : IRequestHandler<FollowAgeTag, CustomCommandResult>
+    public class FollowAgeTagHandler(IViewerFeature viewerFeature) : Application.Notifications.IRequestHandler<FollowAgeTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(FollowAgeTag request, CancellationToken cancellationToken)
         {

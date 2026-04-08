@@ -1,10 +1,9 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class AlertHandler(IMediator mediator) : ISubActionHandler
+    public class AlertHandler(Application.Notifications.IPenguinDispatcher dispatcher) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Alert;
 
@@ -22,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 alertType.Volume = float.Parse(VariableReplacer.ReplaceVariables(alertType.Volume.ToString(), variables));
                 alertType.CSS = VariableReplacer.ReplaceVariables(alertType.CSS, variables);
                 alertType.File = VariableReplacer.ReplaceVariables(alertType.File, variables);
-                await mediator.Publish(new QueueAlert(alertType.Generate()));
+                await dispatcher.Publish(new QueueAlert(alertType.Generate()));
             }
             catch (Exception ex)
             {

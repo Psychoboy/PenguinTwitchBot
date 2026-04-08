@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using System.Collections.Concurrent;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -29,9 +28,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "ViewerFeature", mediator)
+            ) : base(serviceBackbone, commandHandler, "ViewerFeature", dispatcher)
         {
             _logger = logger;
 

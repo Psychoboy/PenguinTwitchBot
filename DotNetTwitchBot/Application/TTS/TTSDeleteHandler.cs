@@ -1,8 +1,7 @@
-﻿using MediatR;
 
 namespace DotNetTwitchBot.Application.TTS
 {
-    public class TTSDeleteHandler(ILogger<TTSDeleteHandler> logger) : INotificationHandler<TTSDeleteNotification>
+    public class TTSDeleteHandler(ILogger<TTSDeleteHandler> logger) : Application.Notifications.INotificationHandler<TTSDeleteNotification>
     {
         public Task Handle(TTSDeleteNotification notification, CancellationToken cancellationToken)
         {

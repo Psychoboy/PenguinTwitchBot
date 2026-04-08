@@ -1,11 +1,10 @@
-﻿using Discord;
+using Discord;
 using Discord.Net;
 using DotNetTwitchBot.Bot.Core;
-using MediatR;
 
 namespace DotNetTwitchBot.Application.Discord
 {
-    public class DiscordReadyHandler(ILogger<DiscordReadyHandler> logger, IConfiguration configuration, IDiscordService discordService) : INotificationHandler<DiscordReadyNotification>
+    public class DiscordReadyHandler(ILogger<DiscordReadyHandler> logger, IConfiguration configuration, IDiscordService discordService) : Application.Notifications.INotificationHandler<DiscordReadyNotification>
     {
         public async Task Handle(DiscordReadyNotification notification, CancellationToken cancellationToken)
         {

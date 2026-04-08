@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
@@ -6,7 +6,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -16,10 +15,10 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IServiceScopeFactory scopeFactory,
         IGameSettingsService gameSettingsService,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler
 
-        ) : BaseCommandService(serviceBackbone, commandHandler, "PointsSystem", mediator), IPointsSystem, IHostedService
+        ) : BaseCommandService(serviceBackbone, commandHandler, "PointsSystem", dispatcher), IPointsSystem, IHostedService
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;

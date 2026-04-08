@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Ai;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Ai
 {
@@ -12,8 +11,8 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
         ICommandHandler commandHandler,
         IServiceScopeFactory scopeFactory,
         ILogger<ScAi> logger,
-        IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "ScAi", mediator), IHostedService
+        Application.Notifications.IPenguinDispatcher dispatcher
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ScAi", dispatcher), IHostedService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -47,16 +46,16 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
                 {
                     logger.LogWarning("Received empty response from StarCitizenAI.");
                     await RespondWithMessage(e, "Sorry, I couldn't get a response right now.");
-                    //await mediator.Publish(new ReplyToMessage(e.MessageId, ));
+                    //await dispatcher.Publish(new ReplyToMessage(e.MessageId, ));
                     return;
                 }
-                //await mediator.Publish(new ReplyToMessage(e.MessageId, response));
+                //await dispatcher.Publish(new ReplyToMessage(e.MessageId, response));
                 await RespondWithMessage(e, response);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error getting response from StarCitizenAI.");
-                //await mediator.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
+                //await dispatcher.Publish(new ReplyToMessage(e.MessageId, "Sorry, there was an error processing your request."));
                 await RespondWithMessage(e, "Sorry, there was an error processing your request.");
                 return;
             }

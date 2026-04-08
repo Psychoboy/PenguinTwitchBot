@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -9,7 +9,6 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +28,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IPointsSystem pointsSystem;
         private readonly IViewerFeature viewerFeature;
         private readonly IHubContext<MainHub> hubContext;
-        private readonly IMediator mediatorSubstitute;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Setting testPrize;
@@ -58,7 +57,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerFeature = Substitute.For<IViewerFeature>();
             gameSettingsService = Substitute.For<IGameSettingsService>();
             hubContext = Substitute.For<IHubContext<MainHub>>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -78,7 +77,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             testPastWinners = new GiveawayWinner { Username = "WINNER", Prize = "Test Prize" };
             pastWinnersQueryable = new List<GiveawayWinner> { testPastWinners }.BuildMockDbSet().AsQueryable();
 
-            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, mediatorSubstitute, commandHandler, gameSettingsService);
+            giveawayFeature = new GiveawayFeature(logger, serviceBackbone, pointsSystem, viewerFeature, hubContext, scopeFactory, dispatcherSubstitute, commandHandler, gameSettingsService);
 
 
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "WINNER", Arg.Any<string>()).Returns("(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");

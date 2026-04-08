@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 
 namespace DotNetTwitchBot.Application.Blacklist.Handlers
 {
-    public class BlacklistSuspiciousHandler(Bot.Commands.Moderation.Blacklist blacklist) : INotificationHandler<ReceivedSuspiciousChatMessage>
+    public class BlacklistSuspiciousHandler(Bot.Commands.Moderation.Blacklist blacklist) : Application.Notifications.INotificationHandler<ReceivedSuspiciousChatMessage>
     {
         public Task Handle(ReceivedSuspiciousChatMessage notification, CancellationToken cancellationToken)
         {

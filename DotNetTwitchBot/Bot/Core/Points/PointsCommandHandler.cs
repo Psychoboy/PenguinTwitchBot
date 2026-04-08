@@ -1,12 +1,11 @@
-﻿using DotNetTwitchBot.Bot.Commands;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
     public class PointsCommandHandler(
         IPointsSystem pointsSystem,
         ICommandHandler commandHandler,
-        ILogger<PointsCommandHandler> logger) : INotificationHandler<RunCommandNotification>
+        ILogger<PointsCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {

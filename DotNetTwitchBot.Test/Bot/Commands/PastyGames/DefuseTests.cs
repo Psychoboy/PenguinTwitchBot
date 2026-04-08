@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
@@ -8,7 +8,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Security.Cryptography;
@@ -21,7 +20,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
         private readonly IServiceBackbone _serviceBackbone;
         private readonly IGameSettingsService _gameSettingsService;
         private readonly IViewerFeature _viewerFeature;
-        private readonly IMediator _mediator;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILogger<Defuse> _logger;
         private readonly ICommandHandler _commandHandler;
         private readonly RandomNumberGenerator _randomNumberGenerator;
@@ -33,14 +32,14 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
             _viewerFeature = Substitute.For<IViewerFeature>();
-            _mediator = Substitute.For<IMediator>();
+            _dispatcher = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
             _logger = Substitute.For<ILogger<Defuse>>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _randomNumberGenerator = Substitute.For<RandomNumberGenerator>();
 
             _pointsSystem.GetPointTypeForGame("Defuse").Returns(new DotNetTwitchBot.Bot.Models.Points.PointType { Name = "Points"});
 
-            _defuse = new Defuse(_pointsSystem, _serviceBackbone, _gameSettingsService, _viewerFeature, _mediator, _logger, _commandHandler);
+            _defuse = new Defuse(_pointsSystem, _serviceBackbone, _gameSettingsService, _viewerFeature, _dispatcher, _logger, _commandHandler);
         }
 
         [Fact]
@@ -128,7 +127,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
 
             // Assert
             await _serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.StartsWith("The bomb is beeping and TestUser cuts the red wire... The bomb goes silent.")));
-            await _mediator.Received(1).Publish(Arg.Any<QueueAlert>(), Arg.Any<CancellationToken>());
+            await _dispatcher.Received(1).Publish(Arg.Any<QueueAlert>(), Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -161,7 +160,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
 
             // Assert
             await _serviceBackbone.Received(1).SendChatMessage("The bomb is beeping and TestUser cuts the red wire... BOOM!!! The bomb explodes, you lose 500 Points.");
-            await _mediator.Received(1).Publish(Arg.Any<QueueAlert>(), Arg.Any<CancellationToken>());
+            await _dispatcher.Received(1).Publish(Arg.Any<QueueAlert>(), Arg.Any<CancellationToken>());
         }
     }
 }

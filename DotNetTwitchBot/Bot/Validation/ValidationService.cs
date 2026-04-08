@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Validation
                         Severity = ValidationSeverity.Error,
                         EntityType = "Action",
                         EntityId = action.Id,
-                        EntityName = action.Name,
+                        EntityName = action.Name ?? "(unknown)",
                         Message = $"Action '{action.Name}' has an invalid or missing QueueName"
                     });
                 }
@@ -112,7 +112,7 @@ namespace DotNetTwitchBot.Bot.Validation
                         Severity = ValidationSeverity.Warning,
                         EntityType = "Action",
                         EntityId = action.Id,
-                        EntityName = action.Name,
+                        EntityName = action.Name ?? "(unknown)",
                         Message = $"Action '{action.Name}' has no triggers defined"
                     });
                 }
@@ -126,7 +126,7 @@ namespace DotNetTwitchBot.Bot.Validation
                         Severity = ValidationSeverity.Warning,
                         EntityType = "Action",
                         EntityId = action.Id,
-                        EntityName = action.Name,
+                        EntityName = action.Name ?? "(unknown)",
                         Message = $"Action '{action.Name}' has no subactions defined"
                     });
                 }
@@ -1514,7 +1514,7 @@ namespace DotNetTwitchBot.Bot.Validation
                         Severity = ValidationSeverity.Warning,
                         EntityType = "Command",
                         EntityId = command.Id,
-                        EntityName = command.CommandName,
+                        EntityName = command.CommandName ?? "(unknown)",
                         Message = $"Command '!{command.CommandName}' is not used by any action trigger"
                     });
                 }

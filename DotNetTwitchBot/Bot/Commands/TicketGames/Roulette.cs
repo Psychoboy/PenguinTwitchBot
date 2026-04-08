@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
@@ -33,9 +32,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             IPointsSystem pointsSystem,
             IGameSettingsService gameSettingsService,
             ICommandHandler commandHandler,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ILogger<Roulette> logger
-        ) : base(serviceBackbone, commandHandler, GAMENAME, mediator)
+        ) : base(serviceBackbone, commandHandler, GAMENAME, dispatcher)
         {
             _pointsSystem = pointsSystem;
             ServiceBackbone.StreamStarted += OnStreamStarted;

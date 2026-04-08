@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Core;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class OfflineOnlyTagHandler(IServiceBackbone serviceBackbone) : IRequestHandler<OfflineOnlyTag, CustomCommandResult>
+    public class OfflineOnlyTagHandler(IServiceBackbone serviceBackbone) : Application.Notifications.IRequestHandler<OfflineOnlyTag, CustomCommandResult>
     {
         public Task<CustomCommandResult> Handle(OfflineOnlyTag request, CancellationToken cancellationToken)
         {

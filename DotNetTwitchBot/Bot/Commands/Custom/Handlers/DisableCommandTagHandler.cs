@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class DisableCommandTagHandler(IServiceScopeFactory serviceScopeFactory, ILogger<DisableCommandTagHandler> logger) : IRequestHandler<DisableCommandTag, CustomCommandResult>
+    public class DisableCommandTagHandler(IServiceScopeFactory serviceScopeFactory, ILogger<DisableCommandTagHandler> logger) : Application.Notifications.IRequestHandler<DisableCommandTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(DisableCommandTag request, CancellationToken cancellationToken)
         {

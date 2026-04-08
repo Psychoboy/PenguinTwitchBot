@@ -1,8 +1,6 @@
-﻿using MediatR;
-
-namespace DotNetTwitchBot.Bot.Notifications
+﻿namespace DotNetTwitchBot.Bot.Notifications
 {
-    public class StreamStartedNotification : INotification
+    public class StreamStartedNotification : Application.Notifications.INotification
     {
     }
 }

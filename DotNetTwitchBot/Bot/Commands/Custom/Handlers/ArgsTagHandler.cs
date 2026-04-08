@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class ArgsTagHandler : IRequestHandler<ArgsTag, CustomCommandResult>
+    public class ArgsTagHandler : Application.Notifications.IRequestHandler<ArgsTag, CustomCommandResult>
     {
         public Task<CustomCommandResult> Handle(ArgsTag request, CancellationToken cancellationToken)
         {

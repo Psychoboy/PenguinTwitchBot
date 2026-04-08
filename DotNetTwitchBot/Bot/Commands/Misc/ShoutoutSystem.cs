@@ -4,7 +4,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -23,9 +22,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             IClipService clipService
-            ) : base(serviceBackbone, commandHandler, "ShoutoutSystem", mediator)
+            ) : base(serviceBackbone, commandHandler, "ShoutoutSystem", dispatcher)
         {
             _scopeFactory = scopeFactory;
             _twitchService = twitchService;

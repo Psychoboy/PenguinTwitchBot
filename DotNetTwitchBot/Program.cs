@@ -3,6 +3,7 @@ global using DotNetTwitchBot.Bot.Models;
 global using Microsoft.EntityFrameworkCore;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
+using DotNetTwitchBot.Application.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Circuit;
@@ -114,13 +115,7 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddTwitchLibEventSubWebsockets();
-        var mediatrSettings = builder.Configuration.GetRequiredSection("Mediatr").Get<MediatrSettings>();
-        builder.Services.AddMediatR(cfg =>
-        {
-            cfg.RegisterServicesFromAssemblyContaining<Program>();
-            if(mediatrSettings != null)
-                cfg.LicenseKey = mediatrSettings.ApiKey ?? string.Empty;
-        });
+        builder.Services.AddPenguinDispatcher(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 
 

@@ -1,8 +1,6 @@
-﻿using MediatR;
-
-namespace DotNetTwitchBot.Bot.Commands.AudioCommand
+﻿namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 {
-    public class RunAudioCommandHandler(AudioCommands audioCommands, ILogger<RunAudioCommandHandler> logger) : INotificationHandler<RunCommandNotification>
+    public class RunAudioCommandHandler(AudioCommands audioCommands, ILogger<RunAudioCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)

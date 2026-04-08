@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -16,9 +15,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ILogger<QuoteSystem> logger,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "QuoteSystem", mediator)
+            ) : base(serviceBackbone, commandHandler, "QuoteSystem", dispatcher)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;

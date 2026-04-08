@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
@@ -7,7 +7,6 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,7 +20,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
     {
         private readonly ILogger<ViewerFeature> logger;
         private readonly ICommandHandler commandHandler;
-        private readonly IMediator mediatorSubstitute;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly IServiceScope scope;
         private readonly IServiceBackbone serviceBackbone;
         private readonly ITwitchService twitchService;
@@ -43,7 +42,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             twitchService = Substitute.For<ITwitchService>();
             logger = Substitute.For<ILogger<ViewerFeature>>();
             commandHandler = Substitute.For<ICommandHandler>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -53,7 +52,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerQueryable = new List<Viewer> { testViewer }.BuildMockDbSet().AsQueryable();
             emptyViewerQueryable = new List<Viewer> { }.BuildMockDbSet().AsQueryable();
 
-            viewerFeature = new ViewerFeature(logger, serviceBackbone, twitchService, scopeFactory, mediatorSubstitute, commandHandler);
+            viewerFeature = new ViewerFeature(logger, serviceBackbone, twitchService, scopeFactory, dispatcherSubstitute, commandHandler);
         }
 
         [Fact]

@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Timer = System.Timers.Timer;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
@@ -20,9 +19,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceScopeFactory scopeFactory,
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "RaidTraicker", mediator)
+            ) : base(serviceBackbone, commandHandler, "RaidTraicker", dispatcher)
         {
             _scopeFactory = scopeFactory;
             ServiceBackbone.IncomingRaidEvent += OnIncomingRaid;

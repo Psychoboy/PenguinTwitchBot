@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 
 namespace DotNetTwitchBot.Application.CustomCommand.Handlers
 {
-    public class CustomCommandReceivesChat(Bot.Commands.Custom.CustomCommand customCommand) : INotificationHandler<ReceivedChatMessage>
+    public class CustomCommandReceivesChat(Bot.Commands.Custom.CustomCommand customCommand) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
         public Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {

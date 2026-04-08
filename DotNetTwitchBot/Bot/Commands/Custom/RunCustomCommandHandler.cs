@@ -1,8 +1,7 @@
-﻿using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom
 {
-    public class RunCustomCommandHandler(Commands.Custom.CustomCommand customCommand, ILogger<RunCustomCommandHandler> logger) : INotificationHandler<RunCommandNotification>
+    public class RunCustomCommandHandler(Commands.Custom.CustomCommand customCommand, ILogger<RunCustomCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {

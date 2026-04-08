@@ -5,7 +5,6 @@ using System.Text.Json;
 using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Application.WheelSpinNotifications;
 using DotNetTwitchBot.Extensions;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Notifications
 {
@@ -16,14 +15,14 @@ namespace DotNetTwitchBot.Bot.Notifications
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
-        //static readonly SemaphoreSlim _semaphoreSlim = new(1);
-        private readonly IMediator _mediator;
+        //static readonly SemaphoreSlim _semaphoreSlim = new(1)  ;
+        private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
 
-        public WebSocketMessenger(ILogger<WebSocketMessenger> logger, IMediator mediator)
+        public WebSocketMessenger(ILogger<WebSocketMessenger> logger, Application.Notifications.IPenguinDispatcher dispatcher)
         {
             _logger = logger;
             SetupCleanUpTask();
-            _mediator = mediator;
+            _dispatcher = dispatcher;
         }
 
         public async Task AddToQueue(string message)
@@ -114,12 +113,12 @@ namespace DotNetTwitchBot.Bot.Notifications
                     continue;
                 } else if (data.Length >0 && data.StartsWith("TTSComplete: "))
                 {
-                    await _mediator.Publish(new TTSDeleteNotification(data));
+                    await _dispatcher.Publish(new TTSDeleteNotification(data));
                 } else if(data.Length > 0 && data.StartsWith("{\"wheel\":"))
                 {
                     var wheelSpinComplete = JsonSerializer.Deserialize<WheelSpinComplete>(data);
                     if (wheelSpinComplete != null)
-                        await _mediator.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
+                        await _dispatcher.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
                 }
             }
         }

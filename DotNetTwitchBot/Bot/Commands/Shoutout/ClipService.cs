@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Application.Clips;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
-using MediatR;
 using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
@@ -16,8 +15,8 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
         ITwitchService twitchService,
-        IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", mediator), IHostedService, IClipService
+        Application.Notifications.IPenguinDispatcher dispatcher
+        ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", dispatcher), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; } = new HttpClient();
 
@@ -31,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                     await WatchRequestedClip(e);
                     break;
                 case "stop":
-                    await mediator.Publish(new QueueAlert(new StopClip().Generate()));
+                    await dispatcher.Publish(new QueueAlert(new StopClip().Generate()));
                     break;
             }
         }
@@ -85,7 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
                     gameUrl = gameUrl.Replace("{width}", "200").Replace("{height}", "200");
                 }
 
-                await mediator.Publish(new ClipNotification(clip, user, gameUrl));
+                await dispatcher.Publish(new ClipNotification(clip, user, gameUrl));
             }
             catch (Exception ex)
             {

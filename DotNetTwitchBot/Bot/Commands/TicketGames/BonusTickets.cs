@@ -1,15 +1,14 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
-using MediatR;
 using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BonusTickets(
         IPointsSystem pointSystem,
-        IMediator mediator, 
+        Application.Notifications.IPenguinDispatcher dispatcher, 
         IServiceBackbone serviceBackbone, 
         IViewerFeature viewerFeature,
         ILogger<BonusTickets> logger) : IBonusTickets
@@ -57,14 +56,14 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                 if(amount == 0)
                 {
                     logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);
-                    await mediator.Publish(new SendBotMessage($"{username}, something went wrong when trying to give you bonus tickets. Please contact a moderator.", true));
+                    await dispatcher.Publish(new SendBotMessage($"{username}, something went wrong when trying to give you bonus tickets. Please contact a moderator.", true));
                     return;
                 }
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
                 var message = string.Format(
                     "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",
                     username, ticketsWon.ToString("N0"), amount.ToString("N0"));
-                await mediator.Publish(new SendBotMessage(message, true));
+                await dispatcher.Publish(new SendBotMessage(message, true));
             }
             finally
             {

@@ -10,7 +10,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -34,23 +33,23 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         readonly Dictionary<string, CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<KeywordWithRegex> Keywords = [];
-        private readonly IMediator _mediator;
+        private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
         private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,
             ITwitchService twitchService,
             IPointsSystem pointsSystem,
             IServiceBackbone serviceBackbone,
-            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands", mediator)
+            ICommandHandler commandHandler) : base(serviceBackbone, commandHandler, "CustomCommands", dispatcher)
         {
-            _mediator = mediator;
+            _dispatcher = dispatcher;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _twitchService = twitchService;
@@ -552,41 +551,41 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         {
             return tagName.ToLower() switch
             {
-                "alert" => _mediator.Send(new AlertTag { CommandEventArgs = eventArgs, Args = args }),//
-                "playsound" => _mediator.Send(new PlaySoundTag { CommandEventArgs = eventArgs, Args = args }),//
-                "sender" => _mediator.Send(new SenderTag { CommandEventArgs = eventArgs, Args = args }),
-                "args" => _mediator.Send(new ArgsTag { CommandEventArgs = eventArgs, Args = args }),
-                "randomint" => _mediator.Send(new RandomIntTag { CommandEventArgs = eventArgs, Args = args }),//
-                "useronly" => _mediator.Send(new UserOnlyTag { CommandEventArgs = eventArgs, Args = args }),
-                "writefile" => _mediator.Send(new WriteFileTag { CommandEventArgs = eventArgs, Args = args }),//
-                "currenttime" => _mediator.Send(new CurrentTimeTag { CommandEventArgs = eventArgs, Args = args }),//
-                "@sender" => _mediator.Send(new AtSenderTag { CommandEventArgs = eventArgs, Args = args }),
-                "onlineonly" => _mediator.Send(new OnlineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
-                "offlineonly" => _mediator.Send(new OfflineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
-                "followage" => _mediator.Send(new FollowAgeTag { CommandEventArgs = eventArgs, Args = args }), //
-                "multicounter" => _mediator.Send(new MultiCounterTag { CommandEventArgs = eventArgs, Args = args }),
-                "multicounteralert" => _mediator.Send(new MultiCounterAlertTag { CommandEventArgs = eventArgs, Args = args }),
-                "uptime" => _mediator.Send(new UptimeTag { CommandEventArgs = eventArgs, Args = args }), //
-                "customapitext" => _mediator.Send(new CustomApiTextTag { CommandEventArgs = eventArgs, Args = args }),
-                "customapinoresponse" => _mediator.Send(new CustomApiNoResponseTag { CommandEventArgs = eventArgs, Args = args }), //
-                "giveawayprize" => _mediator.Send(new GiveawayPrizeTag { CommandEventArgs = eventArgs, Args = args }), //
-                "target" => _mediator.Send(new TargetTag { CommandEventArgs = eventArgs, Args = args }),//--
-                "targetorself" => _mediator.Send(new TargetOrSelfTag { CommandEventArgs = eventArgs, Args = args }),//--
-                "watchtime" => _mediator.Send(new WatchTimeTag { CommandEventArgs = eventArgs, Args = args }), //
-                "command" => _mediator.Send(new ExecuteCommandTag { CommandEventArgs = eventArgs, Args = args }),
-                "elevatedcommand" => _mediator.Send(new ExecuteElevatedCommandTag { CommandEventArgs = eventArgs, Args = args }),
-                "ttsandprint" => _mediator.Send(new TTSAndPrintTag { CommandEventArgs = eventArgs, Args = args }),
-                "tts" => _mediator.Send(new TTSTag { CommandEventArgs = eventArgs, Args = args }),
-                "enablechannelpoint" => _mediator.Send(new EnableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "disablechannelpoint" => _mediator.Send(new DisableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "pausechannelpoint" => _mediator.Send(new PauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "unpausechannelpoint" => _mediator.Send(new UnpauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "enabletimergroup" => _mediator.Send(new EnableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
-                "disabletimergroup" => _mediator.Send(new DisableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
-                "enablecommand" => _mediator.Send(new EnableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
-                "disablecommand" => _mediator.Send(new DisableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
-                "giftpoints" => _mediator.Send(new GiftPointsTag { CommandEventArgs = eventArgs, Args = args }),
-                "checkpoints" => _mediator.Send(new CheckPointsTag { CommandEventArgs = eventArgs, Args = args }),
+                "alert" => _dispatcher.Send(new AlertTag { CommandEventArgs = eventArgs, Args = args }),//
+                "playsound" => _dispatcher.Send(new PlaySoundTag { CommandEventArgs = eventArgs, Args = args }),//
+                "sender" => _dispatcher.Send(new SenderTag { CommandEventArgs = eventArgs, Args = args }),
+                "args" => _dispatcher.Send(new ArgsTag { CommandEventArgs = eventArgs, Args = args }),
+                "randomint" => _dispatcher.Send(new RandomIntTag { CommandEventArgs = eventArgs, Args = args }),//
+                "useronly" => _dispatcher.Send(new UserOnlyTag { CommandEventArgs = eventArgs, Args = args }),
+                "writefile" => _dispatcher.Send(new WriteFileTag { CommandEventArgs = eventArgs, Args = args }),//
+                "currenttime" => _dispatcher.Send(new CurrentTimeTag { CommandEventArgs = eventArgs, Args = args }),//
+                "@sender" => _dispatcher.Send(new AtSenderTag { CommandEventArgs = eventArgs, Args = args }),
+                "onlineonly" => _dispatcher.Send(new OnlineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
+                "offlineonly" => _dispatcher.Send(new OfflineOnlyTag { CommandEventArgs = eventArgs, Args = args }),
+                "followage" => _dispatcher.Send(new FollowAgeTag { CommandEventArgs = eventArgs, Args = args }), //
+                "multicounter" => _dispatcher.Send(new MultiCounterTag { CommandEventArgs = eventArgs, Args = args }),
+                "multicounteralert" => _dispatcher.Send(new MultiCounterAlertTag { CommandEventArgs = eventArgs, Args = args }),
+                "uptime" => _dispatcher.Send(new UptimeTag { CommandEventArgs = eventArgs, Args = args }), //
+                "customapitext" => _dispatcher.Send(new CustomApiTextTag { CommandEventArgs = eventArgs, Args = args }),
+                "customapinoresponse" => _dispatcher.Send(new CustomApiNoResponseTag { CommandEventArgs = eventArgs, Args = args }), //
+                "giveawayprize" => _dispatcher.Send(new GiveawayPrizeTag { CommandEventArgs = eventArgs, Args = args }), //
+                "target" => _dispatcher.Send(new TargetTag { CommandEventArgs = eventArgs, Args = args }),//--
+                "targetorself" => _dispatcher.Send(new TargetOrSelfTag { CommandEventArgs = eventArgs, Args = args }),//--
+                "watchtime" => _dispatcher.Send(new WatchTimeTag { CommandEventArgs = eventArgs, Args = args }), //
+                "command" => _dispatcher.Send(new ExecuteCommandTag { CommandEventArgs = eventArgs, Args = args }),
+                "elevatedcommand" => _dispatcher.Send(new ExecuteElevatedCommandTag { CommandEventArgs = eventArgs, Args = args }),
+                "ttsandprint" => _dispatcher.Send(new TTSAndPrintTag { CommandEventArgs = eventArgs, Args = args }),
+                "tts" => _dispatcher.Send(new TTSTag { CommandEventArgs = eventArgs, Args = args }),
+                "enablechannelpoint" => _dispatcher.Send(new EnableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
+                "disablechannelpoint" => _dispatcher.Send(new DisableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
+                "pausechannelpoint" => _dispatcher.Send(new PauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
+                "unpausechannelpoint" => _dispatcher.Send(new UnpauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
+                "enabletimergroup" => _dispatcher.Send(new EnableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
+                "disabletimergroup" => _dispatcher.Send(new DisableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
+                "enablecommand" => _dispatcher.Send(new EnableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
+                "disablecommand" => _dispatcher.Send(new DisableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
+                "giftpoints" => _dispatcher.Send(new GiftPointsTag { CommandEventArgs = eventArgs, Args = args }),
+                "checkpoints" => _dispatcher.Send(new CheckPointsTag { CommandEventArgs = eventArgs, Args = args }),
 
                 _ => Task.FromResult(new CustomCommandResult()),
             };

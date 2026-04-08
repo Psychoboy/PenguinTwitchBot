@@ -8,7 +8,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -20,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly CustomCommand _customCommands;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IMediator _mediator;
+        private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DiscordSettings _settings;
         private bool isReady = false;
@@ -31,7 +30,7 @@ namespace DotNetTwitchBot.Bot.Core
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ILoggerFactory loggerFactory,
             IConfiguration configuration)
         {
@@ -41,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Core
             _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
-            _mediator = mediator;
+            _dispatcher = dispatcher;
             _loggerFactory = loggerFactory;
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
@@ -376,7 +375,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         private Task OnReady()
         {
-            var _ = _mediator.Publish(new DiscordReadyNotification(_client));
+            var _ = _dispatcher.Publish(new DiscordReadyNotification(_client));
             return Task.CompletedTask;
         }
 
@@ -405,7 +404,7 @@ namespace DotNetTwitchBot.Bot.Core
             _logger.LogInformation("Discord Bot Connected.");
             if (isReady)
             {
-               var _ = _mediator.Publish(new DiscordConnectedNotification(_client));
+               var _ = _dispatcher.Publish(new DiscordConnectedNotification(_client));
             }
             return Task.CompletedTask;
         }

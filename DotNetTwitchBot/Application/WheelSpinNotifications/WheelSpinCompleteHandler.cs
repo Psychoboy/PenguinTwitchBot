@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.WheelSpin;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.WheelSpin;
 
 namespace DotNetTwitchBot.Application.WheelSpinNotifications
 {
-    public class WheelSpinCompleteHandler(IWheelService wheelService) : INotificationHandler<WheelSpinCompleteNotification>
+    public class WheelSpinCompleteHandler(IWheelService wheelService) : Application.Notifications.INotificationHandler<WheelSpinCompleteNotification>
     {
         public async Task Handle(WheelSpinCompleteNotification notification, CancellationToken cancellationToken)
         {

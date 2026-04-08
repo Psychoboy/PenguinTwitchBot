@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using System.Collections.Concurrent;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -13,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IPointsSystem pointsSystem
-        ) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventBonus", mediator), IHostedService, ITwitchEventsBonus
+        ) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventBonus", dispatcher), IHostedService, ITwitchEventsBonus
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);

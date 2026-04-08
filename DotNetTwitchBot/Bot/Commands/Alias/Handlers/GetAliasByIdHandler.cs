@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Alias.Requests;
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Alias.Handlers
 {
-    public class GetAliasByIdHandler(IServiceScopeFactory scopeFactory) : IRequestHandler<GetAliasById, AliasModel?>
+    public class GetAliasByIdHandler(IServiceScopeFactory scopeFactory) : Application.Notifications.IRequestHandler<GetAliasById, AliasModel?>
     {
         public async Task<AliasModel?> Handle(GetAliasById request, CancellationToken cancellationToken)
         {

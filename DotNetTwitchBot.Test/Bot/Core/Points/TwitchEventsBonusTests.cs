@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -6,7 +6,6 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.CustomMiddleware;
-using MediatR;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -20,7 +19,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         private readonly ICommandHandler _commandHandler;
         private readonly IGameSettingsService _gameSettingsService;
         private readonly IPointsSystem _pointsSystem;
-        private readonly IMediator mediatorSubstitute;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly TwitchEventsBonus _twitchEventsBonus;
 
         public TwitchEventsBonusTests()
@@ -30,14 +29,14 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _commandHandler = Substitute.For<ICommandHandler>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
             _pointsSystem = Substitute.For<IPointsSystem>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
 
             _twitchEventsBonus = new TwitchEventsBonus(
                 _logger,
                 _serviceBackbone,
                 _commandHandler,
                 _gameSettingsService,
-                mediatorSubstitute,
+                dispatcherSubstitute,
                 _pointsSystem
             );
         }

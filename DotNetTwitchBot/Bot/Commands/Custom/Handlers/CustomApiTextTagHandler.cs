@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class CustomApiTextTagHandler() : IRequestHandler<CustomApiTextTag, CustomCommandResult>
+    public class CustomApiTextTagHandler() : Application.Notifications.IRequestHandler<CustomApiTextTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(CustomApiTextTag request, CancellationToken cancellationToken)
         {

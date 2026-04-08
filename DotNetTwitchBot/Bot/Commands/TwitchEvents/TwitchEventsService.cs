@@ -1,7 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
 {
@@ -9,8 +8,8 @@ namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
         ILogger<TwitchEventsService> logger,
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
-        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventsService", mediator), IHostedService, ITwitchEventsService
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventsService", dispatcher), IHostedService, ITwitchEventsService
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {

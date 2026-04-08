@@ -1,12 +1,11 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class MultiCounterAlertTagHandler(IServiceScopeFactory scopeFactory, IMediator mediator, ILogger<MultiCounterAlertTagHandler> logger) : IRequestHandler<MultiCounterAlertTag, CustomCommandResult>
+    public class MultiCounterAlertTagHandler(IServiceScopeFactory scopeFactory, Application.Notifications.IPenguinDispatcher dispatcher, ILogger<MultiCounterAlertTagHandler> logger) : Application.Notifications.IRequestHandler<MultiCounterAlertTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(MultiCounterAlertTag request, CancellationToken cancellationToken)
         {
@@ -48,7 +47,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
             var amount = counter.Amount;
             counterAlert = counterAlert.Replace("\\(totalcount\\)", amount.ToString("N0"));
             var alertImage = new AlertImage();
-            await mediator.Publish(new QueueAlert(alertImage.Generate(counterAlert)), cancellationToken);
+            await dispatcher.Publish(new QueueAlert(alertImage.Generate(counterAlert)), cancellationToken);
             return new CustomCommandResult();
         }
     }

@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -43,9 +42,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             string emote,
             string command,
             string name,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ILogger logger
-        ) : base(eventService, commandHandler, name, mediator)
+        ) : base(eventService, commandHandler, name, dispatcher)
         {
             _emote = emote;
             _command = command;

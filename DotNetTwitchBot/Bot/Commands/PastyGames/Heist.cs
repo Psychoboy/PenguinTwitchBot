@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -14,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ILogger<Heist> logger,
         ICommandHandler commandHandler,
         TimeProvider timeProvider,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ITools tools
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         private readonly List<Participant> Entered = [];
         private readonly List<Participant> Survivors = [];

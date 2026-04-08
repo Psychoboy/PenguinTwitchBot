@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Quartz.Core;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -17,9 +16,9 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         ICommandHandler commandHandler,
         IServiceScopeFactory scopeFactory,
         IWebSocketMessenger webSocketMessenger,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<WheelService> logger) : 
-        BaseCommandService(serviceBackbone, commandHandler, "WheelService", mediator), IHostedService, IWheelService
+        BaseCommandService(serviceBackbone, commandHandler, "WheelService", dispatcher), IHostedService, IWheelService
     {
         private readonly JsonSerializerOptions jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         private int WinningIndex { get; set; }

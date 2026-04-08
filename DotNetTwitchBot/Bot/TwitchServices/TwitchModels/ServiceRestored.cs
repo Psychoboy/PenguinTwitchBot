@@ -1,8 +1,7 @@
-﻿using MediatR;
 
 namespace DotNetTwitchBot.Bot.TwitchServices.TwitchModels
 {
-    public class ServiceRestored : INotification
+    public class ServiceRestored : Application.Notifications.INotification
     {
     }
 }

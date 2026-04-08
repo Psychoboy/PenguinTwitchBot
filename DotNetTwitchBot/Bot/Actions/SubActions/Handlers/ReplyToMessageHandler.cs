@@ -1,14 +1,13 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ReplyToMessageHandler(ITwitchChatBot chatBot, IMediator mediator, ITwitchService twitchService) : ISubActionHandler
+    public class ReplyToMessageHandler(ITwitchChatBot chatBot, Application.Notifications.IPenguinDispatcher dispatcher, ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ReplyToMessage;
 
@@ -28,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
             else if (replyToMessage.UseBot)
             {
-                return mediator.Publish(new SendBotMessage(replyToMessage.Text, replyToMessage.StreamOnly));
+                return dispatcher.Publish(new SendBotMessage(replyToMessage.Text, replyToMessage.StreamOnly));
             }
             else
             {

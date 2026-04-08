@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Commands.Features;
-using MediatR;
 
 namespace DotNetTwitchBot.Application.ViewerFeature
 {
-    public class ViewerFeatureReceivedChatHandler(IViewerFeature viewerFeature) : INotificationHandler<ReceivedChatMessage>
+    public class ViewerFeatureReceivedChatHandler(IViewerFeature viewerFeature) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
         public Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {
