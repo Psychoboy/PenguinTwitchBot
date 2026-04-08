@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Commands;
+using DotNetTwitchBot.Bot.Models.Commands;
 
 namespace DotNetTwitchBot.Repository
 {

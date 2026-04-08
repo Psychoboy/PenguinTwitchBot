@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -12,8 +12,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidAlertType_PublishesQueueAlert()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
-            var handler = new AlertHandler(mediator);
+            var publisher = Substitute.For<INotificationPublisher>();
+            var handler = new AlertHandler(publisher);
 
             var alertType = new AlertType
             {
@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(alertType, variables);
 
             // Assert
-            await mediator.Received(1).Publish(Arg.Is<QueueAlert>(q =>
+            await publisher.Received(1).Publish(Arg.Is<QueueAlert>(q =>
                 q.Alert.Contains("NewFollower followed!")));
             Assert.Equal("NewFollower followed!", alertType.Text);
             Assert.Equal(5, alertType.Duration);
@@ -40,8 +40,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
-            var handler = new AlertHandler(mediator);
+            var publisher = Substitute.For<INotificationPublisher>();
+            var handler = new AlertHandler(publisher);
 
             var wrongType = new SendMessageType();  
             var variables = new Dictionary<string, string>();

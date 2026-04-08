@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
 using DotNetTwitchBot.Models;

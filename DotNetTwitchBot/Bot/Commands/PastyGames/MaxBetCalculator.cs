@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core.Points;
 using System.Linq.Expressions;
 using static DotNetTwitchBot.Bot.Commands.PastyGames.MaxBet;

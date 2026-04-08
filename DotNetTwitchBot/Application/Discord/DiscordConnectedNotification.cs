@@ -1,5 +1,5 @@
-﻿using Discord.WebSocket;
-using MediatR;
+using Discord.WebSocket;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.Discord
 {

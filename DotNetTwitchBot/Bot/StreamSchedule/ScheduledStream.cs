@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.StreamSchedule
+namespace DotNetTwitchBot.Bot.StreamSchedule
 {
     public class ScheduledStream
     {

@@ -1,10 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -24,7 +24,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -51,7 +51,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -113,7 +113,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
@@ -147,7 +147,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var twitchService = Substitute.For<ITwitchService>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -177,7 +177,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var twitchService = Substitute.For<ITwitchService>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
@@ -213,7 +213,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Misc
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
             var commandHandler = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);

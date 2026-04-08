@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.WebSocketEvents
+namespace DotNetTwitchBot.Bot.WebSocketEvents
 {
     public class WsSubscriptionRequest
     {

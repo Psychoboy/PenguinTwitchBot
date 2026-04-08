@@ -1,8 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers

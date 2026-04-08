@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Points;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly FakeTimeProvider _timeProvider;
         private readonly Heist _heist;
         private readonly ITools _tools;
-        private readonly IMediator mediatorSubstitute;
+        private readonly IPenguinDispatcher mediatorSubstitute;
 
         public HeistTests()
         {
@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _commandHandler = Substitute.For<ICommandHandler>();
             _timeProvider = new FakeTimeProvider();
             _tools = Substitute.For<ITools>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             _heist = new Heist(
                 _pointsSystem,

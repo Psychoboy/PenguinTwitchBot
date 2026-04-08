@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetTwitchBot.Controllers

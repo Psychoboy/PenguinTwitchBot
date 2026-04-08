@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Models;
+using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

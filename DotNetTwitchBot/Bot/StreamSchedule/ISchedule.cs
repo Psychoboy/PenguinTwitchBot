@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Bot.StreamSchedule
 {
     public interface ISchedule

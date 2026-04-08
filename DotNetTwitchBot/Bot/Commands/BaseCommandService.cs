@@ -1,9 +1,9 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -12,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Commands
         protected ICommandHandler CommandHandler { get; }
         public string ModuleName { get; private set; }
 
-        protected IMediator mediator;
+        protected IPenguinDispatcher mediator;
 
-        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName, IMediator mediator)
+        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName, IPenguinDispatcher mediator)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;

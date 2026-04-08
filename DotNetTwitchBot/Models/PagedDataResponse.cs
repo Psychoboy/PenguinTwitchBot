@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Models
+namespace DotNetTwitchBot.Models
 {
     public class PagedDataResponse<T>
     {

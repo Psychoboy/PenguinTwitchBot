@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.TwitchServices.TwitchModels
+namespace DotNetTwitchBot.Bot.TwitchServices.TwitchModels
 {
     public class OnlineStream
     {

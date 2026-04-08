@@ -1,10 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using System.Collections.Concurrent;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IPointsSystem pointsSystem
         ) : BaseCommandService(serviceBackbone, commandHandler, "TwitchEventBonus", mediator), IHostedService, ITwitchEventsBonus
     {

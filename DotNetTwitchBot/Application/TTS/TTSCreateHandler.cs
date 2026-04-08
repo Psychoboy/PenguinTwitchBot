@@ -1,8 +1,8 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.TTS
 {

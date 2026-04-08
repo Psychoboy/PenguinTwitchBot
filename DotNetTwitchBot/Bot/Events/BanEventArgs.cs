@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Events
+namespace DotNetTwitchBot.Bot.Events
 {
     public class BanEventArgs
     {

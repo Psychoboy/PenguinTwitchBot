@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Timers;
+using DotNetTwitchBot.Bot.Models.Timers;
 
 namespace DotNetTwitchBot.Repository
 {

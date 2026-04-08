@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
@@ -6,7 +6,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         IServiceScopeFactory scopeFactory,
         IGameSettingsService gameSettingsService,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ICommandHandler commandHandler
 
         ) : BaseCommandService(serviceBackbone, commandHandler, "PointsSystem", mediator), IPointsSystem, IHostedService

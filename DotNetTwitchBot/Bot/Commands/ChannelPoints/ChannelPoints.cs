@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Bot.TwitchServices;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;

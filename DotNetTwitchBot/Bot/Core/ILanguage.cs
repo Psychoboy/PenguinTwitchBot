@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Core
+namespace DotNetTwitchBot.Bot.Core
 {
     public interface ILanguage
     {

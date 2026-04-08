@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;

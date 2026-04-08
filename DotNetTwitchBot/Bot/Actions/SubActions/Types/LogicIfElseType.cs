@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.Actions.SubActions.UI;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types

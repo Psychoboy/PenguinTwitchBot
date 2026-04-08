@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Repository;
 using System.Net;
 using System.Net.Sockets;

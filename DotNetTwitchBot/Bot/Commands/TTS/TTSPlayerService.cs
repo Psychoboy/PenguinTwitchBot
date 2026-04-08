@@ -1,4 +1,4 @@
-﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
 
 namespace DotNetTwitchBot.Bot.Commands.TTS

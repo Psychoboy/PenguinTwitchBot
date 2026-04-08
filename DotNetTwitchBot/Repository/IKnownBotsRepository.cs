@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Repository
+namespace DotNetTwitchBot.Repository
 {
     public interface IKnownBotsRepository : IGenericRepository<KnownBot>
     {

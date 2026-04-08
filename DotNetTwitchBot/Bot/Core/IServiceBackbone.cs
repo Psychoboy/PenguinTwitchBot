@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Events;
+using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.CustomMiddleware;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;

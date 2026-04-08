@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Bot.Commands.TTS
 {
     public interface ITTSPlayerService

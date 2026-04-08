@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Bot.TwitchServices;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DotNetTwitchBot.HealthChecks

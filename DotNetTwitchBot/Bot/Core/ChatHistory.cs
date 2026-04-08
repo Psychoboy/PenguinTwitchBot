@@ -1,9 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Bot.Core
@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Core
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         ITwitchService twitchService,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ILogger<ChatHistory> logger
         ) : BaseCommandService(serviceBackbone, commandHandler, "ChatHistory", mediator), IChatHistory, IHostedService
     {

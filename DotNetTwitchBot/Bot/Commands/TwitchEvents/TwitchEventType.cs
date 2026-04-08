@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
+namespace DotNetTwitchBot.Bot.Commands.TwitchEvents
 {
     public enum TwitchEventType
     {

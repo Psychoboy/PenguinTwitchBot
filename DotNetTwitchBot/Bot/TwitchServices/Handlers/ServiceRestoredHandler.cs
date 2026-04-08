@@ -1,5 +1,5 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
-using MediatR;
+using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.TwitchServices.Handlers
 {

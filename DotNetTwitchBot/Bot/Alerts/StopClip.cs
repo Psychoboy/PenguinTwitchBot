@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Alerts
+namespace DotNetTwitchBot.Bot.Alerts
 {
     public class StopClip : BaseAlert
     {

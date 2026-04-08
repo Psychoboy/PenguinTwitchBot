@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             IServiceBackbone serviceBackbone,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "DeathCounters", mediator)
         {

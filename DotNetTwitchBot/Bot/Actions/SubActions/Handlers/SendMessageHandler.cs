@@ -1,11 +1,11 @@
 using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class SendMessageHandler(IMediator mediator, ITwitchService twitchService) : ISubActionHandler
+    public class SendMessageHandler(INotificationPublisher publisher, ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.SendMessage;
 
@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             sendMessageType.Text = VariableReplacer.ReplaceVariables(sendMessageType.Text, variables);
             if (sendMessageType.UseBot)
             {
-                return mediator.Publish(new SendBotMessage(sendMessageType.Text, sendMessageType.StreamOnly));
+                return publisher.Publish(new SendBotMessage(sendMessageType.Text, sendMessageType.StreamOnly));
             } else
             {
                 return twitchService.SendMesssageAsStreamer(sendMessageType.Text);

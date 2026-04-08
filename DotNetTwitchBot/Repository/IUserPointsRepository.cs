@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Points;
+using DotNetTwitchBot.Bot.Models.Points;
 using System.Linq.Expressions;
 
 namespace DotNetTwitchBot.Repository

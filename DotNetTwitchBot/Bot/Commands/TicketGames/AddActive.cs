@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IServiceBackbone serviceBackbone,
         IPointsSystem pointSystem,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IGameSettingsService gameSettingsService
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
     {

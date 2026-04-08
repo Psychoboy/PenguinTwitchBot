@@ -1,9 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Queues;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands

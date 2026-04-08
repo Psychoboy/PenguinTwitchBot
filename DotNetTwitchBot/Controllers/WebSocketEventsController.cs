@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.WebSocketEvents;
+using DotNetTwitchBot.Bot.WebSocketEvents;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetTwitchBot.Controllers

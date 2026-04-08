@@ -1,11 +1,11 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Application.Clips;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Extensions;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Text.RegularExpressions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Shoutout
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
         ITwitchService twitchService,
-        IMediator mediator
+        IPenguinDispatcher mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", mediator), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; } = new HttpClient();

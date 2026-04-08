@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.Actions.SubActions.UI;
 using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types

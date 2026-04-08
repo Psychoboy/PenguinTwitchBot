@@ -2,7 +2,7 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         ITools tools,
         TimeProvider timeProvider,
         IGameSettingsService gameSettingsService,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IPointsSystem pointsSystem
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
     {

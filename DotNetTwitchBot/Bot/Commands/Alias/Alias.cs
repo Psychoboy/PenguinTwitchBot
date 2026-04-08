@@ -1,12 +1,12 @@
 using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Alias
 {
     public class Alias(
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IServiceBackbone serviceBackbone,
         ILogger<Alias> logger,
         ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias", mediator), IAlias, IHostedService

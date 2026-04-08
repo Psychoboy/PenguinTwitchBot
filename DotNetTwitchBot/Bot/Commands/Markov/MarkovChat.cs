@@ -1,10 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands.Games;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
         IGameSettingsService gameSettingsService,
         IServiceScopeFactory scopeFactory,
         ITwitchService twitchService,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         StringMarkov markov
         ) : BaseCommandService(serviceBackbone, commandHandler, "MarkovChat", mediator), IHostedService, IMarkovChat
     {

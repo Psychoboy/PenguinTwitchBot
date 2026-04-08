@@ -1,8 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Tests.Bot.Commands
@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
@@ -32,7 +32,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
             var defaultCommandSubstitute = new DefaultCommand { CommandName = "testCommand" };
 
             commandHandlerSubstitute.GetDefaultCommandFromDb("testCommand").Returns(defaultCommandSubstitute);
@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
             var defaultCommandSubstitute = new DefaultCommand { CommandName = "testCommand" };
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
             // Arrange
             var serviceBackboneSubstitute = Substitute.For<IServiceBackbone>();
             var commandHandlerSubstitute = Substitute.For<ICommandHandler>();
-            var mediatorSubstitute = Substitute.For<IMediator>();
+            var mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             var baseCommandService = new TestCommandService(serviceBackboneSubstitute, commandHandlerSubstitute, mediatorSubstitute);
 
@@ -110,7 +110,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands
 
     internal class TestCommandService : BaseCommandService
     {
-        public TestCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, IMediator mediator)
+        public TestCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, IPenguinDispatcher mediator)
             : base(serviceBackbone, commandHandler, "Roulette", mediator)
         {
         }

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
+using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
 using DotNetTwitchBot.Extensions;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;

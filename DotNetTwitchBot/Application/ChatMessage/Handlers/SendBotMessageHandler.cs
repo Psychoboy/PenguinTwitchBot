@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.ChatMessage.Handlers
 {

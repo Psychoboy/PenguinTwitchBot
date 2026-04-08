@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.Actions.SubActions.UI;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Types

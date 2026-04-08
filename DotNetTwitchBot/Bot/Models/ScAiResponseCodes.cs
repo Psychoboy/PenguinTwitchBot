@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(UserId), IsUnique = true)]
     public class ScAiResponseCodes

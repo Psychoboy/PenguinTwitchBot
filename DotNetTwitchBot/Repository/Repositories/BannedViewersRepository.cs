@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Repository.Repositories
+namespace DotNetTwitchBot.Repository.Repositories
 {
     public class BannedViewersRepository : GenericRepository<BannedViewer>, IBannedViewersRepository
     {

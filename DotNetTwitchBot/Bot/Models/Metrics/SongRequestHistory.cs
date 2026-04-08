@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models.Metrics
+namespace DotNetTwitchBot.Bot.Models.Metrics
 {
     public class SongRequestHistory
     {

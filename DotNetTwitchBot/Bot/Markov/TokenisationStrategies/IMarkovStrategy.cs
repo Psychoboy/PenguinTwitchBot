@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Markov.Models;
+using DotNetTwitchBot.Bot.Markov.Models;
 
 namespace DotNetTwitchBot.Bot.Markov.TokenisationStrategies
 {

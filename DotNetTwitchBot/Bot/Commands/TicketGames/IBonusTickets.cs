@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public interface IBonusTickets

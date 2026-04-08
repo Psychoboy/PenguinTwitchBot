@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
 using DotNetTwitchBot.Bot.Commands.Features;
@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -30,7 +30,7 @@ namespace DotNetTwitchBot.Tests
         public async Task AddAudioCommand_ShouldAddCommandToDatabase()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Tests
         public async Task AddAudioCommand_ShouldNotAddCommandToDatabase()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -95,7 +95,7 @@ namespace DotNetTwitchBot.Tests
         public async Task SaveAudioCommand_ShouldSave()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -128,7 +128,7 @@ namespace DotNetTwitchBot.Tests
         public async Task GetAudioCommand_ShouldGet()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var viewerFeature = Substitute.For<IViewerFeature>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
@@ -162,7 +162,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -206,7 +206,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -248,7 +248,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -290,7 +290,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -332,7 +332,7 @@ namespace DotNetTwitchBot.Tests
             // Arrange
             var commandHandler = Substitute.For<ICommandHandler>();
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var mediator = Substitute.For<IMediator>();
+            var mediator = Substitute.For<IPenguinDispatcher>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var dbContext = Substitute.For<IUnitOfWork>();
             var serviceProvider = Substitute.For<IServiceProvider>();

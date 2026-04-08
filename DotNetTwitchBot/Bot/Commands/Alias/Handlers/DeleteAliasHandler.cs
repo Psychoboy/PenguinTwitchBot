@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Commands.Alias.Requests;
+using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Alias.Handlers
 {

@@ -1,7 +1,7 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using YoutubeDLSharp.Options;
 
 namespace DotNetTwitchBot.Application.Clips

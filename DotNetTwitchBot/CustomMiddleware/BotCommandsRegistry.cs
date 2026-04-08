@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Admin;
 using DotNetTwitchBot.Bot.Commands.Ai;

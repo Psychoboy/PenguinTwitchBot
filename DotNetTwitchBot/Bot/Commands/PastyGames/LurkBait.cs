@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core.Points;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames

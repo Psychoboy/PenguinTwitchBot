@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices;
+using DotNetTwitchBot.Bot.TwitchServices;
 using OpenAI;
 using OpenAI.Responses;
 using System.Text.RegularExpressions;

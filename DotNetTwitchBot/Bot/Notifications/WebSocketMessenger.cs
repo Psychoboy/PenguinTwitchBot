@@ -5,7 +5,7 @@ using System.Text.Json;
 using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Application.WheelSpinNotifications;
 using DotNetTwitchBot.Extensions;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Notifications
 {
@@ -17,9 +17,9 @@ namespace DotNetTwitchBot.Bot.Notifications
         readonly ILogger<WebSocketMessenger> _logger;
         private bool Paused = false;
         //static readonly SemaphoreSlim _semaphoreSlim = new(1);
-        private readonly IMediator _mediator;
+        private readonly IPenguinDispatcher _mediator;
 
-        public WebSocketMessenger(ILogger<WebSocketMessenger> logger, IMediator mediator)
+        public WebSocketMessenger(ILogger<WebSocketMessenger> logger, IPenguinDispatcher mediator)
         {
             _logger = logger;
             SetupCleanUpTask();

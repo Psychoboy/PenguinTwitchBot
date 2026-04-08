@@ -1,4 +1,4 @@
-﻿
+
 using DotNetTwitchBot.Extensions;
 
 namespace DotNetTwitchBot.Bot.Markov.Components

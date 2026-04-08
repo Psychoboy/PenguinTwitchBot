@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Commands.TicketGames;
+using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.BonusTickets
 {

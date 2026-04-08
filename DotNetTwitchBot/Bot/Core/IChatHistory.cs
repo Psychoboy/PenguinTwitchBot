@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Models;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 

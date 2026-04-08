@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Prometheus;
 
 namespace DotNetTwitchBot.Application.Metrics.Handlers

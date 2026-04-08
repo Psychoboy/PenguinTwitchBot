@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.TwitchServices
+namespace DotNetTwitchBot.Bot.TwitchServices
 {
     public interface ITwitchChatBot : IHostedService
     {

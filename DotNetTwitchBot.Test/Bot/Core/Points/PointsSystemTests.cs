@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
@@ -7,7 +7,7 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
         private readonly IBonusTickets _bonusTickets;
-        private readonly IMediator mediatorSubstitute;
+        private readonly IPenguinDispatcher mediatorSubstitute;
         private readonly PointsSystem _pointsSystem;
 
         public PointsSystemTests()
@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _bonusTickets = Substitute.For<IBonusTickets>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             _scopeFactoryMock.CreateScope().Returns(_scopeMock);
             _scopeMock.ServiceProvider.Returns(_serviceProviderMock);

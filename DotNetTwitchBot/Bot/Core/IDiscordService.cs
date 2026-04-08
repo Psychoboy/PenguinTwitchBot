@@ -1,4 +1,4 @@
-﻿using Discord;
+using Discord;
 using DotNetTwitchBot.Bot.StreamSchedule;
 
 namespace DotNetTwitchBot.Bot.Core

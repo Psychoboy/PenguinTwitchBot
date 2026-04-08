@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Commands.PastyGames;
@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Security.Cryptography;
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
         private readonly IServiceBackbone _serviceBackbone;
         private readonly IGameSettingsService _gameSettingsService;
         private readonly IViewerFeature _viewerFeature;
-        private readonly IMediator _mediator;
+        private readonly IPenguinDispatcher _mediator;
         private readonly ILogger<Defuse> _logger;
         private readonly ICommandHandler _commandHandler;
         private readonly RandomNumberGenerator _randomNumberGenerator;
@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
             _viewerFeature = Substitute.For<IViewerFeature>();
-            _mediator = Substitute.For<IMediator>();
+            _mediator = Substitute.For<IPenguinDispatcher>();
             _logger = Substitute.For<ILogger<Defuse>>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _randomNumberGenerator = Substitute.For<RandomNumberGenerator>();

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Metrics;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models.Metrics;

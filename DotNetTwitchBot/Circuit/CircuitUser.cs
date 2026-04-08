@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Circuit
+namespace DotNetTwitchBot.Circuit
 {
     public class CircuitUser
     {

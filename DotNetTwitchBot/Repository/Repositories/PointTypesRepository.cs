@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.DatabaseTools;
+using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Models.Points;
 
 namespace DotNetTwitchBot.Repository.Repositories

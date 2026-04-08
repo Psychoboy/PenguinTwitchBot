@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Games;
+using DotNetTwitchBot.Bot.Models.Games;
 
 namespace DotNetTwitchBot.Repository
 {

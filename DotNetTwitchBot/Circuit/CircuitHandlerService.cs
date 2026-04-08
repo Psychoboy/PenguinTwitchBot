@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 
 namespace DotNetTwitchBot.Circuit
 {

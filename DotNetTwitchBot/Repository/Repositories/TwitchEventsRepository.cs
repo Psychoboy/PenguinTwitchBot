@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Repository.Repositories
 {
     public class TwitchEventsRepository : GenericRepository<TwitchEvent>, ITwitchEventsRepository

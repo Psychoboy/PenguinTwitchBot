@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands.TwitchEvents;
+using DotNetTwitchBot.Bot.Commands.TwitchEvents;
 using System.Text.Json.Serialization;
 
 namespace DotNetTwitchBot.Bot.Models

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.DatabaseTools;
+using DotNetTwitchBot.Bot.DatabaseTools;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 

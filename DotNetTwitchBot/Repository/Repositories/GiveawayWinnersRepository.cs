@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Giveaway;
+using DotNetTwitchBot.Bot.Models.Giveaway;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {

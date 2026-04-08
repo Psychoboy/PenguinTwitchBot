@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -9,7 +9,7 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
         private readonly IPointsSystem pointsSystem;
         private readonly IViewerFeature viewerFeature;
         private readonly IHubContext<MainHub> hubContext;
-        private readonly IMediator mediatorSubstitute;
+        private readonly IPenguinDispatcher mediatorSubstitute;
         private readonly IUnitOfWork dbContext;
         private readonly IServiceProvider serviceProvider;
         private readonly Setting testPrize;
@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             viewerFeature = Substitute.For<IViewerFeature>();
             gameSettingsService = Substitute.For<IGameSettingsService>();
             hubContext = Substitute.For<IHubContext<MainHub>>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);

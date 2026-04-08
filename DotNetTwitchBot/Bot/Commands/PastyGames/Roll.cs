@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         //ILoyaltyFeature loyaltyFeature,
         IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ICommandHandler commandHandler
             ) : BaseCommandService(serviceBackbone, commandHandler, "Roll", mediator), IHostedService
     {

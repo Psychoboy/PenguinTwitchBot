@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Markov.Components;
+using DotNetTwitchBot.Bot.Markov.Components;
 using DotNetTwitchBot.Bot.Markov.Models;
 using DotNetTwitchBot.Bot.Markov.TokenisationStrategies;
 using Quartz.Util;

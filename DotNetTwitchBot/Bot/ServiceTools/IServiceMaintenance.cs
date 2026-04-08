@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Bot.ServiceTools
 {
     public interface IServiceMaintenance

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers

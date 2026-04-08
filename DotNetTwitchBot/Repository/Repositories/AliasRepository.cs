@@ -1,4 +1,4 @@
-﻿
+
 using DotNetTwitchBot.Bot.DatabaseTools;
 
 namespace DotNetTwitchBot.Repository.Repositories

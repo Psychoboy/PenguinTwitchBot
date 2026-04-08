@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models.Points
+namespace DotNetTwitchBot.Bot.Models.Points
 {
     public class UserPointsWithRank : UserPoints
     {

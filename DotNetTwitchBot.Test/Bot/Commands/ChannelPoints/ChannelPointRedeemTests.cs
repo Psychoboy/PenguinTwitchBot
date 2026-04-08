@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.ChannelPoints;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
@@ -7,7 +7,7 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
-        private readonly IMediator _mediatorSubstitute;
+        private readonly IPenguinDispatcher _mediatorSubstitute;
         private readonly DotNetTwitchBot.Bot.Commands.ChannelPoints.ChannelPointRedeem _channelPointRedeem;
         private readonly IUnitOfWork _unitOfWork;
 
@@ -38,7 +38,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.ChannelPoints
             _scopeFactory = Substitute.For<IServiceScopeFactory>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
-            _mediatorSubstitute = Substitute.For<IMediator>();
+            _mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Text;
 using static DotNetTwitchBot.Bot.Markov.Models.WeightErrorHandlingType;
 

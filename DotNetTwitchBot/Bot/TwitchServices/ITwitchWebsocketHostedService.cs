@@ -1,4 +1,4 @@
-﻿
+
 using DotNetTwitchBot.Bot.Events;
 
 namespace DotNetTwitchBot.Bot.TwitchServices

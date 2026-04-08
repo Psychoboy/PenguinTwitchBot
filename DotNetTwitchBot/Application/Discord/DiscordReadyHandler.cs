@@ -1,7 +1,7 @@
-﻿using Discord;
+using Discord;
 using Discord.Net;
 using DotNetTwitchBot.Bot.Core;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.Discord
 {

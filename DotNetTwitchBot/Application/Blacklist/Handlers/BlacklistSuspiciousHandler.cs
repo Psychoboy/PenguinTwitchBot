@@ -1,5 +1,5 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
-using MediatR;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.Blacklist.Handlers
 {

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
@@ -7,7 +7,7 @@ using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.TTS
 {
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         ICommandHandler commandHandler,
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
-        IMediator mediator
+        IPenguinDispatcher mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", mediator), IHostedService, ITTSService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)

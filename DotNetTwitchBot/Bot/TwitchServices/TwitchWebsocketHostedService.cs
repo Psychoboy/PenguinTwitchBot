@@ -2,7 +2,7 @@ using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         IMemoryCache memoryCache,
         ITwitchService twitchService,
         TimeProvider timeProvider,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ITwitchEventActionHandler twitchEventActionHandler) : ITwitchWebsocketHostedService
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();

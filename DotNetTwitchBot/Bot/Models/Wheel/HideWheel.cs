@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models.Wheel
+namespace DotNetTwitchBot.Bot.Models.Wheel
 {
     public class HideWheel : WheelBase
     {

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Admin

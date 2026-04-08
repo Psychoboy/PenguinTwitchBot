@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Commands
+namespace DotNetTwitchBot.Bot.Commands
 {
     public interface ICommandHelper
     {

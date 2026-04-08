@@ -1,5 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Commands.WheelSpin;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.WheelSpin;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.WheelSpinNotifications
 {

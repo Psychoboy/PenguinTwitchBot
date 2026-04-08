@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Events.Chat;
+using DotNetTwitchBot.Bot.Events.Chat;
 
 namespace DotNetTwitchBot.Bot.Commands.Shoutout
 {

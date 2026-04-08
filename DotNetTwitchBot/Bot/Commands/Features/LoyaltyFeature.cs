@@ -4,7 +4,7 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IPointsSystem pointsSystem
             ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature", mediator), ILoyaltyFeature, IHostedService
     {

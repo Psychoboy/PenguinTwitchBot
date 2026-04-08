@@ -9,6 +9,7 @@ using DotNetTwitchBot.Circuit;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.HealthChecks;
 using DotNetTwitchBot.Repository;
+using DotNetTwitchBot.Application.Notifications;
 using Google.Api;
 using LinqToDB.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -114,13 +115,7 @@ internal class Program
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddTwitchLibEventSubWebsockets();
-        var mediatrSettings = builder.Configuration.GetRequiredSection("Mediatr").Get<MediatrSettings>();
-        builder.Services.AddMediatR(cfg =>
-        {
-            cfg.RegisterServicesFromAssemblyContaining<Program>();
-            if(mediatrSettings != null)
-                cfg.LicenseKey = mediatrSettings.ApiKey ?? string.Empty;
-        });
+        builder.Services.AddNotifications(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 
 

@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Commands.Misc;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.AutoTimer.Handlers
 {

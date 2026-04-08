@@ -1,6 +1,6 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Commands.Features;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Application.ViewerFeature
 {

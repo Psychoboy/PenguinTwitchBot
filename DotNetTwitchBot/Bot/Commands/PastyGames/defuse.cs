@@ -6,7 +6,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("DotNetTwitchBot.Test")]
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IServiceBackbone serviceBackbone,
         IGameSettingsService gameSettingsService,
         IViewerFeature viewerFeature,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ILogger<Defuse> logger,
         ICommandHandler commandHandler
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService

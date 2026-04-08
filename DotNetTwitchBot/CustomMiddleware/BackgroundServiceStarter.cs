@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.CustomMiddleware
 {
     public class BackgroundServiceStarter<T>(T backgroundService) : IHostedService where T : IHostedService

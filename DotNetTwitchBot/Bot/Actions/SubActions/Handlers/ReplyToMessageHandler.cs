@@ -1,14 +1,14 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ReplyToMessageHandler(ITwitchChatBot chatBot, IMediator mediator, ITwitchService twitchService) : ISubActionHandler
+    public class ReplyToMessageHandler(ITwitchChatBot chatBot, IPenguinDispatcher mediator, ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ReplyToMessage;
 

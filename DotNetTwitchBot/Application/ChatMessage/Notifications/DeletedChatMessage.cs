@@ -1,4 +1,4 @@
-﻿using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace DotNetTwitchBot.Application.ChatMessage.Notifications

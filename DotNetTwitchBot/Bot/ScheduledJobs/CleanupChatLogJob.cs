@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Circuit;
 using Quartz;
 

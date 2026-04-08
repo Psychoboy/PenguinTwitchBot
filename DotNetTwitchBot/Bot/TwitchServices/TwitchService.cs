@@ -1,5 +1,5 @@
 using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using NetTopologySuite.Algorithm;
 using Serilog.Configuration;
 using System.Collections.Concurrent;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         readonly Timer _timer;
         private readonly SettingsFileManager _settingsFileManager;
         private readonly ChatMessageIdTracker _messageIdTracker;
-        private readonly IMediator _mediator;
+        private readonly IPenguinDispatcher _mediator;
         private bool serviceUp = false;
         private string? broadcasterId = string.Empty;
         private string? botId = string.Empty;
@@ -41,7 +41,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             ILogger<TwitchService> logger,
             IConfiguration configuration,
             SettingsFileManager settingsFileManager,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             ChatMessageIdTracker messageIdTracker)
         {
 

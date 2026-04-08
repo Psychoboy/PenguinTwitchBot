@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Models;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -16,14 +16,14 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.Custom
         private readonly List<AliasModel> aliasQueryable;
         private readonly List<AliasModel> emptyAliasQueryable;
         private readonly Alias alias;
-        private readonly IMediator mediator;
+        private readonly IPenguinDispatcher mediator;
         private readonly IServiceBackbone serviceBackbone;
 
         public AliasTests()
         {
             serviceBackbone = Substitute.For<IServiceBackbone>();
             commandHandler = Substitute.For<ICommandHandler>();
-            mediator = Substitute.For<IMediator>();
+            mediator = Substitute.For<IPenguinDispatcher>();
 
             testAlias = new AliasModel { AliasName = "thealias", CommandName = "testcommand", Id = 1 };
             aliasQueryable = new List<AliasModel> { testAlias };

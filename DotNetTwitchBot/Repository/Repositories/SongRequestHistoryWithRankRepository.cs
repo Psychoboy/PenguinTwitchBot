@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Metrics;
+using DotNetTwitchBot.Bot.Models.Metrics;
 
 namespace DotNetTwitchBot.Repository.Repositories
 {

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Points;
+using DotNetTwitchBot.Bot.Models.Points;
 using LinqToDB;
 using LinqToDB.EntityFrameworkCore;
 using System.Linq.Expressions;

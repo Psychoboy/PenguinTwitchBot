@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Models.Wheel;
+using DotNetTwitchBot.Bot.Models.Wheel;
 
 namespace DotNetTwitchBot.Repository
 {

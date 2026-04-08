@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot
+namespace DotNetTwitchBot.Bot
 {
     public class Tools : ITools
     {

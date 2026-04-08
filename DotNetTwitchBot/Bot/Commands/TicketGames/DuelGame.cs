@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Duel;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ILogger<DuelGame> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", mediator), IHostedService
     {

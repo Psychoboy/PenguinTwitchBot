@@ -2,7 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<DailyCounter> logger,
             IServiceBackbone serviceBackbone,
             IServiceScopeFactory scopeFactory,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "DailyCounter", mediator)
         {

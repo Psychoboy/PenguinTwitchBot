@@ -1,15 +1,15 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BonusTickets(
         IPointsSystem pointSystem,
-        IMediator mediator, 
+        IPenguinDispatcher mediator, 
         IServiceBackbone serviceBackbone, 
         IViewerFeature viewerFeature,
         ILogger<BonusTickets> logger) : IBonusTickets

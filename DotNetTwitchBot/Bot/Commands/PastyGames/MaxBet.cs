@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Commands.PastyGames
+namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
 
     public class MaxBet

@@ -1,4 +1,4 @@
-﻿
+
 
 using DotNetTwitchBot.Bot.Models.IpLogs;
 using System.Diagnostics.CodeAnalysis;

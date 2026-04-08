@@ -1,4 +1,4 @@
-﻿
+
 namespace DotNetTwitchBot.Bot.Ai
 {
     public interface IStarCitizenAI

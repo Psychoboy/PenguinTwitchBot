@@ -1,11 +1,11 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class AlertTagHandler(IMediator mediator) : IRequestHandler<AlertTag, CustomCommandResult>
+    public class AlertTagHandler(IPenguinDispatcher mediator) : IRequestHandler<AlertTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(AlertTag request, CancellationToken cancellationToken)
         {

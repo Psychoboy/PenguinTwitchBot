@@ -2,7 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             ICommandHandler commandHandler,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             IPointsSystem pointsSystem
             ) : base(serviceBackbone, commandHandler, "Tax", mediator)
         {

@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Markov.Components
+namespace DotNetTwitchBot.Bot.Markov.Components
 {
     public interface IUnigramSelector
     {

@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly CustomCommand _customCommands;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IMediator _mediator;
+        private readonly IPenguinDispatcher _mediator;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DiscordSettings _settings;
         private bool isReady = false;
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.Core
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
             IServiceScopeFactory scopeFactory,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             ILoggerFactory loggerFactory,
             IConfiguration configuration)
         {

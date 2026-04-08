@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Models
+namespace DotNetTwitchBot.Bot.Models
 {
     [Index(nameof(Username), IsUnique = false)]
     public class ViewerChatHistory

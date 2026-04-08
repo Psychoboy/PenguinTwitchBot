@@ -1,12 +1,12 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class MultiCounterAlertTagHandler(IServiceScopeFactory scopeFactory, IMediator mediator, ILogger<MultiCounterAlertTagHandler> logger) : IRequestHandler<MultiCounterAlertTag, CustomCommandResult>
+    public class MultiCounterAlertTagHandler(IServiceScopeFactory scopeFactory, IPenguinDispatcher mediator, ILogger<MultiCounterAlertTagHandler> logger) : IRequestHandler<MultiCounterAlertTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(MultiCounterAlertTag request, CancellationToken cancellationToken)
         {

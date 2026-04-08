@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.CustomMiddleware
+namespace DotNetTwitchBot.CustomMiddleware
 {
     public class BlazorAppContext
     {

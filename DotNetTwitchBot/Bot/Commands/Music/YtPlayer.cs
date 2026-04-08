@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.YouTube.v3;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using System.Collections.Concurrent;
@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             IHubContext<YtHub> hubContext,
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             ICommandHandler commandHandler
         ) : base(serviceBackbone, commandHandler, "YtPlayer", mediator)
         {

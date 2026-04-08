@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -12,9 +12,9 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidSendMessageType_PublishesSendBotMessage()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var publisher = Substitute.For<INotificationPublisher>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, twitchService);
+            var handler = new SendMessageHandler(publisher, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(sendMessageType, variables);
 
             // Assert
-            await mediator.Received(1).Publish(Arg.Is<SendBotMessage>(m =>
+            await publisher.Received(1).Publish(Arg.Is<SendBotMessage>(m =>
                 m.Message == "Hello TestUser!" &&
                 m.SourceOnly == false));
         }
@@ -38,9 +38,9 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task UseBotFalse_DoesNotPublish()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var publisher = Substitute.For<INotificationPublisher>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, twitchService);
+            var handler = new SendMessageHandler(publisher, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -54,16 +54,16 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(sendMessageType, variables);
 
             // Assert
-            await mediator.DidNotReceive().Publish(Arg.Any<SendBotMessage>());
+            await publisher.DidNotReceive().Publish(Arg.Any<SendBotMessage>());
         }
 
         [Fact]
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
+            var publisher = Substitute.For<INotificationPublisher>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, twitchService);
+            var handler = new SendMessageHandler(publisher, twitchService);
 
             var wrongType = new CurrentTimeType();
             var variables = new Dictionary<string, string>();

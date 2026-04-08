@@ -1,5 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Commands;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {

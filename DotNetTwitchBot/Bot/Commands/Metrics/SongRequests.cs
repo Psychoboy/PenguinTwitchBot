@@ -1,7 +1,7 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Metrics
 {
@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ILogger<SongRequests> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "SongRequestsMeetrics", mediator), IHostedService
     {

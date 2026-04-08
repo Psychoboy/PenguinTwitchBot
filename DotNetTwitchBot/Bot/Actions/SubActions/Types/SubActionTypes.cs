@@ -1,4 +1,4 @@
-﻿namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
+namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 {
     public enum SubActionTypes
     {

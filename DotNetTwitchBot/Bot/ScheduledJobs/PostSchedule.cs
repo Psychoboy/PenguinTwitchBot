@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.StreamSchedule;
+using DotNetTwitchBot.Bot.StreamSchedule;
 using Quartz;
 
 namespace DotNetTwitchBot.Bot.ScheduledJobs

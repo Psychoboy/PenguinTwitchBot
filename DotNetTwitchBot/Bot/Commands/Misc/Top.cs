@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IPointsSystem pointsSystem
             ) : BaseCommandService(serviceBackbone, commandHandler, "Top", mediator), IHostedService
     {

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Tags.PlayerSound
 {

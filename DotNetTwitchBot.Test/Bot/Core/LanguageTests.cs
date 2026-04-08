@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core;
 
 namespace DotNetTwitchBot.Test.Bot.Core
 {

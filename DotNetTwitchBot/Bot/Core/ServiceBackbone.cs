@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Alias.Requests;
@@ -8,7 +8,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.CustomMiddleware;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.AspNetCore.SignalR;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class ServiceBackbone(
         ILogger<ServiceBackbone> logger,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IKnownBots knownBots,
         IConfiguration configuration,
         IServiceScopeFactory scopeFactory,

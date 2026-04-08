@@ -4,14 +4,14 @@ using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 {
     public class AudioCommands(
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         IServiceScopeFactory scopeFactory,
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,

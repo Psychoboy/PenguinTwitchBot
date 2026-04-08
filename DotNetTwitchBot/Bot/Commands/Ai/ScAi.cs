@@ -1,9 +1,9 @@
-﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
+using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Ai;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Ai
 {
@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Commands.Ai
         ICommandHandler commandHandler,
         IServiceScopeFactory scopeFactory,
         ILogger<ScAi> logger,
-        IMediator mediator
+        IPenguinDispatcher mediator
         ) : BaseCommandService(serviceBackbone, commandHandler, "ScAi", mediator), IHostedService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)

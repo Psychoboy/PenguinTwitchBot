@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands.PastyGames;
+using DotNetTwitchBot.Bot.Commands.PastyGames;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

@@ -2,7 +2,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         ITwitchService twitchService,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        IPenguinDispatcher mediator,
         ILogger<Blacklist> logger
             ) : BaseCommandService(serviceBackbone, commandHandler, "Blacklist", mediator), IHostedService
     {

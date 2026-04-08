@@ -1,4 +1,4 @@
-﻿using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 

@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
@@ -7,7 +7,7 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
     {
         private readonly ILogger<ViewerFeature> logger;
         private readonly ICommandHandler commandHandler;
-        private readonly IMediator mediatorSubstitute;
+        private readonly IPenguinDispatcher mediatorSubstitute;
         private readonly IServiceScope scope;
         private readonly IServiceBackbone serviceBackbone;
         private readonly ITwitchService twitchService;
@@ -43,7 +43,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             twitchService = Substitute.For<ITwitchService>();
             logger = Substitute.For<ILogger<ViewerFeature>>();
             commandHandler = Substitute.For<ICommandHandler>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            mediatorSubstitute = Substitute.For<IPenguinDispatcher>();
 
             scopeFactory.CreateScope().Returns(scope);
             scope.ServiceProvider.Returns(serviceProvider);

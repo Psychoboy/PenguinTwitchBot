@@ -10,7 +10,7 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -34,14 +34,14 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         readonly Dictionary<string, CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<KeywordWithRegex> Keywords = [];
-        private readonly IMediator _mediator;
+        private readonly IPenguinDispatcher _mediator;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CustomCommand> _logger;
         private readonly ITwitchService _twitchService;
         private readonly IPointsSystem _PointsSystem;
 
         public CustomCommand(
-            IMediator mediator,
+            IPenguinDispatcher mediator,
             IViewerFeature viewerFeature,
             IServiceScopeFactory scopeFactory,
             ILogger<CustomCommand> logger,

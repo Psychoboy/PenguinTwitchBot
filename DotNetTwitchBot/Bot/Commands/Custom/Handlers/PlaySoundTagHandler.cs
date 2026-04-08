@@ -1,11 +1,11 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Custom.Tags.PlayerSound;
-using MediatR;
+using DotNetTwitchBot.Application.Notifications;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class PlaySoundTagHandler(IMediator mediator) : IRequestHandler<PlaySoundTag, CustomCommandResult>
+    public class PlaySoundTagHandler(IPenguinDispatcher mediator) : IRequestHandler<PlaySoundTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(PlaySoundTag request, CancellationToken cancellationToken)
         {
