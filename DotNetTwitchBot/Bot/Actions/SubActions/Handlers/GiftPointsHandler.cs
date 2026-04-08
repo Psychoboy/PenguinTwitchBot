@@ -12,8 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not GiftPointsType giftPoints)
             {
-                logger.LogError("Invalid sub action type for GiftPointsHandler");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for GiftPointsHandler");
             }
 
             var pointTypeName = VariableReplacer.ReplaceVariables(giftPoints.Text, variables);
