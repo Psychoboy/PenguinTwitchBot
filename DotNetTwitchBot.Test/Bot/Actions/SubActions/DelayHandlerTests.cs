@@ -1,5 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
+using Moq;
 using System.Diagnostics;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -10,7 +12,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidDelayType_DelaysExecution()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new DelayHandler(mockContextAccessor.Object);
 
             var delayType = new DelayType
             {
@@ -32,7 +35,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithVariableReplacement_DelaysCorrectly()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new DelayHandler(mockContextAccessor.Object);
 
             var delayType = new DelayType
             {
@@ -54,7 +58,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithInvalidDuration_DoesNotDelay()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new DelayHandler(mockContextAccessor.Object);
 
             var delayType = new DelayType
             {
@@ -77,7 +82,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new DelayHandler(mockContextAccessor.Object);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();

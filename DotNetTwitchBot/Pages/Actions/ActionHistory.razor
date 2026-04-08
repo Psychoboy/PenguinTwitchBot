@@ -47,7 +47,15 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Name">
-                    <MudText Typo="Typo.body2">@context.ActionName</MudText>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <MudText Typo="Typo.body2">@context.ActionName</MudText>
+                        @if (context.SubActionLogs.Any())
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">
+                                @context.SubActionLogs.Count SubActions
+                            </MudChip>
+                        }
+                    </div>
                 </MudTd>
                 <MudTd DataLabel="State">
                     <MudChip T="string" Size="Size.Small" Color="@GetStateColor(context.State)">
@@ -99,9 +107,9 @@
                 </MudTd>
                 <MudTd DataLabel="Actions" Style="text-align: right;">
                     <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" 
-                               OnClick="@(() => ViewVariables(context))"
+                               OnClick="@(() => ViewDetails(context))"
                                StartIcon="@Icons.Material.Filled.Visibility">
-                        View Variables
+                        View Details
                     </MudButton>
                 </MudTd>
             </RowTemplate>
@@ -220,7 +228,7 @@
         FilterLogs();
     }
 
-    private async Task ViewVariables(ActionExecutionLog log)
+    private async Task ViewDetails(ActionExecutionLog log)
     {
         var parameters = new DialogParameters<ActionVariablesDialog>
         {
@@ -230,11 +238,11 @@
         var options = new DialogOptions 
         { 
             CloseOnEscapeKey = true, 
-            MaxWidth = MaxWidth.Medium, 
+            MaxWidth = MaxWidth.Large, 
             FullWidth = true 
         };
 
-        await DialogService.ShowAsync<ActionVariablesDialog>("Action Variables", parameters, options);
+        await DialogService.ShowAsync<ActionVariablesDialog>("Action Execution Details", parameters, options);
     }
 
     private Color GetStateColor(ActionExecutionState state)

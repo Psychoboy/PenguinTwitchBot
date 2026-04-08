@@ -74,6 +74,82 @@
                 </MudItem>
             }
 
+            @if (Log.SubActionLogs.Any())
+            {
+                <MudItem xs="12">
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" GutterBottom="true">SubAction Execution Flow (@Log.SubActionLogs.Count)</MudText>
+                </MudItem>
+
+
+                <MudItem xs="12">
+                    <MudPaper Class="pa-2" Elevation="0" Style="background-color: var(--mud-palette-background-grey); max-height: 400px; overflow-y: auto;">
+                        @foreach (var subAction in Log.SubActionLogs)
+                        {
+                            <MudPaper Class="pa-3 mb-2" Elevation="1" Style="@GetSubActionIndentStyle(subAction.Depth)">
+                                <MudGrid Spacing="1">
+                                    <MudItem xs="12">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            @if (subAction.IsSuccess)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                            }
+                                            else
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
+                                            }
+                                            <MudText Typo="Typo.body1"><strong>@subAction.SubActionType</strong></MudText>
+                                            @if (!string.IsNullOrEmpty(subAction.Description))
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">- @subAction.Description</MudText>
+                                            }
+                                            @if (subAction.Duration.HasValue)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@FormatDuration(subAction.Duration.Value)</MudChip>
+                                            }
+                                        </div>
+                                    </MudItem>
+
+                                    @if (!subAction.IsSuccess && !string.IsNullOrEmpty(subAction.ErrorMessage))
+                                    {
+                                        <MudItem xs="12">
+                                            <MudAlert Severity="Severity.Error" Dense="true" Class="my-1">
+                                                @subAction.ErrorMessage
+                                            </MudAlert>
+                                        </MudItem>
+                                    }
+
+                                    @if (subAction.Messages.Any())
+                                    {
+                                        <MudItem xs="12">
+                                            <MudPaper Class="pa-2 mt-1" Elevation="0" Style="background-color: var(--mud-palette-surface);">
+                                                @foreach (var message in subAction.Messages)
+                                                {
+                                                    <div style="display: flex; align-items: start; gap: 4px; margin-bottom: 4px;">
+                                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Secondary" Style="margin-top: 2px;" />
+                                                        <MudText Typo="Typo.body2" Style="flex: 1;">@message</MudText>
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+                                    }
+
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Started: @subAction.StartedAt.ToLocalTime().ToString("HH:mm:ss.fff")
+                                            @if (subAction.CompletedAt.HasValue)
+                                            {
+                                                <text> | Completed: @subAction.CompletedAt.Value.ToLocalTime().ToString("HH:mm:ss.fff")</text>
+                                            }
+                                        </MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
+
             <MudItem xs="12">
                 <MudDivider Class="my-4" />
                 <MudText Typo="Typo.h6" GutterBottom="true">Variables Before Execution (@Log.VariablesBefore.Count)</MudText>
@@ -182,6 +258,24 @@
             return $"{duration.TotalSeconds:F2}s";
 
         return $"{duration.TotalMinutes:F2}m";
+    }
+
+    private string GetSubActionIndentStyle(int depth)
+    {
+        var leftMargin = depth * 20;
+        return $"margin-left: {leftMargin}px; border-left: 2px solid var(--mud-palette-{GetDepthColor(depth)});";
+    }
+
+    private string GetDepthColor(int depth)
+    {
+        return (depth % 4) switch
+        {
+            0 => "primary",
+            1 => "secondary",
+            2 => "tertiary",
+            3 => "info",
+            _ => "primary"
+        };
     }
 
     private bool IsVariableChanged(string key, string afterValue)

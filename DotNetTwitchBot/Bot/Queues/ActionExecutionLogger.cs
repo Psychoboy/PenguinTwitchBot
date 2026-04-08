@@ -154,6 +154,137 @@ namespace DotNetTwitchBot.Bot.Queues
             return _logs.Count;
         }
 
+        public int LogSubActionStarted(Guid actionLogId, string subActionType, string? description, int depth)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                var subActionLog = new SubActionExecutionLog
+                {
+                    SubActionType = subActionType,
+                    Description = description,
+                    StartedAt = DateTime.UtcNow,
+                    Depth = depth
+                };
+
+                // Thread-safe add to list
+                int index;
+                lock (log.SubActionLogs)
+                {
+                    log.SubActionLogs.Add(subActionLog);
+                    index = log.SubActionLogs.Count - 1;
+                }
+
+                _logger.LogTrace("Logged sub-action {SubActionType} started for action {ActionName} at index {Index}", 
+                    subActionType, log.ActionName, index);
+
+                // Notify clients about action update
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+
+                return index;
+            }
+
+            return -1;
+        }
+
+        public void LogSubActionCompleted(Guid actionLogId, int subActionIndex)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                SubActionExecutionLog? subActionLog = null;
+                lock (log.SubActionLogs)
+                {
+                    if (subActionIndex >= 0 && subActionIndex < log.SubActionLogs.Count)
+                    {
+                        subActionLog = log.SubActionLogs[subActionIndex];
+                    }
+                }
+
+                if (subActionLog != null)
+                {
+                    subActionLog.CompletedAt = DateTime.UtcNow;
+                    subActionLog.IsSuccess = true;
+
+                    _logger.LogTrace("Sub-action {SubActionType} completed for action {ActionName} in {Duration}ms", 
+                        subActionLog.SubActionType, log.ActionName, subActionLog.Duration?.TotalMilliseconds ?? 0);
+
+                    // Notify clients about action update
+                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                }
+            }
+        }
+
+        public void LogSubActionFailed(Guid actionLogId, int subActionIndex, string errorMessage)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                SubActionExecutionLog? subActionLog = null;
+                lock (log.SubActionLogs)
+                {
+                    if (subActionIndex >= 0 && subActionIndex < log.SubActionLogs.Count)
+                    {
+                        subActionLog = log.SubActionLogs[subActionIndex];
+                    }
+                }
+
+                if (subActionLog != null)
+                {
+                    subActionLog.CompletedAt = DateTime.UtcNow;
+                    subActionLog.IsSuccess = false;
+                    subActionLog.ErrorMessage = TruncateMessage(errorMessage, 200);
+
+                    _logger.LogTrace("Sub-action {SubActionType} failed for action {ActionName}: {ErrorMessage}", 
+                        subActionLog.SubActionType, log.ActionName, errorMessage);
+
+                    // Notify clients about action update
+                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                }
+            }
+        }
+
+        public void LogSubActionMessage(Guid actionLogId, int subActionIndex, string message)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                SubActionExecutionLog? subActionLog = null;
+                lock (log.SubActionLogs)
+                {
+                    if (subActionIndex >= 0 && subActionIndex < log.SubActionLogs.Count)
+                    {
+                        subActionLog = log.SubActionLogs[subActionIndex];
+                    }
+                }
+
+                if (subActionLog != null)
+                {
+                    var truncatedMessage = TruncateMessage(message, 150);
+
+                    int messageCount;
+                    lock (subActionLog.Messages)
+                    {
+                        subActionLog.Messages.Add(truncatedMessage);
+                        messageCount = subActionLog.Messages.Count;
+                    }
+
+                    _logger.LogTrace("Sub-action {SubActionType} logged message for action {ActionName}: {Message}", 
+                        subActionLog.SubActionType, log.ActionName, truncatedMessage);
+
+                    // Only send updates every few messages to avoid flooding
+                    if (messageCount % 5 == 0 || messageCount <= 5)
+                    {
+                        _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                    }
+                }
+            }
+        }
+
+        private static string TruncateMessage(string message, int maxLength)
+        {
+            if (string.IsNullOrEmpty(message) || message.Length <= maxLength)
+                return message;
+
+            return message[..(maxLength - 3)] + "...";
+        }
+
         private void EnforceMaxLogEntries()
         {
             while (_logs.Count > _maxLogEntries)

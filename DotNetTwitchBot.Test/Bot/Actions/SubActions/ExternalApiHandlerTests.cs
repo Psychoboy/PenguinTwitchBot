@@ -1,5 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
+using Moq;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -12,7 +14,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var handler = new ExternalApiHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new ExternalApiHandler(mockContextAccessor.Object);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
@@ -26,7 +29,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task InvalidUrl_ThrowsException()
         {
             // Arrange
-            var handler = new ExternalApiHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new ExternalApiHandler(mockContextAccessor.Object);
 
             var externalApiType = new ExternalApiType
             {

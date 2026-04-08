@@ -1,8 +1,12 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExecuteActionHandler(IActionManagementService actionService, IAction action) : ISubActionHandler
+    public class ExecuteActionHandler(
+        IActionManagementService actionService, 
+        IAction action,
+        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteAction;
 
@@ -25,7 +29,33 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 throw new SubActionHandlerException(subAction, "No action found with ID: {ActionId}", actionId);
             }
-            await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
+
+            var context = contextAccessor.ExecutionContext;
+
+            if (context != null)
+            {
+                // Create a nested context for the executed action
+                var nestedContext = context.CreateNestedContext();
+                nestedContext.BeginSubAction("ExecuteAction", $"Action: {actionItem.Name}");
+
+                try
+                {
+                    nestedContext.LogMessage($"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
+                    await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
+                    nestedContext.LogMessage($"Action enqueued successfully");
+                    nestedContext.CompleteSubAction();
+                }
+                catch (Exception ex)
+                {
+                    nestedContext.FailSubAction(ex.Message);
+                    throw;
+                }
+            }
+            else
+            {
+                // No context available, just enqueue normally
+                await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
+            }
         }
     }
 }

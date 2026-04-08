@@ -24,5 +24,13 @@ namespace DotNetTwitchBot.Bot.Queues
 
         int GetLogCount();
         void UpdateActionFailed(Guid logId, string errorMessage, Dictionary<string, string> variablesAfter);
+
+        int LogSubActionStarted(Guid actionLogId, string subActionType, string? description, int depth);
+
+        void LogSubActionCompleted(Guid actionLogId, int subActionIndex);
+
+        void LogSubActionFailed(Guid actionLogId, int subActionIndex, string errorMessage);
+
+        void LogSubActionMessage(Guid actionLogId, int subActionIndex, string message);
     }
 }

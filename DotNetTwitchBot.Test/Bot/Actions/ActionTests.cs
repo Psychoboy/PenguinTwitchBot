@@ -49,7 +49,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var serviceProvider = serviceCollection.BuildServiceProvider();
             scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
-            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone);
+            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone, serviceProvider);
             variables = new Dictionary<string, string>
             {
                 { "user", "testUser" },

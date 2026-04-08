@@ -1,8 +1,9 @@
 ﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExternalApiHandler() : ISubActionHandler
+    public class ExternalApiHandler(ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
@@ -12,6 +13,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for ExternalApiHandler: {SubActionType}", subAction.GetType().Name);
             }
+
+            var context = contextAccessor.ExecutionContext;
+
             try
             {
                 var httpClient = new HttpClient();
@@ -20,6 +24,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     RequestUri = new Uri(externalApiType.Text),
                     Method = new HttpMethod(externalApiType.HttpMethod)
                 };
+
+                context?.LogMessage($"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
 
                 if (!string.IsNullOrEmpty(externalApiType.Headers))
                 {
@@ -34,10 +40,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     }
                 }
                 var result = await httpClient.SendAsync(httpRequest);
-                variables.Add("ExternalApiResponse", await result.Content.ReadAsStringAsync());
+                var responseContent = await result.Content.ReadAsStringAsync();
+
+                context?.LogMessage($"Received response with status {(int)result.StatusCode}");
+
+                variables.Add("ExternalApiResponse", responseContent);
 
             } catch (Exception ex)
             {
+                context?.LogMessage($"Request failed: {ex.Message}");
                 throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }

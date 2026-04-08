@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Test.Application.Notifications
 
             public async Task Handle(TestNotification notification, CancellationToken cancellationToken)
             {
-                await Task.Delay(100, cancellationToken);
+                await Task.Delay(200, cancellationToken);
                 WasExecuted = true;
             }
         }
@@ -408,9 +408,10 @@ namespace DotNetTwitchBot.Test.Application.Notifications
             // Assert
             Assert.True(handler1.WasExecuted);
             Assert.True(handler2.WasExecuted);
-            // If handlers ran sequentially, this would take ~200ms
-            // If parallel, should be closer to ~100ms
-            Assert.True(stopwatch.ElapsedMilliseconds < 150, 
+            // If handlers ran sequentially, this would take ~400ms
+            // If parallel, should be closer to ~200ms
+            // Using 300ms threshold to clearly distinguish parallel from sequential execution
+            Assert.True(stopwatch.ElapsedMilliseconds < 300, 
                 $"Handlers did not execute in parallel. Took {stopwatch.ElapsedMilliseconds}ms");
         }
     }

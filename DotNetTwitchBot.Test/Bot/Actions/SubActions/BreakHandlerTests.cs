@@ -1,5 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
+using Moq;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -9,7 +11,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidBreakType_ThrowsBreakException()
         {
             // Arrange
-            var handler = new BreakHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new BreakHandler(mockContextAccessor.Object);
 
             var breakType = new BreakType();
             var variables = new Dictionary<string, string>();
@@ -23,7 +26,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsSubActionHandlerException()
         {
             // Arrange
-            var handler = new BreakHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var handler = new BreakHandler(mockContextAccessor.Object);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();

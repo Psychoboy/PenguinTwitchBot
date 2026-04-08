@@ -8,7 +8,11 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Actions
 {
-    public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone) : IAction
+    public class Action(
+        ILogger<Action> logger, 
+        IServiceScopeFactory scopeFactory, 
+        IServiceBackbone serviceBackbone,
+        IServiceProvider serviceProvider) : IAction
     {
         public async Task<ActionType> AddAction(ActionType action)
         {
@@ -85,8 +89,10 @@ namespace DotNetTwitchBot.Bot.Actions
 
         private async Task RunSubAction(SubActionType subAction, Dictionary<string, string> variables)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
+            // Use the current scope's service provider instead of creating a new scope
+            // This ensures the SubActionHandlerFactory gets the same ISubActionExecutionContextAccessor
+            // instance that was set up in ActionQueue.ExecuteActionAsync
+            var factory = serviceProvider.GetRequiredService<SubActionHandlerFactory>();
             await factory.ExecuteAsync(subAction, variables);
         }
     }
