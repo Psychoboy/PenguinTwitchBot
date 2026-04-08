@@ -93,13 +93,6 @@ namespace DotNetTwitchBot.Bot.Actions
             // Use the current scope's service provider instead of creating a new scope
             // This ensures the SubActionHandlerFactory gets the same ISubActionExecutionContextAccessor
             // instance that was set up in ActionQueue.ExecuteActionAsync
-            // 
-            // NOTE: When action.ConcurrentAction is true, multiple sub-actions run in parallel
-            // within the same DI scope. This is safe for most services (stateless, singleton, or transient).
-            // However, if a SubAction handler injects scoped services with mutable state (e.g., DbContext),
-            // concurrent access could cause issues. The trade-off was made to ensure context accessor works
-            // correctly. If concurrent DbContext usage becomes a problem, consider using DbContextFactory
-            // or explicitly creating per-subaction scopes with context propagation.
             var factory = serviceProvider.GetRequiredService<SubActionHandlerFactory>();
             await factory.ExecuteAsync(subAction, variables);
         }
