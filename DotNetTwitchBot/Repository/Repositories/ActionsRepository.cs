@@ -204,7 +204,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Populate ActionName for each ExecuteAction subaction
             foreach (var executeAction in allExecuteActions)
             {
-                if (actionIdToNameMap.TryGetValue(executeAction.ActionId, out var actionName))
+                if (executeAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(executeAction.ActionId.Value, out var actionName))
                 {
                     executeAction.ActionName = actionName;
                 }
@@ -301,7 +301,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions);
                 foreach (var subAction in allExecuteActions)
                 {
-                    if (actionIdToNameMap.TryGetValue(subAction.ActionId, out var actionName))
+                    if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
                     {
                         subAction.ActionName = actionName;
                     }

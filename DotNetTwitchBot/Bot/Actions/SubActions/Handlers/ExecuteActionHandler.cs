@@ -15,14 +15,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var actionId = executeAction.ActionId;
-            if(actionId == 0)
+            if(!actionId.HasValue || actionId.Value == 0)
             {
                 logger.LogError("Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionId);
                 return;
             }
 
             // Execute the action using the parsed actionId
-            var actionItem = await actionService.GetActionByIdAsync(actionId);
+            var actionItem = await actionService.GetActionByIdAsync(actionId.Value);
             if(actionItem == null)
             {
                 logger.LogError("No action found with ID: {ActionId}", actionId);

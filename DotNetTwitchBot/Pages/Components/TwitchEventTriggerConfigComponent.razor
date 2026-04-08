@@ -6,24 +6,25 @@
 <MudStack Spacing="3">
     <MudText Typo="Typo.h6">Configure Twitch Event Trigger</MudText>
 
-    <MudSelect T="string" 
-               Value="@SelectedEventName" 
-               ValueChanged="OnEventNameChanged"
-               Label="Select Twitch Event" 
-               Variant="Variant.Outlined" 
-               Required="true" 
-               AnchorOrigin="Origin.BottomCenter"
-               HelperText="Choose which Twitch event should trigger this action">
-        @foreach (var eventInfo in _availableEvents)
-        {
-            <MudSelectItem T="string" Value="@eventInfo.Name">
-                <MudStack Row="false" Spacing="0">
-                    <MudText Typo="Typo.body1">@eventInfo.DisplayName</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@eventInfo.Description</MudText>
-                </MudStack>
-            </MudSelectItem>
-        }
-    </MudSelect>
+    <MudAutocomplete T="TwitchEventInfo" 
+                     Value="@_selectedEventInfo" 
+                     ValueChanged="OnEventInfoChanged"
+                     Label="Select Twitch Event" 
+                     Variant="Variant.Outlined" 
+                     Required="true" 
+                     SearchFunc="SearchEvents"
+                     ToStringFunc="@(e => e?.DisplayName ?? string.Empty)"
+                     MaxItems="null"
+                     ResetValueOnEmptyText="true"
+                     CoerceValue="true"
+                     HelperText="Choose which Twitch event should trigger this action">
+        <ItemTemplate Context="eventInfo">
+            <MudStack Row="false" Spacing="0">
+                <MudText Typo="Typo.body1">@eventInfo.DisplayName</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@eventInfo.Description</MudText>
+            </MudStack>
+        </ItemTemplate>
+    </MudAutocomplete>
 
     @if (!string.IsNullOrEmpty(SelectedEventName))
     {
@@ -100,18 +101,16 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY reward. Add multiple to trigger on any of them.</MudText>
 
                         @* Dropdown to select from existing rewards *@
-                        <MudSelect T="string" 
-                                   Label="Add from existing rewards" 
-                                   Variant="Variant.Outlined"
-                                   AnchorOrigin="Origin.BottomCenter"
-                                   Clearable="true"
-                                   HelperText="Select a channel point reward or type manually below"
-                                   ValueChanged="@(async (string value) => await OnRewardSelected(value))">
-                            @foreach (var reward in _availableRewards)
-                            {
-                                <MudSelectItem T="string" Value="@reward.Title">@reward.Title</MudSelectItem>
-                            }
-                        </MudSelect>
+                        <MudAutocomplete T="string" 
+                                         Label="Add from existing rewards" 
+                                         Variant="Variant.Outlined"
+                                         Clearable="true"
+                                         SearchFunc="SearchRewards"
+                                         MaxItems="null"
+                                         ResetValueOnEmptyText="true"
+                                         CoerceValue="false"
+                                         HelperText="Select a channel point reward or type manually below"
+                                         ValueChanged="@(async (string value) => await OnRewardSelected(value))" />
 
                         @foreach (var (title, index) in Config.RewardTitles.Select((t, i) => (t, i)))
                         {
@@ -223,6 +222,7 @@
 
     private List<TwitchEventInfo> _availableEvents = new();
     private List<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward> _availableRewards = new();
+    private TwitchEventInfo? _selectedEventInfo;
     private bool _tier1Selected;
     private bool _tier2Selected;
     private bool _tier3Selected;
@@ -232,12 +232,28 @@
         _availableEvents = TwitchEventTypeInfo.GetAvailableEvents();
         await LoadChannelPointRewards();
         UpdateTierSelections();
+
+        // Set initial selected event if SelectedEventName is already set
+        if (!string.IsNullOrEmpty(SelectedEventName))
+        {
+            _selectedEventInfo = _availableEvents.FirstOrDefault(e => e.Name == SelectedEventName);
+        }
     }
 
     protected override void OnParametersSet()
     {
         // Fix: Update tier selections when Config is replaced via parameters
         UpdateTierSelections();
+
+        // Update selected event info when SelectedEventName changes
+        if (!string.IsNullOrEmpty(SelectedEventName))
+        {
+            var newSelection = _availableEvents.FirstOrDefault(e => e.Name == SelectedEventName);
+            if (newSelection != _selectedEventInfo)
+            {
+                _selectedEventInfo = newSelection;
+            }
+        }
     }
 
     private async Task LoadChannelPointRewards()
@@ -254,8 +270,40 @@
         }
     }
 
-    private async Task OnEventNameChanged(string eventName)
+    private Task<IEnumerable<TwitchEventInfo>> SearchEvents(string value, CancellationToken token)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult(_availableEvents.AsEnumerable());
+        }
+
+        var filtered = _availableEvents.Where(e => 
+            e.DisplayName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            e.Description.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchRewards(string value, CancellationToken token)
+    {
+        var rewardTitles = _availableRewards.Select(r => r.Title);
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult(rewardTitles);
+        }
+
+        var filtered = rewardTitles.Where(t => 
+            t.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(filtered);
+    }
+
+    private async Task OnEventInfoChanged(TwitchEventInfo? eventInfo)
+    {
+        _selectedEventInfo = eventInfo;
+        var eventName = eventInfo?.Name ?? string.Empty;
+
         SelectedEventName = eventName;
         await SelectedEventNameChanged.InvokeAsync(eventName);
 

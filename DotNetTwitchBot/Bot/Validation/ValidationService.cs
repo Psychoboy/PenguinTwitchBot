@@ -172,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Validation
                 // Validate ExecuteAction subactions
                 if (subAction is ExecuteActionType executeAction)
                 {
-                    if (executeAction.ActionId > 0 && !actionIds.Contains(executeAction.ActionId))
+                    if (executeAction.ActionId.HasValue && executeAction.ActionId.Value > 0 && !actionIds.Contains(executeAction.ActionId.Value))
                     {
                         result.Issues.Add(new ValidationIssue
                         {

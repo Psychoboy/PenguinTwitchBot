@@ -76,15 +76,17 @@
                 {
                     <MudText Typo="Typo.h6">Configure Timer Trigger</MudText>
 
-                    <MudSelect T="TimerGroup" Value="_selectedTimerGroup" 
-                               ValueChanged="OnTimerGroupChanged"
-                               Label="Select Timer Group" Variant="Variant.Outlined" 
-                               Required="true" AnchorOrigin="Origin.BottomCenter">
-                        @foreach (var timerGroup in _timerGroups)
-                        {
-                            <MudSelectItem T="TimerGroup" Value="@timerGroup">@timerGroup.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="TimerGroup" 
+                                     Value="_selectedTimerGroup" 
+                                     ValueChanged="OnTimerGroupChanged"
+                                     Label="Select Timer Group" 
+                                     Variant="Variant.Outlined" 
+                                     Required="true" 
+                                     SearchFunc="SearchTimerGroups"
+                                     ToStringFunc="@(t => t?.Name ?? string.Empty)"
+                                     MaxItems="null"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceValue="true" />
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Timer Trigger" ReadOnly="true" />
@@ -189,6 +191,19 @@
                 _triggerName = $"!{command.CommandName}";
             }
         }
+    }
+
+    private Task<IEnumerable<TimerGroup>> SearchTimerGroups(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult(_timerGroups.AsEnumerable());
+        }
+
+        var filtered = _timerGroups.Where(t => 
+            t.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(filtered);
     }
 
     private void OnTimerGroupChanged(TimerGroup? timerGroup)

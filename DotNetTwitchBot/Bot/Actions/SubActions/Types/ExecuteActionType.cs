@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         tableName: "subactions_executeaction")]
     public class ExecuteActionType : SubActionType, ISubActionUIProvider
     {
-        public int ActionId { get; set; }
+        public int? ActionId { get; set; }
         public string ActionName { get; set; } = string.Empty;
 
         public ExecuteActionType()
@@ -43,7 +43,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                     Label = "Action to Execute",
                     FieldType = UIFieldType.Select,
                     SelectOptions = actionOptions,
-                    Required = true
+                    Required = true,
+                    Clearable = true
                 },
                 new()
                 {
@@ -59,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(ActionId), ActionId.ToString() },
+                { nameof(ActionId), ActionId?.ToString() ?? string.Empty },
                 { nameof(Enabled), Enabled },
                 { nameof(ActionName), ActionName }
             };
@@ -67,9 +68,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(ActionId), out var actionId) && int.TryParse(actionId?.ToString(), out var parsedId))
+            if (values.TryGetValue(nameof(ActionId), out var actionId) && 
+                !string.IsNullOrWhiteSpace(actionId?.ToString()) &&
+                int.TryParse(actionId?.ToString(), out var parsedId))
             {
                 ActionId = parsedId;
+            }
+            else
+            {
+                ActionId = null;
             }
 
             if (values.TryGetValue(nameof(Enabled), out var enabled))
@@ -86,6 +93,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
         public string? Validate(Dictionary<string, object?> values)
         {
             if (!values.TryGetValue(nameof(ActionId), out var actionId) ||
+                string.IsNullOrWhiteSpace(actionId?.ToString()) ||
                 !int.TryParse(actionId?.ToString(), out var parsedId) || parsedId <= 0)
             {
                 return "Action to Execute is required";
