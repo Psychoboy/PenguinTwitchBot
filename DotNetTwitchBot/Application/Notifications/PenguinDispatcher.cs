@@ -15,10 +15,18 @@ namespace DotNetTwitchBot.Application.Notifications
                 var handleMethod = handlerType.GetMethod(nameof(INotificationHandler<INotification>.Handle));
                 if (handleMethod != null)
                 {
-                    var task = (Task?)handleMethod.Invoke(handler, [notification, cancellationToken]);
-                    if (task != null)
+                    try
                     {
-                        tasks.Add(task);
+                        var task = (Task?)handleMethod.Invoke(handler, [notification, cancellationToken]);
+                        if (task != null)
+                        {
+                            tasks.Add(task);
+                        }
+                    }
+                    catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException != null)
+                    {
+                        // Unwrap and rethrow the original exception
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
                     }
                 }
             }
@@ -44,7 +52,18 @@ namespace DotNetTwitchBot.Application.Notifications
                 throw new InvalidOperationException($"Handle method not found on handler for request type {requestType.Name}");
             }
 
-            var task = (Task<TResponse>?)handleMethod.Invoke(handler, [request, cancellationToken]);
+            Task<TResponse>? task;
+            try
+            {
+                task = (Task<TResponse>?)handleMethod.Invoke(handler, [request, cancellationToken]);
+            }
+            catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                // Unwrap and rethrow the original exception
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // This line is unreachable but needed for compiler
+            }
+
             if (task == null)
             {
                 throw new InvalidOperationException($"Handle method returned null for request type {requestType.Name}");
