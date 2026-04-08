@@ -8,26 +8,45 @@ namespace DotNetTwitchBot.Bot.Validation
 
     public enum ValidationIssueType
     {
+        // Trigger-related issues
         TriggerCommandNotFound,
         TriggerTimerGroupNotFound,
-        SubActionCommandNotFound,
-        SubActionActionNotFound,
-        SubActionDefaultCommandNotFound,
-        SubActionPointTypeNotFound,
         TriggerMissingConfiguration,
         TriggerInvalidConfiguration,
         TriggerConfigurationMismatch,
         TriggerConfigurationNameMismatch,
         TriggerConfigurationIdMismatch,
-        TriggerInvalidName
+        TriggerInvalidName,
+        TriggerOrphaned,
+        TriggerDuplicate,
+
+        // Action-related issues
+        ActionInvalidName,
+        ActionInvalidQueueName,
+        ActionNoTriggers,
+        ActionNoSubActions,
+        ActionDuplicateName,
+        ActionCircularDependency,
+
+        // SubAction-related issues
+        SubActionCommandNotFound,
+        SubActionActionNotFound,
+        SubActionDefaultCommandNotFound,
+        SubActionPointTypeNotFound,
+        SubActionTimerGroupNotFound,
+        SubActionInvalidConfiguration,
+
+        // Command-related issues
+        CommandNoTriggers,
+        CommandInvalidName
     }
 
     public class ValidationIssue
     {
         public ValidationIssueType IssueType { get; set; }
         public ValidationSeverity Severity { get; set; }
-        public string EntityType { get; set; } = string.Empty; // "Trigger" or "SubAction"
-        public int EntityId { get; set; }
+        public string EntityType { get; set; } = string.Empty; // "Trigger" or "SubAction" or "Action"
+        public int? EntityId { get; set; }
         public string EntityName { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public int? RelatedActionId { get; set; }
