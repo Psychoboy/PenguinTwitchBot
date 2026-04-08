@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
@@ -344,7 +345,24 @@ namespace DotNetTwitchBot.Repository.Repositories
 
                 context.ChangeTracker.Clear();
 
-                // Delete Actions (cascade will handle SubActions and Triggers)
+                // ExecuteDeleteAsync bypasses EF cascade deletes, so we must explicitly delete subaction tables first
+                // Get all subaction table names from the SubActionRegistry
+                var subActionTableNames = SubActionRegistry.Metadata.Values
+                    .Select(m => m.TableName)
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Distinct()
+                    .ToList();
+
+                // Delete all subaction tables
+                foreach (var tableName in subActionTableNames)
+                {
+                    await context.Database.ExecuteSqlRawAsync($"DELETE FROM `{tableName}`");
+                }
+
+                // Delete Triggers (they have FK to Actions)
+                await context.Database.ExecuteSqlRawAsync("DELETE FROM `Triggers`");
+
+                // Finally, delete Actions
                 await context.Set<ActionType>().ExecuteDeleteAsync();
 
                 context.ChangeTracker.Clear();
