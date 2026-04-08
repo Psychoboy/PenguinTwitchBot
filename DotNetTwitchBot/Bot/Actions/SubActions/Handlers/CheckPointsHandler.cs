@@ -1,7 +1,7 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Features;
-using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -12,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.CheckPoints;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
-            if(subAction is not CheckPointsType checkPointsType)
+            if (subAction is not CheckPointsType checkPointsType)
             {
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for CheckPointsHandler");
             }
@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var targetUser = VariableReplacer.ReplaceVariables(checkPointsType.TargetUser, variables);
-            if(string.IsNullOrWhiteSpace(targetUser))
+            if (string.IsNullOrWhiteSpace(targetUser))
             {
                 logger.LogError("Target user is empty after variable replacement in CheckPointsHandler");
                 throw new SubActionHandlerException(subAction, "Target user cannot be empty");

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.Triggers
@@ -126,7 +127,7 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         /// <summary>
         /// Check if this configuration matches the given event data
         /// </summary>
-        public bool Matches(Dictionary<string, string> eventVariables)
+        public bool Matches(ConcurrentDictionary<string, string> eventVariables)
         {
             // Check cheer amount range
             if (MinAmount.HasValue || MaxAmount.HasValue)

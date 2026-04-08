@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Queues
 {
@@ -11,8 +12,8 @@ namespace DotNetTwitchBot.Bot.Queues
         int PendingCount { get; }
         long CompletedCount { get; }
         int CurrentlyExecuting { get; }
-        
-        Task EnqueueAsync(ActionType action, Dictionary<string, string> variables);
+
+        Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null);
         Task StartAsync(CancellationToken cancellationToken);
         Task StopAsync();
     }

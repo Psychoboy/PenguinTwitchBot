@@ -1,21 +1,26 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
+using Moq;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ExternalApiHandlerTests
     {
-        // Note: Skipping actual HTTP test as it would require network access
-        // The handler creates its own HttpClient internally
-
         [Fact]
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var handler = new ExternalApiHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
+                .Returns(new HttpClient());
+
+            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
 
             var wrongType = new SendMessageType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(
@@ -26,7 +31,12 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task InvalidUrl_ThrowsException()
         {
             // Arrange
-            var handler = new ExternalApiHandler();
+            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
+                .Returns(new HttpClient());
+
+            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
 
             var externalApiType = new ExternalApiType
             {
@@ -34,7 +44,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 HttpMethod = "GET"
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(

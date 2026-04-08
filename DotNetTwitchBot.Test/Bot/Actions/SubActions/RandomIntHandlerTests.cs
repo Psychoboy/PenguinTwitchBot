@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -17,7 +18,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Max = 100
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act
             await handler.ExecuteAsync(randomIntType, variables);
@@ -40,7 +41,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Max = 42
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act
             await handler.ExecuteAsync(randomIntType, variables);
@@ -56,7 +57,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new RandomIntHandler();
 
             var wrongType = new SendMessageType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(

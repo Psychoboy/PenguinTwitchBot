@@ -2,6 +2,7 @@ using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using NSubstitute;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -22,7 +23,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 StreamOnly = false
             };
 
-            var variables = new Dictionary<string, string> { { "user", "TestUser" } };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "TestUser" };
 
             // Act
             await handler.ExecuteAsync(sendMessageType, variables);
@@ -47,7 +48,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 UseBot = false
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act
             await handler.ExecuteAsync(sendMessageType, variables);
@@ -65,7 +66,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new SendMessageHandler(dispatcher, twitchService);
 
             var wrongType = new CurrentTimeType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             var exception = await Assert.ThrowsAsync<SubActionHandlerException>(

@@ -286,10 +286,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             try
             {
-                var variables = new Dictionary<string, string>
+                var variables = new ConcurrentDictionary<string, string>
                 {
-                    { "timer_name", group.Name },
-                    { "timer_id", group.Id?.ToString() ?? "0" }
+                    ["timer_name"] = group.Name,
+                    ["timer_id"] = group.Id?.ToString() ?? "0"
                 };
 
                 await using var scope = _scopeFactory.CreateAsyncScope();

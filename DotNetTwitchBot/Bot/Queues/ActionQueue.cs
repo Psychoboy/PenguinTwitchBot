@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _semaphore = new SemaphoreSlim(isBlocking ? 1 : maxConcurrentActions);
         }
 
-        public async Task EnqueueAsync(ActionType action, Dictionary<string, string> variables)
+        public async Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null)
         {
             if (!IsEnabled)
             {
@@ -70,7 +70,7 @@ namespace DotNetTwitchBot.Bot.Queues
             }
 
             var logId = _executionLogger.LogActionEnqueued(action.Name, Name, variables);
-            var queuedAction = new QueuedAction(action, variables, logId);
+            var queuedAction = new QueuedAction(action, variables, logId, parentLogId, parentSubActionIndex);
             await _channel.Writer.WriteAsync(queuedAction);
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
@@ -228,6 +228,13 @@ namespace DotNetTwitchBot.Bot.Queues
 
             _executionLogger.UpdateActionStarted(queuedAction.LogId);
 
+            // Link parent and child if this is a nested action
+            if (queuedAction.ParentLogId.HasValue && queuedAction.ParentSubActionIndex.HasValue)
+            {
+                _executionLogger.LinkChildAction(queuedAction.ParentLogId.Value, queuedAction.ParentSubActionIndex.Value, queuedAction.LogId);
+                _executionLogger.SetParentAction(queuedAction.LogId, queuedAction.ParentLogId.Value);
+            }
+
             // Notify clients about queue statistics change
             await SendQueueStatsUpdateAsync();
 
@@ -238,6 +245,17 @@ namespace DotNetTwitchBot.Bot.Queues
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var actionService = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
+
+                // Set up the SubAction execution context for this action
+                var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<SubActionExecutionContext>>();
+                var executionContext = new SubActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
+
+                // Register the context in the scope so SubActions can access it
+                var contextAccessor = scope.ServiceProvider.GetRequiredService<ISubActionExecutionContextAccessor>();
+                contextAccessor.ExecutionContext = executionContext;
+
+                _logger.LogDebug("Created SubAction execution context for action {ActionName} with LogId {LogId}", 
+                    queuedAction.Action.Name, queuedAction.LogId);
 
                 await actionService.RunAction(queuedAction.Variables, queuedAction.Action);
 
@@ -286,6 +304,6 @@ namespace DotNetTwitchBot.Bot.Queues
             await _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
         }
 
-        private record QueuedAction(ActionType Action, Dictionary<string, string> Variables, Guid LogId);
+        private record QueuedAction(ActionType Action, ConcurrentDictionary<string, string> Variables, Guid LogId, Guid? ParentLogId, int? ParentSubActionIndex);
     }
 }

@@ -12,6 +12,10 @@ namespace DotNetTwitchBot.Bot.Models.Queues
         public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public string? ErrorMessage { get; set; }
+        public List<SubActionExecutionLog> SubActionLogs { get; set; } = [];
+
+        public Guid? ParentActionLogId { get; set; }
+        public List<Guid> ChildActionLogIds { get; set; } = [];
 
         public TimeSpan? ExecutionDuration => CompletedAt.HasValue && StartedAt.HasValue 
             ? CompletedAt.Value - StartedAt.Value 

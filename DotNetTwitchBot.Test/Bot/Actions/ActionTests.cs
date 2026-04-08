@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions
 {
@@ -22,7 +23,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         private readonly IServiceBackbone serviceBackbone;
         private readonly ITwitchService twitchService;
         private readonly DotNetTwitchBot.Bot.Actions.Action action;
-        private readonly Dictionary<string, string> variables;
+        private readonly ConcurrentDictionary<string, string> variables;
 
         public ActionTests()
         {
@@ -49,11 +50,11 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var serviceProvider = serviceCollection.BuildServiceProvider();
             scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
-            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone);
-            variables = new Dictionary<string, string>
+            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone, serviceProvider);
+            variables = new ConcurrentDictionary<string, string>
             {
-                { "user", "testUser" },
-                { "message", "testMessage" }
+                [ "user"] = "testUser",
+                [ "message"] = "testMessage"
             };
         }
 
@@ -331,7 +332,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         [Fact]
         public async Task RunActionAsCommand_EmptyVariablesDictionary_ShouldNotThrow()
         {
-            var emptyVariables = new Dictionary<string, string>();
+            var emptyVariables = new ConcurrentDictionary<string, string>();
             var subAction = new SendMessageType
             {
                 SubActionTypes = SubActionTypes.SendMessage,

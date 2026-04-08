@@ -5,10 +5,15 @@ using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.WebSocketEvents;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions
 {
-    public class Action(ILogger<Action> logger, IServiceScopeFactory scopeFactory, IServiceBackbone serviceBackbone) : IAction
+    public class Action(
+        ILogger<Action> logger, 
+        IServiceScopeFactory scopeFactory, 
+        IServiceBackbone serviceBackbone,
+        IServiceProvider serviceProvider) : IAction
     {
         public async Task<ActionType> AddAction(ActionType action)
         {
@@ -19,7 +24,7 @@ namespace DotNetTwitchBot.Bot.Actions
             return action;
         }
 
-        public async Task EnqueueAction(Dictionary<string, string> variables, ActionType action)
+        public async Task EnqueueAction(ConcurrentDictionary<string, string> variables, ActionType action, Guid? parentLogId = null, int? parentSubActionIndex = null)
         {
             if(action.OnlineOnly && !serviceBackbone.IsOnline)
             {
@@ -36,11 +41,11 @@ namespace DotNetTwitchBot.Bot.Actions
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
             var queue = await queueManager.GetQueueAsync(action.QueueName);
-            await queue.EnqueueAsync(action, variables);
+            await queue.EnqueueAsync(action, variables, parentLogId, parentSubActionIndex);
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }
 
-        public async Task RunAction(Dictionary<string, string> variables, ActionType action)
+        public async Task RunAction(ConcurrentDictionary<string, string> variables, ActionType action)
         {
             if (!action.Enabled)
             {
@@ -83,10 +88,12 @@ namespace DotNetTwitchBot.Bot.Actions
 
         }
 
-        private async Task RunSubAction(SubActionType subAction, Dictionary<string, string> variables)
+        private async Task RunSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
+            // Use the current scope's service provider instead of creating a new scope
+            // This ensures the SubActionHandlerFactory gets the same ISubActionExecutionContextAccessor
+            // instance that was set up in ActionQueue.ExecuteActionAsync
+            var factory = serviceProvider.GetRequiredService<SubActionHandlerFactory>();
             await factory.ExecuteAsync(subAction, variables);
         }
     }

@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Features;
 using NSubstitute;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -21,7 +22,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Text = "TestUser"
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act
             await handler.ExecuteAsync(watchTimeType, variables);
@@ -46,7 +47,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Text = "%user%"
             };
 
-            var variables = new Dictionary<string, string> { { "user", "TestUser" } };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "TestUser" };
 
             // Act
             await handler.ExecuteAsync(watchTimeType, variables);
@@ -64,7 +65,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new WatchTimeHandler(loyaltyFeature);
 
             var wrongType = new SendMessageType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(

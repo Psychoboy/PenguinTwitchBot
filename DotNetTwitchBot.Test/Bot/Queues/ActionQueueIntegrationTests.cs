@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using ActionService = DotNetTwitchBot.Bot.Actions.Action;
 using DotNetTwitchBot.Bot.WebSocketEvents;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Queues
 {
@@ -47,7 +48,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
                 SubActions = []
             };
 
-            var variables = new Dictionary<string, string> { { "test", "value" } };
+            var variables = new ConcurrentDictionary<string, string> { ["test"] = "value" };
 
             // Act
             await queue.EnqueueAsync(action, variables);
@@ -98,7 +99,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
                 SubActions = []
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             var cancellationTokenSource = new CancellationTokenSource();
             await queue.StartAsync(cancellationTokenSource.Token);

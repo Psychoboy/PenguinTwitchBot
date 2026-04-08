@@ -1,14 +1,15 @@
 using DotNetTwitchBot.Bot.Models.Queues;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Queues
 {
     public interface IActionExecutionLogger
     {
-        Guid LogActionEnqueued(string actionName, string queueName, Dictionary<string, string> variables);
+        Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables);
 
         void UpdateActionStarted(Guid logId);
 
-        void UpdateActionCompleted(Guid logId, Dictionary<string, string> variablesAfter);
+        void UpdateActionCompleted(Guid logId, ConcurrentDictionary<string, string> variablesAfter);
 
         void UpdateActionFailed(Guid logId, string errorMessage);
 
@@ -23,6 +24,24 @@ namespace DotNetTwitchBot.Bot.Queues
         void Clear();
 
         int GetLogCount();
-        void UpdateActionFailed(Guid logId, string errorMessage, Dictionary<string, string> variablesAfter);
+        void UpdateActionFailed(Guid logId, string errorMessage, ConcurrentDictionary<string, string> variablesAfter);
+
+        int LogSubActionStarted(Guid actionLogId, string subActionType, string? description, int depth);
+
+        void LogSubActionCompleted(Guid actionLogId, int subActionIndex);
+
+        void LogSubActionFailed(Guid actionLogId, int subActionIndex, string errorMessage);
+
+        void LogSubActionMessage(Guid actionLogId, int subActionIndex, string message);
+
+        void LinkChildAction(Guid parentLogId, int subActionIndex, Guid childLogId);
+
+        void SetParentAction(Guid childLogId, Guid parentLogId);
+
+        ActionExecutionLog? GetLogById(Guid logId);
+
+        List<SubActionExecutionLog> GetSubActionLogsSnapshot(Guid actionLogId);
+
+        List<string> GetSubActionMessagesSnapshot(Guid actionLogId, int subActionIndex);
     }
 }
