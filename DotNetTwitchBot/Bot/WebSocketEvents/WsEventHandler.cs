@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly ILogger<WsEventHandler> logger;
         private bool paused = false;
-        private int maxQueueSize = 100;
+        private int maxQueueSize = 1000;
         private JsonSerializerOptions serializerOptions;
 
         public WsEventHandler(ILogger<WsEventHandler> logger)
@@ -31,7 +31,7 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
                 await _semaphoreSlim.WaitAsync();
                 if (websocketConnections.Count == 0)
                 {
-                    logger.LogInformation("No WebSocket Connections, skipping event");
+                    logger.LogDebug("No WebSocket Connections, skipping event");
                     return;
                 }
 

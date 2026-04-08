@@ -4,13 +4,15 @@ namespace DotNetTwitchBot.Application.Notifications
     {
         public async Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
         {
-            var handlerType = typeof(INotificationHandler<>).MakeGenericType(typeof(TNotification));
+            // Use runtime type instead of compile-time generic type to support polymorphism
+            var notificationType = notification.GetType();
+            var handlerType = typeof(INotificationHandler<>).MakeGenericType(notificationType);
             var handlers = serviceProvider.GetServices(handlerType);
 
             var tasks = new List<Task>();
             foreach (var handler in handlers)
             {
-                var handleMethod = handlerType.GetMethod(nameof(INotificationHandler<TNotification>.Handle));
+                var handleMethod = handlerType.GetMethod(nameof(INotificationHandler<INotification>.Handle));
                 if (handleMethod != null)
                 {
                     var task = (Task?)handleMethod.Invoke(handler, [notification, cancellationToken]);
@@ -26,9 +28,10 @@ namespace DotNetTwitchBot.Application.Notifications
 
         public async Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
         {
+            // Use runtime type instead of compile-time generic type to support polymorphism
             var requestType = request.GetType();
             var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-            
+
             var handler = serviceProvider.GetService(handlerType);
             if (handler == null)
             {
