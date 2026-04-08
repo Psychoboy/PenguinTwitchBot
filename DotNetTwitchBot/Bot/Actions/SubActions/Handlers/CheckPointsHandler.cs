@@ -16,8 +16,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not CheckPointsType checkPointsType)
             {
-                logger.LogError("Invalid sub action type for CheckPointsHandler");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for CheckPointsHandler");
             }
 
             var pointType = await pointsSystem.GetPointTypeByName(checkPointsType.PointTypeName);
@@ -25,21 +24,21 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 logger.LogError("Point type not found for CheckPointsHandler");
                 //Throw so the action logger finds it and it can be fixed in the UI before it causes any issues
-                throw new ArgumentException($"Invalid point type: {checkPointsType.PointTypeName}");
+                throw new SubActionHandlerException(subAction, $"Invalid point type: {checkPointsType.PointTypeName}");
             }
 
             var targetUser = VariableReplacer.ReplaceVariables(checkPointsType.TargetUser, variables);
             if(string.IsNullOrWhiteSpace(targetUser))
             {
                 logger.LogError("Target user is empty after variable replacement in CheckPointsHandler");
-                throw new ArgumentException("Target user cannot be empty");
+                throw new SubActionHandlerException(subAction, "Target user cannot be empty");
             }
 
             var targetViewer = await viewerFeature.GetViewerByUserName(targetUser);
             if (targetViewer == null)
             {
                 logger.LogError("Target viewer not found for CheckPointsHandler");
-                throw new ArgumentException($"Viewer not found: {targetUser}");
+                throw new SubActionHandlerException(subAction, $"Viewer not found: {targetUser}");
             }
 
             var points = await pointsSystem.GetUserPointsByUserId(targetViewer.UserId, pointType.Id.Value);

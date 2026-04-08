@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ReplyToMessageHandler(ILogger<ReplyToMessageHandler> logger, ITwitchChatBot chatBot, IMediator mediator, ITwitchService twitchService) : ISubActionHandler
+    public class ReplyToMessageHandler(ITwitchChatBot chatBot, IMediator mediator, ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ReplyToMessage;
 
@@ -16,8 +16,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not ReplyToMessageType replyToMessage)
             {
-                logger.LogError("Invalid sub action type for ReplyToMessageHandler: {SubActionType}", subAction.GetType().Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for ReplyToMessageHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             replyToMessage.Text = VariableReplacer.ReplaceVariables(replyToMessage.Text, variables);

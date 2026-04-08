@@ -4,7 +4,7 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class MultiCounterHandler(ILogger<MultiCounterHandler> logger, IServiceScopeFactory scopeFactory) : ISubActionHandler
+    public class MultiCounterHandler(IServiceScopeFactory scopeFactory) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.MultiCounter;
 
@@ -12,8 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not MultiCounterType multiCounterSubAction)
             {
-                logger.LogError("Invalid sub action type. Expected MultiCounterSubAction.");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type. Expected MultiCounterSubAction.");
             }
 
             var counterName = multiCounterSubAction.Name;

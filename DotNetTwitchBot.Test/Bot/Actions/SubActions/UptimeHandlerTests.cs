@@ -1,7 +1,6 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.TwitchServices;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -13,8 +12,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var twitchService = Substitute.For<ITwitchService>();
-            var logger = Substitute.For<ILogger<UptimeHandler>>();
-            var handler = new UptimeHandler(logger, twitchService);
+            var handler = new UptimeHandler(twitchService);
 
             var startTime = DateTime.UtcNow.AddHours(-3).AddMinutes(-45);
             twitchService.StreamStartedAt().Returns(startTime);
@@ -36,8 +34,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var twitchService = Substitute.For<ITwitchService>();
-            var logger = Substitute.For<ILogger<UptimeHandler>>();
-            var handler = new UptimeHandler(logger, twitchService);
+            var handler = new UptimeHandler(twitchService);
 
             twitchService.StreamStartedAt().Returns(DateTime.MinValue);
 
@@ -52,26 +49,18 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task WrongType_LogsError()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
             var twitchService = Substitute.For<ITwitchService>();
-            var logger = Substitute.For<ILogger<UptimeHandler>>();
-            var handler = new UptimeHandler(logger, twitchService);
+            var handler = new UptimeHandler(twitchService);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
-
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Error,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("Invalid sub action type for UptimeHandler")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => handler.ExecuteAsync(wrongType, variables));
         }
     }
 }

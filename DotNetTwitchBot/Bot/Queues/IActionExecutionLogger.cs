@@ -23,5 +23,6 @@ namespace DotNetTwitchBot.Bot.Queues
         void Clear();
 
         int GetLogCount();
+        void UpdateActionFailed(Guid logId, string errorMessage, Dictionary<string, string> variablesAfter);
     }
 }

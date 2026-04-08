@@ -22,7 +22,7 @@
         ChannelPointSetPausedState,
         TimerGroupSetEnabledState,
         ToggleCommandDisabledState,
-        GivePoints,
+        GiftPoints,
         CheckPoints,
         SendMessage,
         ReplyToMessage,

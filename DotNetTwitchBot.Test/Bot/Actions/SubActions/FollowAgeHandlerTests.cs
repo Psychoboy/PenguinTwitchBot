@@ -2,7 +2,6 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Models;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -14,8 +13,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var logger = Substitute.For<ILogger<FollowAgeType>>();
-            var handler = new FollowAgeHandler(logger, viewerFeature);
+            var handler = new FollowAgeHandler(viewerFeature);
 
             var follower = new Follower
             {
@@ -48,8 +46,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var logger = Substitute.For<ILogger<FollowAgeType>>();
-            var handler = new FollowAgeHandler(logger, viewerFeature);
+            var handler = new FollowAgeHandler(viewerFeature);
 
             viewerFeature.GetFollowerAsync("NotAFollower").Returns((Follower?)null);
 
@@ -69,26 +66,18 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task WrongType_LogsError()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
             var viewerFeature = Substitute.For<IViewerFeature>();
-            var logger = Substitute.For<ILogger<FollowAgeType>>();
-            var handler = new FollowAgeHandler(logger, viewerFeature);
+            var handler = new FollowAgeHandler(viewerFeature);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
-
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Error,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("Invalid sub action type for FollowAgeHandler")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => handler.ExecuteAsync(wrongType, variables));
         }
     }
 }

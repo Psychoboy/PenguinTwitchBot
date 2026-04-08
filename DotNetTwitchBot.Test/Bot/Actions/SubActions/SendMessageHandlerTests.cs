@@ -2,7 +2,6 @@ using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -14,9 +13,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var mediator = Substitute.For<IMediator>();
-            var logger = Substitute.For<ILogger<SendMessageHandler>>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, logger, twitchService);
+            var handler = new SendMessageHandler(mediator, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -41,9 +39,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var mediator = Substitute.For<IMediator>();
-            var logger = Substitute.For<ILogger<SendMessageHandler>>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, logger, twitchService);
+            var handler = new SendMessageHandler(mediator, twitchService);
 
             var sendMessageType = new SendMessageType
             {
@@ -61,27 +58,21 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task WrongType_LogsWarning()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
             var mediator = Substitute.For<IMediator>();
-            var logger = Substitute.For<ILogger<SendMessageHandler>>();
             var twitchService = Substitute.For<DotNetTwitchBot.Bot.TwitchServices.ITwitchService>();
-            var handler = new SendMessageHandler(mediator, logger, twitchService);
+            var handler = new SendMessageHandler(mediator, twitchService);
 
             var wrongType = new CurrentTimeType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<SubActionHandlerException>(
+                () => handler.ExecuteAsync(wrongType, variables));
 
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Warning,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("is not of SendMessageType class")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            Assert.Contains("is not of SendMessageType class", exception.Message);
         }
     }
 }

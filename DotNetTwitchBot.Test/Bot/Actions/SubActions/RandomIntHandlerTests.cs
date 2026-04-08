@@ -1,7 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -11,8 +9,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidRange_SetsRandomIntVariable()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<RandomIntHandler>>();
-            var handler = new RandomIntHandler(logger);
+            var handler = new RandomIntHandler();
 
             var randomIntType = new RandomIntType
             {
@@ -35,8 +32,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task MinEqualsMax_ReturnsExactValue()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<RandomIntHandler>>();
-            var handler = new RandomIntHandler(logger);
+            var handler = new RandomIntHandler();
 
             var randomIntType = new RandomIntType
             {
@@ -54,25 +50,17 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task WrongType_LogsWarning()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<RandomIntHandler>>();
-            var handler = new RandomIntHandler(logger);
+            var handler = new RandomIntHandler();
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
-
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Warning,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("RandomIntHandler received unsupported SubActionType")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => handler.ExecuteAsync(wrongType, variables));
         }
     }
 }

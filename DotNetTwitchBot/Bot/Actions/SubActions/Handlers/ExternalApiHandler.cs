@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExternalApiHandler(ILogger<ExternalApiHandler> logger) : ISubActionHandler
+    public class ExternalApiHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
@@ -10,8 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not ExternalApiType externalApiType)
             {
-                logger.LogError("Invalid sub action type for ExternalApiHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for ExternalApiHandler: {SubActionType}", subAction.GetType().Name);
             }
             try
             {
@@ -39,7 +38,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             } catch (Exception ex)
             {
-                logger.LogError(ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
+                throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }
     }

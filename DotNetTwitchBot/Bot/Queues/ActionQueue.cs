@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Queues;
 using DotNetTwitchBot.Bot.WebSocketEvents;
@@ -247,9 +248,15 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogDebug("Completed action {ActionName} in queue {QueueName}", 
                     queuedAction.Action.Name, Name);
             }
+            catch (SubActionHandlerException subEx)
+            {
+                _executionLogger.UpdateActionFailed(queuedAction.LogId, $"Sub-action {subEx.SubActionType?.GetType().Name ?? "Unknown"} failed: {subEx.Message}", queuedAction.Variables);
+                _logger.LogError("Sub-action failed while executing action {ActionName} in queue {QueueName}", 
+                    queuedAction.Action.Name, Name);
+            }
             catch (Exception ex)
             {
-                _executionLogger.UpdateActionFailed(queuedAction.LogId, ex.Message);
+                _executionLogger.UpdateActionFailed(queuedAction.LogId, ex.Message, queuedAction.Variables);
                 throw;
             }
             finally

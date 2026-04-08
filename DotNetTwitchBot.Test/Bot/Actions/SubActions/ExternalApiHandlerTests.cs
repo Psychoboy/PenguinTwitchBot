@@ -1,7 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -11,33 +9,24 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         // The handler creates its own HttpClient internally
 
         [Fact]
-        public async Task WrongType_LogsError()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<ExternalApiHandler>>();
-            var handler = new ExternalApiHandler(logger);
+            var handler = new ExternalApiHandler();
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
-
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Error,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("Invalid sub action type for ExternalApiHandler")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => handler.ExecuteAsync(wrongType, variables));
         }
 
         [Fact]
-        public async Task InvalidUrl_LogsError()
+        public async Task InvalidUrl_ThrowsException()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<ExternalApiHandler>>();
-            var handler = new ExternalApiHandler(logger);
+            var handler = new ExternalApiHandler();
 
             var externalApiType = new ExternalApiType
             {
@@ -47,16 +36,9 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(externalApiType, variables);
-
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Error,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("Error executing ExternalApiHandler")),
-                Arg.Any<Exception>(),
-                Arg.Any<Func<object, Exception?, string>>());
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => handler.ExecuteAsync(externalApiType, variables));
         }
     }
 }

@@ -5,7 +5,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class SendMessageHandler(IMediator mediator, ILogger<SendMessageHandler> logger, ITwitchService twitchService) : ISubActionHandler
+    public class SendMessageHandler(IMediator mediator, ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.SendMessage;
 
@@ -13,8 +13,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not SendMessageType sendMessageType)
             {
-                logger.LogWarning("SubAction with type SendMessage is not of SendMessageType class");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "SubAction with type SendMessage is not of SendMessageType class");
             }
 
             sendMessageType.Text = VariableReplacer.ReplaceVariables(sendMessageType.Text, variables);

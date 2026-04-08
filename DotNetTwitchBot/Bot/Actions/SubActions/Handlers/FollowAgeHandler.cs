@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class FollowAgeHandler(ILogger<FollowAgeType> logger, IViewerFeature viewerFeature) : ISubActionHandler
+    public class FollowAgeHandler(IViewerFeature viewerFeature) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Followage;
 
@@ -11,8 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not FollowAgeType followAgeType)
             {
-                logger.LogError("Invalid sub action type for FollowAgeHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for FollowAgeHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             followAgeType.Text = VariableReplacer.ReplaceVariables(followAgeType.Text, variables); //TODO: Make sure to populate args with target user or self if no args

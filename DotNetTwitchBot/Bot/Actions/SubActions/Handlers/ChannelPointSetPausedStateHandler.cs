@@ -14,8 +14,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not ChannelPointSetPausedStateType setPausedStateType)
             {
-                logger.LogError("Invalid sub action type: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, $"Invalid sub action type: {subAction.GetType().Name}");
             }
 
             logger.LogInformation("Setting channel points paused state to {IsPaused}", setPausedStateType.IsPaused);

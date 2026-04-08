@@ -4,7 +4,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class AlertHandler(IMediator mediator, ILogger<AlertHandler> logger) : ISubActionHandler
+    public class AlertHandler(IMediator mediator) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Alert;
 
@@ -12,8 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not AlertType alertType)
             {
-                logger.LogWarning("SubAction with type Alert is not of AlertType class");
-                return;
+                throw new SubActionHandlerException(subAction, "SubAction with type Alert is not of AlertType class");
             }
 
             try
@@ -27,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while replacing variables in Alert sub action");
+                throw new SubActionHandlerException(subAction, "Error while replacing variables in Alert sub action", ex);
             }
         }
     }

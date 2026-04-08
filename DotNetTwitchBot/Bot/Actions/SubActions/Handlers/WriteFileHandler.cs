@@ -2,7 +2,7 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class WriteFileHandler(ILogger<WriteFileHandler> logger) : ISubActionHandler
+    public class WriteFileHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.WriteFile;
 
@@ -10,14 +10,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not WriteFileType writeFileType)
             {
-                logger.LogWarning("SubAction with type WriteFile is not of WriteFileType class");
-                return;
+                throw new SubActionHandlerException(subAction, "SubAction with type WriteFile is not of WriteFileType class");
             }
 
             if (string.IsNullOrEmpty(writeFileType.File))
             {
-                logger.LogWarning("File path is empty in WriteFile sub action");
-                return;
+                throw new SubActionHandlerException(subAction, "File path is empty in WriteFile sub action");
             }
 
             writeFileType.Text = VariableReplacer.ReplaceVariables(writeFileType.Text, variables);

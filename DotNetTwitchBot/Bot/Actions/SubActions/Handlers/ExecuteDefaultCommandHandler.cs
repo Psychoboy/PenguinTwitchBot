@@ -5,7 +5,7 @@ using DotNetTwitchBot.Bot.Core;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExecuteDefaultCommandHandler(ILogger<ExecuteDefaultCommandHandler> logger, ICommandHandler commandHandler, IServiceBackbone serviceBackbone) : ISubActionHandler
+    public class ExecuteDefaultCommandHandler(ICommandHandler commandHandler, IServiceBackbone serviceBackbone) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteDefaultCommand;
 
@@ -13,15 +13,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not ExecuteDefaultCommandType executeDefaultCommand)
             {
-                logger.LogError("Invalid sub action type provided to ExecuteDefaultCommandHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type provided to ExecuteDefaultCommandHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             var command = await commandHandler.GetDefaultCommandByDefaultCommandName(executeDefaultCommand.CommandName);
             if (command == null)
             {
-                logger.LogError("No default command found with name: {CommandName}", executeDefaultCommand.CommandName);
-                return;
+                throw new SubActionHandlerException(subAction, "No default command found with name: {CommandName}", executeDefaultCommand.CommandName);
             }
 
             var eventArgs = CommandEventArgsConverter.FromDictionaryOrNull(variables);
@@ -30,8 +28,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
                 if (!Enum.TryParse(executeDefaultCommand.RankToExecuteAs, true, out Rank rankToExecuteAs))
                 {
-                    logger.LogError("Invalid rank specified for elevated command execution: {Rank}", executeDefaultCommand.RankToExecuteAs);
-                    return;
+                    throw new SubActionHandlerException(subAction, "Invalid rank specified for elevated command execution: {Rank}", executeDefaultCommand.RankToExecuteAs ?? "");
                 }
                 if (eventArgs == null)
                 {

@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class SetVariableHandler(ILogger<SetVariableHandler> logger) : ISubActionHandler
+    public class SetVariableHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.SetVariable;
 
@@ -10,8 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not SetVariableType setVariableType)
             {
-                logger.LogError("Invalid sub action type for SetVariableHandler: {Type}", subAction.GetType().Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for SetVariableHandler: {Type}", subAction.GetType().Name);
             }
 
             setVariableType.Value = VariableReplacer.ReplaceVariables(setVariableType.Value, variables);

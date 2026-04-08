@@ -11,21 +11,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not TimerGroupSetEnabledStateType timerGroupSetEnabled)
             {
-                logger.LogError("Invalid sub action type provided to TimerGroupSetEnabledStateHandler");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type provided to TimerGroupSetEnabledStateHandler");
             }
 
             if (!timerGroupSetEnabled.TimerGroupId.HasValue)
             {
-                logger.LogError("No timer group id provided for TimerGroupSetEnabledStateHandler");
-                return;
+                throw new SubActionHandlerException(subAction, "No timer group id provided for TimerGroupSetEnabledStateHandler");
             }
 
             var timerGroup = await timerService.GetTimerGroupAsync(timerGroupSetEnabled.TimerGroupId.Value);
             if (timerGroup == null)
             {
-                logger.LogError("No timer group found with id {TimerGroupId} for TimerGroupSetEnabledStateHandler", timerGroupSetEnabled.TimerGroupId.Value);
-                return;
+                throw new SubActionHandlerException(subAction, "No timer group found with id {TimerGroupId} for TimerGroupSetEnabledStateHandler", timerGroupSetEnabled.TimerGroupId.Value);
             }
 
             timerGroupSetEnabled.TimerGroupName = timerGroup.Name;
