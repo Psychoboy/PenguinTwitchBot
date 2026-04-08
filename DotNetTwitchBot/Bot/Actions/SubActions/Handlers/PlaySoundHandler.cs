@@ -5,7 +5,7 @@ using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class PlaySoundHandler(IMediator mediator, ILogger<PlaySoundHandler> logger) : ISubActionHandler
+    public class PlaySoundHandler(IMediator mediator) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.PlaySound;
 
@@ -13,8 +13,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not PlaySoundType playSoundType)
             {
-                logger.LogWarning("SubAction with type PlaySound is not of PlaySoundType class");
-                return;
+                throw new SubActionHandlerException(subAction, "SubAction with type PlaySound is not of PlaySoundType class");
             }
 
             playSoundType.File = VariableReplacer.ReplaceVariables(playSoundType.File, variables);

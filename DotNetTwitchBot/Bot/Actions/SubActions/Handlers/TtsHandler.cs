@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.TTS;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class TtsHandler(ILogger<TtsHandler> logger, ITTSService ttsService) : ISubActionHandler
+    public class TtsHandler(    ITTSService ttsService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Tts;
 
@@ -11,14 +11,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not TtsType ttsType)
             {
-                logger.LogError("Invalid sub action type for TTS handler");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for TTS handler");
             }
 
             if(string.IsNullOrEmpty(ttsType.Text))
             {
-                logger.LogError("TTS message is null or empty");
-                return;
+                throw new SubActionHandlerException(subAction, "TTS message is null or empty");
             }
 
             var message = VariableReplacer.ReplaceVariables(ttsType.Text, variables);

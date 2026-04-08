@@ -22,39 +22,33 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not ObsSetSceneFilterStateType filterAction)
             {
-                _logger.LogWarning("SubAction with type ObsSetSceneFilterState is not of ObsSetSceneFilterStateType class");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "SubAction with type ObsSetSceneFilterState is not of ObsSetSceneFilterStateType class");
             }
 
             if (!filterAction.OBSConnectionId.HasValue)
             {
-                _logger.LogWarning("ObsSetSceneFilterState SubAction missing connection ID");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "ObsSetSceneFilterState SubAction missing connection ID");
             }
 
             var connection = _connectionManager.GetManagedConnection(filterAction.OBSConnectionId.Value);
             if (connection == null)
             {
-                _logger.LogWarning("OBS connection with ID {Id} not found", filterAction.OBSConnectionId.Value);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "OBS connection with ID {Id} not found", filterAction.OBSConnectionId.Value);
             }
 
             if (!connection.IsConnected)
             {
-                _logger.LogWarning("OBS connection '{Name}' is not connected", connection.Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "OBS connection '{Name}' is not connected", connection.Name);
             }
 
             if (string.IsNullOrWhiteSpace(filterAction.SceneName))
             {
-                _logger.LogWarning("Scene Name is required for ObsSetSceneFilterState");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "Scene Name is required for ObsSetSceneFilterState");
             }
 
             if (string.IsNullOrWhiteSpace(filterAction.FilterName))
             {
-                _logger.LogWarning("Filter Name is required for ObsSetSceneFilterState");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "Filter Name is required for ObsSetSceneFilterState");
             }
 
             // Replace variables in scene and filter names
@@ -78,7 +72,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, 
+                throw new SubActionHandlerException(subAction, ex, 
                     "Error setting filter '{Filter}' state on scene '{Scene}' in OBS connection '{Connection}'",
                     filterName,
                     sceneName,

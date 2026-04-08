@@ -14,8 +14,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not ChannelPointSetEnabledStateType channelPointSetEnabled)
             {
-                logger.LogError("Unexpected sub action type: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, $"Unexpected sub action type: {subAction.GetType().Name}");
             }
 
             logger.LogInformation("Trying to {state} {title} channel point reward.",

@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class GiveawayPrizeHandler(GiveawayFeature giveawayFeature, ILogger<GiveawayPrizeHandler> logger) : ISubActionHandler
+    public class GiveawayPrizeHandler(GiveawayFeature giveawayFeature) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.GiveawayPrize;
 
@@ -11,8 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not GiveawayPrizeType)
             {
-                logger.LogError("Invalid sub action type for GiveawayPrizeHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for GiveawayPrizeHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             var prize = await giveawayFeature.GetPrize();

@@ -5,7 +5,7 @@ using DotNetTwitchBot.Bot.Core.Points;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class PointCommandHandler(ILogger<PointCommandHandler> logger, IPointsSystem pointsSystem, IServiceBackbone serviceBackbone) : ISubActionHandler
+    public class PointCommandHandler(IPointsSystem pointsSystem, IServiceBackbone serviceBackbone) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecutePointCommand;
 
@@ -13,27 +13,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not PointCommandType pointCommandType)
             {
-                logger.LogError("Invalid sub action type passed to PointCommandHandler");
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type passed to PointCommandHandler");
             }
 
             var commandText = VariableReplacer.ReplaceVariables(pointCommandType.Text, variables);
-            var pointCommand = await pointsSystem.GetPointCommand(commandText);
-
-            if (pointCommand == null)
-            {
-                logger.LogError("Point command not found: {CommandText}", commandText);
-                return;
-            }
-
+            var pointCommand = await pointsSystem.GetPointCommand(commandText) ?? throw new SubActionHandlerException(subAction, "Point command not found: {CommandText}", commandText);
             var eventArgs = CommandEventArgsConverter.FromDictionaryOrNull(variables);
             if (pointCommandType.ElevatedCommand)
             {
 
                 if (!Enum.TryParse(pointCommandType.RankToExecuteAs, true, out Rank rankToExecuteAs))
                 {
-                    logger.LogError("Invalid rank specified for elevated command execution: {Rank}", pointCommandType.RankToExecuteAs);
-                    return;
+                    throw new SubActionHandlerException(subAction, "Invalid rank specified for elevated command execution: {Rank}", pointCommandType.RankToExecuteAs ?? "");
                 }
                 if (eventArgs == null)
                 {

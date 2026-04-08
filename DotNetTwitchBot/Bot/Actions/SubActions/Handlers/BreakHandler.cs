@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class BreakHandler(ILogger<BreakHandler> logger) : ISubActionHandler
+    public class BreakHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Break;
 
@@ -10,8 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not BreakType)
             {
-                logger.LogWarning("SubAction with type Break is not of BreakType class");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "SubAction with type Break is not of BreakType class");
             }
             throw new BreakException(); // This will be caught by the ActionExecutor and used to break out of the current action execution
         }

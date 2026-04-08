@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class RandomIntHandler(ILogger<RandomIntHandler> logger) : ISubActionHandler
+    public class RandomIntHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.RandomInt;
 
@@ -11,8 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not RandomIntType randomInt)
             {
-                logger.LogWarning("RandomIntHandler received unsupported SubActionType: {SubActionType}", subAction.GetType().Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "RandomIntHandler received unsupported SubActionType: {SubActionType}", subAction.GetType().Name);
             }
 
             var value = RandomNumberGenerator.GetInt32(randomInt.Min, randomInt.Max + 1);

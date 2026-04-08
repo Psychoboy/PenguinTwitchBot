@@ -22,27 +22,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not ObsSetSceneType setSceneType)
             {
-                _logger.LogWarning("SubAction with type ObsSetScene is not of ObsSetSceneType class");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "SubAction with type ObsSetScene is not of ObsSetSceneType class");
             }
 
             if (!setSceneType.OBSConnectionId.HasValue)
             {
-                _logger.LogWarning("ObsSetScene SubAction missing connection ID");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "ObsSetScene SubAction missing connection ID");
             }
 
-            var connection = _connectionManager.GetManagedConnection(setSceneType.OBSConnectionId.Value);
-            if (connection == null)
-            {
-                _logger.LogWarning("OBS connection with ID {Id} not found", setSceneType.OBSConnectionId.Value);
-                return Task.CompletedTask;
-            }
-
+            var connection = _connectionManager.GetManagedConnection(setSceneType.OBSConnectionId.Value) ?? throw new SubActionHandlerException(subAction, "OBS connection with ID {Id} not found", setSceneType.OBSConnectionId.Value);
             if (!connection.IsConnected)
             {
-                _logger.LogWarning("OBS connection '{Name}' is not connected", connection.Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "OBS connection '{Name}' is not connected", connection.Name);
             }
 
             // Replace variables in scene name

@@ -356,7 +356,10 @@ namespace DotNetTwitchBot.Repository.Repositories
                 // Delete all subaction tables
                 foreach (var tableName in subActionTableNames)
                 {
+                    // These values are all controlled internally within the application
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                     await context.Database.ExecuteSqlRawAsync($"DELETE FROM `{tableName}`");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
                 }
 
                 // Delete Triggers (they have FK to Actions)

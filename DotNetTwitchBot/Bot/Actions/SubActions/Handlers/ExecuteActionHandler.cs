@@ -2,7 +2,7 @@
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExecuteActionHandler(ILogger<ExecuteActionHandler> logger, IActionManagementService actionService, IAction action) : ISubActionHandler
+    public class ExecuteActionHandler(IActionManagementService actionService, IAction action) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteAction;
 
@@ -10,23 +10,20 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not ExecuteActionType executeAction)
             {
-                logger.LogError("Invalid sub action type provided to ExecuteActionHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type provided to ExecuteActionHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             var actionId = executeAction.ActionId;
             if(!actionId.HasValue || actionId.Value == 0)
             {
-                logger.LogError("Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionId);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid action ID provided to ExecuteActionHandler: {ActionId}", actionId.HasValue ? actionId : "" );
             }
 
             // Execute the action using the parsed actionId
             var actionItem = await actionService.GetActionByIdAsync(actionId.Value);
             if(actionItem == null)
             {
-                logger.LogError("No action found with ID: {ActionId}", actionId);
-                return;
+                throw new SubActionHandlerException(subAction, "No action found with ID: {ActionId}", actionId);
             }
             await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
         }

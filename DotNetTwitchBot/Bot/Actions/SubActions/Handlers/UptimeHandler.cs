@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.TwitchServices;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class UptimeHandler(ILogger<UptimeHandler> logger, ITwitchService twitchService) : ISubActionHandler
+    public class UptimeHandler(ITwitchService twitchService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Uptime;
 
@@ -11,8 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not UptimeType)
             {
-                logger.LogError("Invalid sub action type for UptimeHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for UptimeHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             var streamTime = await twitchService.StreamStartedAt();

@@ -23,27 +23,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not ObsTriggerHotkeyType hotkeyType)
             {
-                _logger.LogWarning("SubAction with type ObsTriggerHotkey is not of ObsTriggerHotkeyType class");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "SubAction with type ObsTriggerHotkey is not of ObsTriggerHotkeyType class");
             }
 
             if (!hotkeyType.OBSConnectionId.HasValue)
             {
-                _logger.LogWarning("OBSTriggerHotkey SubAction missing connection ID");
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "OBSTriggerHotkey SubAction missing connection ID");
             }
 
-            var connection = _connectionManager.GetManagedConnection(hotkeyType.OBSConnectionId.Value);
-            if (connection == null)
-            {
-                _logger.LogWarning("OBS connection with ID {Id} not found", hotkeyType.OBSConnectionId.Value);
-                return Task.CompletedTask;
-            }
-
+            var connection = _connectionManager.GetManagedConnection(hotkeyType.OBSConnectionId.Value) ?? throw new SubActionHandlerException(subAction, "OBS connection with ID {Id} not found", hotkeyType.OBSConnectionId.Value);
             if (!connection.IsConnected)
             {
-                _logger.LogWarning("OBS connection '{Name}' is not connected", connection.Name);
-                return Task.CompletedTask;
+                throw new SubActionHandlerException(subAction, "OBS connection '{Name}' is not connected", connection.Name);
             }
 
             // Replace variables in hotkey name

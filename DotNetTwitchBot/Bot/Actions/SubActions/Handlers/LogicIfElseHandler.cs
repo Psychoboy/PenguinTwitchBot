@@ -14,8 +14,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not LogicIfElseType ifElseType)
             {
-                logger.LogWarning("SubAction with type LogicIfElse is not of LogicIfElseType class");
-                return;
+                throw new SubActionHandlerException(subAction, "SubAction with type LogicIfElse is not of LogicIfElseType class");
             }
 
             // Replace variables in left and right values

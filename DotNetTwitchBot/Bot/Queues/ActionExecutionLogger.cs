@@ -94,6 +94,23 @@ namespace DotNetTwitchBot.Bot.Queues
             }
         }
 
+        public void UpdateActionFailed(Guid logId, string errorMessage,Dictionary<string, string> variablesAfter)
+        {
+            if (_logIndex.TryGetValue(logId, out var log))
+            {
+                log.State = ActionExecutionState.Failed;
+                log.CompletedAt = DateTime.UtcNow;
+                log.ErrorMessage = errorMessage;
+                log.VariablesAfter = new Dictionary<string, string>(variablesAfter);
+
+                _logger.LogTrace("Updated action {ActionName} to Failed state: {ErrorMessage}",
+                    log.ActionName, errorMessage);
+
+                // Notify clients about action failure
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+            }
+        }
+
         public IReadOnlyList<ActionExecutionLog> GetRecentLogs(int count = 100)
         {
             return _logs.Reverse().Take(count).ToList();

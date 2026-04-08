@@ -1,7 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -11,8 +9,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidWriteFileType_WritesToFile()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<WriteFileHandler>>();
-            var handler = new WriteFileHandler(logger);
+            var handler = new WriteFileHandler();
 
             var tempFile = Path.GetTempFileName();
             var writeFileType = new WriteFileType
@@ -45,8 +42,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task AppendMode_AppendsToFile()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<WriteFileHandler>>();
-            var handler = new WriteFileHandler(logger);
+            var handler = new WriteFileHandler();
 
             var tempFile = Path.GetTempFileName();
             await File.WriteAllTextAsync(tempFile, "First Line" + Environment.NewLine);
@@ -79,11 +75,10 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task EmptyFilePath_LogsWarningAndDoesNotWrite()
+        public async Task EmptyFilePath_ThrowsException()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<WriteFileHandler>>();
-            var handler = new WriteFileHandler(logger);
+            var handler = new WriteFileHandler();
 
             var writeFileType = new WriteFileType
             {
@@ -93,38 +88,27 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(writeFileType, variables);
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<SubActionHandlerException>(
+                () => handler.ExecuteAsync(writeFileType, variables));
 
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Warning,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("File path is empty")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            Assert.Contains("File path is empty", exception.Message);
         }
 
         [Fact]
-        public async Task WrongType_LogsWarning()
+        public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var logger = Substitute.For<ILogger<WriteFileHandler>>();
-            var handler = new WriteFileHandler(logger);
+            var handler = new WriteFileHandler();
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();
 
-            // Act
-            await handler.ExecuteAsync(wrongType, variables);
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<SubActionHandlerException>(
+                () => handler.ExecuteAsync(wrongType, variables));
 
-            // Assert
-            logger.Received(1).Log(
-                LogLevel.Warning,
-                Arg.Any<EventId>(),
-                Arg.Is<object>(o => o.ToString()!.Contains("is not of WriteFileType class")),
-                null,
-                Arg.Any<Func<object, Exception?, string>>());
+            Assert.Contains("is not of WriteFileType class", exception.Message);
         }
     }
 }

@@ -18,16 +18,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if (subAction is not RuntimeDefaultCommandType runtimeAction)
             {
-                logger.LogError("Invalid SubActionType passed to RuntimeDefaultCommandHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid SubActionType passed to RuntimeDefaultCommandHandler: {SubActionType}", subAction.GetType().Name);
             }
 
-            var eventArgs = Utilities.CommandEventArgsConverter.FromDictionaryOrNull(variables);
-            if (eventArgs == null)
-            {
-                logger.LogError("Failed to convert variables to CommandEventArgs for RuntimeDefaultCommandHandler.");
-                return;
-            }
+            var eventArgs = Utilities.CommandEventArgsConverter.FromDictionaryOrNull(variables) ?? throw new SubActionHandlerException(subAction, "Failed to convert variables to CommandEventArgs for RuntimeDefaultCommandHandler.");
             SemaphoreSlim? lockInstance = null;
             try
             {

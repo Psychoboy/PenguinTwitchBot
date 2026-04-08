@@ -3,7 +3,7 @@ using DotNetTwitchBot.Bot.Commands.Features;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class WatchTimeHandler(ILogger<WatchTimeHandler> logger, ILoyaltyFeature loyaltyFeature) : ISubActionHandler
+    public class WatchTimeHandler(ILoyaltyFeature loyaltyFeature) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.WatchTime;
 
@@ -11,8 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         {
             if(subAction is not WatchTimeType watchTimeType)
             {
-                logger.LogError("Invalid sub action type for WatchTimeHandler: {SubActionType}", subAction.GetType().Name);
-                return;
+                throw new SubActionHandlerException(subAction, "Invalid sub action type for WatchTimeHandler: {SubActionType}", subAction.GetType().Name);
             }
 
             watchTimeType.Text = VariableReplacer.ReplaceVariables(watchTimeType.Text, variables);
