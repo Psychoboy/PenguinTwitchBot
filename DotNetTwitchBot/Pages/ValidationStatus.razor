@@ -113,13 +113,51 @@
 
     @if (_lastResult != null && _lastResult.HasIssues)
     {
-        <MudPaper Class="pa-4 mt-4">
+        <MudPaper Class="pa-4 mt-4" Style="overflow: visible;">
             <MudText Typo="Typo.h5" Class="mb-4">Validation Issues</MudText>
 
-            <MudTabs Elevation="2" Rounded="true" Color="Color.Primary">
+            <MudTabs Elevation="2" Rounded="true" Color="Color.Primary" Class="overflow-visible" Style="overflow: visible;">
+                @if (_lastResult.Issues.Any(i => i.EntityType == "Action"))
+                {
+                    <MudTabPanel Text="Action Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Action")" BadgeColor="Color.Error" BadgeDot="false">
+                        <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "Action")" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Severity</MudTh>
+                                <MudTh>Action Name</MudTh>
+                                <MudTh>Issue</MudTh>
+                                <MudTh>Action Link</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Severity">
+                                    @if (context.Severity == ValidationSeverity.Error)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Error</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">Warning</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Action Name">@context.EntityName</MudTd>
+                                <MudTd DataLabel="Issue">@context.Message</MudTd>
+                                <MudTd DataLabel="Action Link">
+                                    @if (context.EntityId.HasValue)
+                                    {
+                                        <MudLink Href="@($"/actions/manage?actionId={context.EntityId}")">View Action</MudLink>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                }
+
                 @if (_lastResult.Issues.Any(i => i.EntityType == "Trigger"))
                 {
-                    <MudTabPanel Text="Trigger Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Trigger")" BadgeColor="Color.Error">
+                    <MudTabPanel Text="Trigger Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Trigger")" BadgeColor="Color.Error" BadgeDot="false">
                         <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "Trigger")" Hover="true" Breakpoint="Breakpoint.Sm">
                             <HeaderContent>
                                 <MudTh>Severity</MudTh>
@@ -157,7 +195,7 @@
 
                 @if (_lastResult.Issues.Any(i => i.EntityType == "SubAction"))
                 {
-                    <MudTabPanel Text="SubAction Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "SubAction")" BadgeColor="Color.Error">
+                    <MudTabPanel Text="SubAction Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "SubAction")" BadgeColor="Color.Error" BadgeDot="false">
                         <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "SubAction")" Hover="true" Breakpoint="Breakpoint.Sm">
                             <HeaderContent>
                                 <MudTh>Severity</MudTh>
@@ -182,6 +220,44 @@
                                     @if (context.RelatedActionId.HasValue && !string.IsNullOrEmpty(context.RelatedActionName))
                                     {
                                         <MudLink Href="@($"/actions/manage?actionId={context.RelatedActionId}")">@context.RelatedActionName</MudLink>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                }
+
+                @if (_lastResult.Issues.Any(i => i.EntityType == "Command"))
+                {
+                    <MudTabPanel Text="Command Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Command")" BadgeColor="Color.Error" BadgeDot="false">
+                        <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "Command")" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Severity</MudTh>
+                                <MudTh>Command Name</MudTh>
+                                <MudTh>Issue</MudTh>
+                                <MudTh>Command Link</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Severity">
+                                    @if (context.Severity == ValidationSeverity.Error)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Error</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">Warning</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Command Name">@context.EntityName</MudTd>
+                                <MudTd DataLabel="Issue">@context.Message</MudTd>
+                                <MudTd DataLabel="Command Link">
+                                    @if (context.EntityId.HasValue)
+                                    {
+                                        <MudLink Href="@($"/commands?commandId={context.EntityId}")">View Command</MudLink>
                                     }
                                     else
                                     {

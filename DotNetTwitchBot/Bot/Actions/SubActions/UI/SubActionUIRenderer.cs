@@ -192,36 +192,57 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             object receiver,
             Action<string, object?> onValueChanged)
         {
-            builder.OpenComponent<MudSelect<string>>(sequence++);
+            builder.OpenComponent<MudAutocomplete<string>>(sequence++);
             builder.AddAttribute(sequence++, "Label", field.Label);
             builder.AddAttribute(sequence++, "Value", value);
             builder.AddAttribute(sequence++, "ValueChanged", EventCallback.Factory.Create<string>(receiver, v => onValueChanged(field.PropertyName, v)));
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
+            builder.AddAttribute(sequence++, "MaxItems", (int?)null);
+            builder.AddAttribute(sequence++, "Clearable", field.Clearable);
+            builder.AddAttribute(sequence++, "CoerceText", true);
+            builder.AddAttribute(sequence++, "CoerceValue", false);
+            builder.AddAttribute(sequence++, "ResetValueOnEmptyText", false);
 
+            if (!string.IsNullOrEmpty(field.HelperText))
+                builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+
+            // Create search function
             if (field.SelectOptions != null && field.SelectOptions.Count > 0)
             {
-                builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
+                var options = field.SelectOptions;
+                builder.AddAttribute(sequence++, "SearchFunc", new Func<string, CancellationToken, Task<IEnumerable<string>>>((searchValue, token) =>
                 {
-                    foreach (var option in field.SelectOptions)
+                    if (string.IsNullOrWhiteSpace(searchValue))
                     {
-                        __builder.OpenComponent<MudSelectItem<string>>(0);
-                        __builder.AddAttribute(1, "Value", option.Value ?? option.Id.ToString());
-                        __builder.AddAttribute(2, "ChildContent", (RenderFragment)(__builder2 => __builder2.AddContent(3, option.Name)));
-                        __builder.CloseComponent();
+                        return Task.FromResult(options.Select(o => o.Value ?? o.Id.ToString()));
                     }
+
+                    var filtered = options
+                        .Where(o => o.Name.Contains(searchValue, StringComparison.OrdinalIgnoreCase))
+                        .Select(o => o.Value ?? o.Id.ToString());
+                    return Task.FromResult(filtered);
+                }));
+
+                // Custom display function to show names instead of IDs
+                builder.AddAttribute(sequence++, "ToStringFunc", new Func<string, string>(val =>
+                {
+                    if (string.IsNullOrEmpty(val)) return string.Empty;
+                    var option = options.FirstOrDefault(o => (o.Value ?? o.Id.ToString()) == val);
+                    return option?.Name ?? val;
                 }));
             }
             else if (field.Options != null && field.Options.Length > 0)
             {
-                builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(__builder =>
+                var options = field.Options;
+                builder.AddAttribute(sequence++, "SearchFunc", new Func<string, CancellationToken, Task<IEnumerable<string>>>((searchValue, token) =>
                 {
-                    foreach (var option in field.Options)
+                    if (string.IsNullOrWhiteSpace(searchValue))
                     {
-                        __builder.OpenComponent<MudSelectItem<string>>(0);
-                        __builder.AddAttribute(1, "Value", option);
-                        __builder.AddAttribute(2, "ChildContent", (RenderFragment)(__builder2 => __builder2.AddContent(3, option)));
-                        __builder.CloseComponent();
+                        return Task.FromResult(options.AsEnumerable());
                     }
+
+                    var filtered = options.Where(o => o.Contains(searchValue, StringComparison.OrdinalIgnoreCase));
+                    return Task.FromResult(filtered);
                 }));
             }
 
