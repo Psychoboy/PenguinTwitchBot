@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Application.TTS;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
@@ -7,7 +7,6 @@ using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TTS
 {
@@ -16,8 +15,8 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
         ICommandHandler commandHandler,
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
-        IMediator mediator
-        ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", mediator), IHostedService, ITTSService
+        Application.Notifications.IPenguinDispatcher dispatcher
+        ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -51,7 +50,7 @@ namespace DotNetTwitchBot.Bot.Commands.TTS
                 Message = message,
                 RegisteredVoice = voice
             };
-            await mediator.Publish(new TTSCreateNotification(request));
+            await dispatcher.Publish(new TTSCreateNotification(request));
         }
 
         public async Task<RegisteredVoice> GetRandomVoice()

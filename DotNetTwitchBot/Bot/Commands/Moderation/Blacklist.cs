@@ -2,7 +2,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
@@ -13,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         ITwitchService twitchService,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<Blacklist> logger
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Blacklist", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Blacklist", dispatcher), IHostedService
     {
         private readonly ConcurrentBag<WordFilter> _blackList = new();
 

@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Queues;
-using MediatR;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Commands
@@ -11,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands
     public class BaseCommandRunHandler(
         ICommandHandler commandHandler, 
         IServiceScopeFactory serviceScopeFactory, 
-        ILogger<BaseCommandRunHandler> logger) : INotificationHandler<RunCommandNotification>
+        ILogger<BaseCommandRunHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {

@@ -1,11 +1,10 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Alerts;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class PlaySoundHandler(IMediator mediator) : ISubActionHandler
+    public class PlaySoundHandler(Application.Notifications.IPenguinDispatcher dispatcher) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.PlaySound;
 
@@ -18,7 +17,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             playSoundType.File = VariableReplacer.ReplaceVariables(playSoundType.File, variables);
             var alertSound = new AlertSound { AudioHook = playSoundType.File };
-            await mediator.Publish(new QueueAlert(alertSound.Generate()));
+            await dispatcher.Publish(new QueueAlert(alertSound.Generate()));
         }
     }
 }

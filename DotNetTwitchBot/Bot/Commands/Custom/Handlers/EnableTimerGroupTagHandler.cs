@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Misc;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class EnableTimerGroupTagHandler(ILogger<EnableTimerGroupTagHandler> logger, AutoTimers autoTimers) : IRequestHandler<EnableTimerGroupTag, CustomCommandResult>
+    public class EnableTimerGroupTagHandler(ILogger<EnableTimerGroupTagHandler> logger, AutoTimers autoTimers) : Application.Notifications.IRequestHandler<EnableTimerGroupTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(EnableTimerGroupTag request, CancellationToken cancellationToken)
         {

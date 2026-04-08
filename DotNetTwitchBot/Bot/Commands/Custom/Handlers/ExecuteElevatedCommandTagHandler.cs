@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class ExecuteElevatedCommandTagHandler(ILogger<ExecuteCommandTagHandler> logger, IServiceBackbone serviceBackbone) : IRequestHandler<ExecuteElevatedCommandTag, CustomCommandResult>
+    public class ExecuteElevatedCommandTagHandler(ILogger<ExecuteCommandTagHandler> logger, IServiceBackbone serviceBackbone) : Application.Notifications.IRequestHandler<ExecuteElevatedCommandTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(ExecuteElevatedCommandTag request, CancellationToken cancellationToken)
         {

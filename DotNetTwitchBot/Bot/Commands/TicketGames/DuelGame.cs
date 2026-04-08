@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Duel;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
@@ -12,9 +11,9 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<DuelGame> logger
-            ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "DuelGame", dispatcher), IHostedService
     {
         List<PendingDuel> PendingDuels { get; set; } = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);

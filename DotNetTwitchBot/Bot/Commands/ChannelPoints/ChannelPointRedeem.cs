@@ -1,9 +1,8 @@
-﻿
+
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
 {
@@ -11,9 +10,9 @@ namespace DotNetTwitchBot.Bot.Commands.ChannelPoints
         ILogger<ChannelPointRedeem> logger,
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler
-        ) : BaseCommandService(serviceBackbone, commandHandler, "ChannelPointRedeem", mediator), IChannelPointRedeem
+        ) : BaseCommandService(serviceBackbone, commandHandler, "ChannelPointRedeem", dispatcher), IChannelPointRedeem
     {
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {

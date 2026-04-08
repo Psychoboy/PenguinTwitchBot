@@ -2,7 +2,6 @@ using DotNetTwitchBot.Application.ChatMessage.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
@@ -25,7 +24,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         IMemoryCache memoryCache,
         ITwitchService twitchService,
         TimeProvider timeProvider,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ITwitchEventActionHandler twitchEventActionHandler) : ITwitchWebsocketHostedService
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
@@ -80,7 +79,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         private Task ChannelChatMessageDelete(object? sender, ChannelChatMessageDeleteArgs args)
         {
             logger.LogInformation("CHATMSG DELETE: MessageId: {messageId} User: {userName}", args.Payload.Event.MessageId, args.Payload.Event.TargetUserName);
-            return mediator.Publish(new DeletedChatMessage { EventArgs = args });
+            return dispatcher.Publish(new DeletedChatMessage { EventArgs = args });
         }
 
         private Task ChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs args)
@@ -102,7 +101,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 IsVip = false,
                 IsBroadcaster = false,
             };
-            return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+            return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private Task ProcessChatMessage(ChannelChatMessage e)
@@ -123,7 +122,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
 
             };
-            return mediator.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+            return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
         private async Task ProcessCommandMessage(ChannelChatMessage e)

@@ -1,7 +1,6 @@
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -14,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<LastSeen> logger,
             IViewerFeature viewerFeature,
             IServiceBackbone serviceBackbone,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "LastSeen", mediator)
+            ) : base(serviceBackbone, commandHandler, "LastSeen", dispatcher)
         {
             _viewerFeature = viewerFeature;
             _logger = logger;

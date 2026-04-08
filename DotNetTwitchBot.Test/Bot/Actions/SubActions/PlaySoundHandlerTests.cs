@@ -1,7 +1,6 @@
 using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
-using MediatR;
 using NSubstitute;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
@@ -12,8 +11,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidPlaySoundType_PublishesQueueAlert()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
-            var handler = new PlaySoundHandler(mediator);
+            var dispatcher = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var handler = new PlaySoundHandler(dispatcher);
 
             var playSoundType = new PlaySoundType
             {
@@ -26,7 +25,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(playSoundType, variables);
 
             // Assert
-            await mediator.Received(1).Publish(Arg.Is<QueueAlert>(q =>
+            await dispatcher.Received(1).Publish(Arg.Is<QueueAlert>(q =>
                 q.Alert.Contains("sound.mp3")));
             Assert.Equal("sound.mp3", playSoundType.File);
         }
@@ -35,8 +34,8 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var mediator = Substitute.For<IMediator>();
-            var handler = new PlaySoundHandler(mediator);
+            var dispatcher = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var handler = new PlaySoundHandler(dispatcher);
 
             var wrongType = new SendMessageType();
             var variables = new Dictionary<string, string>();

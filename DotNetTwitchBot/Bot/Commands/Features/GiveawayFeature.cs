@@ -6,7 +6,6 @@ using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Giveaway;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using System.Text;
 using Timer = System.Timers.Timer;
@@ -20,10 +19,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         IViewerFeature viewerFeature,
         IHubContext<MainHub> hubContext,
         IServiceScopeFactory scopeFactory,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService
-            ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature", dispatcher), IHostedService
     {
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();

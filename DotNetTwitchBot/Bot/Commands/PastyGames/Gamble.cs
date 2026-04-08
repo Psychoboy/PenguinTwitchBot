@@ -5,7 +5,6 @@ using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -16,10 +15,10 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ITwitchService twitchServices,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ITools tools,
         MaxBetCalculator maxBetCalculator
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         public static readonly string GAMENAME = "Gamble";
         

@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Features;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class WatchTimeTagHandler(ILoyaltyFeature loyaltyFeature) : IRequestHandler<WatchTimeTag, CustomCommandResult>
+    public class WatchTimeTagHandler(ILoyaltyFeature loyaltyFeature) : Application.Notifications.IRequestHandler<WatchTimeTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(WatchTimeTag request, CancellationToken cancellationToken)
         {

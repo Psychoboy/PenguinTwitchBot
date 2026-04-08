@@ -4,19 +4,18 @@ using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 {
     public class AudioCommands(
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IServiceScopeFactory scopeFactory,
         ILogger<AudioCommands> logger,
         IServiceBackbone eventService,
         ILanguage language,
-        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks", mediator), IHostedService
+        ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks", dispatcher), IHostedService
     {
         readonly ConcurrentDictionary<string, Models.Commands.AudioCommand> Commands = [];
 
@@ -173,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             {
                 AudioHook = audioCommand.AudioFile
             };
-            await mediator.Publish(new QueueAlert(alertSound.Generate()));
+            await dispatcher.Publish(new QueueAlert(alertSound.Generate()));
             if (Commands[e.Command].GlobalCooldown > 0)
             {
                 await CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);

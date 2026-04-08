@@ -1,9 +1,8 @@
 ﻿using DotNetTwitchBot.Application.ChatMessage.Notifications;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Markov
 {
-    public class MarkovChatHistoryNotification(IMarkovChat markovChat) : INotificationHandler<ReceivedChatMessage>
+    public class MarkovChatHistoryNotification(IMarkovChat markovChat) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
         public Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {

@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
 using Prometheus;
 
 namespace DotNetTwitchBot.Application.Metrics.Handlers
 {
-    public class IncreaseNumberOfCommandsHandler : INotificationHandler<RunCommandNotification>, INotificationHandler<StreamStartedNotification>
+    public class IncreaseNumberOfCommandsHandler : Application.Notifications.INotificationHandler<RunCommandNotification>, Application.Notifications.INotificationHandler<StreamStartedNotification>
     {
         private static readonly Gauge NumberOfCommands = Prometheus.Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: ["command", "viewer"]);
         public Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)

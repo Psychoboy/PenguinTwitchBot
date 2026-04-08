@@ -1,13 +1,12 @@
-﻿using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.Utilities;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Actions
 {
     public class ActionCommandHandler(
         IServiceScopeFactory serviceScopeFactory,
         ICommandHandler commandHandler,
-        ILogger<ActionCommandHandler> logger) : INotificationHandler<RunCommandNotification>
+        ILogger<ActionCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         SemaphoreSlim cmdLock = new(1, 1);
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)

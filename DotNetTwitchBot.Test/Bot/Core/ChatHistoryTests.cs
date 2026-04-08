@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands;
+using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.CustomMiddleware;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -19,7 +18,7 @@ namespace DotNetTwitchBot.Test.Bot.Core
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICommandHandler _commandHandler;
         private readonly ITwitchService _twitchService;
-        private readonly IMediator mediatorSubstitute;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly ChatHistory _chatHistory;
 
         public ChatHistoryTests()
@@ -30,7 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Core
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _twitchService = Substitute.For<ITwitchService>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -39,7 +38,7 @@ namespace DotNetTwitchBot.Test.Bot.Core
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
-            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, mediatorSubstitute, _logger);
+            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, dispatcherSubstitute, _logger);
         }
 
 

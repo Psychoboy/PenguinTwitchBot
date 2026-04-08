@@ -1,10 +1,9 @@
-﻿using Discord;
+using Discord;
 using DotNetTwitchBot.Bot.Core;
-using MediatR;
 
 namespace DotNetTwitchBot.Application.Discord
 {
-    public class DiscordConnectedHandler(IConfiguration configuration, IDiscordService discordService) : INotificationHandler<DiscordConnectedNotification>
+    public class DiscordConnectedHandler(IConfiguration configuration, IDiscordService discordService) : Application.Notifications.INotificationHandler<DiscordConnectedNotification>
     {
         public async Task Handle(DiscordConnectedNotification notification, CancellationToken cancellationToken)
         {

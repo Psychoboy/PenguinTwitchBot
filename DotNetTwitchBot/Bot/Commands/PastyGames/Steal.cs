@@ -2,7 +2,6 @@ using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -11,9 +10,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
         IServiceBackbone serviceBackbone,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Steal", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Steal", dispatcher), IHostedService
     {
         private readonly int StealMin = 100;
         private readonly int StealMax = 10000;

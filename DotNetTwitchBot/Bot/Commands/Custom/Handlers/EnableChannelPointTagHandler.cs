@@ -1,11 +1,10 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class EnableChannelPointTagHandler(ILogger<EnableChannelPointTagHandler> logger, ITwitchService twitchService) : IRequestHandler<EnableChannelPointTag, CustomCommandResult>
+    public class EnableChannelPointTagHandler(ILogger<EnableChannelPointTagHandler> logger, ITwitchService twitchService) : Application.Notifications.IRequestHandler<EnableChannelPointTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(EnableChannelPointTag request, CancellationToken cancellationToken)
         {

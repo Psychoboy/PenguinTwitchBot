@@ -1,8 +1,7 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
-using MediatR;
 using System;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
@@ -11,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
         ILogger<CheckPointTagHandler> logger, 
         IPointsSystem pointsSystem,
         IViewerFeature viewerFeature,
-        IServiceBackbone serviceBackbone) : IRequestHandler<CheckPointsTag, CustomCommandResult>
+        IServiceBackbone serviceBackbone) : Application.Notifications.IRequestHandler<CheckPointsTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(CheckPointsTag request, CancellationToken cancellationToken)
         {

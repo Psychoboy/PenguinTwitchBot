@@ -1,4 +1,4 @@
-﻿using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
@@ -10,7 +10,6 @@ using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -26,7 +25,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly ITwitchService _twitchService;
         private readonly IServiceBackbone _serviceBackbone;
         private readonly ICommandHandler _commandHandler;
-        private readonly IMediator mediatorSubstitute;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly ITools _tools;
         private readonly MaxBetCalculator _maxBetCalculator;
         private readonly Gamble _gamble;
@@ -39,7 +38,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _twitchService = Substitute.For<ITwitchService>();
             _serviceBackbone = Substitute.For<IServiceBackbone>();
             _commandHandler = Substitute.For<ICommandHandler>();
-            mediatorSubstitute = Substitute.For<IMediator>();
+            dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
             _tools = Substitute.For<ITools>();
             _maxBetCalculator = new MaxBetCalculator(_pointsSystem);
 
@@ -50,7 +49,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 _twitchService,
                 _serviceBackbone,
                 _commandHandler,
-                mediatorSubstitute,
+                dispatcherSubstitute,
                 _tools,
                 _maxBetCalculator
             );

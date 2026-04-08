@@ -2,7 +2,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.DatabaseTools;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
 using System.IO.Compression;
 
 namespace DotNetTwitchBot.Bot.Commands.Moderation
@@ -12,9 +11,9 @@ namespace DotNetTwitchBot.Bot.Commands.Moderation
         IWebSocketMessenger webSocketMessenger,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IServiceScopeFactory scopeFactory
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Admin", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Admin", dispatcher), IHostedService
     {
         public async Task BackupDatabase()
         {

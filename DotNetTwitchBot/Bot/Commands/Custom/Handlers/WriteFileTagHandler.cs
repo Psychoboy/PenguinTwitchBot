@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class WriteFileTagHandler : IRequestHandler<WriteFileTag, CustomCommandResult>
+    public class WriteFileTagHandler : Application.Notifications.IRequestHandler<WriteFileTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(WriteFileTag request, CancellationToken cancellationToken)
         {

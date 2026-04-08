@@ -6,7 +6,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Actions;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -18,7 +17,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         private readonly ILogger<DotNetTwitchBot.Bot.Actions.Action> logger;
         private readonly ILogger<SubActionHandlerFactory> factoryLogger;
         private readonly ILogger<AlertHandler> alertHandlerLogger;
-        private readonly IMediator mediator;
+        private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcher;
         private readonly IServiceScopeFactory scopeFactory;
         private readonly IServiceBackbone serviceBackbone;
         private readonly ITwitchService twitchService;
@@ -30,13 +29,13 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             logger = Substitute.For<ILogger<DotNetTwitchBot.Bot.Actions.Action>>();
             factoryLogger = Substitute.For<ILogger<SubActionHandlerFactory>>();
             alertHandlerLogger = Substitute.For<ILogger<AlertHandler>>();
-            mediator = Substitute.For<IMediator>();
+            dispatcher = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
             twitchService = Substitute.For<ITwitchService>();
             serviceBackbone = Substitute.For<IServiceBackbone>();
 
             // Setup service provider and scope factory
             var serviceCollection = new ServiceCollection();
-            serviceCollection.AddSingleton(mediator);
+            serviceCollection.AddSingleton(dispatcher);
             serviceCollection.AddSingleton(factoryLogger);
             serviceCollection.AddSingleton(twitchService);
             serviceCollection.AddSingleton(Substitute.For<ILogger<SendMessageHandler>>());

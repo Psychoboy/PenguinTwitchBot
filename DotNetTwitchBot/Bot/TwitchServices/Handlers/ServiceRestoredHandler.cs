@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
-using MediatR;
+using DotNetTwitchBot.Bot.TwitchServices.TwitchModels;
 
 namespace DotNetTwitchBot.Bot.TwitchServices.Handlers
 {
-    public class ServiceRestoredHandler(ITwitchWebsocketHostedService twitchWebsocket) : INotificationHandler<ServiceRestored>
+    public class ServiceRestoredHandler(ITwitchWebsocketHostedService twitchWebsocket) : Application.Notifications.INotificationHandler<ServiceRestored>
     {
         private const int ReconnectDelayMilliseconds = 3000; // Delay duration in milliseconds
 

@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -13,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         MaxBetCalculator maxBetCalculator,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IGameSettingsService gameSettingsService
-            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         private List<string> Emotes = [];
         private readonly List<Int64> Prizes = LoadPrizes();

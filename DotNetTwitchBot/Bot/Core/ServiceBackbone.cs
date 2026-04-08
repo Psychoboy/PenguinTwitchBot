@@ -1,5 +1,6 @@
 ﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.Notifications;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Commands.Alias.Requests;
 using DotNetTwitchBot.Bot.Commands.Moderation;
@@ -8,7 +9,6 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.CustomMiddleware;
-using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
@@ -16,7 +16,7 @@ namespace DotNetTwitchBot.Bot.Core
 {
     public class ServiceBackbone(
         ILogger<ServiceBackbone> logger,
-        IMediator mediator,
+        IPenguinDispatcher dispatcher,
         IKnownBots knownBots,
         IConfiguration configuration,
         IServiceScopeFactory scopeFactory,
@@ -60,12 +60,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task RunCommand(CommandEventArgs eventArgs)
         {
-            if (await mediator.Send(new AliasRunCommand { EventArgs = eventArgs }))
+            if (await dispatcher.Send(new AliasRunCommand { EventArgs = eventArgs }))
             {
                 return;
             }
 
-            await mediator.Publish(new RunCommandNotification { EventArgs = eventArgs });
+            await dispatcher.Publish(new RunCommandNotification { EventArgs = eventArgs });
         }
 
         public async Task OnCommand(CommandEventArgs command)
@@ -108,7 +108,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task SendChatMessage(string message, bool sourceOnly = true)
         {
-            return mediator.Publish(new SendBotMessage(message, sourceOnly));
+            return dispatcher.Publish(new SendBotMessage(message, sourceOnly));
         }
 
         public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
@@ -121,7 +121,7 @@ namespace DotNetTwitchBot.Bot.Core
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message, sourceOnly));
+                await dispatcher.Publish(new ReplyToMessage(e.DisplayName ,e.MessageId, message, sourceOnly));
             }
         }
 
@@ -139,7 +139,7 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task OnStreamStarted()
         {
-            await mediator.Publish(new StreamStartedNotification());
+            await dispatcher.Publish(new StreamStartedNotification());
 
             await hubContext.Clients.All.SendAsync("StreamChanged", true);
 

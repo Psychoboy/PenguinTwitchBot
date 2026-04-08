@@ -1,8 +1,6 @@
-﻿using MediatR;
-
-namespace DotNetTwitchBot.Application.TTS
+﻿namespace DotNetTwitchBot.Application.TTS
 {
-    public class TTSCreateNotification(TTSRequest ttsRequest) : INotification
+    public class TTSCreateNotification(TTSRequest ttsRequest) : Notifications.INotification
     {
         public TTSRequest TTSRequest { get; private set; } = ttsRequest;
     }

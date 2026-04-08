@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.Commands.TTS;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class TTSAndPrintTagHandler(ITTSService ttsService) : IRequestHandler<TTSAndPrintTag, CustomCommandResult>
+    public class TTSAndPrintTagHandler(ITTSService ttsService) : Application.Notifications.IRequestHandler<TTSAndPrintTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(TTSAndPrintTag request, CancellationToken cancellationToken)
         {

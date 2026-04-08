@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class UptimeTagHandler(ITwitchService twitchService) : IRequestHandler<UptimeTag, CustomCommandResult>
+    public class UptimeTagHandler(ITwitchService twitchService) : Application.Notifications.IRequestHandler<UptimeTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(UptimeTag request, CancellationToken cancellationToken)
         {

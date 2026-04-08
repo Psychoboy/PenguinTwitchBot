@@ -4,7 +4,6 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
-using MediatR;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -16,9 +15,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IPointsSystem pointsSystem
-            ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature", mediator), ILoyaltyFeature, IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature", dispatcher), ILoyaltyFeature, IHostedService
     {
         private readonly Timer _intervalTimer = new Timer(60000);
         private static readonly Prometheus.Gauge NumberOfPastiesEarned = Prometheus.Metrics.CreateGauge("number_of_pasties_earned", "Number of Pasties earned since stream start", labelNames: new[] { "viewer" });

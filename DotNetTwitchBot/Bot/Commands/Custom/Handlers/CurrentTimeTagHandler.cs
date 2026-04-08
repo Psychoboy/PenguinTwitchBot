@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class CurrentTimeTagHandler : IRequestHandler<CurrentTimeTag, CustomCommandResult>
+    public class CurrentTimeTagHandler : Application.Notifications.IRequestHandler<CurrentTimeTag, CustomCommandResult>
     {
         public Task<CustomCommandResult> Handle(CurrentTimeTag request, CancellationToken cancellationToken)
         {

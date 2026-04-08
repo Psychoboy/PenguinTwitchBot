@@ -1,9 +1,9 @@
 ﻿using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
+using DotNetTwitchBot.Application.Notifications;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Commands;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
@@ -12,15 +12,15 @@ namespace DotNetTwitchBot.Bot.Commands
         protected ICommandHandler CommandHandler { get; }
         public string ModuleName { get; private set; }
 
-        protected IMediator mediator;
+        protected IPenguinDispatcher dispatcher;
 
-        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName, IMediator mediator)
+        protected BaseCommandService(IServiceBackbone serviceBackbone, ICommandHandler commandHandler, string moduleName, IPenguinDispatcher dispatcher)
         {
             ServiceBackbone = serviceBackbone;
             serviceBackbone.CommandEvent += OnCommand;
             CommandHandler = commandHandler;
             ModuleName = moduleName;
-            this.mediator = mediator;
+            this.dispatcher = dispatcher;
         }
 
         protected IServiceBackbone ServiceBackbone { get; }
@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands
             }
             else
             {
-                await mediator.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message, sourceOnly));
+                await dispatcher.Publish(new ReplyToMessage(e.DisplayName, e.MessageId, message, sourceOnly));
             }
         }
 

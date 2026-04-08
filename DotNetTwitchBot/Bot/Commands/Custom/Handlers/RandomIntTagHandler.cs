@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using System.Security.Cryptography;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class RandomIntTagHandler : IRequestHandler<RandomIntTag, CustomCommandResult>
+    public class RandomIntTagHandler : Application.Notifications.IRequestHandler<RandomIntTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(RandomIntTag request, CancellationToken cancellationToken)
         {

@@ -1,10 +1,9 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 using DotNetTwitchBot.Bot.TwitchServices;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class PauseChannelPointTagHandler(ITwitchService twitchService) : IRequestHandler<PauseChannelPointTag, CustomCommandResult>
+    public class PauseChannelPointTagHandler(ITwitchService twitchService) : Application.Notifications.IRequestHandler<PauseChannelPointTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(PauseChannelPointTag request, CancellationToken cancellationToken)
         {

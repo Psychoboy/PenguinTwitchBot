@@ -1,6 +1,5 @@
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -14,9 +13,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             ILogger<Weather> logger,
             IConfiguration configuration,
             IServiceBackbone serviceBackbone,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "Weather", mediator)
+            ) : base(serviceBackbone, commandHandler, "Weather", dispatcher)
         {
             var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>() ?? throw new Exception("Invalid Configuration. Weather settings missing.");
             _settings = settings;

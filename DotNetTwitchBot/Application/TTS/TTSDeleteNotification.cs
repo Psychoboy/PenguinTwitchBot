@@ -1,8 +1,6 @@
-﻿using MediatR;
-
-namespace DotNetTwitchBot.Application.TTS
+﻿namespace DotNetTwitchBot.Application.TTS
 {
-    public class TTSDeleteNotification(string data) : INotification
+    public class TTSDeleteNotification(string data) : Notifications.INotification
     {
         public string Data { get; private set; } = data;
     }

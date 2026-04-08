@@ -1,8 +1,6 @@
-﻿using MediatR;
-
-namespace DotNetTwitchBot.Application.ChatMessage.Notifications
+﻿namespace DotNetTwitchBot.Application.ChatMessage.Notifications
 {
-    public class ReplyToMessage(string name, string messageId, string message, bool sourceOnly = true) : INotification
+    public class ReplyToMessage(string name, string messageId, string message, bool sourceOnly = true) : Application.Notifications.INotification
     {
         public string Name { get; } = name;
         public string MessageId { get; } = messageId;

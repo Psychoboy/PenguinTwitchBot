@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.PastyGames
 {
@@ -48,9 +47,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             ILogger<FFA> logger,
             IViewerFeature viewerFeature,
             ICommandHandler commandHandler,
-            IMediator mediator,
+            Application.Notifications.IPenguinDispatcher dispatcher,
             IGameSettingsService gameSettingsService
-            ) : base(serviceBackbone, commandHandler, GAMENAME, mediator)
+            ) : base(serviceBackbone, commandHandler, GAMENAME, dispatcher)
         {
             _joinTimer = new Timer(JoinTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
             _pointsSystem = pointsSystem;

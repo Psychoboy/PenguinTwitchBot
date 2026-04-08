@@ -1,9 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Commands.Custom.Tags;
-using MediatR;
+using DotNetTwitchBot.Bot.Commands.Custom.Tags;
 
 namespace DotNetTwitchBot.Bot.Commands.Custom.Handlers
 {
-    public class CustomApiNoResponseTagHandler : IRequestHandler<CustomApiNoResponseTag, CustomCommandResult>
+    public class CustomApiNoResponseTagHandler : Application.Notifications.IRequestHandler<CustomApiNoResponseTag, CustomCommandResult>
     {
         public async Task<CustomCommandResult> Handle(CustomApiNoResponseTag request, CancellationToken cancellationToken)
         {

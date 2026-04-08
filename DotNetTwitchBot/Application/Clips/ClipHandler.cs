@@ -1,12 +1,11 @@
 ﻿using DotNetTwitchBot.Application.Alert.Notification;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Notifications;
-using MediatR;
 using YoutubeDLSharp.Options;
 
 namespace DotNetTwitchBot.Application.Clips
 {
-    public class ClipHandler(ILogger<ClipHandler> logger, IWebSocketMessenger webSocketMessenger) : INotificationHandler<ClipNotification>
+    public class ClipHandler(ILogger<ClipHandler> logger, IWebSocketMessenger webSocketMessenger) : Notifications.INotificationHandler<ClipNotification>
     {
         public async Task Handle(ClipNotification request, CancellationToken cancellationToken)
         {

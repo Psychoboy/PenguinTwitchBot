@@ -3,7 +3,6 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
-using MediatR;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -12,9 +11,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        IMediator mediator,
+        Application.Notifications.IPenguinDispatcher dispatcher,
         IPointsSystem pointsSystem
-            ) : BaseCommandService(serviceBackbone, commandHandler, "Top", mediator), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "Top", dispatcher), IHostedService
     {
         public override async Task Register()
         {
