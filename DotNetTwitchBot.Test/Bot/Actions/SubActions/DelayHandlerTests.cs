@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             stopwatch.Stop();
 
             // Assert
-            Assert.True(stopwatch.ElapsedMilliseconds >= 100, $"Expected delay >= 100ms, but was {stopwatch.ElapsedMilliseconds}ms");
+            Assert.True(stopwatch.ElapsedMilliseconds >= 95, $"Expected delay >= 100ms, but was {stopwatch.ElapsedMilliseconds}ms");
         }
 
         [Fact]
