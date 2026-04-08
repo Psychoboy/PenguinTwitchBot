@@ -42,8 +42,8 @@ namespace DotNetTwitchBot.Bot.Queues
             _logger.LogTrace("Logged action {ActionName} enqueued to {QueueName} with ID {LogId}", 
                 actionName, queueName, log.Id);
 
-            // Notify clients about new action log
-            _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+            // Notify clients about new action log (send snapshot to prevent concurrent modification during serialization)
+            _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
 
             return log.Id;
         }
@@ -57,8 +57,8 @@ namespace DotNetTwitchBot.Bot.Queues
 
                 _logger.LogTrace("Updated action {ActionName} to Running state", log.ActionName);
 
-                // Notify clients about action update
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
             }
         }
 
@@ -73,8 +73,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Updated action {ActionName} to Completed state in {Duration}ms", 
                     log.ActionName, log.ExecutionDuration?.TotalMilliseconds ?? 0);
 
-                // Notify clients about action completion
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                // Notify clients about action completion (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
             }
         }
 
@@ -89,8 +89,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Updated action {ActionName} to Failed state: {ErrorMessage}", 
                     log.ActionName, errorMessage);
 
-                // Notify clients about action failure
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                // Notify clients about action failure (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
             }
         }
 
@@ -106,8 +106,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Updated action {ActionName} to Failed state: {ErrorMessage}",
                     log.ActionName, errorMessage);
 
-                // Notify clients about action failure
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                // Notify clients about action failure (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
             }
         }
 
@@ -119,6 +119,63 @@ namespace DotNetTwitchBot.Bot.Queues
         public ActionExecutionLog? GetLogById(Guid logId)
         {
             return _logIndex.TryGetValue(logId, out var log) ? log : null;
+        }
+
+        /// <summary>
+        /// Creates a thread-safe deep snapshot of the entire ActionExecutionLog for SignalR transmission.
+        /// This prevents "Collection was modified" exceptions during SignalR serialization when
+        /// concurrent threads are modifying SubActionLogs, Messages, or ChildActionLogIds.
+        /// </summary>
+        private ActionExecutionLog CreateLogSnapshot(ActionExecutionLog log)
+        {
+            var snapshot = new ActionExecutionLog
+            {
+                Id = log.Id,
+                ActionName = log.ActionName,
+                State = log.State,
+                VariablesBefore = log.VariablesBefore,
+                VariablesAfter = log.VariablesAfter,
+                QueueName = log.QueueName,
+                EnqueuedAt = log.EnqueuedAt,
+                StartedAt = log.StartedAt,
+                CompletedAt = log.CompletedAt,
+                ErrorMessage = log.ErrorMessage,
+                ParentActionLogId = log.ParentActionLogId
+            };
+
+            // Deep copy SubActionLogs with locks
+            lock (log.SubActionLogs)
+            {
+                foreach (var subActionLog in log.SubActionLogs)
+                {
+                    List<string> messagesCopy;
+                    lock (subActionLog.Messages)
+                    {
+                        messagesCopy = [.. subActionLog.Messages];
+                    }
+
+                    snapshot.SubActionLogs.Add(new SubActionExecutionLog
+                    {
+                        SubActionType = subActionLog.SubActionType,
+                        Description = subActionLog.Description,
+                        StartedAt = subActionLog.StartedAt,
+                        CompletedAt = subActionLog.CompletedAt,
+                        IsSuccess = subActionLog.IsSuccess,
+                        ErrorMessage = subActionLog.ErrorMessage,
+                        Messages = messagesCopy,
+                        Depth = subActionLog.Depth,
+                        ChildActionLogId = subActionLog.ChildActionLogId
+                    });
+                }
+            }
+
+            // Deep copy ChildActionLogIds with lock
+            lock (log.ChildActionLogIds)
+            {
+                snapshot.ChildActionLogIds = [.. log.ChildActionLogIds];
+            }
+
+            return snapshot;
         }
 
         /// <summary>
@@ -251,8 +308,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Logged sub-action {SubActionType} started for action {ActionName} at index {Index}", 
                     subActionType, log.ActionName, index);
 
-                // Notify clients about action update
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
 
                 return index;
             }
@@ -281,8 +338,8 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} completed for action {ActionName} in {Duration}ms", 
                         subActionLog.SubActionType, log.ActionName, subActionLog.Duration?.TotalMilliseconds ?? 0);
 
-                    // Notify clients about action update
-                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                    // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
+                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
                 }
             }
         }
@@ -309,8 +366,8 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} failed for action {ActionName}: {ErrorMessage}", 
                         subActionLog.SubActionType, log.ActionName, errorMessage);
 
-                    // Notify clients about action update
-                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                    // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
+                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
                 }
             }
         }
@@ -342,10 +399,10 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} logged message for action {ActionName}: {Message}", 
                         subActionLog.SubActionType, log.ActionName, truncatedMessage);
 
-                    // Only send updates every few messages to avoid flooding
+                    // Only send updates every few messages to avoid flooding (send snapshot to prevent concurrent modification during serialization)
                     if (messageCount % 5 == 0 || messageCount <= 5)
                     {
-                        _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", log);
+                        _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
                     }
                 }
             }

@@ -29,6 +29,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
             // Register the factory
             services.AddTransient<SubActionHandlerFactory>();
 
+            // Register HttpClient for handlers that need it (e.g., ExternalApiHandler)
+            services.AddHttpClient();
+
             return services;
         }
     }

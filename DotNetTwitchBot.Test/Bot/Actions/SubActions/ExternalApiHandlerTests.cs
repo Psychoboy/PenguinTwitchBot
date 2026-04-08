@@ -8,15 +8,16 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ExternalApiHandlerTests
     {
-        // Note: Skipping actual HTTP test as it would require network access
-        // The handler creates its own HttpClient internally
-
         [Fact]
         public async Task WrongType_ThrowsException()
         {
             // Arrange
             var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new ExternalApiHandler(mockContextAccessor.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
+                .Returns(new HttpClient());
+
+            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -31,7 +32,11 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         {
             // Arrange
             var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new ExternalApiHandler(mockContextAccessor.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
+                .Returns(new HttpClient());
+
+            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
 
             var externalApiType = new ExternalApiType
             {

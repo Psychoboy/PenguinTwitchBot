@@ -4,7 +4,9 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ExternalApiHandler(ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+    public class ExternalApiHandler(
+        ISubActionExecutionContextAccessor contextAccessor,
+        IHttpClientFactory httpClientFactory) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
@@ -19,8 +21,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             try
             {
-                var httpClient = new HttpClient();
-                var httpRequest = new HttpRequestMessage()
+                using var httpClient = httpClientFactory.CreateClient();
+                using var httpRequest = new HttpRequestMessage()
                 {
                     RequestUri = new Uri(externalApiType.Text),
                     Method = new HttpMethod(externalApiType.HttpMethod)
@@ -40,7 +42,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                         }
                     }
                 }
-                var result = await httpClient.SendAsync(httpRequest);
+
+                using var result = await httpClient.SendAsync(httpRequest);
                 var responseContent = await result.Content.ReadAsStringAsync();
 
                 context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Received response with status {(int)result.StatusCode}");
