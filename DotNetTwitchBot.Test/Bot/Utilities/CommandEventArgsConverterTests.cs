@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Events.Chat;
 using Xunit;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Utilities
 {
@@ -127,7 +128,7 @@ namespace DotNetTwitchBot.Test.Bot.Utilities
                 Command = "test",
                 DisplayName = "TestUser"
             };
-            var additionalValues = new Dictionary<string, string>
+            var additionalValues = new ConcurrentDictionary<string, string>
             {
                 ["CustomKey1"] = "CustomValue1",
                 ["CustomKey2"] = "CustomValue2"
@@ -152,7 +153,7 @@ namespace DotNetTwitchBot.Test.Bot.Utilities
                 Command = "test",
                 DisplayName = "TestUser"
             };
-            var additionalValues = new Dictionary<string, string>
+            var additionalValues = new ConcurrentDictionary<string, string>
             {
                 ["Command"] = "overridden"
             };

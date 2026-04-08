@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.CustomMiddleware;
 using System.Globalization;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -10,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.LogicIfElse;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if (subAction is not LogicIfElseType ifElseType)
             {
@@ -52,14 +53,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             }
         }
 
-        private async Task ExecuteNestedSubAction(SubActionType subAction, Dictionary<string, string> variables)
+        private async Task ExecuteNestedSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             await using var scope = serviceScopeFactory.CreateAsyncScope();
             var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
             await factory.ExecuteAsync(subAction, variables);
         }
 
-        private static string ReplaceVariables(string input, Dictionary<string, string> variables)
+        private static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)
         {
             var result = input;
             foreach (var variable in variables)

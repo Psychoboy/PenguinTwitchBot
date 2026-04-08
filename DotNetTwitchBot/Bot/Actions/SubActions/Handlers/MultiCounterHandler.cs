@@ -1,6 +1,7 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Repository;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -8,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.MultiCounter;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if(subAction is not MultiCounterType multiCounterSubAction)
             {
@@ -19,7 +20,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             int? minValue = multiCounterSubAction.Min;
             int? maxValue = multiCounterSubAction.Max;
-
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

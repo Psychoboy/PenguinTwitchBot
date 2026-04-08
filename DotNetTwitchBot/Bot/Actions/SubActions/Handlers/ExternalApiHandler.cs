@@ -1,5 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Queues;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -7,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if (subAction is not ExternalApiType externalApiType)
             {
@@ -44,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
                 context?.LogMessage($"Received response with status {(int)result.StatusCode}");
 
-                variables.Add("ExternalApiResponse", responseContent);
+                variables["ExternalApiResponse"] = responseContent;
 
             } catch (Exception ex)
             {

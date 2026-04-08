@@ -1,7 +1,8 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Commands;
 using DotNetTwitchBot.Bot.Core;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -9,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteDefaultCommand;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if(subAction is not ExecuteDefaultCommandType executeDefaultCommand)
             {

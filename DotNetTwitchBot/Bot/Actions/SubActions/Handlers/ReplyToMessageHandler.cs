@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Commands.Misc;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.TwitchServices;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -11,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ReplyToMessage;
 
-        public Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if(subAction is not ReplyToMessageType replyToMessage)
             {

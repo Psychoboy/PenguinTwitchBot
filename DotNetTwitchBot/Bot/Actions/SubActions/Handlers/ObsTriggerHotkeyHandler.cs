@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.ObsConnector;
 using OBSWebsocketDotNet.Types;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -19,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             _logger = logger;
         }
 
-        public Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if (subAction is not ObsTriggerHotkeyType hotkeyType)
             {

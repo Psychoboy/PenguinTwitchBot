@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Queues;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Queues
 {
@@ -16,7 +17,9 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variables = new Dictionary<string, string> { { "key1", "value1" }, { "key2", "value2" } };
+            var variables = new ConcurrentDictionary<string, string>();
+            variables["key1"] = "value1";
+            variables["key2"] = "value2";
 
             // Act
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
@@ -41,7 +44,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
 
             // Act
@@ -62,10 +65,10 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
             executionLogger.UpdateActionStarted(logId);
-            var variablesAfter = new Dictionary<string, string>();
+            var variablesAfter = new ConcurrentDictionary<string, string>();
 
             // Act
             executionLogger.UpdateActionCompleted(logId, variablesAfter);
@@ -87,7 +90,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
             executionLogger.UpdateActionStarted(logId);
 
@@ -111,9 +114,9 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            executionLogger.LogActionEnqueued("Action1", "queue1", new Dictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "queue2", new Dictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action3", "queue1", new Dictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", "queue1", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", "queue2", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action3", "queue1", new ConcurrentDictionary<string, string>());
 
             // Act
             var queue1Logs = executionLogger.GetLogsByQueue("queue1");
@@ -131,12 +134,12 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            var logId1 = executionLogger.LogActionEnqueued("Action1", "default", new Dictionary<string, string>());
-            var logId2 = executionLogger.LogActionEnqueued("Action2", "default", new Dictionary<string, string>());
-            var logId3 = executionLogger.LogActionEnqueued("Action3", "default", new Dictionary<string, string>());
+            var logId1 = executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
+            var logId2 = executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
+            var logId3 = executionLogger.LogActionEnqueued("Action3", "default", new ConcurrentDictionary<string, string>());
             
             executionLogger.UpdateActionStarted(logId1);
-            executionLogger.UpdateActionCompleted(logId1, new Dictionary<string, string>());
+            executionLogger.UpdateActionCompleted(logId1, new ConcurrentDictionary<string, string>());
             executionLogger.UpdateActionStarted(logId2);
             executionLogger.UpdateActionFailed(logId2, "Error");
 
@@ -167,14 +170,14 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var beforeTime = DateTime.UtcNow;
             Thread.Sleep(10);
             
-            executionLogger.LogActionEnqueued("Action1", "default", new Dictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "default", new Dictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
             
             Thread.Sleep(10);
             var afterFirstTwo = DateTime.UtcNow;
             Thread.Sleep(10);
             
-            executionLogger.LogActionEnqueued("Action3", "default", new Dictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action3", "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var allLogs = executionLogger.GetLogs(beforeTime);
@@ -196,7 +199,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             
             for (int i = 0; i < 10; i++)
             {
-                executionLogger.LogActionEnqueued($"Action{i}", "default", new Dictionary<string, string>());
+                executionLogger.LogActionEnqueued($"Action{i}", "default", new ConcurrentDictionary<string, string>());
             }
 
             // Act
@@ -216,8 +219,8 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            executionLogger.LogActionEnqueued("Action1", "default", new Dictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "default", new Dictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
             Assert.Equal(2, executionLogger.GetLogCount());
 
             // Act
@@ -238,7 +241,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             
             for (int i = 0; i < 10; i++)
             {
-                executionLogger.LogActionEnqueued($"Action{i}", "default", new Dictionary<string, string>());
+                executionLogger.LogActionEnqueued($"Action{i}", "default", new ConcurrentDictionary<string, string>());
             }
 
             // Act & Assert
@@ -256,7 +259,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
             
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
             Thread.Sleep(20);
@@ -264,7 +267,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             executionLogger.UpdateActionStarted(logId);
             Thread.Sleep(20);
 
-            executionLogger.UpdateActionCompleted(logId, new Dictionary<string, string>());
+            executionLogger.UpdateActionCompleted(logId, new ConcurrentDictionary<string, string>());
 
             // Act
             var logs = executionLogger.GetRecentLogs();
@@ -286,20 +289,20 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var variablesBefore = new Dictionary<string, string>
+            var variablesBefore = new ConcurrentDictionary<string, string>
             {
-                { "key1", "value1" },
-                { "key2", "value2" }
+                ["key1"] = "value1" ,
+                ["key2"] = "value2"
             };
 
             var logId = executionLogger.LogActionEnqueued("TestAction", "default", variablesBefore);
             executionLogger.UpdateActionStarted(logId);
 
-            var variablesAfter = new Dictionary<string, string>
+            var variablesAfter = new ConcurrentDictionary<string, string>
             {
-                { "key1", "modifiedValue1" },
-                { "key2", "value2" },
-                { "newKey", "newValue" }
+                ["key1"] = "modifiedValue1",
+                ["key2"] = "value2",
+                ["newKey"] = "newValue"
             };
 
             // Act
@@ -327,7 +330,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var index1 = executionLogger.LogSubActionStarted(logId, "SubAction1", "First sub-action", 0);
@@ -369,7 +372,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             Thread.Sleep(10);
@@ -393,7 +396,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             // Act
@@ -414,7 +417,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             // Act
@@ -438,7 +441,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
             var longMessage = new string('A', 200);
 
@@ -460,7 +463,7 @@ namespace DotNetTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new Dictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var index1 = executionLogger.LogSubActionStarted(logId, "SubAction1", "Depth 0", 0);

@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _semaphore = new SemaphoreSlim(isBlocking ? 1 : maxConcurrentActions);
         }
 
-        public async Task EnqueueAsync(ActionType action, Dictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null)
+        public async Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null)
         {
             if (!IsEnabled)
             {
@@ -304,6 +304,6 @@ namespace DotNetTwitchBot.Bot.Queues
             await _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
         }
 
-        private record QueuedAction(ActionType Action, Dictionary<string, string> Variables, Guid LogId, Guid? ParentLogId, int? ParentSubActionIndex);
+        private record QueuedAction(ActionType Action, ConcurrentDictionary<string, string> Variables, Guid LogId, Guid? ParentLogId, int? ParentSubActionIndex);
     }
 }

@@ -2,6 +2,7 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Handlers;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Queues;
 using Moq;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -15,7 +16,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new BreakHandler(mockContextAccessor.Object);
 
             var breakType = new BreakType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAsync<BreakException>(
@@ -30,7 +31,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new BreakHandler(mockContextAccessor.Object);
 
             var wrongType = new SendMessageType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(

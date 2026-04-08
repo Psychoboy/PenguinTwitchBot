@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _maxLogEntries = maxLogEntries;
         }
 
-        public Guid LogActionEnqueued(string actionName, string queueName, Dictionary<string, string> variables)
+        public Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables)
         {
             var log = new ActionExecutionLog
             {
@@ -62,7 +62,7 @@ namespace DotNetTwitchBot.Bot.Queues
             }
         }
 
-        public void UpdateActionCompleted(Guid logId, Dictionary<string, string> variablesAfter)
+        public void UpdateActionCompleted(Guid logId, ConcurrentDictionary<string, string> variablesAfter)
         {
             if (_logIndex.TryGetValue(logId, out var log))
             {
@@ -94,7 +94,7 @@ namespace DotNetTwitchBot.Bot.Queues
             }
         }
 
-        public void UpdateActionFailed(Guid logId, string errorMessage,Dictionary<string, string> variablesAfter)
+        public void UpdateActionFailed(Guid logId, string errorMessage, ConcurrentDictionary<string, string> variablesAfter)
         {
             if (_logIndex.TryGetValue(logId, out var log))
             {
@@ -119,6 +119,52 @@ namespace DotNetTwitchBot.Bot.Queues
         public ActionExecutionLog? GetLogById(Guid logId)
         {
             return _logIndex.TryGetValue(logId, out var log) ? log : null;
+        }
+
+        /// <summary>
+        /// Creates a thread-safe snapshot of SubActionLogs for a given action log.
+        /// This prevents concurrent modification exceptions when the UI renders the list
+        /// while background threads are modifying it.
+        /// </summary>
+        public List<SubActionExecutionLog> GetSubActionLogsSnapshot(Guid actionLogId)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                lock (log.SubActionLogs)
+                {
+                    return [.. log.SubActionLogs];
+                }
+            }
+            return [];
+        }
+
+        /// <summary>
+        /// Creates a thread-safe snapshot of messages for a specific SubAction.
+        /// This prevents concurrent modification exceptions when the UI renders messages
+        /// while background threads are adding new ones.
+        /// </summary>
+        public List<string> GetSubActionMessagesSnapshot(Guid actionLogId, int subActionIndex)
+        {
+            if (_logIndex.TryGetValue(actionLogId, out var log))
+            {
+                SubActionExecutionLog? subActionLog = null;
+                lock (log.SubActionLogs)
+                {
+                    if (subActionIndex >= 0 && subActionIndex < log.SubActionLogs.Count)
+                    {
+                        subActionLog = log.SubActionLogs[subActionIndex];
+                    }
+                }
+
+                if (subActionLog != null)
+                {
+                    lock (subActionLog.Messages)
+                    {
+                        return [.. subActionLog.Messages];
+                    }
+                }
+            }
+            return [];
         }
 
         public IReadOnlyList<ActionExecutionLog> GetLogsByQueue(string queueName, int count = 100)

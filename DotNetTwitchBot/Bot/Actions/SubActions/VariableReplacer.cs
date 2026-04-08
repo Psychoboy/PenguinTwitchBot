@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using org.mariuszgromada.math.mxparser;
 
@@ -6,7 +7,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     public static class VariableReplacer
     {
         private static bool CalledLicense = false;
-        public static string ReplaceVariables(string input, Dictionary<string, string> variables)
+        public static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)
         {
             foreach (var variable in variables)
             {

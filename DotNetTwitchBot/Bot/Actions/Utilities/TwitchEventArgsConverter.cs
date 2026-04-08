@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Events;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.Utilities
@@ -8,14 +9,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
     /// </summary>
     public static class TwitchEventArgsConverter
     {
-        public static Dictionary<string, string> ToDictionary(FollowEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(FollowEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Username"] = eventArgs.Username ?? string.Empty,
@@ -28,14 +29,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(CheerEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(CheerEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -50,14 +51,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(SubscriptionEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
-
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -76,14 +77,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(SubscriptionGiftEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionGiftEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -97,14 +98,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(SubscriptionEndEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionEndEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -115,14 +116,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(RaidEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(RaidEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -136,14 +137,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(ChannelPointRedeemEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(ChannelPointRedeemEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Sender"] = eventArgs.Sender ?? string.Empty,
@@ -161,14 +162,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(AdBreakStartEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(AdBreakStartEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Length"] = eventArgs.Length.ToString(),
                 ["Automatic"] = eventArgs.Automatic.ToString(),
@@ -179,14 +180,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> ToDictionary(BanEventArgs eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(BanEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
                 ["Name"] = eventArgs.Name ?? string.Empty,
@@ -199,9 +200,9 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> StreamOnlineVariables()
+        public static ConcurrentDictionary<string, string> StreamOnlineVariables()
         {
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["EventType"] = "StreamOnline",
                 ["Timestamp"] = DateTime.UtcNow.ToString("o")
@@ -210,9 +211,9 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static Dictionary<string, string> StreamOfflineVariables()
+        public static ConcurrentDictionary<string, string> StreamOfflineVariables()
         {
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["EventType"] = "StreamOffline",
                 ["Timestamp"] = DateTime.UtcNow.ToString("o")

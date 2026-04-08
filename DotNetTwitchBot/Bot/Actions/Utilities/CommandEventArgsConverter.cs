@@ -1,53 +1,51 @@
 using DotNetTwitchBot.Bot.Events.Chat;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Actions.Utilities
 {
     /// <summary>
-    /// Utility class for converting CommandEventArgs to Dictionary for variable substitution
+    /// Utility class for converting CommandEventArgs to ConcurrentDictionary for variable substitution
     /// </summary>
     public static class CommandEventArgsConverter
     {
         /// <summary>
-        /// Converts CommandEventArgs to a Dictionary with string keys and values
+        /// Converts CommandEventArgs to a ConcurrentDictionary with string keys and values
         /// </summary>
         /// <param name="eventArgs">The CommandEventArgs to convert</param>
-        /// <returns>Dictionary with property names as keys and property values as strings</returns>
-        public static Dictionary<string, string> ToDictionary(CommandEventArgs eventArgs)
+        /// <returns>ConcurrentDictionary with property names as keys and property values as strings</returns>
+        public static ConcurrentDictionary<string, string> ToDictionary(CommandEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
-                return new Dictionary<string, string>();
+                return new ConcurrentDictionary<string, string>();
             }
 
-            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                // BaseChatEventArgs properties
-                ["IsSub"] = eventArgs.IsSub.ToString(),
-                ["IsMod"] = eventArgs.IsMod.ToString(),
-                ["IsVip"] = eventArgs.IsVip.ToString(),
-                ["IsBroadcaster"] = eventArgs.IsBroadcaster.ToString(),
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["MessageId"] = eventArgs.MessageId ?? string.Empty,
-                ["IsSubOrHigher"] = eventArgs.IsSubOrHigher().ToString(),
-                ["IsVipOrHigher"] = eventArgs.IsVipOrHigher().ToString(),
-                ["IsModOrHigher"] = eventArgs.IsModOrHigher().ToString(),
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
-                ["Message"] = eventArgs.Arg ?? string.Empty,
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                // CommandEventArgs properties
-                ["Command"] = eventArgs.Command ?? string.Empty,
-                ["Arg"] = eventArgs.Arg ?? string.Empty,
-                ["TargetUser"] = eventArgs.TargetUser ?? string.Empty,
-                ["IsWhisper"] = eventArgs.IsWhisper.ToString(),
-                ["IsDiscord"] = eventArgs.IsDiscord.ToString(),
-                ["DiscordMention"] = eventArgs.DiscordMention ?? string.Empty,
-                ["FromAlias"] = eventArgs.FromAlias.ToString(),
-                ["SkipLock"] = eventArgs.SkipLock.ToString(),
-                ["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString()
-            };
+            // Add all properties
+            dictionary["IsSub"] = eventArgs.IsSub.ToString();
+            dictionary["IsMod"] = eventArgs.IsMod.ToString();
+            dictionary["IsVip"] = eventArgs.IsVip.ToString();
+            dictionary["IsBroadcaster"] = eventArgs.IsBroadcaster.ToString();
+            dictionary["DisplayName"] = eventArgs.DisplayName ?? string.Empty;
+            dictionary["Name"] = eventArgs.Name ?? string.Empty;
+            dictionary["UserId"] = eventArgs.UserId ?? string.Empty;
+            dictionary["MessageId"] = eventArgs.MessageId ?? string.Empty;
+            dictionary["IsSubOrHigher"] = eventArgs.IsSubOrHigher().ToString();
+            dictionary["IsVipOrHigher"] = eventArgs.IsVipOrHigher().ToString();
+            dictionary["IsModOrHigher"] = eventArgs.IsModOrHigher().ToString();
+            dictionary["User"] = eventArgs.DisplayName ?? string.Empty;
+            dictionary["Message"] = eventArgs.Arg ?? string.Empty;
+            dictionary["Command"] = eventArgs.Command ?? string.Empty;
+            dictionary["Arg"] = eventArgs.Arg ?? string.Empty;
+            dictionary["TargetUser"] = eventArgs.TargetUser ?? string.Empty;
+            dictionary["IsWhisper"] = eventArgs.IsWhisper.ToString();
+            dictionary["IsDiscord"] = eventArgs.IsDiscord.ToString();
+            dictionary["DiscordMention"] = eventArgs.DiscordMention ?? string.Empty;
+            dictionary["FromAlias"] = eventArgs.FromAlias.ToString();
+            dictionary["SkipLock"] = eventArgs.SkipLock.ToString();
+            dictionary["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString();
 
             if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
@@ -85,7 +83,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         /// "OriginalEventArgs" containing a JSON representation of a CommandEventArgs object.</param>
         /// <returns>A CommandEventArgs instance deserialized from the dictionary if possible; otherwise, a new CommandEventArgs
         /// instance.</returns>
-        public static CommandEventArgs FromDictionary(Dictionary<string, string> dictionary)
+        public static CommandEventArgs FromDictionary(ConcurrentDictionary<string, string> dictionary)
         {
             if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
             {
@@ -101,7 +99,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             }
         }
 
-        public static CommandEventArgs? FromDictionaryOrNull(Dictionary<string, string> dictionary)
+        public static CommandEventArgs? FromDictionaryOrNull(ConcurrentDictionary<string, string> dictionary)
         {
             if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
             {
@@ -118,14 +116,14 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         }
 
         /// <summary>
-        /// Converts CommandEventArgs to a Dictionary and optionally adds custom values
+        /// Converts CommandEventArgs to a ConcurrentDictionary and optionally adds custom values
         /// </summary>
         /// <param name="eventArgs">The CommandEventArgs to convert</param>
         /// <param name="additionalValues">Additional key-value pairs to add to the dictionary</param>
-        /// <returns>Dictionary with all values combined</returns>
-        public static Dictionary<string, string> ToDictionary(
+        /// <returns>ConcurrentDictionary with all values combined</returns>
+        public static ConcurrentDictionary<string, string> ToDictionary(
             CommandEventArgs eventArgs, 
-            Dictionary<string, string>? additionalValues = null)
+            ConcurrentDictionary<string, string>? additionalValues = null)
         {
             var dictionary = ToDictionary(eventArgs);
 

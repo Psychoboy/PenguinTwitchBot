@@ -94,17 +94,17 @@
                 </MudItem>
             }
 
-            @if (Log.SubActionLogs.Any())
+            @if (SubActionLogsSnapshot.Any())
             {
                 <MudItem xs="12">
                     <MudDivider Class="my-4" />
-                    <MudText Typo="Typo.h6" GutterBottom="true">SubAction Execution Flow (@Log.SubActionLogs.Count)</MudText>
+                    <MudText Typo="Typo.h6" GutterBottom="true">SubAction Execution Flow (@SubActionLogsSnapshot.Count)</MudText>
                 </MudItem>
 
 
                 <MudItem xs="12">
                     <MudPaper Class="pa-2" Elevation="0" Style="background-color: var(--mud-palette-background-grey); max-height: 400px; overflow-y: auto;">
-                        @foreach (var subAction in Log.SubActionLogs)
+                        @foreach (var subAction in SubActionLogsSnapshot)
                         {
                             <MudPaper Class="pa-3 mb-2" Elevation="1" Style="@GetSubActionIndentStyle(subAction.Depth)">
                                 <MudGrid Spacing="1">
@@ -293,6 +293,7 @@
     public ActionExecutionLog Log { get; set; } = null!;
 
     private ActionExecutionLog? ParentLog { get; set; }
+    private List<SubActionExecutionLog> SubActionLogsSnapshot { get; set; } = new();
 
     protected override void OnInitialized()
     {
@@ -300,6 +301,9 @@
         {
             ParentLog = ActionExecutionLogger.GetLogById(Log.ParentActionLogId.Value);
         }
+
+        // Create thread-safe snapshot for UI rendering
+        SubActionLogsSnapshot = ActionExecutionLogger.GetSubActionLogsSnapshot(Log.Id);
     }
 
     private Color GetStateColor()

@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.TwitchServices;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -8,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.SendMessage;
 
-        public Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if (subAction is not SendMessageType sendMessageType)
             {

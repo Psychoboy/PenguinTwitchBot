@@ -6,7 +6,7 @@ namespace DotNetTwitchBot.Bot.Models.Queues
         public string? Description { get; set; }
         public DateTime StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
-        public bool IsSuccess { get; set; } = true;
+        public bool IsSuccess { get; set; } = false;
         public string? ErrorMessage { get; set; }
         public List<string> Messages { get; set; } = [];
         public int Depth { get; set; }

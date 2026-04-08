@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Actions.Triggers;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.TwitchServices
 {
@@ -76,7 +77,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ExecuteActionsForEventAsync("ChannelAdBreakBegin", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        private async Task ExecuteActionsForEventAsync(string triggerName, Dictionary<string, string> variables)
+        private async Task ExecuteActionsForEventAsync(string triggerName, ConcurrentDictionary<string, string> variables)
         {
             try
             {

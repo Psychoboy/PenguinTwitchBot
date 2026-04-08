@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Models;
 using NSubstitute;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -28,7 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Text = "%user%"
             };
 
-            var variables = new Dictionary<string, string> { { "user", "TestUser" } };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "TestUser" };
 
             // Act
             await handler.ExecuteAsync(followAgeType, variables);
@@ -55,7 +56,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
                 Text = "NotAFollower"
             };
 
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act
             await handler.ExecuteAsync(followAgeType, variables);
@@ -73,7 +74,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             var handler = new FollowAgeHandler(viewerFeature);
 
             var wrongType = new SendMessageType();
-            var variables = new Dictionary<string, string>();
+            var variables = new ConcurrentDictionary<string, string>();
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<Exception>(

@@ -1,5 +1,6 @@
-﻿using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Queues;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
@@ -10,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteAction;
 
-        public async Task ExecuteAsync(SubActionType subAction, Dictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             if (subAction is not ExecuteActionType executeAction)
             {
@@ -34,34 +35,32 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (context != null)
             {
-                // Create a nested context for the executed action
-                var nestedContext = context.CreateNestedContext();
-                nestedContext.BeginSubAction("ExecuteAction", $"Action: {actionItem.Name}");
-
+                // Use the SubAction entry already created by SubActionHandlerFactory
+                // Don't create a nested context - that would create a duplicate ExecuteAction entry
                 try
                 {
-                    nestedContext.LogMessage($"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
+                    context.LogMessage($"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
 
                     // Pass parent context info so the child action can be linked
+                    // Use context.CurrentSubActionIndex which refers to the factory-created SubAction entry
                     await action.EnqueueAction(
-                        new Dictionary<string, string>(variables), 
+                        new ConcurrentDictionary<string, string>(variables), 
                         actionItem,
                         parentLogId: context.ActionLogId,
-                        parentSubActionIndex: nestedContext.CurrentSubActionIndex);
+                        parentSubActionIndex: context.CurrentSubActionIndex);
 
-                    nestedContext.LogMessage($"Action enqueued successfully. Child action will be linked when it starts.");
-                    nestedContext.CompleteSubAction();
+                    context.LogMessage($"Action enqueued successfully. Child action will be linked when it starts.");
                 }
                 catch (Exception ex)
                 {
-                    nestedContext.FailSubAction(ex.Message);
+                    // Let the exception propagate - SubActionHandlerFactory will catch and mark as failed
                     throw;
                 }
             }
             else
             {
                 // No context available, just enqueue normally
-                await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
+                await action.EnqueueAction(new ConcurrentDictionary<string, string>(variables), actionItem);
             }
         }
     }
