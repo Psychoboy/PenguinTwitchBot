@@ -27,11 +27,19 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 var subActionTypeName = subAction.SubActionTypes.ToString();
                 var description = !string.IsNullOrEmpty(subAction.Text) ? subAction.Text : null;
 
+                int subActionIndex = -1;
                 if (context != null)
                 {
                     logger.LogDebug("Executing SubAction {SubActionType} with context (LogId: {LogId})", 
                         subActionTypeName, context.ActionLogId);
-                    context.BeginSubAction(subActionTypeName, description);
+                    subActionIndex = context.BeginSubAction(subActionTypeName, description);
+
+                    // Store the index in the accessor so handlers can access it if needed
+                    // This is safe for concurrent execution because each parallel task gets its own ExecutionContext flow
+                    if (contextAccessor != null)
+                    {
+                        contextAccessor.CurrentSubActionIndex = subActionIndex;
+                    }
                 }
                 else
                 {
@@ -42,11 +50,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 try
                 {
                     await handler.ExecuteAsync(subAction, variables);
-                    context?.CompleteSubAction();
+                    context?.CompleteSubAction(subActionIndex);
                 }
                 catch (Exception ex)
                 {
-                    context?.FailSubAction(ex.Message);
+                    context?.FailSubAction(subActionIndex, ex.Message);
                     throw;
                 }
             }

@@ -19,12 +19,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (int.TryParse(durationStr, out var duration))
             {
-                context?.LogMessage($"Delaying for {duration}ms");
+                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Delaying for {duration}ms");
                 await Task.Delay(duration);
             }
             else
             {
-                context?.LogMessage($"Invalid duration value: {durationStr}");
+                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Invalid duration value: {durationStr}");
             }
         }
     }

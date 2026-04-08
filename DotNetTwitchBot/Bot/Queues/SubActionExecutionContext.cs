@@ -3,13 +3,12 @@ namespace DotNetTwitchBot.Bot.Queues
     public interface ISubActionExecutionContext
     {
         Guid ActionLogId { get; }
-        int CurrentSubActionIndex { get; }
         int Depth { get; }
-        
-        void BeginSubAction(string subActionType, string? description = null);
-        void CompleteSubAction();
-        void FailSubAction(string errorMessage);
-        void LogMessage(string message);
+
+        int BeginSubAction(string subActionType, string? description = null);
+        void CompleteSubAction(int subActionIndex);
+        void FailSubAction(int subActionIndex, string errorMessage);
+        void LogMessage(int subActionIndex, string message);
         ISubActionExecutionContext CreateNestedContext();
     }
 
@@ -19,7 +18,6 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly ILogger<SubActionExecutionContext> _logger;
 
         public Guid ActionLogId { get; }
-        public int CurrentSubActionIndex { get; private set; } = -1;
         public int Depth { get; }
 
         public SubActionExecutionContext(
@@ -34,36 +32,37 @@ namespace DotNetTwitchBot.Bot.Queues
             Depth = depth;
         }
 
-        public void BeginSubAction(string subActionType, string? description = null)
+        public int BeginSubAction(string subActionType, string? description = null)
         {
-            CurrentSubActionIndex = _executionLogger.LogSubActionStarted(ActionLogId, subActionType, description, Depth);
-            _logger.LogDebug("SubAction {SubActionType} started at depth {Depth} with index {Index}", subActionType, Depth, CurrentSubActionIndex);
+            int index = _executionLogger.LogSubActionStarted(ActionLogId, subActionType, description, Depth);
+            _logger.LogDebug("SubAction {SubActionType} started at depth {Depth} with index {Index}", subActionType, Depth, index);
+            return index;
         }
 
-        public void CompleteSubAction()
+        public void CompleteSubAction(int subActionIndex)
         {
-            if (CurrentSubActionIndex >= 0)
+            if (subActionIndex >= 0)
             {
-                _executionLogger.LogSubActionCompleted(ActionLogId, CurrentSubActionIndex);
-                _logger.LogDebug("SubAction completed at index {Index}", CurrentSubActionIndex);
+                _executionLogger.LogSubActionCompleted(ActionLogId, subActionIndex);
+                _logger.LogDebug("SubAction completed at index {Index}", subActionIndex);
             }
         }
 
-        public void FailSubAction(string errorMessage)
+        public void FailSubAction(int subActionIndex, string errorMessage)
         {
-            if (CurrentSubActionIndex >= 0)
+            if (subActionIndex >= 0)
             {
-                _executionLogger.LogSubActionFailed(ActionLogId, CurrentSubActionIndex, errorMessage);
-                _logger.LogDebug("SubAction failed at index {Index}: {Error}", CurrentSubActionIndex, errorMessage);
+                _executionLogger.LogSubActionFailed(ActionLogId, subActionIndex, errorMessage);
+                _logger.LogDebug("SubAction failed at index {Index}: {Error}", subActionIndex, errorMessage);
             }
         }
 
-        public void LogMessage(string message)
+        public void LogMessage(int subActionIndex, string message)
         {
-            if (CurrentSubActionIndex >= 0)
+            if (subActionIndex >= 0)
             {
-                _executionLogger.LogSubActionMessage(ActionLogId, CurrentSubActionIndex, message);
-                
+                _executionLogger.LogSubActionMessage(ActionLogId, subActionIndex, message);
+
                 // Also log to standard logger for local debugging
                 _logger.LogDebug("SubAction message: {Message}", message);
             }

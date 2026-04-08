@@ -26,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     Method = new HttpMethod(externalApiType.HttpMethod)
                 };
 
-                context?.LogMessage($"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
+                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
 
                 if (!string.IsNullOrEmpty(externalApiType.Headers))
                 {
@@ -43,13 +43,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 var result = await httpClient.SendAsync(httpRequest);
                 var responseContent = await result.Content.ReadAsStringAsync();
 
-                context?.LogMessage($"Received response with status {(int)result.StatusCode}");
+                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Received response with status {(int)result.StatusCode}");
 
                 variables["ExternalApiResponse"] = responseContent;
 
             } catch (Exception ex)
             {
-                context?.LogMessage($"Request failed: {ex.Message}");
+                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Request failed: {ex.Message}");
                 throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }

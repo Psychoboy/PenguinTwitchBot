@@ -122,7 +122,8 @@ namespace DotNetTwitchBot.Bot.Queues
         }
 
         /// <summary>
-        /// Creates a thread-safe snapshot of SubActionLogs for a given action log.
+        /// Creates a thread-safe deep snapshot of SubActionLogs for a given action log.
+        /// This performs a deep copy including each SubActionExecutionLog and its Messages list.
         /// This prevents concurrent modification exceptions when the UI renders the list
         /// while background threads are modifying it.
         /// </summary>
@@ -132,7 +133,29 @@ namespace DotNetTwitchBot.Bot.Queues
             {
                 lock (log.SubActionLogs)
                 {
-                    return [.. log.SubActionLogs];
+                    var snapshot = new List<SubActionExecutionLog>(log.SubActionLogs.Count);
+                    foreach (var subActionLog in log.SubActionLogs)
+                    {
+                        List<string> messagesCopy;
+                        lock (subActionLog.Messages)
+                        {
+                            messagesCopy = [.. subActionLog.Messages];
+                        }
+
+                        snapshot.Add(new SubActionExecutionLog
+                        {
+                            SubActionType = subActionLog.SubActionType,
+                            Description = subActionLog.Description,
+                            StartedAt = subActionLog.StartedAt,
+                            CompletedAt = subActionLog.CompletedAt,
+                            IsSuccess = subActionLog.IsSuccess,
+                            ErrorMessage = subActionLog.ErrorMessage,
+                            Messages = messagesCopy,
+                            Depth = subActionLog.Depth,
+                            ChildActionLogId = subActionLog.ChildActionLogId
+                        });
+                    }
+                    return snapshot;
                 }
             }
             return [];

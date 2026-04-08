@@ -39,17 +39,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 // Don't create a nested context - that would create a duplicate ExecuteAction entry
                 try
                 {
-                    context.LogMessage($"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
+                    int currentIndex = contextAccessor.CurrentSubActionIndex;
+                    context.LogMessage(currentIndex, $"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
 
                     // Pass parent context info so the child action can be linked
-                    // Use context.CurrentSubActionIndex which refers to the factory-created SubAction entry
+                    // Use the CurrentSubActionIndex from the accessor which was set by SubActionHandlerFactory
                     await action.EnqueueAction(
                         new ConcurrentDictionary<string, string>(variables), 
                         actionItem,
                         parentLogId: context.ActionLogId,
-                        parentSubActionIndex: context.CurrentSubActionIndex);
+                        parentSubActionIndex: currentIndex);
 
-                    context.LogMessage($"Action enqueued successfully. Child action will be linked when it starts.");
+                    context.LogMessage(currentIndex, $"Action enqueued successfully. Child action will be linked when it starts.");
                 }
                 catch (Exception ex)
                 {

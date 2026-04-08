@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.CustomMiddleware;
 using System.Globalization;
 using System.Collections.Concurrent;
@@ -7,7 +8,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class LogicIfElseHandler(
         ILogger<LogicIfElseHandler> logger,
-        IServiceScopeFactory serviceScopeFactory) : ISubActionHandler
+        IServiceScopeFactory serviceScopeFactory,
+        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.LogicIfElse;
 
@@ -56,6 +58,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         private async Task ExecuteNestedSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables)
         {
             await using var scope = serviceScopeFactory.CreateAsyncScope();
+
+            // Propagate the current execution context to the new scope
+            var currentContext = contextAccessor.ExecutionContext;
+            if (currentContext != null)
+            {
+                var nestedContextAccessor = scope.ServiceProvider.GetRequiredService<ISubActionExecutionContextAccessor>();
+                nestedContextAccessor.ExecutionContext = currentContext;
+            }
+
             var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
             await factory.ExecuteAsync(subAction, variables);
         }

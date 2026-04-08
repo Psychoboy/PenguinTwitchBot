@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 throw new SubActionHandlerException(subAction, "SubAction with type Break is not of BreakType class");
             }
-            contextAccessor.ExecutionContext?.LogMessage("BreakHandler: Executing BreakType sub-action, throwing BreakException to break out of current action execution.");
+            contextAccessor.ExecutionContext?.LogMessage(contextAccessor.CurrentSubActionIndex, "BreakHandler: Executing BreakType sub-action, throwing BreakException to break out of current action execution.");
             throw new BreakException(); // This will be caught by the ActionExecutor and used to break out of the current action execution
         }
     }
