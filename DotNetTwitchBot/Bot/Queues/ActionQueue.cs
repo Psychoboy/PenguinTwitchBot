@@ -250,7 +250,7 @@ namespace DotNetTwitchBot.Bot.Queues
             }
             catch (SubActionHandlerException subEx)
             {
-                _executionLogger.UpdateActionFailed(queuedAction.LogId, $"Sub-action {subEx.SubActionType?.GetType().Name ?? "Unknown"} failed: {subEx.Message}");
+                _executionLogger.UpdateActionFailed(queuedAction.LogId, $"Sub-action {subEx.SubActionType?.GetType().Name ?? "Unknown"} failed: {subEx.Message}", queuedAction.Variables);
                 _logger.LogError("Sub-action failed while executing action {ActionName} in queue {QueueName}", 
                     queuedAction.Action.Name, Name);
             }
