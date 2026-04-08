@@ -240,8 +240,10 @@
         if(user.Identity is not null)
         {
             tempCommands = tempCommands.Where(x =>
-                 string.IsNullOrWhiteSpace(x.SpecificUser) ||
-                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase) ||
+                 (string.IsNullOrWhiteSpace(x.SpecificUser) && x.SpecificUsers.Count == 0) ||
+                    (x.SpecificUser != null &&
+                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+                    ||
                     x.SpecificUsers.Any(s => s.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
             ).ToList();
         }
