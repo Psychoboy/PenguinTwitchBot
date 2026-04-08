@@ -1,5 +1,8 @@
 @using DotNetTwitchBot.Bot.Models.Queues
+@using DotNetTwitchBot.Bot.Queues
 @using MudBlazor
+@inject IActionExecutionLogger ActionExecutionLogger
+@inject IDialogService DialogService
 
 <MudDialog>
     <DialogContent>
@@ -8,6 +11,23 @@
                 <MudText Typo="Typo.h6" GutterBottom="true">@Log.ActionName</MudText>
                 <MudDivider Class="mb-4" />
             </MudItem>
+
+            @if (Log.ParentActionLogId.HasValue && ParentLog != null)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <MudIcon Icon="@Icons.Material.Filled.CallReceived" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">
+                                This action was called by:
+                                <MudLink Color="Color.Primary" OnClick="@(() => OpenParentAction())" Style="cursor: pointer; text-decoration: underline;">
+                                    <strong>@ParentLog.ActionName</strong>
+                                </MudLink>
+                            </MudText>
+                        </div>
+                    </MudAlert>
+                </MudItem>
+            }
 
             <MudItem xs="12" sm="6">
                 <MudText Typo="Typo.subtitle2" Color="Color.Secondary">State</MudText>
@@ -143,6 +163,43 @@
                                             }
                                         </MudText>
                                     </MudItem>
+
+                                    @if (subAction.ChildActionLogId.HasValue)
+                                    {
+                                        var childLog = ActionExecutionLogger.GetLogById(subAction.ChildActionLogId.Value);
+                                        if (childLog != null)
+                                        {
+                                            <MudItem xs="12">
+                                                <MudPaper Class="pa-2 mt-2" Elevation="1" Outlined="true" Style="border-left: 3px solid var(--mud-palette-info);">
+                                                    <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                                            <MudIcon Icon="@Icons.Material.Filled.CallMade" Color="Color.Info" Size="Size.Small" />
+                                                            <MudText Typo="Typo.body2">
+                                                                <strong>Child Action:</strong>
+                                                            </MudText>
+                                                            <MudLink OnClick="@(() => OpenChildAction(childLog))" Style="cursor: pointer;">
+                                                                @childLog.ActionName
+                                                            </MudLink>
+                                                            <MudChip T="string" Size="Size.Small" Color="@GetStateColor(childLog.State)">
+                                                                @childLog.State.ToString()
+                                                            </MudChip>
+                                                        </div>
+                                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" 
+                                                                      Size="Size.Small" 
+                                                                      Color="Color.Info"
+                                                                      OnClick="@(() => OpenChildAction(childLog))"
+                                                                      Title="View Child Action Details" />
+                                                    </div>
+                                                    @if (childLog.ExecutionDuration.HasValue)
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                                            Execution Time: @FormatDuration(childLog.ExecutionDuration.Value)
+                                                        </MudText>
+                                                    }
+                                                </MudPaper>
+                                            </MudItem>
+                                        }
+                                    }
                                 </MudGrid>
                             </MudPaper>
                         }
@@ -235,9 +292,24 @@
     [Parameter]
     public ActionExecutionLog Log { get; set; } = null!;
 
+    private ActionExecutionLog? ParentLog { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Log.ParentActionLogId.HasValue)
+        {
+            ParentLog = ActionExecutionLogger.GetLogById(Log.ParentActionLogId.Value);
+        }
+    }
+
     private Color GetStateColor()
     {
-        return Log.State switch
+        return GetStateColor(Log.State);
+    }
+
+    private Color GetStateColor(ActionExecutionState state)
+    {
+        return state switch
         {
             ActionExecutionState.Pending => Color.Warning,
             ActionExecutionState.Running => Color.Info,
@@ -284,6 +356,49 @@
             return false; // New variable
 
         return beforeValue != afterValue;
+    }
+
+    private async Task OpenParentAction()
+    {
+        if (ParentLog != null)
+        {
+            // Close current dialog first
+            MudDialog.Close();
+
+            var parameters = new DialogParameters<ActionVariablesDialog>
+            {
+                { x => x.Log, ParentLog }
+            };
+
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Large,
+                FullWidth = true,
+                CloseButton = true
+            };
+
+            await DialogService.ShowAsync<ActionVariablesDialog>($"Action Details: {ParentLog.ActionName}", parameters, options);
+        }
+    }
+
+    private async Task OpenChildAction(ActionExecutionLog childLog)
+    {
+        // Close current dialog first
+        MudDialog.Close();
+
+        var parameters = new DialogParameters<ActionVariablesDialog>
+        {
+            { x => x.Log, childLog }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<ActionVariablesDialog>($"Action Details: {childLog.ActionName}", parameters, options);
     }
 
     private void Close()

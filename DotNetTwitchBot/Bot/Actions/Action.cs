@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Actions
             return action;
         }
 
-        public async Task EnqueueAction(Dictionary<string, string> variables, ActionType action)
+        public async Task EnqueueAction(Dictionary<string, string> variables, ActionType action, Guid? parentLogId = null, int? parentSubActionIndex = null)
         {
             if(action.OnlineOnly && !serviceBackbone.IsOnline)
             {
@@ -40,7 +40,7 @@ namespace DotNetTwitchBot.Bot.Actions
             await using var scope = scopeFactory.CreateAsyncScope();
             var queueManager = scope.ServiceProvider.GetRequiredService<IQueueManager>();
             var queue = await queueManager.GetQueueAsync(action.QueueName);
-            await queue.EnqueueAsync(action, variables);
+            await queue.EnqueueAsync(action, variables, parentLogId, parentSubActionIndex);
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }
 

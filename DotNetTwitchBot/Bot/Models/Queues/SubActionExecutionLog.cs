@@ -11,6 +11,8 @@ namespace DotNetTwitchBot.Bot.Models.Queues
         public List<string> Messages { get; set; } = [];
         public int Depth { get; set; }
 
+        public Guid? ChildActionLogId { get; set; }
+
         public TimeSpan? Duration => CompletedAt.HasValue 
             ? CompletedAt.Value - StartedAt 
             : null;

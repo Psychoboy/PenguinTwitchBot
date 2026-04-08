@@ -48,11 +48,25 @@
             <RowTemplate>
                 <MudTd DataLabel="Name">
                     <div style="display: flex; align-items: center; gap: 8px;">
+                        @if (context.ParentActionLogId.HasValue)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CallReceived" Color="Color.Secondary" Size="Size.Small" Title="Child Action" />
+                        }
+                        @if (context.ChildActionLogIds.Any())
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CallMade" Color="Color.Info" Size="Size.Small" Title="Has Child Actions" />
+                        }
                         <MudText Typo="Typo.body2">@context.ActionName</MudText>
                         @if (context.SubActionLogs.Any())
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">
                                 @context.SubActionLogs.Count SubActions
+                            </MudChip>
+                        }
+                        @if (context.ChildActionLogIds.Any())
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                                @context.ChildActionLogIds.Count @(context.ChildActionLogIds.Count == 1 ? "Child" : "Children")
                             </MudChip>
                         }
                     </div>

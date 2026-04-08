@@ -32,5 +32,11 @@ namespace DotNetTwitchBot.Bot.Queues
         void LogSubActionFailed(Guid actionLogId, int subActionIndex, string errorMessage);
 
         void LogSubActionMessage(Guid actionLogId, int subActionIndex, string message);
+
+        void LinkChildAction(Guid parentLogId, int subActionIndex, Guid childLogId);
+
+        void SetParentAction(Guid childLogId, Guid parentLogId);
+
+        ActionExecutionLog? GetLogById(Guid logId);
     }
 }

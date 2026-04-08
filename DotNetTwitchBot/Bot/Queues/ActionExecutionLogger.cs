@@ -116,6 +116,11 @@ namespace DotNetTwitchBot.Bot.Queues
             return _logs.Reverse().Take(count).ToList();
         }
 
+        public ActionExecutionLog? GetLogById(Guid logId)
+        {
+            return _logIndex.TryGetValue(logId, out var log) ? log : null;
+        }
+
         public IReadOnlyList<ActionExecutionLog> GetLogsByQueue(string queueName, int count = 100)
         {
             return _logs
@@ -295,6 +300,56 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Removed old log entry {LogId} for action {ActionName}", 
                         removedLog.Id, removedLog.ActionName);
                 }
+            }
+        }
+
+        public void LinkChildAction(Guid parentLogId, int subActionIndex, Guid childLogId)
+        {
+            if (_logIndex.TryGetValue(parentLogId, out var parentLog))
+            {
+                // Add to parent's child list
+                lock (parentLog.ChildActionLogIds)
+                {
+                    if (!parentLog.ChildActionLogIds.Contains(childLogId))
+                    {
+                        parentLog.ChildActionLogIds.Add(childLogId);
+                    }
+                }
+
+                // Link the SubAction to the child action
+                SubActionExecutionLog? subActionLog = null;
+                lock (parentLog.SubActionLogs)
+                {
+                    if (subActionIndex >= 0 && subActionIndex < parentLog.SubActionLogs.Count)
+                    {
+                        subActionLog = parentLog.SubActionLogs[subActionIndex];
+                    }
+                }
+
+                if (subActionLog != null)
+                {
+                    subActionLog.ChildActionLogId = childLogId;
+                }
+
+                _logger.LogTrace("Linked child action {ChildLogId} to parent {ParentLogId} at SubAction index {Index}",
+                    childLogId, parentLogId, subActionIndex);
+
+                // Notify clients about the update
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", parentLog);
+            }
+        }
+
+        public void SetParentAction(Guid childLogId, Guid parentLogId)
+        {
+            if (_logIndex.TryGetValue(childLogId, out var childLog))
+            {
+                childLog.ParentActionLogId = parentLogId;
+
+                _logger.LogTrace("Set parent {ParentLogId} for child action {ChildLogId}",
+                    parentLogId, childLogId);
+
+                // Notify clients about the update
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", childLog);
             }
         }
     }

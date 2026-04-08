@@ -41,8 +41,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 try
                 {
                     nestedContext.LogMessage($"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
-                    await action.EnqueueAction(new Dictionary<string, string>(variables), actionItem);
-                    nestedContext.LogMessage($"Action enqueued successfully");
+
+                    // Pass parent context info so the child action can be linked
+                    await action.EnqueueAction(
+                        new Dictionary<string, string>(variables), 
+                        actionItem,
+                        parentLogId: context.ActionLogId,
+                        parentSubActionIndex: nestedContext.CurrentSubActionIndex);
+
+                    nestedContext.LogMessage($"Action enqueued successfully. Child action will be linked when it starts.");
                     nestedContext.CompleteSubAction();
                 }
                 catch (Exception ex)
