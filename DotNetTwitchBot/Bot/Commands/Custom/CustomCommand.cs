@@ -30,7 +30,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public static partial Regex CounterRegex();
 
         readonly List<string> CommandTags = [];
-        readonly Dictionary<string, CustomCommands> Commands = [];
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         List<KeywordWithRegex> Keywords = [];
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
@@ -93,22 +92,11 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             CommandTags.Add("checkpoints");
         }
 
-        public Dictionary<string, CustomCommands> GetCustomCommands()
-        {
-            return Commands;
-        }
-
         public List<KeywordType> GetKeywords()
         {
             return Keywords.Select(x => x.Keyword).ToList();
         }
 
-        public async Task<CustomCommands?> GetCustomCommand(int id)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.CustomCommands.Find(x => x.Id == id).FirstOrDefaultAsync();
-        }
 
         public async Task<KeywordType?> GetKeyword(int id)
         {
@@ -121,19 +109,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         private async Task LoadCommands()
         {
-            _logger.LogInformation("Loading custom commands");
-            var count = 0;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                Commands.Clear();
-                var commands = await db.CustomCommands.GetAsync(includeProperties: "PointType");
-                foreach (var command in commands)
-                {
-                    Commands[command.CommandName] = command;
-                    count++;
-                }
-
                 _logger.LogInformation("Loading keywords");
                 Keywords.Clear();
                 Keywords = (await db.Keywords.GetAllAsync()).Select(x => new KeywordWithRegex(x)).ToList();
@@ -146,37 +124,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                     keyword.Regex = new Regex(keyword.Keyword.CommandName, RegexOptions.None, TimeSpan.FromMilliseconds(500));
                 }
             }
-            _logger.LogInformation("Finished loading commands: {count}", count);
-        }
-
-        public async Task AddCommand(CustomCommands customCommand)
-        {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                customCommand.CommandName = customCommand.CommandName.ToLower();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                if ((await db.CustomCommands.Find(x => x.CommandName.Equals(customCommand.CommandName)).FirstOrDefaultAsync()) != null)
-                {
-                    _logger.LogWarning("Command already exists");
-                    return;
-                }
-                await db.CustomCommands.AddAsync(customCommand);
-                Commands[customCommand.CommandName] = customCommand;
-                await db.SaveChangesAsync();
-            }
-            await LoadCommands();
-        }
-
-        public async Task DeleteCommand(CustomCommands customCommand)
-        {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-                db.CustomCommands.Remove(customCommand);
-                await db.SaveChangesAsync();
-            }
-            await LoadCommands();
         }
 
         public async Task AddKeyword(KeywordType keyword)
@@ -202,17 +149,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 db.Keywords.Remove(keyword);
-                await db.SaveChangesAsync();
-            }
-            await LoadCommands();
-        }
-
-        public async Task SaveCommand(CustomCommands customCommand)
-        {
-            await using (var scope = _scopeFactory.CreateAsyncScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.CustomCommands.Update(customCommand);
                 await db.SaveChangesAsync();
             }
             await LoadCommands();
@@ -289,77 +225,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
 
         }
 
-        public async Task RunCommand(CommandEventArgs e)
-        {
-            if (Commands.ContainsKey(e.Command) == false) return;
-
-            if (Commands[e.Command].Disabled)
-            {
-                return;
-            }
-
-            if(Bot.Commands.CommandHandler.CheckIfAllowedInSharedChat(e, Commands[e.Command]) == false) return;
-
-            if ((await CommandHandler.CheckPermission(Commands[e.Command], e)) == false)
-            {
-                return;
-            }
-            await ExecuteCommand(e);
-        }
-
-
-        private async Task ExecuteCommand(CommandEventArgs e)
-        {
-            try
-            {
-                if (false == e.SkipLock)
-                {
-                    if (await _semaphoreSlim.WaitAsync(500) == false)
-                    {
-                        _logger.LogWarning("CustomCommand Lock expired while waiting...");
-                    }
-                }
-
-                var command = Commands[e.Command];
-                if (command.SayCooldown)
-                {
-                    if (await CommandHandler.IsCoolDownExpiredWithMessage(e.Name, e.DisplayName, e.Command) == false) return;
-                }
-                else
-                {
-                    if (await CommandHandler.IsCoolDownExpired(e.Name, e.Command) == false) return;
-                }
-
-                if (command.Cost > 0 && command.PointType != null)
-                {
-                    if ((await _PointsSystem.RemovePointsFromUserByUserId(e.UserId, command.PointTypeId ?? 0, command.Cost)) == false)
-                    {
-                        await RespondWithMessage(e, $"you don't have enough {command.PointType?.Name}, that command costs {command.Cost}.");
-                        return;
-                    }
-                }
-
-                await ProcessTagsAndSayMessage(e, command.Response, command.RespondAsStreamer, command.SourceOnly);
-                if (command.GlobalCooldown > 0)
-                {
-                    await CommandHandler.AddGlobalCooldown(e.Command, command.GlobalCooldown);
-                }
-                if (command.UserCooldown > 0)
-                {
-                    await CommandHandler.AddCoolDown(e.Name, e.Command, command.UserCooldown);
-                }
-            }
-            finally
-            {
-                if (false == e.SkipLock)
-                {
-                    _semaphoreSlim.Release();
-                }
-            }
-
-            
-        }
-
         public override async Task Register()
         {
             var moduleName = "CustomCommands";
@@ -371,125 +236,9 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
             await LoadCommands();
         }
 
-        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        public override Task OnCommand(object? sender, CommandEventArgs e)
         {
-            var defaultCommand = CommandHandler.GetCommand(e.Command);
-            if (defaultCommand == null) return;
-            switch (defaultCommand.CommandProperties.CommandName)
-            {
-                case "addcommand":
-                    {
-                        try
-                        {
-                            var newCommand = JsonSerializer.Deserialize<CustomCommands>(e.Arg);
-                            if (newCommand != null)
-                            {
-                                await AddCommand(newCommand);
-                                await ServiceBackbone.SendChatMessage("Successfully added command");
-                            }
-                            else
-                            {
-                                await ServiceBackbone.SendChatMessage("failed to add command");
-                            }
-
-                        }
-                        catch (Exception err)
-                        {
-                            _logger.LogError(err, "Failed to add command");
-                        }
-
-                        return;
-                    }
-
-                case "refreshcommands":
-                    {
-                        await LoadCommands();
-                        return;
-                    }
-
-                case "disablecommand":
-                    {
-                        await using (var scope = _scopeFactory.CreateAsyncScope())
-                        {
-                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
-
-                            var actionCommand = await actionCommandService.GetByCommandNameAsync(e.Arg);
-
-                            if (actionCommand != null)
-                            {
-                                actionCommand.Disabled = true;
-                                await actionCommandService.UpdateAsync(actionCommand);
-                                _logger.LogInformation("Action command '{CommandName}' has been disabled.", actionCommand.CommandName);
-                            }
-                        }
-                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
-                        await using (var scope = _scopeFactory.CreateAsyncScope())
-                        {
-                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
-                            if (command == null)
-                            {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to disable {0}", e.Arg));
-                                return;
-                            }
-                            command.Disabled = true;
-                            value.Disabled = true;
-                            db.CustomCommands.Update(command);
-                            await db.SaveChangesAsync();
-                           
-                        }
-                        
-                        await ServiceBackbone.SendChatMessage(string.Format("Disabled {0}", e.Arg));
-                        return;
-                    }
-
-                case "enablecommand":
-                    {
-                        await using (var scope = _scopeFactory.CreateAsyncScope())
-                        {
-                            var actionCommandService = scope.ServiceProvider.GetRequiredService<IActionCommandService>();
-
-                            var actionCommand = await actionCommandService.GetByCommandNameAsync(e.Arg);
-
-                            if (actionCommand != null)
-                            {
-                                actionCommand.Disabled = false;
-                                await actionCommandService.UpdateAsync(actionCommand);
-                                _logger.LogInformation("Action command '{CommandName}' has been enabled.", actionCommand.CommandName);
-                            }
-                        }
-                        if (!Commands.TryGetValue(e.Arg, out CustomCommands? value)) return;
-                        await using (var scope = _scopeFactory.CreateAsyncScope())
-                        {
-                            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                            var command = await db.CustomCommands.Find(x => x.CommandName.Equals(e.Arg)).FirstOrDefaultAsync();
-                            if (command == null)
-                            {
-                                await ServiceBackbone.SendChatMessage(string.Format("Failed to enable {0}", e.Arg));
-                                return;
-                            }
-                            command.Disabled = false;
-                            value.Disabled = false;
-                            db.CustomCommands.Update(command);
-                            await db.SaveChangesAsync();
-                        }
-                        
-                        await ServiceBackbone.SendChatMessage(string.Format("Enabled {0}", e.Arg));
-                        return;
-                    }
-
-            }
-
-        }
-
-        public string CustomCommandResponse(string command)
-        {
-            return Commands[command].Response;
-        }
-
-        public bool CustomCommandExists(string command)
-        {
-            return Commands.ContainsKey(command);
+            return Task.CompletedTask; //Nothing to do anymore
         }
 
         public async Task<CustomCommandResult> ProcessTags(CommandEventArgs eventArgs, string originalText)
@@ -580,8 +329,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 "disablechannelpoint" => _dispatcher.Send(new DisableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
                 "pausechannelpoint" => _dispatcher.Send(new PauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
                 "unpausechannelpoint" => _dispatcher.Send(new UnpauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "enablecommand" => _dispatcher.Send(new EnableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
-                "disablecommand" => _dispatcher.Send(new DisableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
                 "giftpoints" => _dispatcher.Send(new GiftPointsTag { CommandEventArgs = eventArgs, Args = args }),
                 "checkpoints" => _dispatcher.Send(new CheckPointsTag { CommandEventArgs = eventArgs, Args = args }),
 

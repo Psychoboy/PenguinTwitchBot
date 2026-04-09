@@ -298,13 +298,6 @@ namespace DotNetTwitchBot.Bot.Core
 
         private async Task SlashCommandHandler(SocketSlashCommand arg)
         {
-            var eventArgs = new CommandEventArgs
-            {
-                Command = arg.CommandName,
-                DiscordMention = arg.User.Mention,
-                IsDiscord = true
-            };
-
             if (arg.CommandName.Equals("weather"))
             {
                 var options = arg.Data.Options;
@@ -338,21 +331,6 @@ namespace DotNetTwitchBot.Bot.Core
                 }
 
                 return;
-            }
-
-            try
-            {
-                if (_customCommands.CustomCommandExists(arg.CommandName) == false) return;
-                var commandResponse = _customCommands.CustomCommandResponse(arg.CommandName);
-                var message = await _customCommands.ProcessTags(eventArgs, commandResponse);
-                if (message != null && message.Cancel == false && message.Message.Length > 0)
-                {
-                    await arg.RespondAsync(message.Message);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error running custom command via discord");
             }
         }
 

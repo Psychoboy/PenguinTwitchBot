@@ -151,23 +151,6 @@
             }
         }
 
-        var customCommands = CustomCommand.GetCustomCommands();
-        foreach (var command in customCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
-        {
-            tempCommands.Add(new CommandModel
-                {
-                    Command = "!" + command.Value.CommandName,
-                    UserCooldown = command.Value.UserCooldown,
-                    GlobalCooldown = command.Value.GlobalCooldown,
-                    Rank = command.Value.MinimumRank,
-                    Cost = command.Value.Cost,
-                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.Response : command.Value.Description,
-                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Custom" : command.Value.Category,
-                    SpecificUser = command.Value.SpecificUserOnly,
-                    SpecificUsers = command.Value.SpecificUsersOnly
-                });
-        }
-
         // var audioCommands = AudioCommands.GetAudioCommands();
         // foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
         // {

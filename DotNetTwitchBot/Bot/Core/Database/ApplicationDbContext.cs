@@ -19,7 +19,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<GiveawayExclusion> GiveawayExclusions { get; set; } = null!;
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
-        public DbSet<CustomCommands> CustomCommands { get; set; } = null!;
         public DbSet<ActionCommand> ActionCommands { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;

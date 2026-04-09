@@ -22,7 +22,6 @@
         IViewersTimeRepository ViewersTime { get; }
         IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
-        ICustomCommandsRepository CustomCommands { get; }
         IActionCommandsRepository ActionCommands { get; }
         IKeywordsRepository Keywords { get; }
         ICountersRepository Counters { get; }

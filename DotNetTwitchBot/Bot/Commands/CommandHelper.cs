@@ -27,11 +27,6 @@ namespace DotNetTwitchBot.Bot.Commands
                 return true;
             }
 
-            if (customCommand.CustomCommandExists(command))
-            {
-                return true;
-            }
-
             return false;
         }
 
