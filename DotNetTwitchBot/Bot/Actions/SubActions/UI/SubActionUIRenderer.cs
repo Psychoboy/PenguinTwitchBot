@@ -199,9 +199,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
             builder.AddAttribute(sequence++, "MaxItems", (int?)null);
             builder.AddAttribute(sequence++, "Clearable", field.Clearable);
-            builder.AddAttribute(sequence++, "CoerceText", true);
+            builder.AddAttribute(sequence++, "CoerceText", false);
             builder.AddAttribute(sequence++, "CoerceValue", false);
             builder.AddAttribute(sequence++, "ResetValueOnEmptyText", false);
+            builder.AddAttribute(sequence++, "Strict", false);
 
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
