@@ -1633,33 +1633,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("TimerGroups");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.TwitchEvent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Command")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("ElevatedPermission")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EventType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TwitchEvents");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Viewer", b =>
                 {
                     b.Property<int>("Id")

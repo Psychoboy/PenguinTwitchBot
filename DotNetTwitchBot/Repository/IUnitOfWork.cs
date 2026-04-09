@@ -40,7 +40,6 @@
         IRegisteredVoiceRepository RegisteredVoices { get; }
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
         IChannelPointRedeemsRepository ChannelPointRedeems { get; }
-        ITwitchEventsRepository TwitchEvents { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
         IIpLogRepository IpLogs { get; }
         IWheelRepository Wheels { get; }
