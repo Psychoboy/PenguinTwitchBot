@@ -68,14 +68,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.TimerGroups.GetAsync(includeProperties: "Messages");
+            return await db.TimerGroups.GetAsync();
         }
 
         public async Task<TimerGroup?> GetTimerGroupAsync(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.TimerGroups.Find(x => x.Id == id).Include(x => x.Messages).FirstOrDefaultAsync();
+            return await db.TimerGroups.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task AddTimerGroup(TimerGroup group)
@@ -122,22 +122,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
-        public async Task UpdateTimerMessage(TimerMessage message)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.TimerMessages.Update(message);
-            await db.SaveChangesAsync();
-        }
-
-        public async Task DeleteTimerMessage(TimerMessage message)
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.TimerMessages.Remove(message);
-            await db.SaveChangesAsync();
-        }
-
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
             if (ServiceBackbone.IsOnline == false) return;
@@ -152,7 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true, includeProperties: "Messages");
+                    timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
                 }
                 if (timerGroups == null || timerGroups.Count != 0 == false) return;
                 await RunGroups(timerGroups);
@@ -171,17 +155,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task RunGroup(TimerGroup group)
+        public async Task RunGroup(TimerGroup group, bool overrideCheck = false)
         {
-            if (CheckEnoughMessagesAndUpdate(group) == false) return;
+            if (CheckEnoughMessagesAndUpdate(group) == false && !overrideCheck) return;
             try
             {
-                if (group.Messages.Where(x => x.Enabled == true).Any())
-                {
-                    var message = group.Messages.Where(x => x.Enabled == true).ToList().RandomElementOrDefault(_logger);
-                    await SendMessage(message);
-                }
-
                 if (group.Id.HasValue)
                 {
                     var actions = await GetActionsForTimerGroup(group.Id.Value);
@@ -233,7 +211,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var id = group.Id;
             if (id == null)
             {
-                return true;
+                return false;
             }
             if (MessageCounters.TryGetValue((int)id, out var messageCounter))
             {
@@ -244,30 +222,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             }
             MessageCounters[(int)id] = MessageCounter;
             return true;
-        }
-
-        private async Task SendMessage(TimerMessage message)
-        {
-
-            if (message.Message.StartsWith("command:"))
-            {
-                var commandText = message.Message.Split(":");
-                var commandArgs = new CommandEventArgs
-                {
-                    Command = commandText[1],
-                    Name = ServiceBackbone.BroadcasterName,
-                    DisplayName = ServiceBackbone.BroadcasterName,
-                    IsMod = true,
-                    IsBroadcaster = true,
-                    IsSub = true,
-                    SkipLock = true
-                };
-                await ServiceBackbone.RunCommand(commandArgs);
-            }
-            else
-            {
-                await SendChatMessage(message.Message);
-            }
         }
 
         public async Task<List<ActionType>> GetActionsForTimerGroup(int timerGroupId)

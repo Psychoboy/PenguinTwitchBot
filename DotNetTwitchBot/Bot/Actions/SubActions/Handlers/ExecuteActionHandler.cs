@@ -35,28 +35,20 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (context != null)
             {
-                // Use the SubAction entry already created by SubActionHandlerFactory
-                // Don't create a nested context - that would create a duplicate ExecuteAction entry
-                try
-                {
-                    int currentIndex = contextAccessor.CurrentSubActionIndex;
-                    context.LogMessage(currentIndex, $"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
 
-                    // Pass parent context info so the child action can be linked
-                    // Use the CurrentSubActionIndex from the accessor which was set by SubActionHandlerFactory
-                    await action.EnqueueAction(
-                        new ConcurrentDictionary<string, string>(variables), 
-                        actionItem,
-                        parentLogId: context.ActionLogId,
-                        parentSubActionIndex: currentIndex);
+                int currentIndex = contextAccessor.CurrentSubActionIndex;
+                context.LogMessage(currentIndex, $"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
 
-                    context.LogMessage(currentIndex, $"Action enqueued successfully. Child action will be linked when it starts.");
-                }
-                catch (Exception ex)
-                {
-                    // Let the exception propagate - SubActionHandlerFactory will catch and mark as failed
-                    throw;
-                }
+                // Pass parent context info so the child action can be linked
+                // Use the CurrentSubActionIndex from the accessor which was set by SubActionHandlerFactory
+                await action.EnqueueAction(
+                    new ConcurrentDictionary<string, string>(variables), 
+                    actionItem,
+                    parentLogId: context.ActionLogId,
+                    parentSubActionIndex: currentIndex);
+
+                context.LogMessage(currentIndex, $"Action enqueued successfully. Child action will be linked when it starts.");
+
             }
             else
             {

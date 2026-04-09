@@ -28,7 +28,6 @@
         ICountersRepository Counters { get; }
         IQuotesRepository Quotes { get; }
         IAutoShoutoutsRepository AutoShoutouts { get; }
-        ITimerMessagesRepository TimerMessages { get; }
         IWordFiltersRepository WordFilters { get; }
         IKnownBotsRepository KnownBots { get; }
         IPlaylistsRepository Playlists { get; }

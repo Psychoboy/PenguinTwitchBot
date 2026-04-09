@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class TimerGroupSetEnabledStateHandler(
-        ILogger<TimerGroupSetEnabledStateHandler> logger, 
         AutoTimers timerService,
         ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
     {

@@ -580,8 +580,6 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
                 "disablechannelpoint" => _dispatcher.Send(new DisableChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
                 "pausechannelpoint" => _dispatcher.Send(new PauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
                 "unpausechannelpoint" => _dispatcher.Send(new UnpauseChannelPointTag { CommandEventArgs = eventArgs, Args = args }),
-                "enabletimergroup" => _dispatcher.Send(new EnableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
-                "disabletimergroup" => _dispatcher.Send(new DisableTimerGroupTag { CommandEventArgs = eventArgs, Args = args }),
                 "enablecommand" => _dispatcher.Send(new EnableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
                 "disablecommand" => _dispatcher.Send(new DisableCommandTag { CommandEventArgs = eventArgs, Args = args, CustomCommand = this }),
                 "giftpoints" => _dispatcher.Send(new GiftPointsTag { CommandEventArgs = eventArgs, Args = args }),
