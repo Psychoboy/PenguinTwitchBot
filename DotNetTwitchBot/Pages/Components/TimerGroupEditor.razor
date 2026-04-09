@@ -1,0 +1,150 @@
+@*
+    TimerGroupEditor - A reusable component for editing timer group details
+
+    Usage:
+    <TimerGroupEditor TimerGroup="_timerGroup" 
+                      OnSave="HandleSave" 
+                      OnCancel="HandleCancel"
+                      OnDelete="HandleDelete"
+                      IsNewTimerGroup="true" />
+
+    Parameters:
+    - TimerGroup: The timer group to edit
+    - OnSave: Event callback when save is clicked
+    - OnCancel: Event callback when cancel is clicked  
+    - OnDelete: Event callback when delete is clicked (optional, only shown for existing timer groups)
+    - IsNewTimerGroup: Whether this is a new timer group being created
+    - ShowActions: Whether to show Save/Delete/Cancel buttons (default: true)
+*@
+@using DotNetTwitchBot.Bot.Models.Timers
+
+<MudPaper Class="pa-4" Elevation="0" Outlined="true">
+    @if (ShowActions)
+    {
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6">
+                @(IsNewTimerGroup ? "New Timer Group" : $"Edit Timer Group: {TimerGroup?.Name}")
+            </MudText>
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           OnClick="SaveTimerGroup" StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@(!CanSave())">
+                    Save
+                </MudButton>
+                @if (!IsNewTimerGroup && OnDelete.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                               OnClick="DeleteTimerGroup" StartIcon="@Icons.Material.Filled.Delete">
+                        Delete
+                    </MudButton>
+                }
+                @if (OnCancel.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
+                        Cancel
+                    </MudButton>
+                }
+            </MudStack>
+        </MudStack>
+        <MudDivider Class="mb-3" />
+    }
+
+    @if (TimerGroup != null)
+    {
+        <MudGrid>
+            <!-- Basic Information -->
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Basic Information</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="TimerGroup.Name" Label="Name" 
+                              Required="true" Variant="Variant.Outlined" 
+                              HelperText="A unique name for this timer group" />
+            </MudItem>
+
+            <!-- Timing Settings -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Timing Settings</b></MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="TimerGroup.IntervalMinimum" Label="Minimum Interval (minutes)" 
+                                 Variant="Variant.Outlined" Min="1"
+                                 HelperText="Minimum time between timer executions" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="TimerGroup.IntervalMaximum" Label="Maximum Interval (minutes)" 
+                                 Variant="Variant.Outlined" Min="1"
+                                 HelperText="Maximum time between timer executions" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="TimerGroup.MinimumMessages" Label="Minimum Messages" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="Minimum chat messages required since last execution" />
+            </MudItem>
+
+            <!-- Status Information (Read-only for existing timers) -->
+            @if (!IsNewTimerGroup)
+            {
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@TimerGroup.LastRun.ToString("g")" Label="Last Run" 
+                                  Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@TimerGroup.NextRun.ToString("g")" Label="Next Run" 
+                                  Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+            }
+
+            <!-- Settings -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Settings</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="TimerGroup.Active" Label="Active" Color="Color.Success" />
+                        <MudSwitch @bind-Value="TimerGroup.Repeat" Label="Repeat" Color="Color.Primary" 
+                                   HelperText="If disabled, timer will run once and then deactivate" />
+                        <MudSwitch @bind-Value="TimerGroup.Shuffle" Label="Shuffle" Color="Color.Info" 
+                                   HelperText="Randomly select from associated actions" />
+                    </MudStack>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public TimerGroup? TimerGroup { get; set; }
+    [Parameter] public EventCallback<TimerGroup> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<TimerGroup> OnDelete { get; set; }
+    [Parameter] public bool IsNewTimerGroup { get; set; } = false;
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    private bool CanSave()
+    {
+        if (TimerGroup == null || string.IsNullOrWhiteSpace(TimerGroup.Name)) return false;
+        if (TimerGroup.IntervalMaximum < TimerGroup.IntervalMinimum) return false;
+        return true;
+    }
+
+    private async Task SaveTimerGroup()
+    {
+        if (TimerGroup == null || !CanSave()) return;
+        await OnSave.InvokeAsync(TimerGroup);
+    }
+
+    private async Task DeleteTimerGroup()
+    {
+        if (TimerGroup == null) return;
+        await OnDelete.InvokeAsync(TimerGroup);
+    }
+
+    private async Task CancelEdit()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

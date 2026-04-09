@@ -1,0 +1,570 @@
+@page "/actions/timers"
+@using DotNetTwitchBot.Bot.Models.Timers
+@using DotNetTwitchBot.Bot.Commands.Misc
+@using DotNetTwitchBot.Bot.Actions
+@using DotNetTwitchBot.Bot.Models.Actions
+@using DotNetTwitchBot.Bot.Models.Actions.Triggers
+@using DotNetTwitchBot.Pages.Components
+@implements IDisposable
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject AutoTimers TimerService
+@inject IActionManagementService ActionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>SPTV Twitch Bot - Timer Groups</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Timer Groups</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Manage timer groups and their associated actions.</MudText>
+
+    <MudGrid>
+        <!-- Left Panel - Timer Groups List -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Timer Groups (@_timerGroups.Count)</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                                       OnClick="CreateNewTimerGroup" />
+                    </MudStack>
+
+                    <MudTextField @bind-Value="_searchString" Placeholder="Search timer groups" 
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                  IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
+                                  OnDebounceIntervalElapsed="@((_) => FilterTimerGroups())" />
+
+                    <MudDivider />
+
+                    @if (_filteredTimerGroups.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                            No timer groups found
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudList T="TimerGroup" @bind-SelectedValue="_selectedTimerGroup" Dense="true">
+                            @foreach (var timerGroup in _filteredTimerGroups)
+                            {
+                                <MudListItem T="TimerGroup" Value="@timerGroup" OnClick="@(() => OnTimerGroupSelected(timerGroup))">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1">@timerGroup.Name</MudText>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudChip T="string" Size="Size.Small" Color="@(timerGroup.Active ? Color.Success : Color.Error)">
+                                                @(timerGroup.Active ? "Active" : "Inactive")
+                                            </MudChip>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                @timerGroup.IntervalMinimum-@timerGroup.IntervalMaximum min
+                                            </MudChip>
+                                            @if (!timerGroup.Repeat)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Once</MudChip>
+                                            }
+                                        </MudStack>
+                                        @if (!_isNewTimerGroup)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Next: @timerGroup.NextRun.ToString("g")
+                                            </MudText>
+                                        }
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Right Panel - Timer Group Details -->
+        <MudItem xs="12" md="8">
+            @if (_isLoading)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading timer groups...</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else if (_selectedTimerGroup == null)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Select a timer group to view details</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Or create a new timer group to get started</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <MudStack Spacing="3">
+                        <!-- Actions associated with this timer -->
+                        @if (!_isNewTimerGroup && _selectedTimerGroup?.Id.HasValue == true)
+                        {
+                            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h6">
+                                            <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Class="mr-2" />
+                                            Actions in This Timer Group
+                                        </MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="AddActionToTimerGroup" />
+                                    </MudStack>
+
+                                    @if (_associatedActions == null)
+                                    {
+                                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                                    }
+                                    else if (_associatedActions.Count == 0)
+                                    {
+                                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                                            This timer group does not have any actions yet. 
+                                            Add actions to execute when the timer fires.
+                                        </MudAlert>
+                                    }
+                                    else
+                                    {
+                                        <MudList T="ActionType" Dense="true">
+                                            @foreach (var action in _associatedActions)
+                                            {
+                                                <MudListItem T="ActionType">
+                                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                        <MudStack Spacing="0">
+                                                            <MudLink Href="@($"/actions/manage?actionId={action.Id}")">
+                                                                <MudText Typo="Typo.body1">@action.Name</MudText>
+                                                            </MudLink>
+                                                            @if (!string.IsNullOrEmpty(action.Group))
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Group: @action.Group</MudText>
+                                                            }
+                                                        </MudStack>
+                                                        <MudStack Row="true" Spacing="1">
+                                                            <MudChip T="string" Size="Size.Small" Color="@(action.Enabled ? Color.Success : Color.Error)">
+                                                                @(action.Enabled ? "Enabled" : "Disabled")
+                                                            </MudChip>
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                                @action.SubActions.Count SubActions
+                                                            </MudChip>
+                                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                                           OnClick="@(() => RemoveActionFromTimerGroup(action))" />
+                                                        </MudStack>
+                                                    </MudStack>
+                                                </MudListItem>
+                                                <MudDivider />
+                                            }
+                                        </MudList>
+                                    }
+
+                                    @if (!_isNewTimerGroup)
+                                    {
+                                        <MudDivider />
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                                   OnClick="RunTimerGroupNow" StartIcon="@Icons.Material.Filled.PlayArrow">
+                                            Run Timer Group Now
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudDivider />
+                        }
+
+                        <TimerGroupEditor TimerGroup="_selectedTimerGroup"
+                                          OnSave="SaveTimerGroup"
+                                          OnCancel="CancelEdit"
+                                          OnDelete="DeleteTimerGroup"
+                                          IsNewTimerGroup="_isNewTimerGroup"
+                                          ShowActions="true" />
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "timerGroupId")]
+    public int? TimerGroupIdFromQuery { get; set; }
+
+    private List<TimerGroup> _timerGroups = new();
+    private List<TimerGroup> _filteredTimerGroups = new();
+    private TimerGroup? _selectedTimerGroup;
+    private bool _isNewTimerGroup = false;
+    private bool _isLoading = true;
+    private bool _isNavigating = false;
+    private string _searchString = "";
+    private List<ActionType>? _associatedActions = null;
+    private string? _originalTimerGroupName = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to location changes for browser back/forward button support
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await LoadTimerGroups();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Skip if we're already handling a navigation
+        if (_isNavigating) return;
+
+        // Parse the new URL to get the timerGroupId parameter
+        var uri = new Uri(e.Location);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var timerGroupIdStr = query["timerGroupId"];
+
+        if (int.TryParse(timerGroupIdStr, out var timerGroupId))
+        {
+            // Select the timer group from the URL
+            var timerGroupToSelect = _timerGroups.FirstOrDefault(tg => tg.Id == timerGroupId);
+            if (timerGroupToSelect != null && timerGroupToSelect.Id != _selectedTimerGroup?.Id)
+            {
+                _isNavigating = true;
+                _selectedTimerGroup = timerGroupToSelect;
+                _originalTimerGroupName = _selectedTimerGroup.Name;
+                _isNewTimerGroup = false;
+                _isNavigating = false;
+
+                // Load associated actions
+                _ = LoadAssociatedActionsAsync();
+
+                InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            // No timerGroupId in URL, clear selection only if not creating a new timer group
+            if (_selectedTimerGroup != null && !_isNewTimerGroup)
+            {
+                _isNavigating = true;
+                _selectedTimerGroup = null;
+                _isNewTimerGroup = false;
+                _associatedActions = null;
+                _originalTimerGroupName = null;
+                _isNavigating = false;
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private async Task LoadTimerGroups()
+    {
+        _isLoading = true;
+        try
+        {
+            _timerGroups = await TimerService.GetTimerGroupsAsync();
+            FilterTimerGroups();
+
+            // If timerGroupId is provided in query string, select that timer group
+            if (TimerGroupIdFromQuery.HasValue)
+            {
+                var timerGroupToSelect = _timerGroups.FirstOrDefault(tg => tg.Id == TimerGroupIdFromQuery.Value);
+                if (timerGroupToSelect != null)
+                {
+                    OnTimerGroupSelected(timerGroupToSelect);
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void FilterTimerGroups()
+    {
+        _filteredTimerGroups = _timerGroups.Where(tg =>
+        {
+            bool matchesSearch = string.IsNullOrWhiteSpace(_searchString) || 
+                                 tg.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+            return matchesSearch;
+        }).OrderBy(tg => tg.Name).ToList();
+    }
+
+    private void OnTimerGroupSelected(TimerGroup? timerGroup)
+    {
+        if (timerGroup == null) return;
+        _selectedTimerGroup = timerGroup;
+        _originalTimerGroupName = timerGroup.Name;
+        _isNewTimerGroup = false;
+
+        // Load associated actions for this timer group
+        _ = LoadAssociatedActionsAsync();
+
+        // Update URL with timerGroupId for browser history support (only if not already navigating via back/forward)
+        if (timerGroup.Id.HasValue && !_isNavigating)
+        {
+            NavigationManager.NavigateTo($"/actions/timers?timerGroupId={timerGroup.Id.Value}", false);
+        }
+    }
+
+    private async Task LoadAssociatedActionsAsync()
+    {
+        if (_selectedTimerGroup?.Id == null)
+        {
+            _associatedActions = new List<ActionType>();
+            return;
+        }
+
+        // Capture the timer group ID to detect if selection changes during async operations
+        var timerGroupId = _selectedTimerGroup.Id.Value;
+
+        try
+        {
+            _associatedActions = null; // Set to null to show loading indicator
+            StateHasChanged();
+
+            // Check if timer group selection changed
+            if (_selectedTimerGroup?.Id != timerGroupId)
+                return;
+
+            // Get all actions for this timer group
+            var actions = await TimerService.GetActionsForTimerGroup(timerGroupId);
+
+            // Check if timer group selection changed after await
+            if (_selectedTimerGroup?.Id != timerGroupId)
+                return;
+
+            _associatedActions = actions.OrderBy(a => a.Name).ToList();
+
+            // Final check before updating UI
+            if (_selectedTimerGroup?.Id == timerGroupId)
+            {
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Only show error if we're still on the same timer group
+            if (_selectedTimerGroup?.Id == timerGroupId)
+            {
+                Snackbar.Add($"Error loading associated actions: {ex.Message}", Severity.Error);
+                _associatedActions = new List<ActionType>();
+            }
+        }
+    }
+
+    private void CreateNewTimerGroup()
+    {
+        _selectedTimerGroup = new TimerGroup
+        {
+            Name = "",
+            Active = true,
+            Repeat = true,
+            IntervalMinimum = 5,
+            IntervalMaximum = 15,
+            MinimumMessages = 15,
+            Shuffle = true,
+            LastRun = DateTime.Now,
+            NextRun = DateTime.Now.AddMinutes(5)
+        };
+        _isNewTimerGroup = true;
+        _associatedActions = null;
+        _originalTimerGroupName = null;
+
+        // Clear URL parameter when creating a new timer group
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/timers", false);
+        _isNavigating = false;
+    }
+
+    private async Task SaveTimerGroup(TimerGroup timerGroup)
+    {
+        if (timerGroup == null || string.IsNullOrWhiteSpace(timerGroup.Name)) 
+        {
+            Snackbar.Add("Timer group name is required", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            if (_isNewTimerGroup)
+            {
+                // Check if timer group already exists
+                var existingGroup = _timerGroups.FirstOrDefault(tg => 
+                    tg.Name.Equals(timerGroup.Name, StringComparison.OrdinalIgnoreCase));
+                
+                if (existingGroup != null)
+                {
+                    bool? result = await DialogService.ShowMessageBoxAsync(
+                        "Warning",
+                        "A timer group with this name already exists. Continue?",
+                        yesText: "Yes", cancelText: "Cancel");
+
+                    if (result != true) return;
+                }
+
+                await TimerService.AddTimerGroup(timerGroup);
+                _isNewTimerGroup = false;
+                Snackbar.Add($"Timer group '{timerGroup.Name}' created successfully", Severity.Success);
+            }
+            else
+            {
+                // Check if name changed
+                if (_originalTimerGroupName != null && !_originalTimerGroupName.Equals(timerGroup.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    await TimerService.UpdateTimerGroup(timerGroup, _originalTimerGroupName, timerGroup.Name);
+                }
+                
+                await TimerService.UpdateTimerGroup(timerGroup);
+                Snackbar.Add($"Timer group '{timerGroup.Name}' updated successfully", Severity.Success);
+            }
+
+            await LoadTimerGroups();
+
+            // Clear selection and URL after save
+            _selectedTimerGroup = null;
+            _associatedActions = null;
+            _originalTimerGroupName = null;
+            NavigationManager.NavigateTo("/actions/timers", false);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving timer group: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteTimerGroup(TimerGroup timerGroup)
+    {
+        if (timerGroup == null || !timerGroup.Id.HasValue) return;
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Timer Group",
+            $"Are you sure you want to delete the timer group '{timerGroup.Name}'? This will also remove all associated timer triggers. This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await TimerService.DeleteTimerGroup(timerGroup);
+                Snackbar.Add($"Timer group '{timerGroup.Name}' deleted successfully", Severity.Success);
+                _selectedTimerGroup = null;
+                _associatedActions = null;
+                _originalTimerGroupName = null;
+                await LoadTimerGroups();
+
+                // Clear URL after delete
+                NavigationManager.NavigateTo("/actions/timers", false);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting timer group: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _selectedTimerGroup = null;
+        _isNewTimerGroup = false;
+        _associatedActions = null;
+        _originalTimerGroupName = null;
+
+        // Clear URL when canceling
+        NavigationManager.NavigateTo("/actions/timers", false);
+    }
+
+    private async Task AddActionToTimerGroup()
+    {
+        if (_selectedTimerGroup?.Id == null) return;
+
+        var allActions = await ActionService.GetAllActionsAsync();
+        var currentActionIds = _associatedActions?.Select(a => a.Id).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet() 
+            ?? new HashSet<int>();
+        var availableActions = allActions.Where(a => a.Id.HasValue && !currentActionIds.Contains(a.Id.Value)).ToList();
+
+        if (availableActions.Count == 0)
+        {
+            Snackbar.Add("No available actions to add. All actions are already associated with this timer group.", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["Actions"] = availableActions
+        };
+
+        var dialog = await DialogService.ShowAsync<ActionSelectionDialog>("Select Action", parameters);
+        var dialogResult = await dialog.Result;
+
+        if (!dialogResult.Canceled && dialogResult.Data is ActionType selectedAction && selectedAction.Id.HasValue)
+        {
+            try
+            {
+                await TimerService.AddActionToTimerGroup(_selectedTimerGroup.Id.Value, selectedAction.Id.Value);
+                Snackbar.Add($"Action '{selectedAction.Name}' added to timer group", Severity.Success);
+                await LoadAssociatedActionsAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error adding action: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RemoveActionFromTimerGroup(ActionType action)
+    {
+        if (_selectedTimerGroup?.Id == null || action?.Id == null) return;
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Remove Action",
+            $"Remove action '{action.Name}' from this timer group?",
+            yesText: "Remove",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await TimerService.RemoveActionFromTimerGroup(_selectedTimerGroup.Id.Value, action.Id.Value);
+                Snackbar.Add($"Action '{action.Name}' removed from timer group", Severity.Success);
+                await LoadAssociatedActionsAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error removing action: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RunTimerGroupNow()
+    {
+        if (_selectedTimerGroup == null) return;
+
+        try
+        {
+            await TimerService.RunGroup(_selectedTimerGroup, overrideCheck: true);
+            Snackbar.Add($"Timer group '{_selectedTimerGroup.Name}' executed", Severity.Success);
+            await LoadTimerGroups();
+            
+            // Refresh the selected timer to show updated LastRun/NextRun
+            if (_selectedTimerGroup.Id.HasValue)
+            {
+                var updated = await TimerService.GetTimerGroupAsync(_selectedTimerGroup.Id.Value);
+                if (updated != null)
+                {
+                    _selectedTimerGroup = updated;
+                    _originalTimerGroupName = updated.Name;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error running timer group: {ex.Message}", Severity.Error);
+        }
+    }
+}
