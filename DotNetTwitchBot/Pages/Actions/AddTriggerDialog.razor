@@ -86,7 +86,7 @@
                                      ToStringFunc="@(t => t?.Name ?? string.Empty)"
                                      MaxItems="null"
                                      ResetValueOnEmptyText="true"
-                                     CoerceValue="true" />
+                                     CoerceValue="false" />
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Timer Trigger" ReadOnly="true" />
