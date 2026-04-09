@@ -1,13 +1,11 @@
 ﻿using DotNetTwitchBot.Bot.Commands.Alias;
 using DotNetTwitchBot.Bot.Commands.AudioCommand;
-using DotNetTwitchBot.Bot.Commands.Custom;
 
 namespace DotNetTwitchBot.Bot.Commands
 {
     public class CommandHelper(
         IAlias alias,
         AudioCommands audioCommands,
-        CustomCommand customCommand,
         ICommandHandler commandHandler) : ICommandHelper
     {
         public async Task<bool> CommandExists(string command)
