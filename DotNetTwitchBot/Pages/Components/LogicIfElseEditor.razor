@@ -47,6 +47,12 @@
                                             </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
+                                            @if (subAction is LogicIfElseType)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
+                                                               OnClick="@(() => EditNestedLogicIfElseTrue(index))" 
+                                                               aria-label="Edit True/False branches" />
+                                            }
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
                                                            OnClick="@(() => EditTrueSubAction(index))" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
@@ -101,6 +107,12 @@
                                             </MudStack>
                                         </MudStack>
                                         <MudStack Row="true" Spacing="1">
+                                            @if (subAction is LogicIfElseType)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Info" 
+                                                               OnClick="@(() => EditNestedLogicIfElseFalse(index))" 
+                                                               aria-label="Edit True/False branches" />
+                                            }
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" 
                                                            OnClick="@(() => EditFalseSubAction(index))" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
@@ -170,6 +182,29 @@
             StateHasChanged();
             Snackbar.Add($"{GetSubActionTypeName(updatedSubAction)} updated", Severity.Success);
         }
+    }
+
+    private async Task EditNestedLogicIfElseTrue(int index)
+    {
+        if (IfElseType.TrueSubActions[index] is not LogicIfElseType nestedIfElse)
+        {
+            Snackbar.Add("This subaction is not a Logic If/Else type", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<LogicIfElseEditor>
+        {
+            { x => x.IfElseType, nestedIfElse }
+        };
+
+        var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Large, 
+            FullWidth = true 
+        });
+
+        await dialog.Result;
+        StateHasChanged();
     }
 
     private void DeleteTrueSubAction(int index)
@@ -259,6 +294,29 @@
         }
         StateHasChanged();
         Snackbar.Add("SubAction removed from False branch", Severity.Success);
+    }
+
+    private async Task EditNestedLogicIfElseFalse(int index)
+    {
+        if (IfElseType.FalseSubActions[index] is not LogicIfElseType nestedIfElse)
+        {
+            Snackbar.Add("This subaction is not a Logic If/Else type", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<LogicIfElseEditor>
+        {
+            { x => x.IfElseType, nestedIfElse }
+        };
+
+        var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Large, 
+            FullWidth = true 
+        });
+
+        await dialog.Result;
+        StateHasChanged();
     }
 
     private void MoveFalseUp(int index)
