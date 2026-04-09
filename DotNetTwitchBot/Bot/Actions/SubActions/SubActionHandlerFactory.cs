@@ -52,6 +52,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                     await handler.ExecuteAsync(subAction, variables);
                     context?.CompleteSubAction(subActionIndex);
                 }
+                catch (BreakException)
+                {
+                    context?.LogMessage(subActionIndex, "Break caught, stopping further execution of this action.");
+                    context?.CompleteSubAction(subActionIndex);
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     context?.FailSubAction(subActionIndex, ex.Message);
