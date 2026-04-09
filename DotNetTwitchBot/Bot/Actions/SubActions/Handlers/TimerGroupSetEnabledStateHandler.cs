@@ -25,7 +25,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 throw new SubActionHandlerException(subAction, "No timer group found with id {TimerGroupId} for TimerGroupSetEnabledStateHandler", timerGroupSetEnabled.TimerGroupId.Value);
             }
-            timerGroup = await timerService.UpdateNextRun(timerGroup);
+            if (timerGroupSetEnabled.IsEnabled)
+            {
+                timerGroup = await timerService.UpdateNextRun(timerGroup);
+            }
             timerGroupSetEnabled.TimerGroupName = timerGroup.Name;
             timerGroup.Active = timerGroupSetEnabled.IsEnabled;
             await timerService.UpdateTimerGroup(timerGroup);
