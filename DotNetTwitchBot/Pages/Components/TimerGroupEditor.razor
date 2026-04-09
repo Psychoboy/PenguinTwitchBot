@@ -68,12 +68,12 @@
                 <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Timing Settings</b></MudText>
             </MudItem>
             <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="TimerGroup.IntervalMinimum" Label="Minimum Interval (minutes)" 
+                <MudNumericField @bind-Value="TimerGroup.IntervalMinimumSeconds" Label="Minimum Interval (seconds)" 
                                  Variant="Variant.Outlined" Min="1"
                                  HelperText="Minimum time between timer executions" />
             </MudItem>
             <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="TimerGroup.IntervalMaximum" Label="Maximum Interval (minutes)" 
+                <MudNumericField @bind-Value="TimerGroup.IntervalMaximumSeconds" Label="Maximum Interval (seconds)" 
                                  Variant="Variant.Outlined" Min="1"
                                  HelperText="Maximum time between timer executions" />
             </MudItem>
@@ -127,7 +127,7 @@
     private bool CanSave()
     {
         if (TimerGroup == null || string.IsNullOrWhiteSpace(TimerGroup.Name)) return false;
-        if (TimerGroup.IntervalMaximum < TimerGroup.IntervalMinimum) return false;
+        if (TimerGroup.IntervalMaximumSeconds < TimerGroup.IntervalMinimumSeconds) return false;
         return true;
     }
 

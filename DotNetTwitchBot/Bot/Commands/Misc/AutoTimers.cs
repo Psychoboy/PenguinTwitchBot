@@ -29,7 +29,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _intervalTimer = new Timer(10000);
+            _intervalTimer = new Timer(1000);
             _intervalTimer.Elapsed += ElapseTimer;
 
             serviceBackbone.CommandEvent += CommandMessage;
@@ -191,8 +191,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             try
             {
-                var randomNextMinutes = StaticTools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
-                group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
+                var randomNextSeconds = StaticTools.RandomRange(group.IntervalMinimumSeconds, group.IntervalMaximumSeconds);
+                group.NextRun = DateTime.Now.AddSeconds(randomNextSeconds);
                 group.LastRun = DateTime.Now;
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
