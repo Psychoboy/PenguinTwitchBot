@@ -187,6 +187,19 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(e.Metadata)) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", e.Payload.Event.UserLogin);
                 await eventService.OnViewerBan(e.Payload.Event.UserId, e.Payload.Event.UserLogin, true, null);
+                await twitchEventActionHandler.HandleChannelBanAsync(new BanEventArgs
+                {
+                    UserId = e.Payload.Event.UserId,
+                    Name = e.Payload.Event.UserLogin,
+                    DisplayName = e.Payload.Event.UserName,
+                    UserName = e.Payload.Event.UserName,
+                    UserLogin = e.Payload.Event.UserLogin,
+                    ModeratorUserId = e.Payload.Event.ModeratorUserId,
+                    ModeratorLogin = e.Payload.Event.ModeratorUserLogin,
+                    ModeratorUserName = e.Payload.Event.ModeratorUserName,
+                    IsPermanent = false,
+                    IsUnBan = true
+                });
             }
             catch (Exception ex)
             {
@@ -207,6 +220,22 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("{UserLogin} banned by {Moderator}", e.Payload.Event.UserLogin, e.Payload.Event.ModeratorUserLogin);
                 
                 await eventService.OnViewerBan(e.Payload.Event.UserId, e.Payload.Event.UserLogin, false, e.Payload.Event.EndsAt);
+                await twitchEventActionHandler.HandleChannelBanAsync(new BanEventArgs
+                {
+                    UserId = e.Payload.Event.UserId,
+                    Name = e.Payload.Event.UserLogin,
+                    DisplayName = e.Payload.Event.UserName,
+                    UserName = e.Payload.Event.UserName,
+                    UserLogin = e.Payload.Event.UserLogin,
+                    ModeratorUserId = e.Payload.Event.ModeratorUserId,
+                    ModeratorLogin = e.Payload.Event.ModeratorUserLogin,
+                    ModeratorUserName = e.Payload.Event.ModeratorUserName,
+                    Reason = e.Payload.Event.Reason,
+                    BannedAt = e.Payload.Event.BannedAt,
+                    IsPermanent = e.Payload.Event.IsPermanent,
+                    IsUnBan = false,
+                    BanEndsAt = e.Payload.Event.EndsAt
+                });
             }
             catch (Exception ex)
             {
@@ -264,6 +293,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 logger.LogInformation("Stream is offline");
                 eventService.IsOnline = false;
                 await eventService.OnStreamEnded();
+                await twitchEventActionHandler.HandleStreamOfflineAsync();
             }
             catch (Exception ex)
             {
@@ -430,31 +460,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error in websocket message");
-            }
-        }
-
-        private bool CheckIfExistsAndAddSubCache(string name)
-        {
-            try
-            {
-                _subscriptionLock.Wait();
-
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    logger.LogWarning("Subscriber name was null or white space");
-                    return false;
-                }
-                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
-                {
-                    logger.LogWarning("{name} Subscriber already in sub cache", name);
-                    return true;
-                }
-                SubCache[name] = DateTime.Now;
-                return false;
-            }
-            finally
-            {
-                _subscriptionLock.Release();
             }
         }
 
