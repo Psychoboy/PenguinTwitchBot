@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Globalization;
+
 namespace DotNetTwitchBot.Bot.Actions.Triggers
 {
     /// <summary>
@@ -172,7 +175,7 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         }
     }
 
-    public class TwitchEventInfo
+    public class TwitchEventInfo : IEquatable<TwitchEventInfo>
     {
         public string Name { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
@@ -180,5 +183,27 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         public bool SupportsFiltering { get; set; }
         public List<string> FilterOptions { get; set; } = new();
         public List<string> AvailableVariables { get; set; } = new();
+
+        public bool Equals(TwitchEventInfo? other)
+        {
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Name == other.Name;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as TwitchEventInfo);
+        }
+
+        public override int GetHashCode()
+        {
+            return Name.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return DisplayName;
+        }
     }
 }
