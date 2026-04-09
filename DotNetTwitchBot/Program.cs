@@ -298,10 +298,14 @@ internal class Program
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
+        var wsEventHandler = app.Services.GetRequiredService<DotNetTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
         lifetime.ApplicationStopping.Register(async () =>
         {
             logger?.LogInformation("Application trying to stop.");
-            await websocketMessenger.CloseAllSockets();
+            await Task.WhenAll(
+                websocketMessenger.CloseAllSockets(),
+                wsEventHandler.CloseAllSockets()
+            );
         });
 
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");

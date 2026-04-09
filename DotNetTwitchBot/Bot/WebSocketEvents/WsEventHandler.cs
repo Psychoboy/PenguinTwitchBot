@@ -15,6 +15,7 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
         private bool paused = false;
         private int maxQueueSize = 1000;
         private JsonSerializerOptions serializerOptions;
+        private readonly CancellationTokenSource _shutdownCts = new();
 
         public WsEventHandler(ILogger<WsEventHandler> logger)
         {
@@ -62,10 +63,14 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
                 });
             }
             finally { _semaphoreSlim.Release(); }
-            var pushTask = Task.Run(() => PushMessages(webSocket));
+            var pushTask = Task.Run(() => PushMessages(webSocket, _shutdownCts.Token));
             try
             {
-                await ReceiveMessage(webSocket);
+                await ReceiveMessage(webSocket, _shutdownCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogDebug("Websocket operation cancelled during shutdown.");
             }
             catch (Exception)
             {
@@ -83,27 +88,32 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
             logger.LogInformation("Websocket closed: {id}", id.ToString());
         }
 
-        private async Task PushMessages(WebSocket webSocket)
+        private async Task PushMessages(WebSocket webSocket, CancellationToken cancellationToken)
         {
-
-            while (webSocket.State == WebSocketState.Open)
+            try
             {
-                if (queue.TryTake(out var result, 5000))
+                while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
-                    if (paused == false)
+                    if (queue.TryTake(out var result, 5000, cancellationToken))
                     {
-                        await SendMessageToSockets(result);
-
+                        if (paused == false)
+                        {
+                            await SendMessageToSockets(result);
+                        }
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                logger.LogDebug("PushMessages cancelled for shutdown.");
+            }
         }
 
-        private async Task ReceiveMessage(WebSocket webSocket)
+        private async Task ReceiveMessage(WebSocket webSocket, CancellationToken cancellationToken)
         {
-            while (webSocket.State == WebSocketState.Open)
+            while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                var data = await ReadStringAsync(webSocket, CancellationToken.None);
+                var data = await ReadStringAsync(webSocket, cancellationToken);
                 if (data == null) continue;
                 if (data.Length > 0 && data.Equals("pong"))
                 {
@@ -143,6 +153,10 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
         public async Task CloseAllSockets()
         {
             logger.LogDebug("Closing all sockets");
+
+            // Signal shutdown to all operations
+            _shutdownCts.Cancel();
+
             IEnumerable<SocketConnection> sockets;
 
             try
@@ -151,10 +165,20 @@ namespace DotNetTwitchBot.Bot.WebSocketEvents
                 sockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
             }
             finally { _semaphoreSlim.Release(); }
-            foreach (var socket in sockets)
+
+            var closeTasks = sockets.Select(async socket =>
             {
-                await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
-            }
+                try
+                {
+                    await socket.WebSocket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, String.Empty, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Error closing socket {id}", socket.Id);
+                }
+            });
+
+            await Task.WhenAll(closeTasks);
             logger.LogDebug("Closed all sockets");
         }
 

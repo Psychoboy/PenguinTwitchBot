@@ -24,20 +24,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             var leftValue = ReplaceVariables(ifElseType.LeftValue, variables);
             var rightValue = ReplaceVariables(ifElseType.RightValue, variables);
 
-            logger.LogDebug("Evaluating condition: {LeftValue} {Operator} {RightValue}", 
-                leftValue, ifElseType.Operator, rightValue);
-
             // Evaluate the condition
             var result = EvaluateCondition(leftValue, rightValue, ifElseType.Operator);
 
-            logger.LogInformation("Condition evaluated to: {Result}", result);
 
             // Execute the appropriate subactions
             var subActionsToExecute = result ? ifElseType.TrueSubActions : ifElseType.FalseSubActions;
 
             if (subActionsToExecute.Count == 0)
             {
-                logger.LogDebug("No subactions to execute for {Branch} branch", result ? "True" : "False");
                 return;
             }
 
@@ -49,7 +44,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 }
                 catch (BreakException)
                 {
-                    logger.LogInformation("Break encountered in {Branch} branch, stopping execution", result ? "True" : "False");
+                    var context = contextAccessor.ExecutionContext;
+                    context?.LogMessage(contextAccessor.CurrentSubActionIndex ,$"Break encountered in {result} branch, stopping execution");
                     throw;
                 }
             }
