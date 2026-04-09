@@ -35,7 +35,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<RaidHistoryEntry> RaidHistory { get; set; } = null!;
         public DbSet<AutoShoutout> AutoShoutouts { get; set; } = null!;
         public DbSet<TimerGroup> TimerGroups { get; set; } = null!;
-        public DbSet<TimerMessage> TimerMessages { get; set; } = null!;
         public DbSet<WordFilter> WordFilters { get; set; } = null!;
         public DbSet<SubscriptionHistory> SubscriptionHistories { get; set; } = null!;
         public DbSet<AliasModel> Aliases { get; set; } = null!;
@@ -105,7 +104,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .ToView(nameof(Models.Metrics.SongRequestHistoryWithRank))
             .HasKey(c => c.SongId);
 
-            modelBuilder.Entity<TimerGroup>().Navigation(t => t.Messages).AutoInclude();
             modelBuilder.Entity<MusicPlaylist>().Navigation(t => t.Songs).AutoInclude();
             modelBuilder.Entity<Wheel>().Navigation(t => t.Properties).AutoInclude();
 
@@ -119,12 +117,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 .HasMany(t => t.Songs)
                 .WithOne(t => t.MusicPlaylist)
                 .HasForeignKey(t => t.MusicPlaylistId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<TimerGroup>()
-                .HasMany(t => t.Messages)
-                .WithOne(t => t.TimerGroup)
-                .HasForeignKey(t => t.TimerGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure TPC (Table Per Concrete Type) for SubActions

@@ -18,7 +18,5 @@ namespace DotNetTwitchBot.Bot.Models.Timers
         public bool Shuffle { get; set; } = true;
         public DateTime LastRun { get; set; }
         public DateTime NextRun { get; set; }
-
-        public List<TimerMessage> Messages { get; set; } = new List<TimerMessage>();
     }
 }

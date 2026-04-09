@@ -1633,31 +1633,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("TimerGroups");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("TimerGroupId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TimerGroupId");
-
-                    b.ToTable("TimerMessages");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.TwitchEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -2490,17 +2465,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Navigation("MusicPlaylist");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerMessage", b =>
-                {
-                    b.HasOne("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", "TimerGroup")
-                        .WithMany("Messages")
-                        .HasForeignKey("TimerGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TimerGroup");
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.WheelProperty", b =>
                 {
                     b.HasOne("DotNetTwitchBot.Bot.Models.Wheel.Wheel", "Wheel")
@@ -2529,11 +2493,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Navigation("PointCommands");
 
                     b.Navigation("UserPoints");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Timers.TimerGroup", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.Wheel", b =>

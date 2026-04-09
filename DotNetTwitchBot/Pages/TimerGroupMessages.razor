@@ -11,16 +11,7 @@
 @if (timerGroup != null)
 {
     <MudGrid>
-        <MudItem xs="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudTextField @bind-Value="Message" Label="Add Message" Variant="Variant.Text"></MudTextField>
-                <MudButton OnClick="AddMessage" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
-                    Color="Color.Primary" Class="ml-auto">
-                    Add Message
-                </MudButton>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6">
+        <MudItem xs="4">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6">Edit Timer Group</MudText>
                 <EditForm Model="@timerGroup" OnValidSubmit="OnEdit">
@@ -46,33 +37,7 @@
                 </EditForm>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">Messages</MudText>
-                <MudTable Items="@timerGroup.Messages">
-                    <HeaderContent>
-                        <MudTh>Message</MudTh>
-                        <MudTh>Enabled</MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Message">@context.Message</MudTd>
-                        <MudTd DataLabel="Enabled">@context.Enabled</MudTd>
-                        <MudTd DataLabel="Toggle">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Toggle(context)">Edit
-                            </MudButton>
-                        </MudTd>
-                        <MudTd DataLabel="Delete">
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Delete(context)">
-                                Delete
-                            </MudButton>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12">
+        <MudItem xs="8">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-2">Actions</MudText>
                 <MudStack Spacing="2">
@@ -130,7 +95,6 @@
     [Parameter]
     public int id { get; set; }
 
-    private string? Message;
     private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? timerGroup;
     private DotNetTwitchBot.Bot.Models.Timers.TimerGroup? originalGroup;
     private List<ActionType>? availableActions;
@@ -160,52 +124,8 @@
                 IntervalMaximum = timerGroup.IntervalMaximum,
                 MinimumMessages = timerGroup.MinimumMessages,
                 Active = timerGroup.Active,
-                Repeat = timerGroup.Repeat,
-                Messages = timerGroup.Messages.Select(m => new DotNetTwitchBot.Bot.Models.Timers.TimerMessage
-                {
-                    Id = m.Id,
-                    Message = m.Message,
-                    Enabled = m.Enabled
-                }).ToList()
+                Repeat = timerGroup.Repeat
             };
-        }
-    }
-
-    private async Task Toggle(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
-    {
-        message.Enabled = !message.Enabled;
-        await Timers.UpdateTimerMessage(message);
-        timerGroup = await Timers.GetTimerGroupAsync(id);
-        StateHasChanged();
-    }
-
-    private async Task Delete(DotNetTwitchBot.Bot.Models.Timers.TimerMessage message)
-    {
-        bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
-        if (result != null)
-        {
-            await Timers.DeleteTimerMessage(message);
-            timerGroup = await Timers.GetTimerGroupAsync(id);
-            StateHasChanged();
-        }
-    }
-
-    private async Task AddMessage()
-    {
-        if (timerGroup != null && string.IsNullOrWhiteSpace(Message) == false)
-        {
-            var message = new DotNetTwitchBot.Bot.Models.Timers.TimerMessage
-                {
-                    Message = Message,
-                    Enabled = true
-                };
-            timerGroup.Messages.Add(message);
-            await Timers.UpdateTimerGroup(timerGroup);
-            Message = null;
-            StateHasChanged();
         }
     }
 
@@ -245,6 +165,6 @@
             await Timers.UpdateTimerGroup(timerGroup, originalGroup.Name, timerGroup.Name);
             CopyGroupToOriginal();
         };
-        StateHasChanged();
+        navigationManager.NavigateTo($"/timergroups");
     }
 }
