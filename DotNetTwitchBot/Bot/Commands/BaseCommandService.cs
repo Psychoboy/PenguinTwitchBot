@@ -92,5 +92,10 @@ namespace DotNetTwitchBot.Bot.Commands
             defaultCommand = await RegisterDefaultCommand(defaultCommand);
             CommandHandler.AddCommand(defaultCommand, baseCommandService);
         }
+
+        protected async Task UnregisterDefaultCommand(string command)
+        {
+            await CommandHandler.DeleteDefaultCommand(command);
+        }
     }
 }
