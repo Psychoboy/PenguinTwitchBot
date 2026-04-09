@@ -187,7 +187,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(e.Metadata)) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", e.Payload.Event.UserLogin);
                 await eventService.OnViewerBan(e.Payload.Event.UserId, e.Payload.Event.UserLogin, true, null);
-                await twitchEventActionHandler.HandleChannelBanAsync(new BanEventArgs
+                await twitchEventActionHandler.HandleChannelUnbanAsync(new BanEventArgs
                 {
                     UserId = e.Payload.Event.UserId,
                     Name = e.Payload.Event.UserLogin,
