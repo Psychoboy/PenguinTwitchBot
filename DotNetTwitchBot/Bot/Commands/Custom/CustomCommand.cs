@@ -228,10 +228,10 @@ namespace DotNetTwitchBot.Bot.Commands.Custom
         public override async Task Register()
         {
             var moduleName = "CustomCommands";
-            await RegisterDefaultCommand("addcommand", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("refreshcommands", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("disablecommand", this, moduleName, Rank.Streamer);
-            await RegisterDefaultCommand("enablecommand", this, moduleName, Rank.Streamer);
+            await UnregisterDefaultCommand("addcommand");
+            await UnregisterDefaultCommand("refreshcommands");
+            await UnregisterDefaultCommand("disablecommand");
+            await UnregisterDefaultCommand("enablecommand");
             _logger.LogInformation("Registered commands for {moduleName}", moduleName);
             await LoadCommands();
         }

@@ -137,6 +137,19 @@ namespace DotNetTwitchBot.Bot.Commands
             return newDefaultCommand.Entity;
         }
 
+        public async Task DeleteDefaultCommand(string defaultCommand)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var command = await db.DefaultCommands.Find(x => x.CommandName.Equals(defaultCommand)).FirstOrDefaultAsync();
+            if (command != null)
+            {
+                db.DefaultCommands.Remove(command);
+                await db.SaveChangesAsync();
+                logger.LogInformation("Deleted default command {DefaultCommand}", defaultCommand);
+            }
+        }
+
         public async Task<IEnumerable<ExternalCommands>> GetExternalCommands()
         {
             await using var scope = scopeFactory.CreateAsyncScope();
