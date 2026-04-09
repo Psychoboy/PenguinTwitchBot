@@ -1,10 +1,14 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Misc;
+using DotNetTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class TimerGroupSetEnabledStateHandler(ILogger<TimerGroupSetEnabledStateHandler> logger, AutoTimers timerService) : ISubActionHandler
+    public class TimerGroupSetEnabledStateHandler(
+        ILogger<TimerGroupSetEnabledStateHandler> logger, 
+        AutoTimers timerService,
+        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.TimerGroupSetEnabledState;
 
@@ -32,9 +36,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             timerGroupSetEnabled.TimerGroupName = timerGroup.Name;
             timerGroup.Active = timerGroupSetEnabled.IsEnabled;
             await timerService.UpdateTimerGroup(timerGroup);
-
-            logger.LogInformation("Timer group {TimerGroupName} (ID: {TimerGroupId}) set to {State}",
-                timerGroup.Name, timerGroup.Id, timerGroupSetEnabled.IsEnabled ? "enabled" : "disabled");
+            var context = contextAccessor.ExecutionContext;
+            var state = timerGroupSetEnabled.IsEnabled ? "enabled" : "disabled";
+            context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Timer group {timerGroup.Name} (ID: {timerGroup.Id}) set to {state}");
         }
     }
 }

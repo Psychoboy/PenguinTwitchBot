@@ -53,7 +53,7 @@ namespace DotNetTwitchBot.Bot.Queues
             if (subActionIndex >= 0)
             {
                 _executionLogger.LogSubActionFailed(ActionLogId, subActionIndex, errorMessage);
-                _logger.LogDebug("SubAction failed at index {Index}: {Error}", subActionIndex, errorMessage);
+                _logger.LogWarning("SubAction failed at index {Index}: {Error}", subActionIndex, errorMessage);
             }
         }
 
