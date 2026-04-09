@@ -4,6 +4,7 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Actions
 @using DotNetTwitchBot.Pages.Components
+@implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IActionManagementService ActionService
 @inject IDialogService DialogService
@@ -88,7 +89,16 @@
 
         <!-- Right Panel - Action Details -->
         <MudItem xs="12" md="8">
-            @if (_selectedAction == null)
+            @if (_isLoading)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading actions...</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else if (_selectedAction == null)
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
                     <MudStack AlignItems="AlignItems.Center" Spacing="2">
@@ -194,14 +204,62 @@
     private ActionType? _selectedAction;
     private List<TriggerType> _actionTriggers = new();
     private bool _isNewAction = false;
+    private bool _isLoading = true;
+    private bool _isNavigating = false;
     private string _searchString = "";
     private string _filterGroup = "";
     private const string Ungrouped = "None";
 
     protected override async Task OnInitializedAsync()
     {
+        // Subscribe to location changes for browser back/forward button support
+        NavigationManager.LocationChanged += OnLocationChanged;
         await LoadAvailableQueues();
         await LoadActions();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Skip if we're already handling a navigation
+        if (_isNavigating) return;
+
+        // Parse the new URL to get the actionId parameter
+        var uri = new Uri(e.Location);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var actionIdStr = query["actionId"];
+
+        if (int.TryParse(actionIdStr, out var actionId))
+        {
+            // Select the action from the URL
+            var actionToSelect = _actions.FirstOrDefault(a => a.Id == actionId);
+            if (actionToSelect != null && actionToSelect.Id != _selectedAction?.Id)
+            {
+                _isNavigating = true;
+                _selectedAction = actionToSelect;
+                _isNewAction = false;
+                _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+                _isNavigating = false;
+                InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            // No actionId in URL, clear selection only if not creating a new action
+            if (_selectedAction != null && !_isNewAction)
+            {
+                _isNavigating = true;
+                _selectedAction = null;
+                _isNewAction = false;
+                _actionTriggers = new List<TriggerType>();
+                _isNavigating = false;
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 
     private async Task LoadAvailableQueues()
@@ -223,18 +281,26 @@
 
     private async Task LoadActions()
     {
-        _actions = await ActionService.GetAllActionsAsync();
-        _groups = _actions.Select(a => a.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g).ToList();
-        FilterActions();
-
-        // If actionId is provided in query string, select that action
-        if (ActionIdFromQuery.HasValue)
+        _isLoading = true;
+        try
         {
-            var actionToSelect = _actions.FirstOrDefault(a => a.Id == ActionIdFromQuery.Value);
-            if (actionToSelect != null)
+            _actions = await ActionService.GetAllActionsAsync();
+            _groups = _actions.Select(a => a.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g).ToList();
+            FilterActions();
+
+            // If actionId is provided in query string, select that action
+            if (ActionIdFromQuery.HasValue)
             {
-                await OnActionSelected(actionToSelect);
+                var actionToSelect = _actions.FirstOrDefault(a => a.Id == ActionIdFromQuery.Value);
+                if (actionToSelect != null)
+                {
+                    await OnActionSelected(actionToSelect);
+                }
             }
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
@@ -289,6 +355,13 @@
 
         // Triggers are already loaded by GetAllWithDetailsAsync, no need to query again
         _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+
+        // Update URL with actionId for browser history support (only if not already navigating via back/forward)
+        if (action.Id.HasValue && !_isNavigating)
+        {
+            NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}", false);
+        }
+
         await Task.CompletedTask; // Keep async signature for consistency
     }
 
@@ -317,6 +390,11 @@
         };
         _actionTriggers = new List<TriggerType>();
         _isNewAction = true;
+
+        // Clear URL parameter when creating a new action
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/manage", false);
+        _isNavigating = false;
     }
 
     private async Task SaveAction()
@@ -345,10 +423,11 @@
 
             await LoadActions();
 
-            // Clear selection after successful save
+            // Clear selection and URL after successful save
             _selectedAction = null;
             _actionTriggers = new List<TriggerType>();
             _isNewAction = false;
+            NavigationManager.NavigateTo("/actions/manage", false);
         }
         catch (Exception ex)
         {
@@ -423,6 +502,11 @@
         _actionTriggers = duplicatedTriggers;
         _isNewAction = true;
 
+        // Clear URL when duplicating (creating new action)
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/manage", false);
+        _isNavigating = false;
+
         Snackbar.Add("Action duplicated. Click Save to create the copy.", Severity.Info);
     }
 
@@ -445,6 +529,9 @@
                 _selectedAction = null;
                 _actionTriggers = new List<TriggerType>();
                 await LoadActions();
+
+                // Clear URL after delete
+                NavigationManager.NavigateTo("/actions/manage", false);
             }
             catch (Exception ex)
             {
@@ -458,5 +545,8 @@
         _selectedAction = null;
         _actionTriggers = new List<TriggerType>();
         _isNewAction = false;
+
+        // Clear URL when canceling
+        NavigationManager.NavigateTo("/actions/manage", false);
     }
 }
