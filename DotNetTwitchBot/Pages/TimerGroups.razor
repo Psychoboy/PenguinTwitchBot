@@ -7,7 +7,7 @@
 @code {
     protected override void OnInitialized()
     {
-        // Redirect to new location
-        navigationManager.NavigateTo("/actions/timers", true);
+        // Redirect to new location (client-side navigation, no full page reload)
+        navigationManager.NavigateTo("/actions/timers", false);
     }
 }

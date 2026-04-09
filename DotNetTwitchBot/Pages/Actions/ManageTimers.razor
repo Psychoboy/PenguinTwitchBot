@@ -63,7 +63,7 @@
                                                 <MudChip T="string" Size="Size.Small" Color="Color.Warning">Once</MudChip>
                                             }
                                         </MudStack>
-                                        @if (!_isNewTimerGroup)
+                                        @if (timerGroup.Id.HasValue)
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                 Next: @timerGroup.NextRun.ToString("g")
@@ -115,7 +115,8 @@
                                             Actions in This Timer Group
                                         </MudText>
                                         <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small"
-                                                       OnClick="AddActionToTimerGroup" />
+                                                       OnClick="AddActionToTimerGroup" 
+                                                       Disabled="@(_associatedActions == null)" />
                                     </MudStack>
 
                                     @if (_associatedActions == null)
