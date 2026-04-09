@@ -95,7 +95,6 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
             services.AddHostedApiService<Bot.Commands.Markov.IMarkovChat, Bot.Commands.Markov.MarkovChat>();
-            services.AddHostedApiService<Bot.Commands.ChannelPoints.IChannelPointRedeem, Bot.Commands.ChannelPoints.ChannelPointRedeem>();
             services.AddHostedApiService<DotNetTwitchBot.Bot.Core.IDiscordService, DotNetTwitchBot.Bot.Core.DiscordService>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
