@@ -257,7 +257,7 @@
                                 <MudTd DataLabel="Command Link">
                                     @if (context.EntityId.HasValue)
                                     {
-                                        <MudLink Href="@($"/commands?commandId={context.EntityId}")">View Command</MudLink>
+                                        <MudLink Href="@($"/actions/commands?commandId={context.EntityId}")">View Command</MudLink>
                                     }
                                     else
                                     {

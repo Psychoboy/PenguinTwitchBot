@@ -57,6 +57,13 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTwitchEventFilterSummary(context.Configuration)</MudText>
                             </MudStack>
                         }
+                        else if (context.Type == TriggerTypes.Command && context.CommandId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Command Trigger</MudText>
+                            </MudStack>
+                        }
                         else
                         {
                             @context.Name

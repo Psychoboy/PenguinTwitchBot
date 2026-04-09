@@ -1,12 +1,17 @@
-@page "/actioncommands"
+@page "/actions/commands"
 @using DotNetTwitchBot.Bot.Models.Commands
 @using DotNetTwitchBot.Bot.Models.Points
 @using DotNetTwitchBot.Bot.Commands
 @using DotNetTwitchBot.Pages.Components
+@using DotNetTwitchBot.Bot.Actions
+@using DotNetTwitchBot.Bot.Models.Actions.Triggers
+@implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject DotNetTwitchBot.Bot.Commands.IActionCommandService CommandService
+@inject IActionManagementService ActionService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem
 
 <PageTitle>SPTV Twitch Bot - Action Commands</PageTitle>
@@ -76,7 +81,16 @@
 
         <!-- Right Panel - Command Details -->
         <MudItem xs="12" md="8">
-            @if (_selectedCommand == null)
+            @if (_isLoading)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading commands...</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else if (_selectedCommand == null)
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
                     <MudStack AlignItems="AlignItems.Center" Spacing="2">
@@ -89,12 +103,70 @@
             else
             {
                 <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
-                    <CommandEditor Command="_selectedCommand"
-                                   OnSave="SaveCommand"
-                                   OnCancel="CancelEdit"
-                                   OnDelete="DeleteCommand"
-                                   IsNewCommand="_isNewCommand"
-                                   ShowActions="true" />
+                    <MudStack Spacing="3">
+                        @if (!_isNewCommand && _selectedCommand?.Id.HasValue == true)
+                        {
+                            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.h6">
+                                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Class="mr-2" />
+                                        Actions Triggered by This Command
+                                    </MudText>
+
+                                    @if (_triggeredActions == null)
+                                    {
+                                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                                    }
+                                    else if (_triggeredActions.Count == 0)
+                                    {
+                                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                                            This command does not trigger any actions yet. 
+                                            You can associate actions with this command by adding Command triggers in Action Management.
+                                        </MudAlert>
+                                    }
+                                    else
+                                    {
+                                        <MudList T="ActionType" Dense="true">
+                                            @foreach (var action in _triggeredActions)
+                                            {
+                                                <MudListItem T="ActionType">
+                                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                        <MudStack Spacing="0">
+                                                            <MudLink Href="@($"/actions/manage?actionId={action.Id}")">
+                                                                <MudText Typo="Typo.body1">@action.Name</MudText>
+                                                            </MudLink>
+                                                            @if (!string.IsNullOrEmpty(action.Group))
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Group: @action.Group</MudText>
+                                                            }
+                                                        </MudStack>
+                                                        <MudStack Row="true" Spacing="1">
+                                                            <MudChip T="string" Size="Size.Small" Color="@(action.Enabled ? Color.Success : Color.Error)">
+                                                                @(action.Enabled ? "Enabled" : "Disabled")
+                                                            </MudChip>
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                                @action.SubActions.Count SubActions
+                                                            </MudChip>
+                                                        </MudStack>
+                                                    </MudStack>
+                                                </MudListItem>
+                                                <MudDivider />
+                                            }
+                                        </MudList>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudDivider />
+                        }
+
+                        <CommandEditor Command="_selectedCommand"
+                                       OnSave="SaveCommand"
+                                       OnCancel="CancelEdit"
+                                       OnDelete="DeleteCommand"
+                                       IsNewCommand="_isNewCommand"
+                                       ShowActions="true" />
+                    </MudStack>
                 </MudPaper>
             }
         </MudItem>
@@ -102,24 +174,97 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "commandId")]
+    public int? CommandIdFromQuery { get; set; }
+
     private List<ActionCommand> _commands = new();
     private List<ActionCommand> _filteredCommands = new();
     private List<string> _categories = new();
     private ActionCommand? _selectedCommand;
     private bool _isNewCommand = false;
+    private bool _isLoading = true;
+    private bool _isNavigating = false;
     private string _searchString = "";
     private string _filterCategory = "";
+    private List<ActionType>? _triggeredActions = null;
 
     protected override async Task OnInitializedAsync()
     {
+        // Subscribe to location changes for browser back/forward button support
+        NavigationManager.LocationChanged += OnLocationChanged;
         await LoadCommands();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Skip if we're already handling a navigation
+        if (_isNavigating) return;
+
+        // Parse the new URL to get the commandId parameter
+        var uri = new Uri(e.Location);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var commandIdStr = query["commandId"];
+
+        if (int.TryParse(commandIdStr, out var commandId))
+        {
+            // Select the command from the URL
+            var commandToSelect = _commands.FirstOrDefault(c => c.Id == commandId);
+            if (commandToSelect != null && commandToSelect.Id != _selectedCommand?.Id)
+            {
+                _isNavigating = true;
+                _selectedCommand = commandToSelect;
+                _isNewCommand = false;
+                _isNavigating = false;
+
+                // Load triggered actions
+                _ = LoadTriggeredActionsAsync();
+
+                InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            // No commandId in URL, clear selection only if not creating a new command
+            if (_selectedCommand != null && !_isNewCommand)
+            {
+                _isNavigating = true;
+                _selectedCommand = null;
+                _isNewCommand = false;
+                _triggeredActions = null;
+                _isNavigating = false;
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 
     private async Task LoadCommands()
     {
-        _commands = await CommandService.GetAllAsync();
-        _categories = _commands.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
-        FilterCommands();
+        _isLoading = true;
+        try
+        {
+            _commands = await CommandService.GetAllAsync();
+            _categories = _commands.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+            FilterCommands();
+
+            // If commandId is provided in query string, select that command
+            if (CommandIdFromQuery.HasValue)
+            {
+                var commandToSelect = _commands.FirstOrDefault(c => c.Id == CommandIdFromQuery.Value);
+                if (commandToSelect != null)
+                {
+                    OnCommandSelected(commandToSelect);
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private void FilterCommands()
@@ -146,6 +291,63 @@
         if (command == null) return;
         _selectedCommand = command;
         _isNewCommand = false;
+
+        // Load triggered actions for this command
+        _ = LoadTriggeredActionsAsync();
+
+        // Update URL with commandId for browser history support (only if not already navigating via back/forward)
+        if (command.Id.HasValue && !_isNavigating)
+        {
+            NavigationManager.NavigateTo($"/actions/commands?commandId={command.Id.Value}", false);
+        }
+    }
+
+    private async Task LoadTriggeredActionsAsync()
+    {
+        if (_selectedCommand?.Id == null)
+        {
+            _triggeredActions = new List<ActionType>();
+            return;
+        }
+
+        try
+        {
+            _triggeredActions = null; // Set to null to show loading indicator
+            StateHasChanged();
+
+            // Get all triggers for this command
+            var triggers = await ActionService.GetAllTriggersAsync();
+            var commandTriggers = triggers
+                .Where(t => t.Type == TriggerTypes.Command && t.CommandId == _selectedCommand.Id.Value)
+                .ToList();
+
+            // Get unique action IDs
+            var actionIds = commandTriggers
+                .Where(t => t.ActionId.HasValue)
+                .Select(t => t.ActionId!.Value)
+                .Distinct()
+                .ToList();
+
+            // Load all actions
+            if (actionIds.Any())
+            {
+                var allActions = await ActionService.GetAllActionsAsync();
+                _triggeredActions = allActions
+                    .Where(a => actionIds.Contains(a.Id!.Value))
+                    .OrderBy(a => a.Name)
+                    .ToList();
+            }
+            else
+            {
+                _triggeredActions = new List<ActionType>();
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading triggered actions: {ex.Message}", Severity.Error);
+            _triggeredActions = new List<ActionType>();
+        }
     }
 
     private void CreateNewCommand()
@@ -166,6 +368,12 @@
             SourceOnly = true
         };
         _isNewCommand = true;
+        _triggeredActions = null;
+
+        // Clear URL parameter when creating a new command
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/commands", false);
+        _isNavigating = false;
     }
 
     private async Task SaveCommand(ActionCommand command)
@@ -202,7 +410,11 @@
             }
 
             await LoadCommands();
+
+            // Clear selection and URL after save
             _selectedCommand = null;
+            _triggeredActions = null;
+            NavigationManager.NavigateTo("/actions/commands", false);
         }
         catch (Exception ex)
         {
@@ -227,7 +439,11 @@
                 await CommandService.DeleteAsync(command.Id.Value);
                 Snackbar.Add($"Command '!{command.CommandName}' deleted successfully", Severity.Success);
                 _selectedCommand = null;
+                _triggeredActions = null;
                 await LoadCommands();
+
+                // Clear URL after delete
+                NavigationManager.NavigateTo("/actions/commands", false);
             }
             catch (Exception ex)
             {
@@ -240,5 +456,9 @@
     {
         _selectedCommand = null;
         _isNewCommand = false;
+        _triggeredActions = null;
+
+        // Clear URL when canceling
+        NavigationManager.NavigateTo("/actions/commands", false);
     }
 }
