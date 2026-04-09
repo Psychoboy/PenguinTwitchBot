@@ -17,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ILogger<AutoTimers> _logger;
         private readonly Timer _intervalTimer;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
+        private readonly SemaphoreSlim _timerLock = new(1, 1);
         private int MessageCounter = 0;
 
         public AutoTimers(
@@ -124,8 +125,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
-            if (ServiceBackbone.IsOnline == false) return;
-            await RunTimers();
+            // Prevent re-entrancy: skip this tick if the previous one is still running
+            if (!await _timerLock.WaitAsync(0)) return;
+
+            try
+            {
+                await RunTimers();
+            }
+            finally
+            {
+                _timerLock.Release();
+            }
         }
 
         private async Task RunTimers()
@@ -136,7 +146,18 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
+
+                    // Get timers that are due to run, filtering by online/offline status
+                    if (ServiceBackbone.IsOnline)
+                    {
+                        // Stream is online - run all active timers that are due
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
+                    }
+                    else
+                    {
+                        // Stream is offline - only run timers that allow offline execution
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true && x.OnlineOnly == false);
+                    }
                 }
                 if (timerGroups == null || timerGroups.Count != 0 == false) return;
                 await RunGroups(timerGroups);
@@ -383,12 +404,15 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting {moduledname}", ModuleName);
+            _intervalTimer.Start();
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            _intervalTimer.Stop();
+            _timerLock?.Dispose();
             return Task.CompletedTask;
         }
     }

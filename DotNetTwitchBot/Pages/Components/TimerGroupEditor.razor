@@ -109,6 +109,8 @@
                                    HelperText="If disabled, timer will run once and then deactivate" />
                         <MudSwitch @bind-Value="TimerGroup.Shuffle" Label="Shuffle" Color="Color.Info" 
                                    HelperText="Randomly select from associated actions" />
+                        <MudSwitch @bind-Value="TimerGroup.OnlineOnly" Label="Online Only" Color="Color.Warning" 
+                                   HelperText="If enabled, timer only runs when stream is online" />
                     </MudStack>
                 </MudStack>
             </MudItem>
