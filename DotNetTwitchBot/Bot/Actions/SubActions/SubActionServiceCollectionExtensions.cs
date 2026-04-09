@@ -20,10 +20,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 .Where(t => t.IsClass && !t.IsAbstract && typeof(ISubActionHandler).IsAssignableFrom(t))
                 .ToList();
 
-            // Register each handler as transient
+            // Register each handler as transient by both interface and concrete type
+            // This allows resolving by concrete type when creating new scopes for concurrency safety
             foreach (var handlerType in handlerTypes)
             {
                 services.AddTransient(typeof(ISubActionHandler), handlerType);
+                services.AddTransient(handlerType); // Register by concrete type too
             }
 
             // Register the factory

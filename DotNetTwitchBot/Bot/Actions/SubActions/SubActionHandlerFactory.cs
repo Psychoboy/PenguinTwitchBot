@@ -7,7 +7,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     public class SubActionHandlerFactory(
         IEnumerable<ISubActionHandler> handlers, 
         ILogger<SubActionHandlerFactory> logger,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IServiceScopeFactory serviceScopeFactory)
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
@@ -30,16 +31,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 int subActionIndex = -1;
                 if (context != null)
                 {
-                    logger.LogDebug("Executing SubAction {SubActionType} with context (LogId: {LogId})", 
-                        subActionTypeName, context.ActionLogId);
                     subActionIndex = context.BeginSubAction(subActionTypeName, description);
 
                     // Store the index in the accessor so handlers can access it if needed
                     // This is safe for concurrent execution because each parallel task gets its own ExecutionContext flow
-                    if (contextAccessor != null)
-                    {
-                        contextAccessor.CurrentSubActionIndex = subActionIndex;
-                    }
+                    contextAccessor?.CurrentSubActionIndex = subActionIndex;
                 }
                 else
                 {
@@ -49,7 +45,31 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
 
                 try
                 {
-                    await handler.ExecuteAsync(subAction, variables);
+                    // Always create a new scope to prevent DbContext sharing in concurrent scenarios
+                    // This ensures thread-safety for all scoped services at negligible performance cost
+                    await using var scope = serviceScopeFactory.CreateAsyncScope();
+
+                    // Copy the execution context to the new scope's context accessor
+                    var scopedContextAccessor = scope.ServiceProvider.GetService<ISubActionExecutionContextAccessor>();
+                    if (scopedContextAccessor != null && contextAccessor != null)
+                    {
+                        scopedContextAccessor.ExecutionContext = contextAccessor.ExecutionContext;
+                        scopedContextAccessor.CurrentSubActionIndex = subActionIndex;
+                    }
+
+                    // Resolve handler from new scope, fall back to original if not available and log it as it should not happen
+                    // since all handlers should automatically be registered. This is to ensure that if a handler has any scoped dependencies,
+                    // they are properly isolated in concurrent execution scenarios.
+                    var handlerType = handler.GetType();
+                    if (scope.ServiceProvider.GetService(handlerType) is not ISubActionHandler scopedHandler)
+                    {
+                        logger.LogWarning("Unable to resolve scoped handler of concrete type {HandlerType} for SubActionType {SubActionType}. Falling back to the original handler instance, " +
+                            "which may bypass intended scoped-service concurrency isolation. Ensure the concrete handler type is registered with DI.", 
+                            handlerType.FullName, subAction.SubActionTypes);
+                        scopedHandler = handler;
+                    }
+
+                    await scopedHandler.ExecuteAsync(subAction, variables);
                     context?.CompleteSubAction(subActionIndex);
                 }
                 catch (BreakException)
