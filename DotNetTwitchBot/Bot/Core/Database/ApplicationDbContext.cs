@@ -46,7 +46,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<BannedViewer> BannedViewers { get; set; } = null!;
         public DbSet<RegisteredVoice> RegisteredVoices { get; set; } = null!;
         public DbSet<UserRegisteredVoice> UserRegisteredVoices { get; set; } = null!;
-        public DbSet<ChannelPointRedeem> ChannelPointRedeems { get; set; } = null!;
         public DbSet<DiscordEventMap> DiscordEvents { get; set; }
         public DbSet<IpLogEntry> IpLogEntrys { get; set; }
         public DbSet<Wheel> Wheels { get; set; }

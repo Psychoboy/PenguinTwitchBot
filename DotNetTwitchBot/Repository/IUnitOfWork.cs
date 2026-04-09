@@ -39,7 +39,6 @@
         IFilteredQuotesRepository FilteredQuotes { get; }
         IRegisteredVoiceRepository RegisteredVoices { get; }
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
-        IChannelPointRedeemsRepository ChannelPointRedeems { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
         IIpLogRepository IpLogs { get; }
         IWheelRepository Wheels { get; }
