@@ -31,16 +31,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 int subActionIndex = -1;
                 if (context != null)
                 {
-                    logger.LogDebug("Executing SubAction {SubActionType} with context (LogId: {LogId})", 
-                        subActionTypeName, context.ActionLogId);
                     subActionIndex = context.BeginSubAction(subActionTypeName, description);
 
                     // Store the index in the accessor so handlers can access it if needed
                     // This is safe for concurrent execution because each parallel task gets its own ExecutionContext flow
-                    if (contextAccessor != null)
-                    {
-                        contextAccessor.CurrentSubActionIndex = subActionIndex;
-                    }
+                    contextAccessor?.CurrentSubActionIndex = subActionIndex;
                 }
                 else
                 {
@@ -62,9 +57,17 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                         scopedContextAccessor.CurrentSubActionIndex = subActionIndex;
                     }
 
-                    // Resolve handler from new scope, fall back to original if not available (e.g., in tests)
+                    // Resolve handler from new scope, fall back to original if not available and log it as it should not happen
+                    // since all handlers should automatically be registered. This is to ensure that if a handler has any scoped dependencies,
+                    // they are properly isolated in concurrent execution scenarios.
                     var handlerType = handler.GetType();
-                    var scopedHandler = scope.ServiceProvider.GetService(handlerType) as ISubActionHandler ?? handler;
+                    if (scope.ServiceProvider.GetService(handlerType) is not ISubActionHandler scopedHandler)
+                    {
+                        logger.LogWarning("Unable to resolve scoped handler of concrete type {HandlerType} for SubActionType {SubActionType}. Falling back to the original handler instance, " +
+                            "which may bypass intended scoped-service concurrency isolation. Ensure the concrete handler type is registered with DI.", 
+                            handlerType.FullName, subAction.SubActionTypes);
+                        scopedHandler = handler;
+                    }
 
                     await scopedHandler.ExecuteAsync(subAction, variables);
                     context?.CompleteSubAction(subActionIndex);
