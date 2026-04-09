@@ -310,15 +310,27 @@
             return;
         }
 
+        // Capture the command ID to detect if selection changes during async operations
+        var commandId = _selectedCommand.Id.Value;
+
         try
         {
             _triggeredActions = null; // Set to null to show loading indicator
             StateHasChanged();
 
+            // Check if command selection changed
+            if (_selectedCommand?.Id != commandId)
+                return;
+
             // Get all triggers for this command
             var triggers = await ActionService.GetAllTriggersAsync();
+
+            // Check if command selection changed after await
+            if (_selectedCommand?.Id != commandId)
+                return;
+
             var commandTriggers = triggers
-                .Where(t => t.Type == TriggerTypes.Command && t.CommandId == _selectedCommand.Id.Value)
+                .Where(t => t.Type == TriggerTypes.Command && t.CommandId == commandId)
                 .ToList();
 
             // Get unique action IDs
@@ -332,6 +344,11 @@
             if (actionIds.Any())
             {
                 var allActions = await ActionService.GetAllActionsAsync();
+
+                // Check if command selection changed after await
+                if (_selectedCommand?.Id != commandId)
+                    return;
+
                 _triggeredActions = allActions
                     .Where(a => actionIds.Contains(a.Id!.Value))
                     .OrderBy(a => a.Name)
@@ -341,12 +358,21 @@
             {
                 _triggeredActions = new List<ActionType>();
             }
-            StateHasChanged();
+
+            // Final check before updating UI
+            if (_selectedCommand?.Id == commandId)
+            {
+                StateHasChanged();
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading triggered actions: {ex.Message}", Severity.Error);
-            _triggeredActions = new List<ActionType>();
+            // Only show error if we're still on the same command
+            if (_selectedCommand?.Id == commandId)
+            {
+                Snackbar.Add($"Error loading triggered actions: {ex.Message}", Severity.Error);
+                _triggeredActions = new List<ActionType>();
+            }
         }
     }
 

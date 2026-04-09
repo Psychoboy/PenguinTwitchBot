@@ -220,6 +220,9 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
+        // Skip if we're already handling a navigation
+        if (_isNavigating) return;
+
         // Parse the new URL to get the actionId parameter
         var uri = new Uri(e.Location);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -241,8 +244,8 @@
         }
         else
         {
-            // No actionId in URL, clear selection
-            if (_selectedAction != null)
+            // No actionId in URL, clear selection only if not creating a new action
+            if (_selectedAction != null && !_isNewAction)
             {
                 _isNavigating = true;
                 _selectedAction = null;
@@ -389,7 +392,9 @@
         _isNewAction = true;
 
         // Clear URL parameter when creating a new action
+        _isNavigating = true;
         NavigationManager.NavigateTo("/actions/manage", false);
+        _isNavigating = false;
     }
 
     private async Task SaveAction()
@@ -498,7 +503,9 @@
         _isNewAction = true;
 
         // Clear URL when duplicating (creating new action)
+        _isNavigating = true;
         NavigationManager.NavigateTo("/actions/manage", false);
+        _isNavigating = false;
 
         Snackbar.Add("Action duplicated. Click Save to create the copy.", Severity.Info);
     }
