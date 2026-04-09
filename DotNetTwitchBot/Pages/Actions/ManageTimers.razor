@@ -56,7 +56,7 @@
                                                 @(timerGroup.Active ? "Active" : "Inactive")
                                             </MudChip>
                                             <MudChip T="string" Size="Size.Small" Color="Color.Info">
-                                                @timerGroup.IntervalMinimum-@timerGroup.IntervalMaximum min
+                                                @timerGroup.IntervalMinimumSeconds-@timerGroup.IntervalMaximumSeconds sec
                                             </MudChip>
                                             @if (!timerGroup.Repeat)
                                             {
@@ -364,12 +364,13 @@
             Name = "",
             Active = true,
             Repeat = true,
-            IntervalMinimum = 5,
-            IntervalMaximum = 15,
+            OnlineOnly = true,
+            IntervalMinimumSeconds = 300,
+            IntervalMaximumSeconds = 900,
             MinimumMessages = 15,
             Shuffle = true,
             LastRun = DateTime.Now,
-            NextRun = DateTime.Now.AddMinutes(5)
+            NextRun = DateTime.Now.AddSeconds(300)
         };
         _isNewTimerGroup = true;
         _associatedActions = null;

@@ -17,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ILogger<AutoTimers> _logger;
         private readonly Timer _intervalTimer;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
+        private readonly SemaphoreSlim _timerLock = new(1, 1);
         private int MessageCounter = 0;
 
         public AutoTimers(
@@ -29,18 +30,11 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _intervalTimer = new Timer(10000);
+            _intervalTimer = new Timer(1000);
             _intervalTimer.Elapsed += ElapseTimer;
 
             serviceBackbone.CommandEvent += CommandMessage;
             serviceBackbone.StreamStarted += StreamStarted;
-            serviceBackbone.StreamEnded += StreamEnded;
-        }
-
-        private Task StreamEnded(object? sender, EventArgs _)
-        {
-            _intervalTimer.Stop();
-            return Task.CompletedTask;
         }
 
         private async Task StreamStarted(object? sender, EventArgs _)
@@ -49,7 +43,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             MessageCounter = 0;
             var groups = await GetTimerGroupsAsync();
             groups.ForEach(async x => await UpdateNextRun(x));
-            _intervalTimer.Start();
         }
 
         private Task CommandMessage(object? sender, CommandEventArgs e)
@@ -124,8 +117,17 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async void ElapseTimer(object? sender, ElapsedEventArgs e)
         {
-            if (ServiceBackbone.IsOnline == false) return;
-            await RunTimers();
+            // Prevent re-entrancy: skip this tick if the previous one is still running
+            if (!await _timerLock.WaitAsync(0)) return;
+
+            try
+            {
+                await RunTimers();
+            }
+            finally
+            {
+                _timerLock.Release();
+            }
         }
 
         private async Task RunTimers()
@@ -136,7 +138,18 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
+
+                    // Get timers that are due to run, filtering by online/offline status
+                    if (ServiceBackbone.IsOnline)
+                    {
+                        // Stream is online - run all active timers that are due
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
+                    }
+                    else
+                    {
+                        // Stream is offline - only run timers that allow offline execution
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true && x.OnlineOnly == false);
+                    }
                 }
                 if (timerGroups == null || timerGroups.Count != 0 == false) return;
                 await RunGroups(timerGroups);
@@ -191,8 +204,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             try
             {
-                var randomNextMinutes = StaticTools.RandomRange(group.IntervalMinimum, group.IntervalMaximum);
-                group.NextRun = DateTime.Now.AddMinutes(randomNextMinutes);
+                var randomNextSeconds = StaticTools.RandomRange(group.IntervalMinimumSeconds, group.IntervalMaximumSeconds);
+                group.NextRun = DateTime.Now.AddSeconds(randomNextSeconds);
                 group.LastRun = DateTime.Now;
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -383,13 +396,24 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting {moduledname}", ModuleName);
-            return Register();
+            _intervalTimer.Start();
+            return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
-            return Task.CompletedTask;
+
+            var timerLock = _timerLock;
+
+            _intervalTimer.Stop();
+            _intervalTimer.Elapsed -= ElapseTimer;
+            _intervalTimer.Dispose(); 
+            if(timerLock != null)
+            {
+                await timerLock.WaitAsync(cancellationToken);
+                timerLock.Release();
+            }
         }
     }
 }
