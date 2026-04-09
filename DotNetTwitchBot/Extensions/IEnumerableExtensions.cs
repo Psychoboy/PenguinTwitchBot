@@ -18,7 +18,6 @@ namespace DotNetTwitchBot.Extensions
             if (!list.Any()) return default;
 #pragma warning restore CS8603
             var elementNum = RandomNumberGenerator.GetInt32(list.Count());
-            logger?.LogInformation("Got ElementNum: {0} from total: {1}", elementNum, list.Count());
             return list.ElementAt(elementNum);
         }
         public static T RandomElement<T>(this IEnumerable<T> list)
