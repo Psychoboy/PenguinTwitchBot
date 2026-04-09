@@ -35,13 +35,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
             serviceBackbone.CommandEvent += CommandMessage;
             serviceBackbone.StreamStarted += StreamStarted;
-            serviceBackbone.StreamEnded += StreamEnded;
-        }
-
-        private Task StreamEnded(object? sender, EventArgs _)
-        {
-            _intervalTimer.Stop();
-            return Task.CompletedTask;
         }
 
         private async Task StreamStarted(object? sender, EventArgs _)
@@ -50,7 +43,6 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             MessageCounter = 0;
             var groups = await GetTimerGroupsAsync();
             groups.ForEach(async x => await UpdateNextRun(x));
-            _intervalTimer.Start();
         }
 
         private Task CommandMessage(object? sender, CommandEventArgs e)
@@ -405,15 +397,23 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             _logger.LogInformation("Starting {moduledname}", ModuleName);
             _intervalTimer.Start();
-            return Register();
+            return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
+
+            var timerLock = _timerLock;
+
             _intervalTimer.Stop();
-            _timerLock?.Dispose();
-            return Task.CompletedTask;
+            _intervalTimer.Elapsed -= ElapseTimer;
+            _intervalTimer.Dispose(); 
+            if(timerLock != null)
+            {
+                await timerLock.WaitAsync(cancellationToken);
+                timerLock.Release();
+            }
         }
     }
 }
