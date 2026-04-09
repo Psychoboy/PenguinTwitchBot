@@ -45,7 +45,6 @@ namespace DotNetTwitchBot.Repository
             RegisteredVoices = new RegisteredVoiceRepository(_context);
             UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
             ChannelPointRedeems = new ChannelPointRedeemsRepository(_context);
-            TwitchEvents = new TwitchEventsRepository(_context);
             DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
             SongRequestHistory = new SongRequestHistoryRepository(_context);
             SongRequestHistoryWithRank = new SongRequestHistoryWithRankRepository(_context);
@@ -102,7 +101,6 @@ namespace DotNetTwitchBot.Repository
         public IRegisteredVoiceRepository RegisteredVoices { get; private set; }
         public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
         public IChannelPointRedeemsRepository ChannelPointRedeems { get; private set; }
-        public ITwitchEventsRepository TwitchEvents { get; private set; }
         public IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; private set; }
         public IIpLogRepository IpLogs { get; private set; }
         public IWheelRepository Wheels { get; private set; }
