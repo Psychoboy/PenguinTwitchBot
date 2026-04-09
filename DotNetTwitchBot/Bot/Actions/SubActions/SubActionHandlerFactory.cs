@@ -7,7 +7,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     public class SubActionHandlerFactory(
         IEnumerable<ISubActionHandler> handlers, 
         ILogger<SubActionHandlerFactory> logger,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IServiceScopeFactory serviceScopeFactory)
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
@@ -49,7 +50,23 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
 
                 try
                 {
-                    await handler.ExecuteAsync(subAction, variables);
+                    // Always create a new scope to prevent DbContext sharing in concurrent scenarios
+                    // This ensures thread-safety for all scoped services at negligible performance cost
+                    await using var scope = serviceScopeFactory.CreateAsyncScope();
+
+                    // Copy the execution context to the new scope's context accessor
+                    var scopedContextAccessor = scope.ServiceProvider.GetService<ISubActionExecutionContextAccessor>();
+                    if (scopedContextAccessor != null && contextAccessor != null)
+                    {
+                        scopedContextAccessor.ExecutionContext = contextAccessor.ExecutionContext;
+                        scopedContextAccessor.CurrentSubActionIndex = subActionIndex;
+                    }
+
+                    // Resolve handler from new scope, fall back to original if not available (e.g., in tests)
+                    var handlerType = handler.GetType();
+                    var scopedHandler = scope.ServiceProvider.GetService(handlerType) as ISubActionHandler ?? handler;
+
+                    await scopedHandler.ExecuteAsync(subAction, variables);
                     context?.CompleteSubAction(subActionIndex);
                 }
                 catch (BreakException)
