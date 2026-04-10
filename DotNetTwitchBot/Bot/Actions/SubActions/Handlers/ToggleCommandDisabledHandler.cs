@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ToggleCommandDisabledState;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if(subAction is not ToggleCommandDisabledType toggleCommandDisabled)
             {
@@ -26,7 +26,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             command.Disabled = toggleCommandDisabled.IsDisabled;
             await commandService.UpdateAsync(command);
             var state = toggleCommandDisabled.IsDisabled ? "disabled" : "enabled";
-            context?.LogMessage(context.CurrentSubActionIndex, $"Command {command.CommandName} (ID: {command.Id}) set to {state}");
+            context?.LogMessage(subActionIndex, $"Command {command.CommandName} (ID: {command.Id}) set to {state}");
         }
     }
 }
+

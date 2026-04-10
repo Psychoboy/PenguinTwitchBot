@@ -8,13 +8,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.Break;
 
-        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not BreakType)
             {
                 throw new SubActionHandlerException(subAction, "SubAction with type Break is not of BreakType class");
             }
-            context?.LogMessage(context.CurrentSubActionIndex, "BreakHandler: Executing BreakType sub-action, throwing BreakException to break out of current action execution.");
+            context?.LogMessage(subActionIndex, "BreakHandler: Executing BreakType sub-action, throwing BreakException to break out of current action execution.");
             throw new BreakException(); // This will be caught by the ActionExecutor and used to break out of the current action execution
         }
     }

@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.Delay;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if(subAction is not DelayType delaySubAction)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(DelayType)} but got {subAction.GetType().Name}");
@@ -18,13 +18,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (int.TryParse(durationStr, out var duration))
             {
-                context?.LogMessage(context.CurrentSubActionIndex, $"Delaying for {duration}ms");
+                context?.LogMessage(subActionIndex, $"Delaying for {duration}ms");
                 await Task.Delay(duration);
             }
             else
             {
-                context?.LogMessage(context.CurrentSubActionIndex, $"Invalid duration value: {durationStr}");
+                context?.LogMessage(subActionIndex, $"Invalid duration value: {durationStr}");
             }
         }
     }
 }
+

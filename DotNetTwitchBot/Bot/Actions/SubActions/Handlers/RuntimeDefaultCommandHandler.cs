@@ -15,7 +15,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         static readonly ConcurrentDictionary<string, SemaphoreSlim> CommandLock = new ConcurrentDictionary<string, SemaphoreSlim>();
         private string lastCommand = string.Empty;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not RuntimeDefaultCommandType runtimeAction)
             {
@@ -83,3 +83,4 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
+

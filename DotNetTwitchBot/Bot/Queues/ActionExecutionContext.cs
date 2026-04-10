@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Queues
     {
         private readonly IActionExecutionLogger _logger;
         private readonly ILogger<ActionExecutionContext> _contextLogger;
-        private int _currentSubActionIndex = -1;
+        private readonly int _depth;
 
         /// <summary>
         /// Unique identifier for this action execution instance
@@ -18,40 +18,40 @@ namespace DotNetTwitchBot.Bot.Queues
         public Guid ActionLogId { get; }
 
         /// <summary>
-        /// The current subaction index being executed (set by BeginSubAction, read by handlers)
+        /// The depth level of this context (0 for top-level actions, incremented for nested actions)
         /// </summary>
-        public int CurrentSubActionIndex => _currentSubActionIndex;
+        public int Depth => _depth;
 
         /// <summary>
         /// Creates a new execution context with a generated ID
         /// </summary>
-        public ActionExecutionContext(IActionExecutionLogger logger, ILogger<ActionExecutionContext> contextLogger)
+        public ActionExecutionContext(IActionExecutionLogger logger, ILogger<ActionExecutionContext> contextLogger, int depth = 0)
         {
             ActionLogId = Guid.NewGuid();
             _logger = logger;
             _contextLogger = contextLogger;
+            _depth = depth;
         }
 
         /// <summary>
         /// Creates a new execution context with a specific ID (used when the action was already logged)
         /// </summary>
-        public ActionExecutionContext(Guid actionLogId, IActionExecutionLogger logger, ILogger<ActionExecutionContext> contextLogger)
+        public ActionExecutionContext(Guid actionLogId, IActionExecutionLogger logger, ILogger<ActionExecutionContext> contextLogger, int depth = 0)
         {
             ActionLogId = actionLogId;
             _logger = logger;
             _contextLogger = contextLogger;
+            _depth = depth;
         }
 
         /// <summary>
-        /// Logs the start of a subaction and returns its index for tracking
+        /// Logs the start of a subaction with explicit index (safe for concurrent execution)
         /// </summary>
-        public int BeginSubAction(string subActionType, string? description)
+        public void BeginSubAction(int subActionIndex, string subActionType, string? description)
         {
-            var index = _logger.LogSubActionStarted(ActionLogId, subActionType, description, 0);
-            _currentSubActionIndex = index;
-            _contextLogger.LogTrace("SubAction {SubActionType} started at index {Index} for action {ActionLogId}", 
-                subActionType, index, ActionLogId);
-            return index;
+            _logger.LogSubActionStarted(ActionLogId, subActionType, description, _depth);
+            _contextLogger.LogTrace("SubAction {SubActionType} started at index {Index} (depth {Depth}) for action {ActionLogId}", 
+                subActionType, subActionIndex, _depth, ActionLogId);
         }
 
         /// <summary>
@@ -92,6 +92,14 @@ namespace DotNetTwitchBot.Bot.Queues
             _logger.LinkChildAction(ActionLogId, subActionIndex, childActionLogId);
             _contextLogger.LogTrace("Child action {ChildActionLogId} linked to subaction at index {Index} for action {ActionLogId}", 
                 childActionLogId, subActionIndex, ActionLogId);
+        }
+
+        /// <summary>
+        /// Creates a child context for nested action execution (increments depth)
+        /// </summary>
+        public ActionExecutionContext CreateChildContext(Guid childActionLogId)
+        {
+            return new ActionExecutionContext(childActionLogId, _logger, _contextLogger, _depth + 1);
         }
     }
 }

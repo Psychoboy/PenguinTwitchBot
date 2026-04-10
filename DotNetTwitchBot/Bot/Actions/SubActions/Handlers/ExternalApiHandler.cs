@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not ExternalApiType externalApiType)
             {
@@ -25,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     Method = new HttpMethod(externalApiType.HttpMethod)
                 };
 
-                context?.LogMessage(context.CurrentSubActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
+                context?.LogMessage(subActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
 
                 if (!string.IsNullOrEmpty(externalApiType.Headers))
                 {
@@ -43,15 +43,16 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 using var result = await httpClient.SendAsync(httpRequest);
                 var responseContent = await result.Content.ReadAsStringAsync();
 
-                context?.LogMessage(context.CurrentSubActionIndex, $"Received response with status {(int)result.StatusCode}");
+                context?.LogMessage(subActionIndex, $"Received response with status {(int)result.StatusCode}");
 
                 variables["ExternalApiResponse"] = responseContent;
 
             } catch (Exception ex)
             {
-                context?.LogMessage(context.CurrentSubActionIndex, $"Request failed: {ex.Message}");
+                context?.LogMessage(subActionIndex, $"Request failed: {ex.Message}");
                 throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }
     }
 }
+

@@ -20,7 +20,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             _logger = logger;
         }
 
-        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not ObsSetSceneType setSceneType)
             {

@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.TimerGroupSetEnabledState;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not TimerGroupSetEnabledStateType timerGroupSetEnabled)
             {
@@ -35,7 +35,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             timerGroup.Active = timerGroupSetEnabled.IsEnabled;
             await timerService.UpdateTimerGroup(timerGroup);
             var state = timerGroupSetEnabled.IsEnabled ? "enabled" : "disabled";
-            context?.LogMessage(context.CurrentSubActionIndex, $"Timer group {timerGroup.Name} (ID: {timerGroup.Id}) set to {state}");
+            context?.LogMessage(subActionIndex, $"Timer group {timerGroup.Name} (ID: {timerGroup.Id}) set to {state}");
         }
     }
 }
+

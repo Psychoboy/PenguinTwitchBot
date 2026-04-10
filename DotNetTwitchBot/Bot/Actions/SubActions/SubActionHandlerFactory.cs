@@ -11,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, int subActionIndex, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if (_handlers.TryGetValue(subAction.SubActionTypes, out var handler))
             {
@@ -24,10 +24,10 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 var subActionTypeName = subAction.SubActionTypes.ToString();
                 var description = !string.IsNullOrEmpty(subAction.Text) ? subAction.Text : null;
 
-                int subActionIndex = -1;
                 if (context != null)
                 {
-                    subActionIndex = context.BeginSubAction(subActionTypeName, description);
+                    // Use explicit index to avoid race conditions in concurrent execution
+                    context.BeginSubAction(subActionIndex, subActionTypeName, description);
                 }
                 else
                 {
@@ -53,8 +53,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                         scopedHandler = handler;
                     }
 
-                    // Pass the context explicitly to the handler
-                    await scopedHandler.ExecuteAsync(subAction, variables, context);
+                    // Pass the context and explicit index to the handler
+                    await scopedHandler.ExecuteAsync(subAction, variables, context, subActionIndex);
                     context?.CompleteSubAction(subActionIndex);
                 }
                 catch (BreakException)

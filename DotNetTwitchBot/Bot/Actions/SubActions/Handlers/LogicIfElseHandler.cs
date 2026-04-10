@@ -12,7 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.LogicIfElse;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not LogicIfElseType ifElseType)
             {
@@ -41,11 +41,15 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     await using var scope = serviceScopeFactory.CreateAsyncScope();
                     var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
-                    await factory.ExecuteAsync(childSubAction, variables, context);
+                    // Pass explicit child subaction index to avoid race conditions
+                    await factory.ExecuteAsync(childSubAction, childSubAction.Index, variables, context);
                 }
                 catch (BreakException)
                 {
-                    context?.LogMessage(context.CurrentSubActionIndex, $"Break encountered in {result} branch, stopping execution");
+                    if (context != null && subActionIndex >= 0)
+                    {
+                        context.LogMessage(subActionIndex, $"Break encountered in {result} branch, stopping execution");
+                    }
                     throw;
                 }
             }

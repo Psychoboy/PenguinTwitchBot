@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Actions
                     var subAction = enabledSubActions.RandomElementOrDefault();
                     if (subAction != null)
                     {
-                        await RunSubAction(subAction, variables, context);
+                        await RunSubAction(subAction, subAction.Index, variables, context);
                         return;
                     }
                 }
@@ -69,14 +69,14 @@ namespace DotNetTwitchBot.Bot.Actions
                 if (action.ConcurrentAction)
                 {
                     var subActions = enabledSubActions;
-                    var tasks = subActions.Select(item => RunSubAction(item, variables, context));
+                    var tasks = subActions.Select(item => RunSubAction(item, item.Index, variables, context));
                     await Task.WhenAll(tasks);
                     return;
                 }
 
                 foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
                 {
-                    await RunSubAction(subAction, variables, context);
+                    await RunSubAction(subAction, subAction.Index, variables, context);
                 }
             } catch (BreakException)
             {
@@ -85,11 +85,11 @@ namespace DotNetTwitchBot.Bot.Actions
 
         }
 
-        private async Task RunSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context)
+        private async Task RunSubAction(SubActionType subAction, int subActionIndex, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
-            await factory.ExecuteAsync(subAction, variables, context);
+            await factory.ExecuteAsync(subAction, subActionIndex, variables, context);
         }
     }
 }
