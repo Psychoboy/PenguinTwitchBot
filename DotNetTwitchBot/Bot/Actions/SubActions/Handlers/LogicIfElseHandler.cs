@@ -8,12 +8,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class LogicIfElseHandler(
         ILogger<LogicIfElseHandler> logger,
-        IServiceScopeFactory serviceScopeFactory,
-        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+        IServiceScopeFactory serviceScopeFactory) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.LogicIfElse;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not LogicIfElseType ifElseType)
             {
@@ -40,31 +39,20 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 try
                 {
-                    await ExecuteNestedSubAction(childSubAction, variables);
+                    await using var scope = serviceScopeFactory.CreateAsyncScope();
+                    var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
+                    // Pass explicit child subaction index to avoid race conditions
+                    await factory.ExecuteAsync(childSubAction, childSubAction.Index, variables, context);
                 }
                 catch (BreakException)
                 {
-                    var context = contextAccessor.ExecutionContext;
-                    context?.LogMessage(contextAccessor.CurrentSubActionIndex ,$"Break encountered in {result} branch, stopping execution");
+                    if (context != null && subActionIndex >= 0)
+                    {
+                        context.LogMessage(subActionIndex, $"Break encountered in {result} branch, stopping execution");
+                    }
                     throw;
                 }
             }
-        }
-
-        private async Task ExecuteNestedSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables)
-        {
-            await using var scope = serviceScopeFactory.CreateAsyncScope();
-
-            // Propagate the current execution context to the new scope
-            var currentContext = contextAccessor.ExecutionContext;
-            if (currentContext != null)
-            {
-                var nestedContextAccessor = scope.ServiceProvider.GetRequiredService<ISubActionExecutionContextAccessor>();
-                nestedContextAccessor.ExecutionContext = currentContext;
-            }
-
-            var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
-            await factory.ExecuteAsync(subAction, variables);
         }
 
         private static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)

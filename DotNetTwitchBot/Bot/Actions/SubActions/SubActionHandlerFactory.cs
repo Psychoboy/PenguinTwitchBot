@@ -7,12 +7,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     public class SubActionHandlerFactory(
         IEnumerable<ISubActionHandler> handlers, 
         ILogger<SubActionHandlerFactory> logger,
-        IServiceProvider serviceProvider,
         IServiceScopeFactory serviceScopeFactory)
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, int subActionIndex, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if (_handlers.TryGetValue(subAction.SubActionTypes, out var handler))
             {
@@ -22,20 +21,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                     return;
                 }
 
-                // Resolve the context accessor from the current scope instead of constructor injection
-                var contextAccessor = serviceProvider.GetService<ISubActionExecutionContextAccessor>();
-                var context = contextAccessor?.ExecutionContext;
                 var subActionTypeName = subAction.SubActionTypes.ToString();
                 var description = !string.IsNullOrEmpty(subAction.Text) ? subAction.Text : null;
 
-                int subActionIndex = -1;
+                // Capture the actual index from the logger (it auto-assigns based on list position)
+                int actualIndex = subActionIndex;
                 if (context != null)
                 {
-                    subActionIndex = context.BeginSubAction(subActionTypeName, description);
-
-                    // Store the index in the accessor so handlers can access it if needed
-                    // This is safe for concurrent execution because each parallel task gets its own ExecutionContext flow
-                    contextAccessor?.CurrentSubActionIndex = subActionIndex;
+                    actualIndex = context.BeginSubAction(subActionIndex, subActionTypeName, description);
                 }
                 else
                 {
@@ -49,14 +42,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                     // This ensures thread-safety for all scoped services at negligible performance cost
                     await using var scope = serviceScopeFactory.CreateAsyncScope();
 
-                    // Copy the execution context to the new scope's context accessor
-                    var scopedContextAccessor = scope.ServiceProvider.GetService<ISubActionExecutionContextAccessor>();
-                    if (scopedContextAccessor != null && contextAccessor != null)
-                    {
-                        scopedContextAccessor.ExecutionContext = contextAccessor.ExecutionContext;
-                        scopedContextAccessor.CurrentSubActionIndex = subActionIndex;
-                    }
-
                     // Resolve handler from new scope, fall back to original if not available and log it as it should not happen
                     // since all handlers should automatically be registered. This is to ensure that if a handler has any scoped dependencies,
                     // they are properly isolated in concurrent execution scenarios.
@@ -69,18 +54,19 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                         scopedHandler = handler;
                     }
 
-                    await scopedHandler.ExecuteAsync(subAction, variables);
-                    context?.CompleteSubAction(subActionIndex);
+                    // Pass the context and the ACTUAL index returned from BeginSubAction
+                    await scopedHandler.ExecuteAsync(subAction, variables, context, actualIndex);
+                    context?.CompleteSubAction(actualIndex);
                 }
                 catch (BreakException)
                 {
-                    context?.LogMessage(subActionIndex, "Break caught, stopping further execution of this action.");
-                    context?.CompleteSubAction(subActionIndex);
+                    context?.LogMessage(actualIndex, "Break caught, stopping further execution of this action.");
+                    context?.CompleteSubAction(actualIndex);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    context?.FailSubAction(subActionIndex, ex.Message);
+                    context?.FailSubAction(actualIndex, ex.Message);
                     throw;
                 }
             }

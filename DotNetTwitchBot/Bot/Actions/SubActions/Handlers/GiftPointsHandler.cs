@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Commands.Features;
 using System.Collections.Concurrent;
 using DotNetTwitchBot.Bot.Core.Points;
@@ -9,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.GiftPoints;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if(subAction is not GiftPointsType giftPoints)
             {
@@ -65,3 +66,4 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
+

@@ -12,8 +12,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidBreakType_ThrowsBreakException()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new BreakHandler(mockContextAccessor.Object);
+            var handler = new BreakHandler();
 
             var breakType = new BreakType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -27,8 +26,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsSubActionHandlerException()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new BreakHandler(mockContextAccessor.Object);
+            var handler = new BreakHandler();
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();

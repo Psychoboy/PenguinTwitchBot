@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using System.Collections.Concurrent;
 
@@ -8,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.Alert;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not AlertType alertType)
             {
@@ -31,3 +32,4 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
+

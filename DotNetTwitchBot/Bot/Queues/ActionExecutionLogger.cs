@@ -13,6 +13,12 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly ILogger<ActionExecutionLogger> _logger;
         private readonly IHubContext<MainHub> _hubContext;
 
+        // Throttling for SignalR updates
+        private readonly Timer _updateTimer;
+        private readonly ConcurrentDictionary<Guid, byte> _pendingLogUpdates = new();
+        private readonly object _updateLock = new();
+        private bool _updatePending;
+
         public ActionExecutionLogger(
             ILogger<ActionExecutionLogger> logger, 
             IHubContext<MainHub> hubContext,
@@ -21,6 +27,9 @@ namespace DotNetTwitchBot.Bot.Queues
             _logger = logger;
             _hubContext = hubContext;
             _maxLogEntries = maxLogEntries;
+
+            // Initialize timer for throttled SignalR updates (max 4 updates per second)
+            _updateTimer = new Timer(SendThrottledLogUpdates, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables)
@@ -285,6 +294,11 @@ namespace DotNetTwitchBot.Bot.Queues
             return _logs.Count;
         }
 
+        public int MaxLogCount()
+        {
+            return _maxLogEntries;
+        }
+
         public int LogSubActionStarted(Guid actionLogId, string subActionType, string? description, int depth)
         {
             if (_logIndex.TryGetValue(actionLogId, out var log))
@@ -308,8 +322,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Logged sub-action {SubActionType} started for action {ActionName} at index {Index}", 
                     subActionType, log.ActionName, index);
 
-                // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
+                // Schedule throttled SignalR update
+                ScheduleLogUpdate(actionLogId);
 
                 return index;
             }
@@ -338,8 +352,8 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} completed for action {ActionName} in {Duration}ms", 
                         subActionLog.SubActionType, log.ActionName, subActionLog.Duration?.TotalMilliseconds ?? 0);
 
-                    // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
-                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
+                    // Schedule throttled SignalR update
+                    ScheduleLogUpdate(actionLogId);
                 }
             }
         }
@@ -366,8 +380,8 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} failed for action {ActionName}: {ErrorMessage}", 
                         subActionLog.SubActionType, log.ActionName, errorMessage);
 
-                    // Notify clients about action update (send snapshot to prevent concurrent modification during serialization)
-                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
+                    // Schedule throttled SignalR update
+                    ScheduleLogUpdate(actionLogId);
                 }
             }
         }
@@ -399,11 +413,8 @@ namespace DotNetTwitchBot.Bot.Queues
                     _logger.LogTrace("Sub-action {SubActionType} logged message for action {ActionName}: {Message}", 
                         subActionLog.SubActionType, log.ActionName, truncatedMessage);
 
-                    // Only send updates every few messages to avoid flooding (send snapshot to prevent concurrent modification during serialization)
-                    if (messageCount % 5 == 0 || messageCount <= 5)
-                    {
-                        _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
-                    }
+                    // Schedule throttled SignalR update (throttling replaces the old "every 5 messages" logic)
+                    ScheduleLogUpdate(actionLogId);
                 }
             }
         }
@@ -460,8 +471,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Linked child action {ChildLogId} to parent {ParentLogId} at SubAction index {Index}",
                     childLogId, parentLogId, subActionIndex);
 
-                // Notify clients about the update
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", parentLog);
+                // Schedule throttled SignalR update
+                ScheduleLogUpdate(parentLogId);
             }
         }
 
@@ -474,9 +485,66 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogTrace("Set parent {ParentLogId} for child action {ChildLogId}",
                     parentLogId, childLogId);
 
-                // Notify clients about the update
-                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", childLog);
+                // Schedule throttled SignalR update
+                ScheduleLogUpdate(childLogId);
             }
+        }
+
+        /// <summary>
+        /// Schedules a throttled SignalR update for a specific log.
+        /// Updates are batched and sent at most every 250ms (4 times per second).
+        /// </summary>
+        private void ScheduleLogUpdate(Guid logId)
+        {
+            // Add log to pending updates set
+            _pendingLogUpdates.TryAdd(logId, 0);
+
+            // Schedule the timer if not already scheduled
+            lock (_updateLock)
+            {
+                if (!_updatePending)
+                {
+                    _updatePending = true;
+                    // Schedule update to run after 250ms (max 4 updates/second)
+                    _updateTimer.Change(250, Timeout.Infinite);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Timer callback that sends all pending log updates via SignalR.
+        /// This is called at most every 250ms to batch updates and reduce SignalR traffic.
+        /// </summary>
+        private void SendThrottledLogUpdates(object? state)
+        {
+            lock (_updateLock)
+            {
+                _updatePending = false;
+            }
+
+            // Get all pending log IDs and clear the set
+            var pendingLogIds = _pendingLogUpdates.Keys.ToArray();
+            _pendingLogUpdates.Clear();
+
+            // Send updates for all pending logs
+            foreach (var logId in pendingLogIds)
+            {
+                if (_logIndex.TryGetValue(logId, out var log))
+                {
+                    // Fire and forget - we don't need to await this
+                    _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
+                }
+            }
+
+        }
+
+        /// <summary>
+        /// Disposes the timer used for throttling SignalR updates.
+        /// Should be called when the logger is being disposed.
+        /// </summary>
+        public void Dispose()
+        {
+            _updateTimer?.Dispose();
         }
     }
 }

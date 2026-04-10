@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
@@ -10,7 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecutePointCommand;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not PointCommandType pointCommandType)
             {
@@ -77,3 +78,4 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
+

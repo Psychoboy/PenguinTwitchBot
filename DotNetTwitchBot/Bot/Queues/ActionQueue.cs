@@ -24,6 +24,11 @@ namespace DotNetTwitchBot.Bot.Queues
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _processingTask;
 
+        // Throttling for SignalR updates
+        private readonly Timer _statsUpdateTimer;
+        private bool _statsPendingUpdate;
+        private readonly object _statsUpdateLock = new();
+
         public string Name { get; }
         public bool IsBlocking { get; }
         public bool IsEnabled { get; set; }
@@ -59,6 +64,9 @@ namespace DotNetTwitchBot.Bot.Queues
             };
             _channel = Channel.CreateUnbounded<QueuedAction>(channelOptions);
             _semaphore = new SemaphoreSlim(isBlocking ? 1 : maxConcurrentActions);
+
+            // Initialize timer for throttled SignalR updates (max 4 updates per second)
+            _statsUpdateTimer = new Timer(SendThrottledStatsUpdate, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public async Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null)
@@ -75,13 +83,13 @@ namespace DotNetTwitchBot.Bot.Queues
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
 
-            await SendEventToWs(queuedAction);
+            SendEventToWs(queuedAction);
 
             // Notify clients about queue statistics change
             await SendQueueStatsUpdateAsync();
         }
 
-        private async Task SendEventToWs(QueuedAction queuedAction)
+        private void SendEventToWs(QueuedAction queuedAction)
         {
             var wsEvent = new WsEvent
             {
@@ -95,7 +103,20 @@ namespace DotNetTwitchBot.Bot.Queues
                     { "logId", queuedAction.LogId }
                 }
             };
-            await _wsEventHandler.AddToQueue(wsEvent);
+
+            // Fire-and-forget: Don't block enqueue operation for WebSocket notifications
+            var task = _wsEventHandler.AddToQueue(wsEvent);
+            if (!task.IsCompleted)
+            {
+                _ = task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        _logger.LogWarning(t.Exception, "Failed to send WebSocket event for action {ActionName} in queue {QueueName}", 
+                            queuedAction.Action.Name, Name);
+                    }
+                }, TaskScheduler.Default);
+            }
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -126,6 +147,9 @@ namespace DotNetTwitchBot.Bot.Queues
             {
                 await _processingTask;
             }
+
+            // Stop and dispose the stats update timer
+            await _statsUpdateTimer.DisposeAsync();
 
             _logger.LogInformation("Queue {QueueName} stopped", Name);
         }
@@ -246,18 +270,15 @@ namespace DotNetTwitchBot.Bot.Queues
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var actionService = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
 
-                // Set up the SubAction execution context for this action
-                var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<SubActionExecutionContext>>();
-                var executionContext = new SubActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
+                // Create the execution context for this action - this is passed explicitly through all execution layers
+                var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<ActionExecutionContext>>();
+                var executionContext = new ActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
 
-                // Register the context in the scope so SubActions can access it
-                var contextAccessor = scope.ServiceProvider.GetRequiredService<ISubActionExecutionContextAccessor>();
-                contextAccessor.ExecutionContext = executionContext;
-
-                _logger.LogDebug("Created SubAction execution context for action {ActionName} with LogId {LogId}", 
+                _logger.LogDebug("Created execution context for action {ActionName} with LogId {LogId}", 
                     queuedAction.Action.Name, queuedAction.LogId);
 
-                await actionService.RunAction(queuedAction.Variables, queuedAction.Action);
+                // Pass the context explicitly to RunAction
+                await actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
 
                 Interlocked.Increment(ref _completedCount);
 
@@ -286,8 +307,31 @@ namespace DotNetTwitchBot.Bot.Queues
             }
         }
 
-        private async Task SendQueueStatsUpdateAsync()
+        private Task SendQueueStatsUpdateAsync()
         {
+            if (_hubContext == null) return Task.CompletedTask;
+
+            // Instead of sending immediately, schedule a throttled update
+            lock (_statsUpdateLock)
+            {
+                if (!_statsPendingUpdate)
+                {
+                    _statsPendingUpdate = true;
+                    // Schedule update to run after 250ms (max 4 updates/second)
+                    _statsUpdateTimer.Change(250, Timeout.Infinite);
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private void SendThrottledStatsUpdate(object? state)
+        {
+            lock (_statsUpdateLock)
+            {
+                _statsPendingUpdate = false;
+            }
+
             if (_hubContext == null) return;
 
             var stats = new QueueStatistics
@@ -301,7 +345,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 CurrentlyExecuting = CurrentlyExecuting
             };
 
-            await _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
+            // Fire and forget - we don't need to await this
+            _ = _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
         }
 
         private record QueuedAction(ActionType Action, ConcurrentDictionary<string, string> Variables, Guid LogId, Guid? ParentLogId, int? ParentSubActionIndex);

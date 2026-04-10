@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.TwitchServices;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using System.Collections.Concurrent;
@@ -11,9 +12,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.ChannelPointSetEnabledState;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
-            if(subAction is not ChannelPointSetEnabledStateType channelPointSetEnabled)
+            if (subAction is not ChannelPointSetEnabledStateType channelPointSetEnabled)
             {
                 throw new SubActionHandlerException(subAction, $"Unexpected sub action type: {subAction.GetType().Name}");
             }
@@ -25,7 +26,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             var channelPoints = await twitchService.GetChannelPointRewards(true);
             foreach (var channelPoint in channelPoints)
             {
-                if(channelPoint.Title.Equals(channelPointSetEnabled.Text, StringComparison.OrdinalIgnoreCase))
+                if (channelPoint.Title.Equals(channelPointSetEnabled.Text, StringComparison.OrdinalIgnoreCase))
                 {
                     if (channelPoint.IsEnabled != channelPointSetEnabled.EnablePoint)
                     {

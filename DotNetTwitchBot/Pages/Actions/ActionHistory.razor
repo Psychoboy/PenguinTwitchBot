@@ -7,6 +7,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
+@inject IActionExecutionLogger ExecutionLogger
 @implements IAsyncDisposable
 
 <PageTitle>SPTV Twitch Bot - Action History</PageTitle>
@@ -15,14 +16,48 @@
     <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>
     <MudText Typo="Typo.body2" Class="mb-4">View history of executed actions and their results.</MudText>
 
+    @if (_updatesPaused && _pendingUpdatesCount > 0)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Real-time updates paused. @_pendingUpdatesCount new @(_pendingUpdatesCount == 1 ? "log" : "logs") waiting.</span>
+            </div>
+        </MudAlert>
+    }
+    else if (_updatesPaused)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+            Real-time updates paused. Click Resume in the toolbar to see new logs.
+        </MudAlert>
+    }
+    else if (_totalLogCount > 800)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+            Memory contains @_totalLogCount action logs (limit: @_maxLogs).
+            Older logs may be automatically removed. Consider increasing the retention limit if you need to view very deep action chains.
+        </MudAlert>
+    }
+    else if (_totalLogCount > 0)
+    {
+        var displayedLogs = Math.Min(_totalLogCount, _maxLogs);
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+            Showing recent @displayedLogs of @_totalLogCount total action logs in memory.
+        </MudAlert>
+    }
+
     <MudPaper Class="pa-4">
         <MudTable Items="@_executionLogs" Hover="true" Dense="true" Loading="@_loading" LoadingProgressColor="Color.Primary"
-                  T="ActionExecutionLog" FixedHeader="true" Height="70vh">
+                  T="ActionExecutionLog" FixedHeader="true" Height="70vh" @ref="_table">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">Execution Logs</MudText>
                 <MudSpacer />
+                <MudTooltip Text="@(_updatesPaused ? "Resume real-time updates" : "Pause real-time updates")">
+                    <MudIconButton Icon="@(_updatesPaused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause)" 
+                                   Color="@(_updatesPaused ? Color.Success : Color.Default)" 
+                                   OnClick="TogglePauseUpdates" />
+                </MudTooltip>
                 <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 ml-2" Immediate="true"
                               DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs"></MudTextField>
                 <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
                            Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
@@ -130,6 +165,9 @@
             <NoRecordsContent>
                 <MudText>No execution logs found.</MudText>
             </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 25, 50, 100, 200 }" />
+            </PagerContent>
         </MudTable>
     </MudPaper>
 </MudContainer>
@@ -142,6 +180,11 @@
     private bool _disposed;
     private string _searchString = "";
     private ActionExecutionState? _filterState = null;
+    private int _totalLogCount = 0;
+    private int _maxLogs = 0;
+    private bool _updatesPaused = false;
+    private int _pendingUpdatesCount = 0;
+    private MudTable<ActionExecutionLog>? _table;
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,6 +204,19 @@
             {
                 await InvokeAsync(() =>
                 {
+                    if (_updatesPaused)
+                    {
+                        // When paused, just count pending updates
+                        var existingIndex = _allLogs.FindIndex(l => l.Id == log.Id);
+                        if (existingIndex < 0)
+                        {
+                            // Only count new logs, not updates to existing ones
+                            _pendingUpdatesCount++;
+                            StateHasChanged(); // Update the banner count
+                        }
+                        return;
+                    }
+
                     // Update or add the log in our collection
                     var existingLogIndex = _allLogs.FindIndex(l => l.Id == log.Id);
                     if (existingLogIndex >= 0)
@@ -170,11 +226,14 @@
                     else
                     {
                         _allLogs.Insert(0, log);
-                        // Keep only last 100 logs
-                        if (_allLogs.Count > 100)
+                        // Keep last 1000 logs in UI (matches LoadLogs)
+                        if (_allLogs.Count > 1000)
                         {
-                            _allLogs = _allLogs.Take(100).ToList();
+                            _allLogs = _allLogs.Take(1000).ToList();
                         }
+
+                        // Update total count when new log is added
+                        _totalLogCount = QueueManager.ExecutionLogger.GetLogCount();
                     }
 
                     FilterLogs();
@@ -200,8 +259,15 @@
         _loading = true;
         try
         {
-            // Get recent logs (last 100)
-            _allLogs = QueueManager.ExecutionLogger.GetRecentLogs(100).ToList();
+            // Get total count for diagnostic purposes
+            _totalLogCount = QueueManager.ExecutionLogger.GetLogCount();
+            _maxLogs = QueueManager.ExecutionLogger.MaxLogCount();
+
+            // Get more logs since we filter to only top-level actions
+            // If you have deep action chains (e.g., 250 levels), you need more logs to find the parent actions
+            // Retrieve up to 1000 logs to ensure we have enough top-level actions
+            var logsToRetrieve = Math.Min(_totalLogCount, 1000);
+            _allLogs = QueueManager.ExecutionLogger.GetRecentLogs(logsToRetrieve).ToList();
             FilterLogs();
         }
         catch (Exception ex)
@@ -233,6 +299,7 @@
             filtered = filtered.Where(log => log.State == _filterState.Value);
         }
 
+        // Show all actions in the list
         _executionLogs = filtered.OrderByDescending(log => log.EnqueuedAt).ToList();
     }
 
@@ -240,6 +307,30 @@
     {
         _filterState = value;
         FilterLogs();
+    }
+
+    private void TogglePauseUpdates()
+    {
+        _updatesPaused = !_updatesPaused;
+
+        if (!_updatesPaused)
+        {
+            // When resuming, reload to get all latest data
+            ResumeUpdates();
+        }
+    }
+
+    private async void ResumeUpdates()
+    {
+        _updatesPaused = false;
+        _pendingUpdatesCount = 0;
+        await LoadLogs();
+
+        // Reset to first page when resuming
+        if (_table != null)
+        {
+            _table.NavigateTo(Page.First);
+        }
     }
 
     private async Task ViewDetails(ActionExecutionLog log)

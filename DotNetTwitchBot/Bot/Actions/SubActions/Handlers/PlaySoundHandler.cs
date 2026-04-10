@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Alerts;
 using System.Collections.Concurrent;
@@ -9,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.PlaySound;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not PlaySoundType playSoundType)
             {
@@ -22,3 +23,4 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
+

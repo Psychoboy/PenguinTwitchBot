@@ -6,12 +6,11 @@ using System.Collections.Concurrent;
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class TimerGroupSetEnabledStateHandler(
-        AutoTimers timerService,
-        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+        AutoTimers timerService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.TimerGroupSetEnabledState;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not TimerGroupSetEnabledStateType timerGroupSetEnabled)
             {
@@ -35,9 +34,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             timerGroupSetEnabled.TimerGroupName = timerGroup.Name;
             timerGroup.Active = timerGroupSetEnabled.IsEnabled;
             await timerService.UpdateTimerGroup(timerGroup);
-            var context = contextAccessor.ExecutionContext;
             var state = timerGroupSetEnabled.IsEnabled ? "enabled" : "disabled";
-            context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Timer group {timerGroup.Name} (ID: {timerGroup.Id}) set to {state}");
+            context?.LogMessage(subActionIndex, $"Timer group {timerGroup.Name} (ID: {timerGroup.Id}) set to {state}");
         }
     }
 }
+

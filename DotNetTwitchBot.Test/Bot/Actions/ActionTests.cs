@@ -50,7 +50,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var serviceProvider = serviceCollection.BuildServiceProvider();
             scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
-            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone, serviceProvider);
+            action = new DotNetTwitchBot.Bot.Actions.Action(logger, scopeFactory, serviceBackbone);
             variables = new ConcurrentDictionary<string, string>
             {
                 [ "user"] = "testUser",

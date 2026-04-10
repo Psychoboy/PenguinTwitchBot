@@ -129,9 +129,6 @@ namespace DotNetTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Register SubAction Execution Context (scoped per action execution)
-            services.AddScoped<Bot.Queues.ISubActionExecutionContextAccessor, Bot.Queues.SubActionExecutionContextAccessor>();
-
             // Register Queue Manager
             services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
 

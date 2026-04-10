@@ -6,12 +6,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class ExecuteActionHandler(
         IActionManagementService actionService, 
-        IAction action,
-        ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+        IAction action) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExecuteAction;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if (subAction is not ExecuteActionType executeAction)
             {
@@ -31,24 +30,18 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "No action found with ID: {ActionId}", actionId);
             }
 
-            var context = contextAccessor.ExecutionContext;
-
-            if (context != null)
+            if (context != null && subActionIndex >= 0)
             {
-
-                int currentIndex = contextAccessor.CurrentSubActionIndex;
-                context.LogMessage(currentIndex, $"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
+                context.LogMessage(subActionIndex, $"Enqueueing action: {actionItem.Name} to queue: {actionItem.QueueName}");
 
                 // Pass parent context info so the child action can be linked
-                // Use the CurrentSubActionIndex from the accessor which was set by SubActionHandlerFactory
                 await action.EnqueueAction(
                     new ConcurrentDictionary<string, string>(variables), 
                     actionItem,
                     parentLogId: context.ActionLogId,
-                    parentSubActionIndex: currentIndex);
+                    parentSubActionIndex: subActionIndex);
 
-                context.LogMessage(currentIndex, $"Action enqueued successfully. Child action will be linked when it starts.");
-
+                context.LogMessage(subActionIndex, $"Action enqueued successfully. Child action will be linked when it starts.");
             }
             else
             {

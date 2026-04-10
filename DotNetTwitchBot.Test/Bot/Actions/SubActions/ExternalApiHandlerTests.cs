@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(new HttpClient());
 
-            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
+            var handler = new ExternalApiHandler(mockHttpClientFactory.Object);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
             mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(new HttpClient());
 
-            var handler = new ExternalApiHandler(mockContextAccessor.Object, mockHttpClientFactory.Object);
+            var handler = new ExternalApiHandler(mockHttpClientFactory.Object);
 
             var externalApiType = new ExternalApiType
             {

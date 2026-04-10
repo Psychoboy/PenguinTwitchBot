@@ -5,11 +5,11 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ToggleCommandDisabledHandler(IActionCommandService commandService, ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+    public class ToggleCommandDisabledHandler(IActionCommandService commandService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ToggleCommandDisabledState;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
             if(subAction is not ToggleCommandDisabledType toggleCommandDisabled)
             {
@@ -25,9 +25,9 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "No command found with name '{CommandName}' for ToggleCommandDisabledHandler", toggleCommandDisabled.CommandName);
             command.Disabled = toggleCommandDisabled.IsDisabled;
             await commandService.UpdateAsync(command);
-                var context = contextAccessor.ExecutionContext;
-                var state = toggleCommandDisabled.IsDisabled ? "disabled" : "enabled";
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Command {command.CommandName} (ID: {command.Id}) set to {state}");
+            var state = toggleCommandDisabled.IsDisabled ? "disabled" : "enabled";
+            context?.LogMessage(subActionIndex, $"Command {command.CommandName} (ID: {command.Id}) set to {state}");
         }
     }
 }
+

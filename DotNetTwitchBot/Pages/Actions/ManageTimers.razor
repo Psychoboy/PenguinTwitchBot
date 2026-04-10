@@ -503,7 +503,7 @@
         var dialog = await DialogService.ShowAsync<ActionSelectionDialog>("Select Action", parameters);
         var dialogResult = await dialog.Result;
 
-        if (!dialogResult.Canceled && dialogResult.Data is ActionType selectedAction && selectedAction.Id.HasValue)
+        if (dialogResult != null && !dialogResult.Canceled && dialogResult.Data is ActionType selectedAction && selectedAction.Id.HasValue)
         {
             try
             {
