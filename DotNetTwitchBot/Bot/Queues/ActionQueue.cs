@@ -83,13 +83,13 @@ namespace DotNetTwitchBot.Bot.Queues
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
 
-            await SendEventToWs(queuedAction);
+            SendEventToWs(queuedAction);
 
             // Notify clients about queue statistics change
             await SendQueueStatsUpdateAsync();
         }
 
-        private async Task SendEventToWs(QueuedAction queuedAction)
+        private void SendEventToWs(QueuedAction queuedAction)
         {
             var wsEvent = new WsEvent
             {
@@ -103,7 +103,20 @@ namespace DotNetTwitchBot.Bot.Queues
                     { "logId", queuedAction.LogId }
                 }
             };
-            await _wsEventHandler.AddToQueue(wsEvent);
+
+            // Fire-and-forget: Don't block enqueue operation for WebSocket notifications
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _wsEventHandler.AddToQueue(wsEvent);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send WebSocket event for action {ActionName} in queue {QueueName}", 
+                        queuedAction.Action.Name, Name);
+                }
+            });
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
