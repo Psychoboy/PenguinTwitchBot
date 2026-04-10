@@ -13,8 +13,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidDelayType_DelaysExecution()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new DelayHandler(mockContextAccessor.Object);
+            var handler = new DelayHandler();
 
             var delayType = new DelayType
             {
@@ -36,8 +35,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithVariableReplacement_DelaysCorrectly()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new DelayHandler(mockContextAccessor.Object);
+            var handler = new DelayHandler();
 
             var delayType = new DelayType
             {
@@ -59,8 +57,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithInvalidDuration_DoesNotDelay()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new DelayHandler(mockContextAccessor.Object);
+            var handler = new DelayHandler();
 
             var delayType = new DelayType
             {
@@ -83,8 +80,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var mockContextAccessor = new Mock<ISubActionExecutionContextAccessor>();
-            var handler = new DelayHandler(mockContextAccessor.Object);
+            var handler = new DelayHandler();
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();

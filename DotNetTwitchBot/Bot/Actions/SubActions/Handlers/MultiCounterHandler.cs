@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Repository;
 using System.Collections.Concurrent;
@@ -9,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.MultiCounter;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if(subAction is not MultiCounterType multiCounterSubAction)
             {

@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
+using DotNetTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
@@ -8,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionTypes SupportedType => SubActionTypes.RandomInt;
 
-        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if(subAction is not RandomIntType randomInt)
             {

@@ -5,26 +5,25 @@ using System.Collections.Concurrent;
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
 
-    public class DelayHandler(ISubActionExecutionContextAccessor contextAccessor) : ISubActionHandler
+    public class DelayHandler() : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Delay;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if(subAction is not DelayType delaySubAction)
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(DelayType)} but got {subAction.GetType().Name}");
 
-            var context = contextAccessor.ExecutionContext;
             var durationStr = VariableReplacer.ReplaceVariables(delaySubAction.Duration, variables);
 
             if (int.TryParse(durationStr, out var duration))
             {
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Delaying for {duration}ms");
+                context?.LogMessage(context.CurrentSubActionIndex, $"Delaying for {duration}ms");
                 await Task.Delay(duration);
             }
             else
             {
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Invalid duration value: {durationStr}");
+                context?.LogMessage(context.CurrentSubActionIndex, $"Invalid duration value: {durationStr}");
             }
         }
     }

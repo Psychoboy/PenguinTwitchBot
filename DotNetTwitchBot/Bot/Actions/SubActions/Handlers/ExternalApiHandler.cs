@@ -5,19 +5,16 @@ using System.Collections.Concurrent;
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class ExternalApiHandler(
-        ISubActionExecutionContextAccessor contextAccessor,
         IHttpClientFactory httpClientFactory) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if (subAction is not ExternalApiType externalApiType)
             {
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for ExternalApiHandler: {SubActionType}", subAction.GetType().Name);
             }
-
-            var context = contextAccessor.ExecutionContext;
 
             try
             {
@@ -28,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                     Method = new HttpMethod(externalApiType.HttpMethod)
                 };
 
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
+                context?.LogMessage(context.CurrentSubActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
 
                 if (!string.IsNullOrEmpty(externalApiType.Headers))
                 {
@@ -46,13 +43,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 using var result = await httpClient.SendAsync(httpRequest);
                 var responseContent = await result.Content.ReadAsStringAsync();
 
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Received response with status {(int)result.StatusCode}");
+                context?.LogMessage(context.CurrentSubActionIndex, $"Received response with status {(int)result.StatusCode}");
 
                 variables["ExternalApiResponse"] = responseContent;
 
             } catch (Exception ex)
             {
-                context?.LogMessage(contextAccessor.CurrentSubActionIndex, $"Request failed: {ex.Message}");
+                context?.LogMessage(context.CurrentSubActionIndex, $"Request failed: {ex.Message}");
                 throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }

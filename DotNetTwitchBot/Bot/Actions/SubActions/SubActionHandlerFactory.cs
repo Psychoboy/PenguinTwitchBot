@@ -7,12 +7,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
     public class SubActionHandlerFactory(
         IEnumerable<ISubActionHandler> handlers, 
         ILogger<SubActionHandlerFactory> logger,
-        IServiceProvider serviceProvider,
         IServiceScopeFactory serviceScopeFactory)
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
         {
             if (_handlers.TryGetValue(subAction.SubActionTypes, out var handler))
             {
@@ -22,9 +21,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                     return;
                 }
 
-                // Resolve the context accessor from the current scope instead of constructor injection
-                var contextAccessor = serviceProvider.GetService<ISubActionExecutionContextAccessor>();
-                var context = contextAccessor?.ExecutionContext;
                 var subActionTypeName = subAction.SubActionTypes.ToString();
                 var description = !string.IsNullOrEmpty(subAction.Text) ? subAction.Text : null;
 
@@ -32,10 +28,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 if (context != null)
                 {
                     subActionIndex = context.BeginSubAction(subActionTypeName, description);
-
-                    // Store the index in the accessor so handlers can access it if needed
-                    // This is safe for concurrent execution because each parallel task gets its own ExecutionContext flow
-                    contextAccessor?.CurrentSubActionIndex = subActionIndex;
                 }
                 else
                 {
@@ -49,14 +41,6 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                     // This ensures thread-safety for all scoped services at negligible performance cost
                     await using var scope = serviceScopeFactory.CreateAsyncScope();
 
-                    // Copy the execution context to the new scope's context accessor
-                    var scopedContextAccessor = scope.ServiceProvider.GetService<ISubActionExecutionContextAccessor>();
-                    if (scopedContextAccessor != null && contextAccessor != null)
-                    {
-                        scopedContextAccessor.ExecutionContext = contextAccessor.ExecutionContext;
-                        scopedContextAccessor.CurrentSubActionIndex = subActionIndex;
-                    }
-
                     // Resolve handler from new scope, fall back to original if not available and log it as it should not happen
                     // since all handlers should automatically be registered. This is to ensure that if a handler has any scoped dependencies,
                     // they are properly isolated in concurrent execution scenarios.
@@ -69,7 +53,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                         scopedHandler = handler;
                     }
 
-                    await scopedHandler.ExecuteAsync(subAction, variables);
+                    // Pass the context explicitly to the handler
+                    await scopedHandler.ExecuteAsync(subAction, variables, context);
                     context?.CompleteSubAction(subActionIndex);
                 }
                 catch (BreakException)

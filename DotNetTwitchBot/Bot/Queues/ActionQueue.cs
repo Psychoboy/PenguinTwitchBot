@@ -246,18 +246,15 @@ namespace DotNetTwitchBot.Bot.Queues
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var actionService = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
 
-                // Set up the SubAction execution context for this action
-                var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<SubActionExecutionContext>>();
-                var executionContext = new SubActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
+                // Create the execution context for this action - this is passed explicitly through all execution layers
+                var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<ActionExecutionContext>>();
+                var executionContext = new ActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
 
-                // Register the context in the scope so SubActions can access it
-                var contextAccessor = scope.ServiceProvider.GetRequiredService<ISubActionExecutionContextAccessor>();
-                contextAccessor.ExecutionContext = executionContext;
-
-                _logger.LogDebug("Created SubAction execution context for action {ActionName} with LogId {LogId}", 
+                _logger.LogDebug("Created execution context for action {ActionName} with LogId {LogId}", 
                     queuedAction.Action.Name, queuedAction.LogId);
 
-                await actionService.RunAction(queuedAction.Variables, queuedAction.Action);
+                // Pass the context explicitly to RunAction
+                await actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
 
                 Interlocked.Increment(ref _completedCount);
 

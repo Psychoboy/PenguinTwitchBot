@@ -12,8 +12,7 @@ namespace DotNetTwitchBot.Bot.Actions
     public class Action(
         ILogger<Action> logger, 
         IServiceScopeFactory scopeFactory, 
-        IServiceBackbone serviceBackbone,
-        IServiceProvider serviceProvider) : IAction
+        IServiceBackbone serviceBackbone) : IAction
     {
         public async Task<ActionType> AddAction(ActionType action)
         {
@@ -45,15 +44,13 @@ namespace DotNetTwitchBot.Bot.Actions
             logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, action.QueueName);
         }
 
-        public async Task RunAction(ConcurrentDictionary<string, string> variables, ActionType action)
+        public async Task RunAction(ConcurrentDictionary<string, string> variables, ActionType action, ActionExecutionContext? context = null)
         {
             if (!action.Enabled)
             {
                 logger.LogInformation("Action {action.Name} was disabled so skipping", action.Name);
                 return;
             }
-
-
 
             var enabledSubActions = action.SubActions.Where(x => x.Enabled == true).ToList();
 
@@ -64,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Actions
                     var subAction = enabledSubActions.RandomElementOrDefault();
                     if (subAction != null)
                     {
-                        await RunSubAction(subAction, variables);
+                        await RunSubAction(subAction, variables, context);
                         return;
                     }
                 }
@@ -72,14 +69,14 @@ namespace DotNetTwitchBot.Bot.Actions
                 if (action.ConcurrentAction)
                 {
                     var subActions = enabledSubActions;
-                    var tasks = subActions.Select(item => RunSubAction(item, variables));
+                    var tasks = subActions.Select(item => RunSubAction(item, variables, context));
                     await Task.WhenAll(tasks);
                     return;
                 }
 
                 foreach (var subAction in enabledSubActions.OrderBy(subAction => subAction.Index))
                 {
-                    await RunSubAction(subAction, variables);
+                    await RunSubAction(subAction, variables, context);
                 }
             } catch (BreakException)
             {
@@ -88,13 +85,11 @@ namespace DotNetTwitchBot.Bot.Actions
 
         }
 
-        private async Task RunSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+        private async Task RunSubAction(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context)
         {
-            // Use the current scope's service provider instead of creating a new scope
-            // This ensures the SubActionHandlerFactory gets the same ISubActionExecutionContextAccessor
-            // instance that was set up in ActionQueue.ExecuteActionAsync
-            var factory = serviceProvider.GetRequiredService<SubActionHandlerFactory>();
-            await factory.ExecuteAsync(subAction, variables);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var factory = scope.ServiceProvider.GetRequiredService<SubActionHandlerFactory>();
+            await factory.ExecuteAsync(subAction, variables, context);
         }
     }
 }

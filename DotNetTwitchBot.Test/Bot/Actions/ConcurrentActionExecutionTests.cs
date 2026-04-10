@@ -48,8 +48,7 @@ namespace DotNetTwitchBot.Test.Bot.Actions
             var action = new DotNetTwitchBot.Bot.Actions.Action(
                 serviceProvider.GetRequiredService<ILogger<DotNetTwitchBot.Bot.Actions.Action>>(),
                 scopeFactory,
-                serviceBackbone,
-                serviceProvider);
+                serviceBackbone);
 
             // Create an action with concurrent sub-actions that will create log entries
             var concurrentSubActions = new List<SubActionType>();
@@ -171,32 +170,28 @@ namespace DotNetTwitchBot.Test.Bot.Actions
         // Test handler that logs messages with the action's text to verify proper attribution
         public class TestLoggingHandler : ISubActionHandler
         {
-            private readonly ISubActionExecutionContextAccessor _contextAccessor;
             private readonly ILogger<TestLoggingHandler> _logger;
 
             public TestLoggingHandler(
-                ISubActionExecutionContextAccessor contextAccessor,
                 ILogger<TestLoggingHandler> logger)
             {
-                _contextAccessor = contextAccessor;
                 _logger = logger;
             }
 
             public SubActionTypes SupportedType => SubActionTypes.Alert;
 
-            public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables)
+            public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null)
             {
                 var testAction = subAction as TestSubActionType;
-                var context = _contextAccessor.ExecutionContext;
-                var currentIndex = _contextAccessor.CurrentSubActionIndex;
+                var currentIndex = context?.CurrentSubActionIndex ?? -1;
 
                 if (context != null)
                 {
                     context.LogMessage(currentIndex, $"Processing {subAction.Text}");
-                    
+
                     // Simulate some async work that could cause race conditions
                     await Task.Delay(Random.Shared.Next(10, 50));
-                    
+
                     context.LogMessage(currentIndex, $"Completed processing {subAction.Text}");
                 }
 
