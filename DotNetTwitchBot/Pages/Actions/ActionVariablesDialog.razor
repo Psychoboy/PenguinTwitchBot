@@ -170,33 +170,20 @@
                                         if (childLog != null)
                                         {
                                             <MudItem xs="12">
-                                                <MudPaper Class="pa-2 mt-2" Elevation="1" Outlined="true" Style="border-left: 3px solid var(--mud-palette-info);">
-                                                    <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
-                                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                                            <MudIcon Icon="@Icons.Material.Filled.CallMade" Color="Color.Info" Size="Size.Small" />
-                                                            <MudText Typo="Typo.body2">
-                                                                <strong>Child Action:</strong>
-                                                            </MudText>
-                                                            <MudLink OnClick="@(() => OpenChildAction(childLog))" Style="cursor: pointer;">
-                                                                @childLog.ActionName
+                                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <MudIcon Icon="@Icons.Material.Filled.CallMade" Size="Size.Small" />
+                                                        <MudText Typo="Typo.body2">
+                                                            This subaction spawned a child action:
+                                                            <MudLink Color="Color.Primary" OnClick="@(() => OpenChildAction(childLog))" Style="cursor: pointer; text-decoration: underline;">
+                                                                <strong>@childLog.ActionName</strong>
                                                             </MudLink>
-                                                            <MudChip T="string" Size="Size.Small" Color="@GetStateColor(childLog.State)">
-                                                                @childLog.State.ToString()
-                                                            </MudChip>
-                                                        </div>
-                                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" 
-                                                                      Size="Size.Small" 
-                                                                      Color="Color.Info"
-                                                                      OnClick="@(() => OpenChildAction(childLog))"
-                                                                      Title="View Child Action Details" />
-                                                    </div>
-                                                    @if (childLog.ExecutionDuration.HasValue)
-                                                    {
-                                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                                                            Execution Time: @FormatDuration(childLog.ExecutionDuration.Value)
                                                         </MudText>
-                                                    }
-                                                </MudPaper>
+                                                        <MudChip T="string" Size="Size.Small" Color="@GetStateColor(childLog.State)">
+                                                            @childLog.State.ToString()
+                                                        </MudChip>
+                                                    </div>
+                                                </MudAlert>
                                             </MudItem>
                                         }
                                     }

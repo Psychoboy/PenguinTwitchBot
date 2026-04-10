@@ -1,9 +1,7 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Queues;
 using DotNetTwitchBot.Bot.Commands.TTS;
-using DotNetTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;
-using DotNetTwitchBot.Bot.Queues;
 
 namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 {

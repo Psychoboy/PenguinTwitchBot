@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace DotNetTwitchBot.Bot.Queues
 {
     /// <summary>

@@ -24,6 +24,11 @@ namespace DotNetTwitchBot.Bot.Queues
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _processingTask;
 
+        // Throttling for SignalR updates
+        private readonly Timer _statsUpdateTimer;
+        private bool _statsPendingUpdate;
+        private readonly object _statsUpdateLock = new();
+
         public string Name { get; }
         public bool IsBlocking { get; }
         public bool IsEnabled { get; set; }
@@ -59,6 +64,9 @@ namespace DotNetTwitchBot.Bot.Queues
             };
             _channel = Channel.CreateUnbounded<QueuedAction>(channelOptions);
             _semaphore = new SemaphoreSlim(isBlocking ? 1 : maxConcurrentActions);
+
+            // Initialize timer for throttled SignalR updates (max 4 updates per second)
+            _statsUpdateTimer = new Timer(SendThrottledStatsUpdate, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public async Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null)
@@ -126,6 +134,9 @@ namespace DotNetTwitchBot.Bot.Queues
             {
                 await _processingTask;
             }
+
+            // Stop and dispose the stats update timer
+            await _statsUpdateTimer.DisposeAsync();
 
             _logger.LogInformation("Queue {QueueName} stopped", Name);
         }
@@ -287,6 +298,27 @@ namespace DotNetTwitchBot.Bot.Queues
         {
             if (_hubContext == null) return;
 
+            // Instead of sending immediately, schedule a throttled update
+            lock (_statsUpdateLock)
+            {
+                if (!_statsPendingUpdate)
+                {
+                    _statsPendingUpdate = true;
+                    // Schedule update to run after 250ms (max 4 updates/second)
+                    _statsUpdateTimer.Change(250, Timeout.Infinite);
+                }
+            }
+        }
+
+        private void SendThrottledStatsUpdate(object? state)
+        {
+            lock (_statsUpdateLock)
+            {
+                _statsPendingUpdate = false;
+            }
+
+            if (_hubContext == null) return;
+
             var stats = new QueueStatistics
             {
                 QueueName = Name,
@@ -298,7 +330,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 CurrentlyExecuting = CurrentlyExecuting
             };
 
-            await _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
+            // Fire and forget - we don't need to await this
+            _ = _hubContext.Clients.All.SendAsync("QueueStatsUpdated", stats);
         }
 
         private record QueuedAction(ActionType Action, ConcurrentDictionary<string, string> Variables, Guid LogId, Guid? ParentLogId, int? ParentSubActionIndex);

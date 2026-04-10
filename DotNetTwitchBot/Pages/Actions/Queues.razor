@@ -52,8 +52,13 @@
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="Enabled">
-                    <MudIcon Icon="@(row.IsEnabled ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
-                             Color="@(row.IsEnabled ? Color.Success : Color.Error)" Size="Size.Small" />
+                    <MudTooltip Text="@(row.IsEnabled ? "Click to pause queue" : "Click to resume queue")">
+                        <MudIconButton Icon="@(row.IsEnabled ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" 
+                                       Color="@(row.IsEnabled ? Color.Success : Color.Warning)" 
+                                       Size="Size.Small"
+                                       Disabled="@_togglingQueues.Contains(row.QueueName)"
+                                       OnClick="@(() => ToggleQueueEnabled(row))" />
+                    </MudTooltip>
                 </MudTd>
                 <MudTd DataLabel="Blocking">
                     <MudIcon Icon="@(row.IsBlocking ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)" 
@@ -91,6 +96,7 @@
     private bool _loading = true;
     private HubConnection? _hubConnection;
     private bool _disposed;
+    private HashSet<string> _togglingQueues = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -255,6 +261,57 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Error editing queue: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ToggleQueueEnabled(QueueStatistics queueStats)
+    {
+        if (_togglingQueues.Contains(queueStats.QueueName))
+            return;
+
+        try
+        {
+            _togglingQueues.Add(queueStats.QueueName);
+            StateHasChanged();
+
+            var configs = await QueueManager.GetAllQueuesAsync();
+            var config = configs.FirstOrDefault(q => q.Name == queueStats.QueueName);
+
+            if (config == null)
+            {
+                Snackbar.Add("Queue configuration not found", Severity.Error);
+                return;
+            }
+
+            var newEnabledState = !config.Enabled;
+            config.Enabled = newEnabledState;
+
+            // Optimistically update the UI immediately
+            var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == queueStats.QueueName);
+            if (existingStatsIndex >= 0)
+            {
+                var updatedStats = _queueStats[existingStatsIndex];
+                updatedStats.IsEnabled = newEnabledState;
+                _queueStats[existingStatsIndex] = updatedStats;
+                StateHasChanged();
+            }
+
+            await QueueManager.UpdateQueueAsync(config);
+
+            var action = newEnabledState ? "resumed" : "paused";
+            Snackbar.Add($"Queue '{queueStats.QueueName}' {action} successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error toggling queue: {ex.Message}", Severity.Error);
+
+            // Revert the optimistic update on error
+            await LoadQueues();
+        }
+        finally
+        {
+            _togglingQueues.Remove(queueStats.QueueName);
+            await InvokeAsync(StateHasChanged);
         }
     }
 

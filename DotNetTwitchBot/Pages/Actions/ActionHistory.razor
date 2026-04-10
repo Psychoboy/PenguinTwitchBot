@@ -16,130 +16,40 @@
     <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>
     <MudText Typo="Typo.body2" Class="mb-4">View history of executed actions and their results.</MudText>
 
+    @if (_totalLogCount > 8000)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+            Memory contains @_totalLogCount action logs (limit: 10,000). 
+            Older logs may be automatically removed. Consider increasing the retention limit if you need to view very deep action chains.
+        </MudAlert>
+    }
+    else if (_totalLogCount > 0)
+    {
+        var displayedLogs = Math.Min(_totalLogCount, 1000);
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+            Showing recent @displayedLogs of @_totalLogCount total action logs in memory.
+        </MudAlert>
+    }
+
     <MudPaper Class="pa-4">
-        @if (_treeViewMode)
-        {
-            <div style="padding: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <MudText Typo="Typo.h6">Execution Logs - Tree View</MudText>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
-                                      DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs" Style="max-width: 300px;"></MudTextField>
-                        <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Style="min-width: 150px;"
-                                   Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
-                            <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
-                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
-                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
-                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
-                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
-                        </MudSelect>
-                        <MudToggleIconButton @bind-Toggled="_treeViewMode" 
-                                            Icon="@Icons.Material.Filled.TableRows" 
-                                            ToggledIcon="@Icons.Material.Filled.AccountTree"
-                                            Color="Color.Primary"
-                                            Title="@GetViewModeTooltip()" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadLogs" />
-                    </div>
-                </div>
-                <MudTreeView T="object" Hover="true" Dense="true" Style="max-height: 70vh; overflow-y: auto;">
-                    @foreach (var treeNode in _treeNodes)
-                    {
-                        <MudTreeViewItem T="object" Value="@treeNode" @bind-Expanded="treeNode.IsExpanded">
-                            <Content>
-                                <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                                    <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Primary" Size="Size.Small" />
-                                    <MudText Typo="Typo.body1" Style="font-weight: 500;">@treeNode.ActionName</MudText>
-                                    <MudChip T="string" Size="Size.Small" Color="@GetStateColor(treeNode.State)">@treeNode.State.ToString()</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">@treeNode.QueueName</MudChip>
-                                    @if (treeNode.Duration.HasValue)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@FormatDuration(treeNode.Duration.Value)</MudChip>
-                                    }
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Style="margin-left: auto;">@treeNode.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
-                                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" 
-                                               OnClick="@(() => ViewDetailsFromTree(treeNode.LogId))"
-                                               StartIcon="@Icons.Material.Filled.Visibility">Details</MudButton>
-                                </div>
-                            </Content>
-                            <ChildContent>
-                                @foreach (var subAction in treeNode.SubActions)
-                                {
-                                    <MudTreeViewItem T="object" Value="@subAction" @bind-Expanded="subAction.IsExpanded">
-                                        <Content>
-                                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                                                <MudIcon Icon="@GetSubActionIcon(subAction.Type)" Color="Color.Secondary" Size="Size.Small" />
-                                                <MudText Typo="Typo.body2">#@subAction.Index - @subAction.Type</MudText>
-                                                @if (!string.IsNullOrEmpty(subAction.Description))
-                                                {
-                                                    <MudText Typo="Typo.body2" Color="Color.Secondary">(@subAction.Description)</MudText>
-                                                }
-                                                <MudChip T="string" Size="Size.Small" Color="@GetSubActionStateColor(subAction.State)">@subAction.State</MudChip>
-                                                @if (!string.IsNullOrEmpty(subAction.ErrorMessage))
-                                                {
-                                                    <MudTooltip Text="@subAction.ErrorMessage">
-                                                        <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
-                                                    </MudTooltip>
-                                                }
-                                                @if (subAction.Messages.Count > 0)
-                                                {
-                                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@subAction.Messages.Count messages</MudChip>
-                                                }
-                                            </div>
-                                        </Content>
-                                        <ChildContent>
-                                            @if (subAction.Messages.Count > 0)
-                                            {
-                                                @foreach (var message in subAction.Messages)
-                                                {
-                                                    <div style="padding: 4px 0 4px 24px;">
-                                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@message</MudText>
-                                                    </div>
-                                                }
-                                            }
-                                            @if (subAction.ChildAction != null)
-                                            {
-                                                @RenderActionTreeNode(subAction.ChildAction)
-                                            }
-                                        </ChildContent>
-                                    </MudTreeViewItem>
-                                }
-                            </ChildContent>
-                        </MudTreeViewItem>
-                    }
-                </MudTreeView>
-                @if (_treeNodes.Count == 0 && !_loading)
-                {
-                    <MudText Class="mt-4">No execution logs found.</MudText>
-                }
-            </div>
-        }
-        else
-        {
-            <MudTable Items="@_executionLogs" Hover="true" Dense="true" Loading="@_loading" LoadingProgressColor="Color.Primary"
-                      T="ActionExecutionLog" FixedHeader="true" Height="70vh">
-                <ToolBarContent>
-                    <MudText Typo="Typo.h6">Execution Logs</MudText>
-                    <MudSpacer />
-                    <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
-                                  DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs"></MudTextField>
-                    <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
-                               Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
-                        <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
-                        <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
-                        <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
-                        <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
-                        <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
-                    </MudSelect>
-                    <MudToggleIconButton @bind-Toggled="_treeViewMode" 
-                                        Icon="@Icons.Material.Filled.TableRows" 
-                                        ToggledIcon="@Icons.Material.Filled.AccountTree"
-                                        Color="Color.Primary"
-                                        Title="@GetViewModeTooltip()"
-                                        Class="ml-2" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadLogs" Class="ml-2" />
-                </ToolBarContent>
+        <MudTable Items="@_executionLogs" Hover="true" Dense="true" Loading="@_loading" LoadingProgressColor="Color.Primary"
+                  T="ActionExecutionLog" FixedHeader="true" Height="70vh">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Execution Logs</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search by action name" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
+                              DebounceInterval="300" OnDebounceIntervalElapsed="FilterLogs"></MudTextField>
+                <MudSelect T="ActionExecutionState?" Value="_filterState" Label="Filter by State" Class="ml-4" Style="min-width: 150px;"
+                           Dense="true" Margin="Margin.Dense" ValueChanged="OnFilterStateChanged">
+                    <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
+                </MudSelect>
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadLogs" Class="ml-2" />
+            </ToolBarContent>
             <HeaderContent>
                 <MudTh>Name</MudTh>
                 <MudTh>State</MudTh>
@@ -237,86 +147,18 @@
                 <MudText>No execution logs found.</MudText>
             </NoRecordsContent>
         </MudTable>
-        }
     </MudPaper>
 </MudContainer>
 
 @code {
-    private RenderFragment<ActionExecutionTreeNode> RenderActionTreeNode => node => @<text>
-        <MudTreeViewItem T="object" Value="@node" @bind-Expanded="node.IsExpanded">
-            <Content>
-                <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                    <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Primary" Size="Size.Small" />
-                    <MudText Typo="Typo.body1" Style="font-weight: 500;">@node.ActionName</MudText>
-                    <MudChip T="string" Size="Size.Small" Color="@GetStateColor(node.State)">@node.State.ToString()</MudChip>
-                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">@node.QueueName</MudChip>
-                    @if (node.Duration.HasValue)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@FormatDuration(node.Duration.Value)</MudChip>
-                    }
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Style="margin-left: auto;">@node.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudText>
-                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" 
-                               OnClick="@(() => ViewDetailsFromTree(node.LogId))"
-                               StartIcon="@Icons.Material.Filled.Visibility">Details</MudButton>
-                </div>
-            </Content>
-            <ChildContent>
-                @foreach (var subAction in node.SubActions)
-                {
-                    <MudTreeViewItem T="object" Value="@subAction" @bind-Expanded="subAction.IsExpanded">
-                        <Content>
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                                <MudIcon Icon="@GetSubActionIcon(subAction.Type)" Color="Color.Secondary" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">#@subAction.Index - @subAction.Type</MudText>
-                                @if (!string.IsNullOrEmpty(subAction.Description))
-                                {
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">(@subAction.Description)</MudText>
-                                }
-                                <MudChip T="string" Size="Size.Small" Color="@GetSubActionStateColor(subAction.State)">@subAction.State</MudChip>
-                                @if (!string.IsNullOrEmpty(subAction.ErrorMessage))
-                                {
-                                    <MudTooltip Text="@subAction.ErrorMessage">
-                                        <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" />
-                                    </MudTooltip>
-                                }
-                                @if (subAction.Messages.Count > 0)
-                                {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@subAction.Messages.Count messages</MudChip>
-                                }
-                            </div>
-                        </Content>
-                        <ChildContent>
-                            @if (subAction.Messages.Count > 0)
-                            {
-                                @foreach (var message in subAction.Messages)
-                                {
-                                    <div style="padding: 4px 0 4px 24px;">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@message</MudText>
-                                    </div>
-                                }
-                            }
-                            @if (subAction.ChildAction != null)
-                            {
-                                @RenderActionTreeNode(subAction.ChildAction)
-                            }
-                        </ChildContent>
-                    </MudTreeViewItem>
-                }
-            </ChildContent>
-        </MudTreeViewItem>
-    </text>;
-}
-
-@code {
     private List<ActionExecutionLog> _executionLogs = new();
     private List<ActionExecutionLog> _allLogs = new();
-    private List<ActionExecutionTreeNode> _treeNodes = new();
     private bool _loading = true;
     private HubConnection? _hubConnection;
     private bool _disposed;
     private string _searchString = "";
     private ActionExecutionState? _filterState = null;
-    private bool _treeViewMode = false;
+    private int _totalLogCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -345,10 +187,10 @@
                     else
                     {
                         _allLogs.Insert(0, log);
-                        // Keep only last 100 logs
-                        if (_allLogs.Count > 100)
+                        // Keep last 1000 logs in UI (matches LoadLogs)
+                        if (_allLogs.Count > 1000)
                         {
-                            _allLogs = _allLogs.Take(100).ToList();
+                            _allLogs = _allLogs.Take(1000).ToList();
                         }
                     }
 
@@ -375,8 +217,14 @@
         _loading = true;
         try
         {
-            // Get recent logs (last 100)
-            _allLogs = QueueManager.ExecutionLogger.GetRecentLogs(100).ToList();
+            // Get total count for diagnostic purposes
+            _totalLogCount = QueueManager.ExecutionLogger.GetLogCount();
+
+            // Get more logs since we filter to only top-level actions
+            // If you have deep action chains (e.g., 250 levels), you need more logs to find the parent actions
+            // Retrieve up to 1000 logs to ensure we have enough top-level actions
+            var logsToRetrieve = Math.Min(_totalLogCount, 1000);
+            _allLogs = QueueManager.ExecutionLogger.GetRecentLogs(logsToRetrieve).ToList();
             FilterLogs();
         }
         catch (Exception ex)
@@ -408,11 +256,8 @@
             filtered = filtered.Where(log => log.State == _filterState.Value);
         }
 
+        // Show all actions in the list
         _executionLogs = filtered.OrderByDescending(log => log.EnqueuedAt).ToList();
-
-        // Build tree nodes from top-level actions (no parent)
-        var topLevelLogs = _executionLogs.Where(log => !log.ParentActionLogId.HasValue).ToList();
-        _treeNodes = topLevelLogs.Select(log => BuildActionTree(log)).ToList();
     }
 
     private void OnFilterStateChanged(ActionExecutionState? value)
@@ -450,11 +295,6 @@
         };
     }
 
-    private string GetViewModeTooltip()
-    {
-        return _treeViewMode ? "Switch to Table View" : "Switch to Tree View";
-    }
-
     private string FormatDuration(TimeSpan duration)
     {
         var totalMilliseconds = duration.TotalMilliseconds;
@@ -466,96 +306,6 @@
             return $"{duration.TotalSeconds:F2}s";
 
         return $"{duration.TotalMinutes:F2}m";
-    }
-
-    private ActionExecutionTreeNode BuildActionTree(ActionExecutionLog log, int level = 0)
-    {
-        var node = new ActionExecutionTreeNode
-        {
-            LogId = log.Id,
-            ActionName = log.ActionName,
-            State = log.State,
-            QueueName = log.QueueName,
-            EnqueuedAt = log.EnqueuedAt,
-            StartedAt = log.StartedAt,
-            CompletedAt = log.CompletedAt,
-            Duration = log.TotalTime,
-            ErrorMessage = log.ErrorMessage,
-            VariableCount = log.VariablesBefore.Count,
-            Level = level,
-            IsExpanded = level < 2,
-            ParentActionLogId = log.ParentActionLogId
-        };
-
-        // Build subaction nodes
-        var subActionLogs = ExecutionLogger.GetSubActionLogsSnapshot(log.Id);
-        var subActionIndex = 0;
-        foreach (var subActionLog in subActionLogs.OrderBy(s => s.Depth))
-        {
-            var subNode = new SubActionTreeNode
-            {
-                Index = subActionIndex,
-                Type = subActionLog.SubActionType,
-                Description = subActionLog.Description,
-                State = subActionLog.IsSuccess ? "Success" : (subActionLog.CompletedAt.HasValue ? "Failed" : "Running"),
-                StartedAt = subActionLog.StartedAt,
-                CompletedAt = subActionLog.CompletedAt,
-                ErrorMessage = subActionLog.ErrorMessage,
-                Messages = ExecutionLogger.GetSubActionMessagesSnapshot(log.Id, subActionIndex),
-                IsExpanded = level < 1
-            };
-            subActionIndex++;
-
-            // If this subaction has a child action, recursively build that tree
-            if (subActionLog.ChildActionLogId.HasValue)
-            {
-                var childLog = ExecutionLogger.GetLogById(subActionLog.ChildActionLogId.Value);
-                if (childLog != null)
-                {
-                    subNode.ChildAction = BuildActionTree(childLog, level + 1);
-                }
-            }
-
-            node.SubActions.Add(subNode);
-        }
-
-        return node;
-    }
-
-    private async Task ViewDetailsFromTree(Guid logId)
-    {
-        var log = ExecutionLogger.GetLogById(logId);
-        if (log != null)
-        {
-            await ViewDetails(log);
-        }
-    }
-
-    private string GetSubActionIcon(string subActionType)
-    {
-        return subActionType switch
-        {
-            "SendMessage" => Icons.Material.Filled.Message,
-            "Delay" => Icons.Material.Filled.Timer,
-            "LogicIfElse" => Icons.Material.Filled.AccountTree,
-            "ExecuteAction" => Icons.Material.Filled.PlayArrow,
-            "ExternalApi" => Icons.Material.Filled.Api,
-            "ToggleCommandDisabledState" => Icons.Material.Filled.ToggleOn,
-            "TimerGroupSetEnabledState" => Icons.Material.Filled.Timer,
-            "Break" => Icons.Material.Filled.Stop,
-            _ => Icons.Material.Filled.Extension
-        };
-    }
-
-    private Color GetSubActionStateColor(string state)
-    {
-        return state switch
-        {
-            "Success" => Color.Success,
-            "Failed" => Color.Error,
-            "Running" => Color.Info,
-            _ => Color.Default
-        };
     }
 
     public async ValueTask DisposeAsync()
