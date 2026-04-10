@@ -45,13 +45,15 @@ namespace DotNetTwitchBot.Bot.Queues
         }
 
         /// <summary>
-        /// Logs the start of a subaction with explicit index (safe for concurrent execution)
+        /// Logs the start of a subaction and returns the actual logged index
+        /// The logger auto-assigns the index based on the list, so we must use that returned value
         /// </summary>
-        public void BeginSubAction(int subActionIndex, string subActionType, string? description)
+        public int BeginSubAction(int subActionIndex, string subActionType, string? description)
         {
-            _logger.LogSubActionStarted(ActionLogId, subActionType, description, _depth);
-            _contextLogger.LogTrace("SubAction {SubActionType} started at index {Index} (depth {Depth}) for action {ActionLogId}", 
-                subActionType, subActionIndex, _depth, ActionLogId);
+            var actualIndex = _logger.LogSubActionStarted(ActionLogId, subActionType, description, _depth);
+            _contextLogger.LogTrace("SubAction {SubActionType} started at index {ActualIndex} (requested {RequestedIndex}, depth {Depth}) for action {ActionLogId}", 
+                subActionType, actualIndex, subActionIndex, _depth, ActionLogId);
+            return actualIndex;
         }
 
         /// <summary>

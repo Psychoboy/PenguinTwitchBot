@@ -24,10 +24,11 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                 var subActionTypeName = subAction.SubActionTypes.ToString();
                 var description = !string.IsNullOrEmpty(subAction.Text) ? subAction.Text : null;
 
+                // Capture the actual index from the logger (it auto-assigns based on list position)
+                int actualIndex = subActionIndex;
                 if (context != null)
                 {
-                    // Use explicit index to avoid race conditions in concurrent execution
-                    context.BeginSubAction(subActionIndex, subActionTypeName, description);
+                    actualIndex = context.BeginSubAction(subActionIndex, subActionTypeName, description);
                 }
                 else
                 {
@@ -53,19 +54,19 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
                         scopedHandler = handler;
                     }
 
-                    // Pass the context and explicit index to the handler
-                    await scopedHandler.ExecuteAsync(subAction, variables, context, subActionIndex);
-                    context?.CompleteSubAction(subActionIndex);
+                    // Pass the context and the ACTUAL index returned from BeginSubAction
+                    await scopedHandler.ExecuteAsync(subAction, variables, context, actualIndex);
+                    context?.CompleteSubAction(actualIndex);
                 }
                 catch (BreakException)
                 {
-                    context?.LogMessage(subActionIndex, "Break caught, stopping further execution of this action.");
-                    context?.CompleteSubAction(subActionIndex);
+                    context?.LogMessage(actualIndex, "Break caught, stopping further execution of this action.");
+                    context?.CompleteSubAction(actualIndex);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    context?.FailSubAction(subActionIndex, ex.Message);
+                    context?.FailSubAction(actualIndex, ex.Message);
                     throw;
                 }
             }
