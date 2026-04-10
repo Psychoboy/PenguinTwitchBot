@@ -11,6 +11,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 @inject DotNetTwitchBot.Bot.Queues.IQueueManager QueueManager
+@inject DotNetTwitchBot.Bot.Actions.IAction ActionExecutor
 
 <PageTitle>SPTV Twitch Bot - Manage Actions</PageTitle>
 
@@ -131,6 +132,9 @@
                                     <MudButton Variant="Variant.Filled" Color="Color.Error" 
                                                OnClick="DeleteAction" StartIcon="@Icons.Material.Filled.Delete">
                                         Delete
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" OnClick="RunAction" StartIcon="@Icons.Material.Filled.PlayArrow">
+                                        Test
                                     </MudButton>
                                 }
                                 <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
@@ -395,6 +399,30 @@
         _isNavigating = true;
         NavigationManager.NavigateTo("/actions/manage", false);
         _isNavigating = false;
+    }
+
+    private async Task RunAction()
+    {
+        if (_selectedAction == null || !_selectedAction.Id.HasValue) return;
+        try
+        {
+            // Create default variables for manual execution
+            var variables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>
+            {
+                ["user"] = "Manual Trigger",
+                ["userid"] = "0",
+                ["displayname"] = "Manual Trigger",
+                ["triggertype"] = "Manual",
+                ["source"] = "ManageActions"
+            };
+
+            await ActionExecutor.EnqueueAction(variables, _selectedAction);
+            Snackbar.Add($"Action '{_selectedAction.Name}' added to queue '{_selectedAction.QueueName}'.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error executing action: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task SaveAction()
