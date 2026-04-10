@@ -116,6 +116,12 @@
             {
                 await InvokeAsync(() =>
                 {
+                    // Skip updates for queues that are currently being toggled to prevent overwriting optimistic updates
+                    if (_togglingQueues.Contains(stats.QueueName))
+                    {
+                        return;
+                    }
+
                     // Update or add the queue statistics in our collection
                     var existingStatsIndex = _queueStats.FindIndex(s => s.QueueName == stats.QueueName);
                     if (existingStatsIndex >= 0)
