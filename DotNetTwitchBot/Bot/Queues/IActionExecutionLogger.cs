@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Queues
 {
-    public interface IActionExecutionLogger
+    public interface IActionExecutionLogger : IDisposable
     {
         Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables);
 
@@ -43,5 +43,6 @@ namespace DotNetTwitchBot.Bot.Queues
         List<SubActionExecutionLog> GetSubActionLogsSnapshot(Guid actionLogId);
 
         List<string> GetSubActionMessagesSnapshot(Guid actionLogId, int subActionIndex);
+        int MaxLogCount();
     }
 }
