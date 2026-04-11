@@ -458,6 +458,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
         }
 
+        public bool SongExistsInBackupList(Song song)
+        {
+            if (BackupPlaylist.Songs.Count == 0) return false;
+            return BackupPlaylist.Songs.Where(x => x.SongId.Equals(song.SongId)).Any();
+        }
+
         public async Task StealCurrentSong()
         {
             if (BackupPlaylist.Songs.Count == 0) return;
