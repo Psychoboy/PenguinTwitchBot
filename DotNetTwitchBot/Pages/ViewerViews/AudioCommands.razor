@@ -198,6 +198,7 @@
         }
 
         commands = commands.DistinctBy(x => x.Command).ToList();
+        dataLoaded = true;
     }
 
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
@@ -215,10 +216,4 @@
         return false;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender == false) return;
-        dataLoaded = true;
-        await InvokeAsync(StateHasChanged);
     }
-}

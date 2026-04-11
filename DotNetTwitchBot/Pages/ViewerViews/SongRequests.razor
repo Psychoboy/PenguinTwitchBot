@@ -42,16 +42,6 @@
                 </MudStack>
             </MudPaper>
         }
-        else if (isLoading)
-        {
-            <MudPaper Elevation="3" Class="pa-4">
-                <MudStack Spacing="2">
-                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
-                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
-                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80%" />
-                </MudStack>
-            </MudPaper>
-        }
         else
         {
             <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Info">
@@ -79,12 +69,10 @@
 @code {
     private Song? currentSong;
     private HubConnection? hubConnection;
-    private bool isLoading = true;
 
     protected override void OnInitialized()
     {
         currentSong = YtPlayer.GetCurrentSong();
-        isLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

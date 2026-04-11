@@ -93,7 +93,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Id);
+        items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Id).ToList();
         dataLoaded = true;
     }
 

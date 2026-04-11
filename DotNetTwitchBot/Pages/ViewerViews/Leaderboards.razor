@@ -32,31 +32,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Rank">
-                        @if (context.Rank == 1)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 2)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 3)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else
-                        {
-                            <MudText><strong>#@context.Rank</strong></MudText>
-                        }
+                        @RenderRankBadge(context.Rank)
                     </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
@@ -91,31 +67,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Rank">
-                        @if (context.Rank == 1)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 2)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 3)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else
-                        {
-                            <MudText><strong>#@context.Rank</strong></MudText>
-                        }
+                        @RenderRankBadge(context.Rank)
                     </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
@@ -150,31 +102,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Rank">
-                        @if (context.Rank == 1)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 2)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 3)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else
-                        {
-                            <MudText><strong>#@context.Rank</strong></MudText>
-                        }
+                        @RenderRankBadge(context.Rank)
                     </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
@@ -209,31 +137,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Rank">
-                        @if (context.Rank == 1)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 2)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else if (context.Rank == 3)
-                        {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
-                                <MudText><strong>#@context.Rank</strong></MudText>
-                            </MudStack>
-                        }
-                        else
-                        {
-                            <MudText><strong>#@context.Rank</strong></MudText>
-                        }
+                        @RenderRankBadge(context.Rank)
                     </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@StaticTools.ConvertToCompoundDuration(context.Amount)</MudTd>
@@ -361,4 +265,33 @@
             timeTable.ReloadServerData();
         }
     }
+
+    private RenderFragment RenderRankBadge(int rank) => __builder =>
+    {
+        if (rank == 1)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else if (rank == 2)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else if (rank == 3)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudText><strong>#@rank</strong></MudText>
+        }
+    };
 }

@@ -339,6 +339,7 @@
 
         originalCommands = commands.DistinctBy(x => x.Command).ToList();
         availableCategories = originalCommands.Select(x => x.Category).Distinct().OrderBy(x => x).ToList();
+        dataLoaded = true;
     }
 
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
@@ -369,10 +370,4 @@
         return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender == false) return;
-        dataLoaded = true;
-        await InvokeAsync(StateHasChanged);
     }
-}
