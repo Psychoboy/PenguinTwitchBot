@@ -3,41 +3,59 @@
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @implements IAsyncDisposable
 
-<MudPaper Class="pa-4" Elevation="0">
-    <MudPaper Class="align-start d-flex">
-        <MudText Typo="Typo.h5" class="mud-contrast-text">Recently Played Songs</MudText>
-    </MudPaper>
-    <MudDivider class="mb-2" />
-    @if (recentlyPlayedSongs.Count == 0)
-    {
-        <MudText>No recently played songs.</MudText>
-    }
-    else
-    {
-        <MudTable Items="@recentlyPlayedSongs" Dense="true" Hover="true" Elevation="0">
-            <HeaderContent>
-                <MudTh>Title</MudTh>
-                <MudTh>Requested By</MudTh>
-                <MudTh>Duration</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Title">
-                    <MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink>
-                </MudTd>
-                <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-                <MudTd DataLabel="Duration">@context.Duration</MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
+<MudPaper Class="pa-4" Elevation="3">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6">Recently Played Songs</MudText>
+        </MudStack>
+        <MudDivider />
+        @if (isLoading)
+        {
+            <MudStack Spacing="1">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="90%" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="95%" />
+            </MudStack>
+        }
+        else if (recentlyPlayedSongs.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                No recently played songs.
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@recentlyPlayedSongs" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Requested By</MudTh>
+                    <MudTh>Duration</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Title">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" />
+                            <MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                    <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
 </MudPaper>
 
 @code {
     private HubConnection? hubConnection;
     private List<Song> recentlyPlayedSongs = new();
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         recentlyPlayedSongs = await YtPlayer.GetRecentlyPlayedSongs();
+        isLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
