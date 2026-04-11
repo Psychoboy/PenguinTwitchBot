@@ -1,32 +1,46 @@
 ﻿@using DotNetTwitchBot.Bot.StreamSchedule
 @inject ISchedule schedule;
-<MudPaper Class="pa-4" Elevation="0">
-    <MudPaper Class="align-start d-flex">
-        <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
-    </MudPaper>
-    <MudDivider class="mb-2" />
-    @if (!dataLoaded)
-    {
-        <MudSkeleton Height="100px" />
-        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-        </MudOverlay>
-    }
-    else
-    {
-        <MudTable Items="@scheduledStreams" Elevation="0">
-            <HeaderContent>
-                <MudTh>Title</MudTh>
-                <MudTh>Start</MudTh>
-                <MudTh>End</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Title</MudTd>
-                <MudTd><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-                <MudTd><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
+<MudPaper Class="pa-5" Elevation="3">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Event" Color="Color.Info" Size="Size.Large" />
+            <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
+        </MudStack>
+        <MudDivider />
+        @if (!dataLoaded)
+        {
+            <MudSkeleton Height="200px" />
+            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudOverlay>
+        }
+        else if (!scheduledStreams.Any())
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.CalendarToday">
+                No upcoming streams scheduled yet. Check back soon!
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@scheduledStreams" Elevation="0" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Start</MudTh>
+                    <MudTh>End</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Title">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Stream" Size="Size.Small" Color="Color.Primary" />
+                            <MudText>@context.Title</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Start"><ToLocal DateTime="context.Start" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+                    <MudTd DataLabel="End"><ToLocal DateTime="context.End" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
 </MudPaper>
 @code {
     private List<ScheduledStream> scheduledStreams = new();

@@ -1,15 +1,38 @@
 ﻿@inject DotNetTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
-<MudPaper Class="pa-4" Elevation="0">
-    <MudPaper Class="align-start d-flex">
-        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
-        <MudSpacer />
-        <MudLink Href="viewergiveaway">Details</MudLink>
-    </MudPaper>
-    <MudDivider class="mb-2" />
-    <center>
-        <MudText Typo="Typo.h5">@prize</MudText>
-        <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
-    </center>
+<MudPaper Class="pa-5" Elevation="3">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h5" class="mud-contrast-text">Current Giveaway</MudText>
+            </MudStack>
+            <MudButton Href="viewergiveaway" 
+                       Variant="Variant.Text" 
+                       Color="Color.Primary" 
+                       EndIcon="@Icons.Material.Filled.ArrowForward">
+                View Details
+            </MudButton>
+        </MudStack>
+        <MudDivider />
+        <MudStack AlignItems="AlignItems.Center" Spacing="2">
+            @if (string.IsNullOrEmpty(prize))
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="32px" />
+            }
+            else
+            {
+                <MudText Typo="Typo.h6" Align="Align.Center"><strong>@prize</strong></MudText>
+            }
+            @if (string.IsNullOrEmpty(imageUrl))
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="250px" Class="rounded" />
+            }
+            else
+            {
+                <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+            }
+        </MudStack>
+    </MudStack>
 </MudPaper>
 @code {
     private string prize = "";

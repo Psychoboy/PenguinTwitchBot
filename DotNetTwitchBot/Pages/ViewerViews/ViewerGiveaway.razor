@@ -18,119 +18,325 @@
 
 <style> 
     .mud-contrast-text {
-    color: var(--mud-palette-white);
+        color: var(--mud-palette-white);
+    }
+
+    .stat-card {
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
     }
 </style>
 
-
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudGrid>
-        <MudItem sm="6">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="6">
             <BonusTickets/>
-            <MudPaper Class="pa-4" Elevation="0">
-                <center>
-                    <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway</MudText>
-                    <MudDivider class="mb-2" />
-                    <MudText Typo="Typo.h5">@prize</MudText>
-                    <MudImage Fluid="true" Class="rounded mt-4 px-2" Src="@imageUrl" />
+            <MudPaper Class="pa-6" Elevation="3">
+                <MudStack AlignItems="AlignItems.Center" Spacing="3">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
+                        <MudText Typo="Typo.h4" class="mud-contrast-text" Align="Align.Center">Current Giveaway</MudText>
+                    </MudStack>
+                    <MudDivider />
+                    @if (string.IsNullOrEmpty(prize))
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="40px" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5" Align="Align.Center"><strong>@prize</strong></MudText>
+                    }
+                    @if (string.IsNullOrEmpty(imageUrl))
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
+                    }
+                    else
+                    {
+                        <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+                    }
                     @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
                     {
-                        <MudMarkdown Value="@prizeAdditionalDetails" />
+                        <MudPaper Class="pa-3" Elevation="0" Style="background-color: rgba(255,255,255,0.05);">
+                            <MudMarkdown Value="@prizeAdditionalDetails" />
+                        </MudPaper>
                     }
-                </center>
+                </MudStack>
             </MudPaper>
         </MudItem>
-        <MudItem sm="6">
-            <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Entrants</MudText>
-                <MudDivider />
-                <MudText Typo="Typo.h4">@entrants</MudText>
-            </MudPaper>
+        <MudItem xs="12" md="6">
+            <MudStack Spacing="3">
+                <MudPaper Class="pa-4 stat-card" Elevation="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total Entrants</MudText>
+                            <MudText Typo="Typo.h3" Color="Color.Info">@entrants</MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
 
-             <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Tickets Entered</MudText>
-                <MudDivider />
-                <MudText Typo="Typo.h4">@entries</MudText>
-            </MudPaper> 
+                <MudPaper Class="pa-4 stat-card" Elevation="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Success" Size="Size.Large" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total Tickets Entered</MudText>
+                            <MudText Typo="Typo.h3" Color="Color.Success">@entries</MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
             <AuthorizeView>
                 <Authorized Context="Auth">
-                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Your Tickets</MudText>
-                        <MudDivider />
-                        <MudText Typo="Typo.h4">@userTickets</MudText>
+                    <MudPaper Class="pa-4 stat-card" Elevation="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Large" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Your Available Tickets</MudText>
+                                <MudText Typo="Typo.h3" Color="Color.Warning">@userTickets</MudText>
+                            </MudStack>
+                        </MudStack>
                     </MudPaper>
-                    @* <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Your Entries</MudText>
-                        <MudDivider />
-                        <MudText Typo="Typo.h4">@userEntries</MudText>
-                    </MudPaper> *@
-                    <MudPaper Class=" pa-4 flex-wrap-reverse" Outlined="false" Elevation="0">
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Enter Tickets</MudText>
-                        <MudDivider />
-                        <EditForm Model="@model" OnValidSubmit="EnterTickets">
-                            <DataAnnotationsValidator />
-                            <MudNumericField @bind-Value="model.EnterAmount" For="@(() => model.EnterAmount)" HelperText="@userEntriesText" Disabled="@isClosed" />
-                                @if(isClosed)
-                                {
-                                    <MudAlert Severity="Severity.Warning">Giveaway is currently closed. Please wait for next giveaway to open.</MudAlert>
-                                } else {
-                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                            Class="ml-auto" Disabled=@isSubmitting>
-                                Enter
-                            </MudButton>
-                                }
+                    <MudPaper Class="pa-5" Elevation="3">
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Input" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6" class="mud-contrast-text">Enter Giveaway</MudText>
+                            </MudStack>
+                            <MudDivider />
+                            @if(isClosed)
+                            {
+                                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Lock">
+                                    Giveaway is currently closed. Please wait for the next giveaway to open.
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <EditForm Model="@model" OnValidSubmit="EnterTickets">
+                                    <DataAnnotationsValidator />
+                                    <MudStack Spacing="2">
+                                        <MudNumericField @bind-Value="model.EnterAmount" 
+                                                         For="@(() => model.EnterAmount)" 
+                                                         Label="Number of Tickets to Enter"
+                                                         HelperText="@userEntriesText" 
+                                                         Variant="Variant.Outlined"
+                                                         Disabled="@isSubmitting"
+                                                         Immediate="true" />
+                                        <MudButton ButtonType="ButtonType.Submit" 
+                                                   Variant="Variant.Filled" 
+                                                   Color="Color.Primary"
+                                                   FullWidth="true"
+                                                   Size="Size.Large"
+                                                   StartIcon="@Icons.Material.Filled.Send"
+                                                   Disabled="@isSubmitting">
+                                            @(isSubmitting ? "Entering..." : "Enter Giveaway")
+                                        </MudButton>
+                                    </MudStack>
+                                </EditForm>
+                            }
                             @if (!string.IsNullOrWhiteSpace(AlertText))
                             {
-                                <MudAlert Severity="@AlertSeverity">@AlertText</MudAlert>
+                                <MudAlert Severity="@AlertSeverity" Variant="Variant.Filled">@AlertText</MudAlert>
                             }
-                        </EditForm>
-                        <MudText><MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today to earn even more tickets</MudLink></MudText>
-                        <MudText><MudLink Href="/viewergiveaway#howtoearn">How to earn tickets</MudLink></MudText>
+                            <MudDivider />
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                    <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Color="Color.Primary">
+                                        Subscribe today to earn even more tickets
+                                    </MudLink>
+                                </MudText>
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" Color="Color.Info" />
+                                    <MudLink Href="/viewergiveaway#howtoearn" Color="Color.Primary">
+                                        How to earn tickets
+                                    </MudLink>
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
                     </MudPaper>
                 </Authorized>
                 <NotAuthorized>
-                    <MudPaper Class="pa-4" Outlined="false" Elevation="0">
-                        <MudText><MudLink Href="/signin">Sign In</MudLink>  with Twitch to see your tickets and/or enter giveaway here.</MudText>
-                        <MudText><MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today to earn even more tickets</MudLink></MudText>
-                        <MudText><MudLink Href="/viewergiveaway#howtoearn">How to earn tickets</MudLink></MudText>
+                    <MudPaper Class="pa-5" Elevation="3">
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Large" Color="Color.Info" />
+                            <MudText Typo="Typo.h6" Align="Align.Center">Sign in to participate</MudText>
+                            <MudButton Href="/signin" 
+                                       Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Filled.Login"
+                                       FullWidth="true">
+                                Sign In with Twitch
+                            </MudButton>
+                            <MudDivider />
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.body2" Align="Align.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                    <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Color="Color.Primary">
+                                        Subscribe to earn more tickets
+                                    </MudLink>
+                                </MudText>
+                                <MudText Typo="Typo.body2" Align="Align.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" Color="Color.Info" />
+                                    <MudLink Href="/viewergiveaway#howtoearn" Color="Color.Primary">
+                                        How to earn tickets
+                                    </MudLink>
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
                     </MudPaper>
                 </NotAuthorized>
             </AuthorizeView>
+            </MudStack>
 
         </MudItem>
-        <MudItem>
+        <MudItem xs="12">
             <Bookmark BookmarkName="howtoearn">
-                <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0" id="howtoearn">
-                    <MudText Typo="Typo.h5" class="mud-contrast-text">How to earn tickets</MudText>
-                    <MudDivider class="mb-2" />
-                    <MudText>@TicketsPerSub tickets for every sub</MudText>
-                    <MudText>@TicketsPerSub tickets for every gifted sub</MudText>
-                    <MudText>  @((int)@BitsPerPoint) tickets per 100 bits</MudText>
-                    <MudDivider class="my-2" />
-                    <MudText>Every 5 minutes tickets are given out to those in chat accordingly:</MudText>
-                    <MudText>+@pointsForEveryone Ticket for everyone</MudText>
-                    <MudText>+@pointsForActive Tickets for Active Viewers</MudText>
-                    <MudText>+@pointsForSubs Tickets for Subscribers</MudText>
-                    <MudText>so every 5 minutes a subscriber gets @(pointsForActive + pointsForEveryone + pointsForSubs) tickets while in chat. <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank">Subscribe today</MudLink></MudText>
-                    <MudText>An Active viewer is someone who has participated in chat in the last 15 minutes. This includes chat, commands, follows, subs, bits, and channel point redemptions. Subscribers watching are always considered active</MudText>
+                <MudPaper Class="pa-5 mb-3" Elevation="3" id="howtoearn">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
+                            <MudText Typo="Typo.h5" class="mud-contrast-text">How to Earn Tickets</MudText>
+                        </MudStack>
+                        <MudDivider />
+                        <MudText Typo="Typo.h6" Color="Color.Primary">Instant Rewards</MudText>
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Subscriptions" Color="Color.Secondary" />
+                                <MudText><strong>@TicketsPerSub tickets</strong> for every subscription</MudText>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Color="Color.Secondary" />
+                                <MudText><strong>@TicketsPerSub tickets</strong> for every gifted sub</MudText>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Secondary" />
+                                <MudText><strong>@((int)@BitsPerPoint) tickets</strong> per 100 bits cheered</MudText>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Passive Earnings (Every 5 Minutes)</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Default">Earn tickets automatically while watching the stream:</MudText>
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Info" />
+                                <MudText><strong>+@pointsForEveryone ticket</strong> - Everyone watching</MudText>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Forum" Color="Color.Success" />
+                                <MudText><strong>+@pointsForActive tickets</strong> - Active viewers (chatting recently)</MudText>
+                            </MudStack>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" />
+                                <MudText><strong>+@pointsForSubs tickets</strong> - Subscribers</MudText>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.TrendingUp">
+                            <strong>Subscribers earn @(pointsForActive + pointsForEveryone + pointsForSubs) tickets every 5 minutes!</strong>
+                            <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Style="color: white; text-decoration: underline;">
+                                Subscribe today
+                            </MudLink>
+                        </MudAlert>
+
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Text">
+                            <MudText Typo="Typo.body2">
+                                <strong>What is an Active Viewer?</strong> Someone who has participated in chat within the last 15 minutes through messages, commands, follows, subs, bits, or channel point redemptions. Subscribers are always considered active.
+                            </MudText>
+                        </MudAlert>
+                    </MudStack>
                 </MudPaper>
             </Bookmark>
-            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Rules</MudText>
-                <MudText>Winners for giveaway do NOT have to be present.</MudText>
-                <MudText>Anyone using multiple twitch accounts (aka botting) will be excluded from giveaways.</MudText>
-                <MudText>Anyone banned from community Discord or Twitch will be excluded from giveaway.</MudText>
-                <MudText>All prizes have a minimum of 1 month or next giveaway cooldown whatever is longer.Cooldown means ineligible to win standard giveaways during that time. Still eligible for any "special" giveaways. All values are based on current value.</MudText>
-                <MudText>Tier 1 - Less then $75 value - 1 Month or next giveaway cooldown whichever is longer</MudText>
-                <MudText>Tier 2 - $75 to $115 - 2 Months or next 2 giveaways cooldown whichever is longer</MudText>
-                <MudText>Tier 3 - Greater than $115 - 3 Months or next 3 giveaways cooldown whichever is longer</MudText>
+            <MudPaper Class="pa-5 mb-3" Elevation="3">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Warning" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway Rules</MudText>
+                    </MudStack>
+                    <MudDivider />
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                            <MudText>Winners do <strong>NOT</strong> need to be present during the drawing</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Error" />
+                            <MudText>Multiple accounts (botting) will result in <strong>exclusion from all giveaways</strong></MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Error" />
+                            <MudText>Banned users (Discord or Twitch) are <strong>not eligible</strong></MudText>
+                        </MudStack>
+                    </MudStack>
+
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers & Cooldowns</MudText>
+                    <MudText Typo="Typo.body2">After winning, you'll have a cooldown before being eligible for standard giveaways again (special giveaways always eligible):</MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Style="background-color: rgba(255,255,255,0.03);">
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Prize Value</th>
+                                <th>Cooldown Period</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><MudText Color="Color.Success"><strong>Tier 1</strong></MudText></td>
+                                <td>Less than $75</td>
+                                <td>1 month or next giveaway</td>
+                            </tr>
+                            <tr>
+                                <td><MudText Color="Color.Warning"><strong>Tier 2</strong></MudText></td>
+                                <td>$75 - $115</td>
+                                <td>2 months or next 2 giveaways</td>
+                            </tr>
+                            <tr>
+                                <td><MudText Color="Color.Error"><strong>Tier 3</strong></MudText></td>
+                                <td>Greater than $115</td>
+                                <td>3 months or next 3 giveaways</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </MudStack>
             </MudPaper>
-            <MudPaper Class="pa-4 mb-1" Outlined="false" Elevation="0">
-                <MudText Typo="Typo.h5" class="mud-contrast-text">Terms</MudText>
-                <MudText>Winner(s) must whisper SuperPenguinTV on Twitch within 48hrs to claim Prize. Winners are announced Live on stream and in <MudLink Href="https://discord.gg/4zVq4DyBFS" Target="_blank">Discord</MudLink> in the #giveaway-winners channel.</MudText>
-                <MudText>Subscribers auto claim and will be whispered directly.</MudText>
-                <MudText>Right to change giveaway at any time. Giveaways illegal where it is not legal. Must be 18+ to participate.</MudText>
-                <MudText>Giveaways can change at any time without reason.</MudText>
+            <MudPaper Class="pa-5 mb-3" Elevation="3">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Terms & Conditions</MudText>
+                    </MudStack>
+                    <MudDivider />
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" />
+                            <MudText>Winners have <strong>48 hours</strong> to whisper SuperPenguinTV on Twitch to claim their prize</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Info" />
+                            <MudText>Winners announced live on stream and in 
+                            <MudLink Href="https://discord.gg/4zVq4DyBFS" Target="_blank" Color="Color.Primary">Discord</MudLink> 
+                            (#giveaway-winners channel)</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Success" />
+                            <MudText><strong>Subscribers</strong> auto-claim and will be whispered directly</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Default" />
+                            <MudText>SuperPenguinTV reserves the right to change giveaways at any time</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+                            <MudText>Must be <strong>18+</strong> to participate</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Public" Color="Color.Default" />
+                            <MudText>Void where prohibited by law</MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudStack>
             </MudPaper>
         </MudItem>
     </MudGrid>

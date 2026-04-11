@@ -3,22 +3,25 @@
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
 
-<MudPaper Elevation="0">
+<MudPaper Class="pa-5" Elevation="3">
     @if(!dataLoaded)
     {
-        <MudSkeleton Height="100px" />
+        <MudSkeleton Height="200px" />
         <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
             <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
         </MudOverlay>
     } else {
         <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
             <ToolBarContent>
-                <MudText Class="pa-4" Typo="Typo.h6">@Title</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">@Title</MudText>
+                </MudStack>
                 <MudSpacer />
                 @if (!IsPreview)
                 {
                     <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
-                        Label="Months" Value="@numberOfMonths">
+                        Label="Months" Value="@numberOfMonths" Variant="Variant.Outlined">
                         <MudSelectItem Value=1>1 Month</MudSelectItem>
                         <MudSelectItem Value=3>3 Months</MudSelectItem>
                         <MudSelectItem Value=6>6 Months</MudSelectItem>
@@ -27,7 +30,12 @@
                     </MudSelect>
                 } else
                 {
-                    <MudLink Href="songRequests">Details</MudLink>
+                    <MudButton Href="songRequests" 
+                               Variant="Variant.Text" 
+                               Color="Color.Primary" 
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        View All
+                    </MudButton>
                 }
             </ToolBarContent>
             <HeaderContent>
@@ -38,16 +46,34 @@
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Ranking">@context.Ranking</MudTd>
-                <MudTd DataLabel="Title"><MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink></MudTd>
+                <MudTd DataLabel="Ranking">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        @if (context.Ranking == 1)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                        }
+                        else if (context.Ranking == 2)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Default" Size="Size.Small" />
+                        }
+                        else if (context.Ranking == 3)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Error" Size="Size.Small" />
+                        }
+                        <MudText><strong>#@context.Ranking</strong></MudText>
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="Title"><MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank" Color="Color.Primary">@context.Title</MudLink></MudTd>
                 <MudTd DataLabel="Duration">@context.Duration</MudTd>
                 <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText>No matching records found</MudText>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.MusicOff">
+                    No song requests found for this time period.
+                </MudAlert>
             </NoRecordsContent>
             <LoadingContent>
-                <MudText>Loading...</MudText>
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
             </LoadingContent>
             <PagerContent>
                 @if (!IsPreview)

@@ -4,42 +4,58 @@
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
 @implements IAsyncDisposable
-<MudPaper Class="pa-4" Elevation="0">
-    <MudPaper Class="align-start d-flex">
-
-        <MudText Typo="Typo.h5" class="mud-contrast-text">@Title</MudText>
-
-        @if(IsPreview)
+<MudPaper Class="pa-5" Elevation="3">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Color="Color.Secondary" Size="Size.Large" />
+                <MudText Typo="Typo.h5" class="mud-contrast-text">@Title</MudText>
+            </MudStack>
+            @if(IsPreview)
+            {
+                <MudButton Href="songrequests" 
+                           Variant="Variant.Text" 
+                           Color="Color.Primary" 
+                           EndIcon="@Icons.Material.Filled.ArrowForward">
+                    View All
+                </MudButton>
+            }
+        </MudStack>
+        <MudDivider />
+        @if (!dataLoaded)
         {
-            <MudSpacer />
-            <MudLink Href="songrequests">Details</MudLink>
+            <MudSkeleton Height="200px" />
+            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudOverlay>
         }
-
-    </MudPaper>
-    <MudDivider class="mb-2" />
-    @if (!dataLoaded)
-    {
-        <MudSkeleton Height="100px" />
-        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-        </MudOverlay>
-    }
-    else
-    {
-        <MudTable Items="@songRequests" Dense="true" Hover="true" Elevation="0">
-            <HeaderContent>
-            <MudTh>Title</MudTh>
-            <MudTh>Length</MudTh>
-            <MudTh>Requested By</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Name">@context.Title</MudTd>
-                <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-
-            </RowTemplate>
-        </MudTable>
-    }
+        else if (!songRequests.Any())
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.MusicNote">
+                No songs in the queue. Be the first to request a song!
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@songRequests" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Length</MudTh>
+                    <MudTh>Requested By</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Title">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText>@context.Title</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                    <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
 </MudPaper>
 @code {
     private List<Song> songRequests = new();
