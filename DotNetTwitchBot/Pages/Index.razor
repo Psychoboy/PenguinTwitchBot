@@ -17,16 +17,18 @@
 @implements IAsyncDisposable
 
 <CascadingAuthenticationState>  
-    <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-        <MudGrid>
-            <MudItem sm="6">
-                <BonusTickets/>
-                <GiveawayPreview/>
+    <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudStack Spacing="3">
+                    <BonusTickets/>
+                    <GiveawayPreview/>
+                </MudStack>
             </MudItem>
             <AuthorizeView Roles="Streamer">
                 <Authorized>
-                    <MudItem sm="6">
-                        <MudPaper Class="pa-4" Elevation="0">
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Elevation="3">
                             <QuickTools />
                             <MudDivider />
                             <SendMessage />
@@ -35,14 +37,14 @@
                 </Authorized>
                 <NotAuthorized/>
             </AuthorizeView>
-            <MudItem sm="6">
+            <MudItem xs="12" md="6">
                 <StreamSchedule />
             </MudItem>
-            <MudItem sm="6">
+            <MudItem xs="12" md="6">
                 <SongRequests IsPreview="true" LimitNumberOfSongs="5" Title="Next 5 Song Requests" />
             </MudItem>
-            
-            <MudItem sm="6">
+
+            <MudItem xs="12" md="6">
                 <TopRequestedSongs IsPreview="true" Title="Top 5 Requested Songs" />
             </MudItem>
         </MudGrid>

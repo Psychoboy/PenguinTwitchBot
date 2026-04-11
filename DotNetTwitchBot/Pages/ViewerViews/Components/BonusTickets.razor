@@ -5,54 +5,70 @@
 @inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
-<MudPaper Class="pa-4" Elevation="0" Style="margin-bottom:16px">
-    <MudPaper Class="align-start d-flex">
-        <MudText Typo="Typo.h5" class="mud-contrast-text">Bonus Tickets</MudText>
-    </MudPaper>
-    @if (!dataLoaded)
-    {
-        <MudDivider class="mb-2" />
-        <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
-        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-        </MudOverlay>
-    }
-    else 
-    {
-        
-        <MudDivider class="mb-2" />
-        <MudText>Once per stream while LIVE click the button to get your bonus tickets!</MudText>
-        <AuthorizeView>
-            <Authorized>
-                <center>
-                
-                    @if(disabled || StreamOnline == false)
-                    {
-                        @if (StreamOnline == false)
+<MudPaper Class="pa-5" Elevation="3">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Stars" Color="Color.Warning" Size="Size.Large" />
+            <MudText Typo="Typo.h5" class="mud-contrast-text">Bonus Tickets</MudText>
+        </MudStack>
+        <MudDivider />
+        @if (!dataLoaded)
+        {
+            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudOverlay>
+            <MudSkeleton Height="80px" />
+        }
+        else 
+        {
+            <MudText Typo="Typo.body1">Click the button once per stream while LIVE to claim your bonus tickets!</MudText>
+            <AuthorizeView>
+                <Authorized>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        @if(disabled || StreamOnline == false)
                         {
-                            <MudAlert Severity="Severity.Warning" Dense="true">
-                                Stream is currently offline.
-                            </MudAlert>
-                        }
+                            @if (StreamOnline == false)
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.PowerOff" Dense="true">
+                                    Stream is currently offline. Come back when live!
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Dense="true">
+                                    Bonus claimed! Come back next stream for more.
+                                </MudAlert>
+                            }
+                        } 
                         else
                         {
-                            <MudAlert Severity="Severity.Success" Dense="true">
-                                Your stream bonus has been claimed.
-                            </MudAlert>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       FullWidth="true"
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Filled.Redeem"
+                                       Disabled="@disabled" 
+                                       @onclick="() => ClaimBonus()">
+                                Claim Bonus Tickets
+                            </MudButton>
                         }
-                    } else
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" Disabled="@disabled" @onclick="() => ClaimBonus()">
-                            Get Bonus Tickets
+                    </MudStack>
+                </Authorized>
+                <NotAuthorized>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudButton Href="/signin" 
+                                   Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   FullWidth="true"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Login">
+                            Sign In to Claim Bonus
                         </MudButton>
-                    }
-                </center>
-            </Authorized>
-            <NotAuthorized>
-                <MudText><MudLink Href="/signin">Sign In</MudLink>  with Twitch to get bonus tickets.</MudText>
-            </NotAuthorized>
-        </AuthorizeView>
-    }
+                    </MudStack>
+                </NotAuthorized>
+            </AuthorizeView>
+        }
+    </MudStack>
 </MudPaper>
 @code {
 
