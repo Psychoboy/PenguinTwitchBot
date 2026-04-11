@@ -55,23 +55,26 @@
                     else
                     {
                         <MudList T="ActionCommand" @bind-SelectedValue="_selectedCommand" Dense="true">
-                            @foreach (var command in _filteredCommands)
+                            @foreach (var category in _filteredCommands.Select(a => (a.Category).Trim()).Distinct().Order())
                             {
-                                <MudListItem T="ActionCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))">
-                                    <MudStack Spacing="0">
-                                        <MudText Typo="Typo.body1">!@command.CommandName</MudText>
-                                        <MudStack Row="true" Spacing="1">
-                                            @if (!string.IsNullOrEmpty(command.Category))
-                                            {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Default">@command.Category</MudChip>
-                                            }
-                                            <MudChip T="string" Size="Size.Small" Color="@(command.Disabled ? Color.Error : Color.Success)">
-                                                @(command.Disabled ? "Disabled" : "Enabled")
-                                            </MudChip>
-                                        </MudStack>
-                                    </MudStack>
+                                <MudListItem Text="@(string.IsNullOrWhiteSpace(category) ? None : category)" Expanded="@(string.IsNullOrWhiteSpace(category) ? _commandCategory == None : _commandCategory == category)">
+                                    <NestedList>
+                                        @foreach (var command in _filteredCommands.Where(c => (c.Category ?? string.Empty).Trim() == category))
+                                        {
+                                            <MudListItem T="ActionCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))">
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.body1">!@command.CommandName</MudText>
+                                                    <MudStack Row="true" Spacing="1">
+                                                        <MudChip T="string" Size="Size.Small" Color="@(command.Disabled ? Color.Error : Color.Success)">
+                                                            @(command.Disabled ? "Disabled" : "Enabled")
+                                                        </MudChip>
+                                                    </MudStack>
+                                                </MudStack>
+                                            </MudListItem>
+                                            <MudDivider />
+                                        }
+                                    </NestedList>
                                 </MudListItem>
-                                <MudDivider />
                             }
                         </MudList>
                     }
@@ -176,6 +179,7 @@
 @code {
     [SupplyParameterFromQuery(Name = "commandId")]
     public int? CommandIdFromQuery { get; set; }
+    public string None => "None";
 
     private List<ActionCommand> _commands = new();
     private List<ActionCommand> _filteredCommands = new();
@@ -186,6 +190,7 @@
     private bool _isNavigating = false;
     private string _searchString = "";
     private string _filterCategory = "";
+    public string? _commandCategory = null;
     private List<ActionType>? _triggeredActions = null;
 
     protected override async Task OnInitializedAsync()
@@ -215,6 +220,7 @@
                 _selectedCommand = commandToSelect;
                 _isNewCommand = false;
                 _isNavigating = false;
+                _commandCategory = commandToSelect.Category ?? None;
 
                 // Load triggered actions
                 _ = LoadTriggeredActionsAsync();
@@ -257,7 +263,7 @@
                 var commandToSelect = _commands.FirstOrDefault(c => c.Id == CommandIdFromQuery.Value);
                 if (commandToSelect != null)
                 {
-                    OnCommandSelected(commandToSelect);
+                    OnCommandSelected(commandToSelect, true);
                 }
             }
         }
@@ -286,12 +292,15 @@
         FilterCommands();
     }
 
-    private void OnCommandSelected(ActionCommand? command)
+    private void OnCommandSelected(ActionCommand? command, bool autoExpand = false)
     {
         if (command == null) return;
         _selectedCommand = command;
         _isNewCommand = false;
-
+        if (autoExpand)
+        {
+            _commandCategory = string.IsNullOrWhiteSpace(command.Category) ? None : command.Category;
+        }
         // Load triggered actions for this command
         _ = LoadTriggeredActionsAsync();
 

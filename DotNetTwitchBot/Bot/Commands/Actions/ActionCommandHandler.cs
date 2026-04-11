@@ -9,6 +9,7 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
         ILogger<ActionCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
         SemaphoreSlim cmdLock = new(1, 1);
+
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             try
@@ -76,15 +77,17 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
                 // Set cooldowns after successful execution
                 if (actionCommand.GlobalCooldown > 0)
                 {
-                    await commandHandler.AddGlobalCooldown(actionCommand.CommandName, actionCommand.GlobalCooldown);
+                    var globalCooldown = CooldownHelper.CalculateCooldown(actionCommand.GlobalCooldown, actionCommand.GlobalCooldownMax);
+                    await commandHandler.AddGlobalCooldown(actionCommand.CommandName, globalCooldown);
                 }
 
                 if (actionCommand.UserCooldown > 0)
                 {
+                    var userCooldown = CooldownHelper.CalculateCooldown(actionCommand.UserCooldown, actionCommand.UserCooldownMax);
                     await commandHandler.AddCoolDown(
                         notification.EventArgs.Name,
                         actionCommand.CommandName,
-                        actionCommand.UserCooldown);
+                        userCooldown);
                 }
             }
             catch (Exception ex)

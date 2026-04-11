@@ -86,13 +86,23 @@
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Cooldowns and Cost</b></MudText>
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="Command.UserCooldown" Label="User Cooldown (seconds)" 
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.UserCooldown" Label="User Min (sec)" 
                                  Variant="Variant.Outlined" Min="0" />
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudNumericField @bind-Value="Command.GlobalCooldown" Label="Global Cooldown (seconds)" 
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.UserCooldownMax" Label="User Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.GlobalCooldown" Label="Global Min (sec)" 
                                  Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.GlobalCooldownMax" Label="Global Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
             </MudItem>
             <MudItem xs="12" md="6">
                 <MudNumericField @bind-Value="Command.Cost" Label="Cost" 

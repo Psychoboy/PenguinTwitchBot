@@ -175,11 +175,13 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             await dispatcher.Publish(new QueueAlert(alertSound.Generate()));
             if (Commands[e.Command].GlobalCooldown > 0)
             {
-                await CommandHandler.AddGlobalCooldown(e.Command, Commands[e.Command].GlobalCooldown);
+                var globalCooldown = CooldownHelper.CalculateCooldown(Commands[e.Command].GlobalCooldown, Commands[e.Command].GlobalCooldownMax);
+                await CommandHandler.AddGlobalCooldown(e.Command, globalCooldown);
             }
             if (Commands[e.Command].UserCooldown > 0)
             {
-                await CommandHandler.AddCoolDown(e.Name, e.Command, Commands[e.Command].UserCooldown);
+                var userCooldown = CooldownHelper.CalculateCooldown(Commands[e.Command].UserCooldown, Commands[e.Command].UserCooldownMax);
+                await CommandHandler.AddCoolDown(e.Name, e.Command, userCooldown);
             }
         }
 
