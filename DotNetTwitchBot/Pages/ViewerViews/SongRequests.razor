@@ -8,43 +8,83 @@
 @inject ILogger<SongRequests> logger
 
 <PageTitle>SPTV Twitch Bot - Song Requests</PageTitle>
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
 
-    <MudGrid>
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Class="mr-2" />
+            Song Requests
+        </MudText>
+
         @if (currentSong != null)
         {
-            <MudItem sm="6" md="4">
-                <MudPaper Elevation="2">
-                    <MudText>Current Song: @currentSong.Title</MudText>
-                    <MudText>Requested By: @currentSong.RequestedBy</MudText>
-                    <MudText>Duration: @currentSong.Duration</MudText>
-                </MudPaper>
+            <MudPaper Elevation="3" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+                    </MudStack>
+                    <MudDivider />
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle1"><strong>@currentSong.Title</strong></MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.body2">Requested by <strong>@currentSong.RequestedBy</strong></MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
+                            <MudText Typo="Typo.body2">@currentSong.Duration</MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        }
+        else if (isLoading)
+        {
+            <MudPaper Elevation="3" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80%" />
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Info">
+                No song is currently playing
+            </MudAlert>
+        }
+
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <DotNetTwitchBot.Pages.ViewerViews.Components.LastPlayedSongs />
             </MudItem>
 
-        }
-        <MudItem xs="6">
-            <DotNetTwitchBot.Pages.ViewerViews.Components.LastPlayedSongs />
-        </MudItem>
-        
-        <MudItem xs="6">
-            <DotNetTwitchBot.Pages.ViewerViews.Components.SongRequests />
-        </MudItem>
+            <MudItem xs="12" md="6">
+                <DotNetTwitchBot.Pages.ViewerViews.Components.SongRequests />
+            </MudItem>
 
-
-        <MudItem xs="6">
-            <DotNetTwitchBot.Pages.ViewerViews.Components.TopRequestedSongs />
-        </MudItem>
-    </MudGrid>
+            <MudItem xs="12" md="6">
+                <DotNetTwitchBot.Pages.ViewerViews.Components.TopRequestedSongs />
+            </MudItem>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 
 @code {
     private Song? currentSong;
     private HubConnection? hubConnection;
+    private bool isLoading = true;
 
     protected override void OnInitialized()
     {
         currentSong = YtPlayer.GetCurrentSong();
+        isLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

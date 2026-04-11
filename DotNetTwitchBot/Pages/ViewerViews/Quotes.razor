@@ -2,43 +2,99 @@
 @inject DotNetTwitchBot.Bot.Commands.Misc.QuoteSystem QuoteSystem
 
 <PageTitle>SPTV Twitch Bot - Quotes</PageTitle>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Class="mr-2" />
+            Quotes
+        </MudText>
 
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudPaper>
-        <MudTable Items="@items" Filter="new Func<FilteredQuoteType,bool>(FilterFunc1)">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Quotes</MudText>
-                <MudSpacer />
-                <MudTextField DebounceInterval="1000" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh>Id</MudTh>
-                <MudTh>Quote</MudTh>
-                <MudTh>Game</MudTh>
-                <MudTh>Created By</MudTh>
-                <MudTh>Created On</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Id">@context.Id</MudTd>
-                <MudTd DataLabel="Quote">@context.Quote</MudTd>
-                <MudTd DataLabel="Game">@context.Game</MudTd>
-                <MudTd DataLabel="CreatedBy">@context.CreatedBy</MudTd>
-                <MudTd DataLabel="CreatedOn">@context.CreatedOn.ToShortDateString()</MudTd>
-            </RowTemplate>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
-    </MudPaper>
+        <MudPaper Elevation="3">
+            @if (!dataLoaded)
+            {
+                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6">Loading quotes...</MudText>
+                    </MudStack>
+                </MudOverlay>
+            }
+
+            <MudTable Items="@items" Filter="new Func<FilteredQuoteType,bool>(FilterFunc1)" Dense="true" Hover="true">
+                <ToolBarContent>
+                    <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Color="Color.Primary" Class="mr-2" />
+                    <MudText Typo="Typo.h6">All Quotes</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Id</MudTh>
+                    <MudTh>Quote</MudTh>
+                    <MudTh>Game</MudTh>
+                    <MudTh>Created By</MudTh>
+                    <MudTh>Created On</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Id">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Tag" Size="Size.Small" Color="Color.Info" />
+                            <MudText><strong>#@context.Id</strong></MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Quote">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText>@context.Quote</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Game">
+                        @if (!string.IsNullOrWhiteSpace(context.Game))
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.SportsEsports" Size="Size.Small" Color="Color.Tertiary" />
+                                <MudText>@context.Game</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Default" Class="fst-italic">No game</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="CreatedBy">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
+                            <MudText>@context.CreatedBy</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="CreatedOn">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                            <MudText>@context.CreatedOn.ToShortDateString()</MudText>
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SearchOff">
+                        No quotes found matching your search.
+                    </MudAlert>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
 </MudContainer>
 
 @code {
     private IEnumerable<FilteredQuoteType> items = new List<FilteredQuoteType>();
     private string searchString1 = "";
+    private bool dataLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
-        items = await QuoteSystem.GetQuotes();
+        items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Id);
+        dataLoaded = true;
     }
 
     private bool FilterFunc1(FilteredQuoteType element) => FilterFunc(element, searchString1);

@@ -3,21 +3,30 @@
 @inject DotNetTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 
 <PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudPaper>
-        @if (!dataLoaded)
-        {
-            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-            </MudOverlay>
-        }
-        else
-        {
-            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.AudioFile" Class="mr-2" />
+            Audio Commands
+        </MudText>
+
+        <MudPaper Elevation="3">
+            @if (!dataLoaded)
+            {
+                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6">Loading audio commands...</MudText>
+                    </MudStack>
+                </MudOverlay>
+            }
+
+            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)" Dense="true" Hover="true">
                 <ToolBarContent>
-                    <MudText Typo="Typo.h6">Audio Commands</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.AudioFile" Color="Color.Primary" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Available Audio Commands</MudText>
                     <MudSpacer />
-                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"></MudTextField>
+                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Command</MudTh>
@@ -27,19 +36,82 @@
                     <MudTh>Cost</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Command">@context.Command</MudTd>
-                    <MudTd DataLabel="Category">@context.Category</MudTd>
+                    <MudTd DataLabel="Command">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText><strong>@context.Command</strong></MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        <MudText>@context.Category</MudText>
+                    </MudTd>
                     <MudTd DataLabel="Description">@context.Description</MudTd>
-                    <MudTd DataLabel="Rank">@context.Rank.ToString()</MudTd>
-                    <MudTd DataLabel="Cost">@context.Cost</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == Rank.Viewer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Success" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Subscriber)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Size="Size.Small" Color="Color.Secondary" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Vip)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarHalf" Size="Size.Small" Color="Color.Info" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Moderator)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Streamer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Error" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText>@context.Rank</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Cost">
+                        @if (context.Cost > 0)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Money" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Cost</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success">Free</MudText>
+                        }
+                    </MudTd>
                 </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SearchOff">
+                        No audio commands found matching your search.
+                    </MudAlert>
+                </NoRecordsContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
-
-        }
-    </MudPaper>
+        </MudPaper>
+    </MudStack>
 </MudContainer>
 @code {
     private List<CommandModel> commands = new();

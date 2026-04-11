@@ -6,13 +6,21 @@
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem pointsSystem
 
 <PageTitle>SPTV Twitch Bot - Leaderboards</PageTitle>
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudGrid>
-        <MudItem sm="6">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Class="mr-2" />
+            Leaderboards
+        </MudText>
+
+        <MudGrid Spacing="3">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="3">
             <MudTable ServerData="PastieReload"
             Dense="true" Hover="true" @ref="pastieTable">
                 <ToolBarContent>
-                    <MudText Class="pa-4" Typo="Typo.h6">Pasties</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Money" Color="Color.Warning" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Pasties</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnPastieSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
                     AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -23,26 +31,55 @@
                     <MudTh>Amount</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == 1)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 2)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 3)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText><strong>#@context.Rank</strong></MudText>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
-                    <MudText>No matching records found</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No matching records found</MudAlert>
                 </NoRecordsContent>
                 <LoadingContent>
-                    <MudText>Loading...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
                 </LoadingContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </MudPaper>
         </MudItem>
-        <MudItem sm="6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="3">
             <MudTable ServerData="TicketsReload"
             Dense="true" Hover="true" @ref="ticketsTable">
                 <ToolBarContent>
-                    <MudText Class="pa-4" Typo="Typo.h6">Tickets</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Primary" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Tickets</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTicketsSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
                     AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -53,26 +90,55 @@
                     <MudTh>Amount</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == 1)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 2)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 3)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText><strong>#@context.Rank</strong></MudText>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
-                    <MudText>No matching records found</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No matching records found</MudAlert>
                 </NoRecordsContent>
                 <LoadingContent>
-                    <MudText>Loading...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
                 </LoadingContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </MudPaper>
         </MudItem>
-        <MudItem sm="6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="3">
             <MudTable ServerData="LoudestReload"
             Dense="true" Hover="true" @ref="loudestTable">
                 <ToolBarContent>
-                    <MudText Class="pa-4" Typo="Typo.h6">Loudest</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Color="Color.Error" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Loudest</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnLoudestSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
                     AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -83,26 +149,55 @@
                     <MudTh>Amount</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == 1)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 2)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 3)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText><strong>#@context.Rank</strong></MudText>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@context.Amount.ToString("n0")</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
-                    <MudText>No matching records found</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No matching records found</MudAlert>
                 </NoRecordsContent>
                 <LoadingContent>
-                    <MudText>Loading...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
                 </LoadingContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </MudPaper>
         </MudItem>
-        <MudItem sm="6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="3">
             <MudTable ServerData="TimeReload"
             Dense="true" Hover="true" @ref="timeTable">
                 <ToolBarContent>
-                    <MudText Class="pa-4" Typo="Typo.h6">Watched Time</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Info" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Watched Time</MudText>
                     <MudSpacer />
                     <MudTextField DebounceInterval="1000" T="string" ValueChanged="@(s=>OnTimeSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
                     AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -113,22 +208,50 @@
                     <MudTh>Amount</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Rank">@context.Rank</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == 1)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 2)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == 3)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                                <MudText><strong>#@context.Rank</strong></MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText><strong>#@context.Rank</strong></MudText>
+                        }
+                    </MudTd>
                     <MudTd DataLabel="Name">@context.Name</MudTd>
                     <MudTd DataLabel="Amount">@StaticTools.ConvertToCompoundDuration(context.Amount)</MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
-                    <MudText>No matching records found</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No matching records found</MudAlert>
                 </NoRecordsContent>
                 <LoadingContent>
-                    <MudText>Loading...</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
                 </LoadingContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            </MudPaper>
         </MudItem>
     </MudGrid>
+    </MudStack>
 
 </MudContainer>
 
