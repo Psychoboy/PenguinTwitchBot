@@ -9,124 +9,221 @@
 @inject ILogger<MusicPlayer> logger
 
 <PageTitle>SPTV Twitch Bot - Music Player</PageTitle>
-<MudContainer MaxWidth="MaxWidth.False">
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Class="mr-2" />
+            Music Player
+        </MudText>
 
-    <MudGrid>
-        @if (currentSong != null)
-        {
-            <MudItem sm="6" md="4">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText>Current Song: @currentSong.Title</MudText>
-                    <MudText>Requested By: @currentSong.RequestedBy</MudText>
-                    <MudText>Duration: @currentSong.Duration</MudText>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="StealSong">Steal Song</MudButton>
-                </MudPaper>
-            </MudItem>
-
-        }
-        <MudItem xs="6" sm="6" md="6">
-            @* <MudContainer Fixed="true"> *@
-            <MudPaper Elevation="2" Class="pa-4" Height="400px" Width="650px">
-                <div id="player" Height="390"></div>
-            </MudPaper>
-            @* </MudContainer> *@
-        </MudItem>
-        <MudItem xs="4">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudTextField @bind-Value="addSongUrl" Label="Add Song" Variant="Variant.Text"></MudTextField>
-                <MudButton OnClick="AddSongRequest" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
-                    Color="Color.Primary" Class="ml-auto">
-                    Add Song
-                </MudButton>
-            </MudPaper>
-        </MudItem>
-
-        @if (songRequests != null)
-        {
-            <MudItem xs="8">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.h6">Song Requests: @songRequests.Count</MudText>
-                    <MudTable Items="@songRequests">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Length</MudTh>
-                            <MudTh>Requested By</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Title</MudTd>
-                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
-                            <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                @onclick="() => Priority(context)">
-                                    Priority</MudButton>
-                            </MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => RemoveSongRequest(context)">Remove
+        <MudGrid Spacing="3">
+            @if (currentSong != null)
+            {
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="3" Class="pa-4">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
+                                <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Typo="Typo.subtitle1"><strong>@currentSong.Title</strong></MudText>
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Secondary" />
+                                    <MudText Typo="Typo.body2">Requested by <strong>@currentSong.RequestedBy</strong></MudText>
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
+                                    <MudText Typo="Typo.body2">@currentSong.Duration</MudText>
+                                </MudStack>
+                            </MudStack>
+                            <MudDivider />
+                            @if (YtPlayer.SongExistsInBackupList(currentSong))
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Default" Disabled="true" StartIcon="@Icons.Material.Filled.CheckCircle">
+                                    Already in Playlist
                                 </MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudItem>
-        }
-        @if (musicPlaylists != null)
-        {
-            <MudItem xs="4">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.h6">Playlists</MudText>
-                    <MudTable Items="@musicPlaylists">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Load</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Name</MudTd>
-                            <MudTd DataLabel="Load">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                @onclick="() => StartPlaylist(context)">
-                                    Load</MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudItem>
-        }
-        @if (currentPlayList != null)
-        {
-            <MudItem xs="8">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.h6">Curent Playlist: @currentPlayList.Name - Total Songs
-                        @currentPlayList.Songs.Count</MudText>
-                    <MudTable Items="@currentPlayList.Songs">
-                        <HeaderContent>
-                            <MudTh>Title</MudTh>
-                            <MudTh>Length</MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Title</MudTd>
-                            <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                            <MudTd DataLabel="Queue">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                           @onclick="() => QueueSong(context)">
-                                    Queue
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StealSong" StartIcon="@Icons.Material.Filled.LibraryAdd">
+                                    Steal Song
                                 </MudButton>
-                            </MudTd>
-                            <MudTd DataLabel="Remove">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => RemoveSong(context)">
-                                    Remove</MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            }
+            <MudItem xs="12" md="8">
+                <MudPaper Elevation="3" Class="pa-4" Style="height: 450px;">
+                    <div id="player" style="height: 410px;"></div>
                 </MudPaper>
             </MudItem>
-        }
-    </MudGrid>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="3" Class="pa-4">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">Add Song</MudText>
+                        </MudStack>
+                        <MudTextField @bind-Value="addSongUrl" Label="Song URL" Variant="Variant.Outlined" 
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"></MudTextField>
+                        <MudButton OnClick="AddSongRequest" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                   Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add">
+                            Add Song Request
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            @if (songRequests != null)
+            {
+                <MudItem xs="12" md="8">
+                    <MudPaper Elevation="3">
+                        <MudTable Items="@songRequests" Dense="true" Hover="true">
+                            <ToolBarContent>
+                                <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Color="Color.Primary" Class="mr-2" />
+                                <MudText Typo="Typo.h6">Song Requests</MudText>
+                                <MudSpacer />
+                                <MudBadge Content="@songRequests.Count" Color="Color.Info" Overlap="true">
+                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
+                                </MudBadge>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>Title</MudTh>
+                                <MudTh>Length</MudTh>
+                                <MudTh>Requested By</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Title">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText>@context.Title</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                                <MudTd DataLabel="Requested By">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
+                                        <MudText>@context.RequestedBy</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Actions">
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudTooltip Text="Move to Next">
+                                            <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small" 
+                                                           OnClick="() => Priority(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Remove">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                                           OnClick="() => RemoveSongRequest(context)" />
+                                        </MudTooltip>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                                    No song requests in queue
+                                </MudAlert>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+
+            @if (musicPlaylists != null)
+            {
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="3">
+                        <MudTable Items="@musicPlaylists" Dense="true" Hover="true">
+                            <ToolBarContent>
+                                <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Color="Color.Secondary" Class="mr-2" />
+                                <MudText Typo="Typo.h6">Playlists</MudText>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Load</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Name">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.PlaylistPlay" Size="Size.Small" Color="Color.Primary" />
+                                        <MudText>@context.Name</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Load">
+                                    <MudTooltip Text="Load Playlist">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
+                                                       OnClick="() => StartPlaylist(context)" />
+                                    </MudTooltip>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    No playlists available
+                                </MudAlert>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+
+            @if (currentPlayList != null)
+            {
+                <MudItem xs="12" md="8">
+                    <MudPaper Elevation="3">
+                        <MudTable Items="@currentPlayList.Songs" Dense="true" Hover="true">
+                            <ToolBarContent>
+                                <MudIcon Icon="@Icons.Material.Filled.Album" Color="Color.Tertiary" Class="mr-2" />
+                                <MudText Typo="Typo.h6">@currentPlayList.Name</MudText>
+                                <MudSpacer />
+                                <MudBadge Content="@currentPlayList.Songs.Count" Color="Color.Info" Overlap="true">
+                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
+                                </MudBadge>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>Title</MudTh>
+                                <MudTh>Length</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Title">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText>@context.Title</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                                <MudTd DataLabel="Actions">
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudTooltip Text="Add to Queue">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
+                                                           OnClick="() => QueueSong(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Remove from Playlist">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                           OnClick="() => RemoveSong(context)" />
+                                        </MudTooltip>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PlaylistRemove">
+                                    Playlist is empty
+                                </MudAlert>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudStack>
 
     <MudScrollToTop>
         <MudFab Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
