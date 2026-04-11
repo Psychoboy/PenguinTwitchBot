@@ -29,10 +29,16 @@
 
                 <MudTextField Label="Description"
                 @bind-Value="audioCommand.Description" />
-                <MudNumericField @bind-Value="@audioCommand.UserCooldown" Label="User Cooldown" Variant="Variant.Text">
-                </MudNumericField>
-                <MudNumericField @bind-Value="@audioCommand.GlobalCooldown" Label="Global Cooldown" Variant="Variant.Text">
-                </MudNumericField>
+                <MudStack Row="true" Spacing="2">
+                    <MudNumericField @bind-Value="@audioCommand.UserCooldown" Label="User Min (sec)" Variant="Variant.Text" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@audioCommand.UserCooldownMax" Label="User Max (sec)" Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@audioCommand.GlobalCooldown" Label="Global Min (sec)" Variant="Variant.Text" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@audioCommand.GlobalCooldownMax" Label="Global Max (sec)" Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                    </MudNumericField>
+                </MudStack>
                 <MudNumericField @bind-Value="@audioCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
                 <MudSelect Required="@(audioCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="audioCommand.PointType" ToStringFunc="@ConvertFunction">
                     @foreach (var pointType in PointTypes)

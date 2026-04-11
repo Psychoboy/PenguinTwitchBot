@@ -245,6 +245,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
@@ -272,6 +275,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -319,6 +325,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
@@ -346,6 +355,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -427,6 +439,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
@@ -458,6 +473,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -501,6 +519,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
@@ -528,6 +549,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -571,6 +595,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsCaseSensitive")
                         .HasColumnType("tinyint(1)");
 
@@ -608,6 +635,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -1107,6 +1137,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("GlobalCooldown")
                         .HasColumnType("int");
 
+                    b.Property<int>("GlobalCooldownMax")
+                        .HasColumnType("int");
+
                     b.Property<int>("MinimumRank")
                         .HasColumnType("int");
 
@@ -1134,6 +1167,9 @@ namespace DotNetTwitchBot.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<int>("UserCooldown")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserCooldownMax")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

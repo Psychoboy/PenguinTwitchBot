@@ -60,12 +60,14 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
                     if (commandService.CommandProperties.GlobalCooldown > 0)
                     {
-                        await commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, commandService.CommandProperties.GlobalCooldown);
+                        var globalCooldown = Bot.Commands.CooldownHelper.CalculateCooldown(commandService.CommandProperties.GlobalCooldown, commandService.CommandProperties.GlobalCooldownMax);
+                        await commandHandler.AddGlobalCooldown(commandService.CommandProperties.CommandName, globalCooldown);
                     }
 
                     if (commandService.CommandProperties.UserCooldown > 0)
                     {
-                        await commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, commandService.CommandProperties.UserCooldown);
+                        var userCooldown = Bot.Commands.CooldownHelper.CalculateCooldown(commandService.CommandProperties.UserCooldown, commandService.CommandProperties.UserCooldownMax);
+                        await commandHandler.AddCoolDown(eventArgs.Name, commandService.CommandProperties.CommandName, userCooldown);
                     }
                 }
             }

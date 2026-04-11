@@ -12,7 +12,9 @@ namespace DotNetTwitchBot.Bot.Models.Commands
         public int? Id { get; set; }
         public string CommandName { get; set; } = null!;
         public int UserCooldown { get; set; } = 0;
+        public int UserCooldownMax { get; set; } = 0;
         public int GlobalCooldown { get; set; } = 0;
+        public int GlobalCooldownMax { get; set; } = 0;
         public Rank MinimumRank { get; set; } = Rank.Viewer;
         public int Cost { get; set; } = 0;
         public int? PointTypeId { get; set; }
