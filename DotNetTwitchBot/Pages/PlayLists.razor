@@ -81,10 +81,14 @@
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
                                     <MudStack Row="true" Spacing="1">
-                                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
-                                                       OnClick="() => StartPlaylist(context)" Title="Load Playlist" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
-                                                       OnClick="() => ViewList(context)" Title="View Playlist Details" />
+                                        <MudTooltip Text="Load Playlist">
+                                            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
+                                                           OnClick="() => StartPlaylist(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="View Playlist Details">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
+                                                           OnClick="() => ViewList(context)" />
+                                        </MudTooltip>
                                     </MudStack>
                                 </MudTd>
                             </RowTemplate>
@@ -138,10 +142,14 @@
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
                                     <MudStack Row="true" Spacing="1">
-                                        <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small"
-                                                       OnClick="() => Priority(context)" Title="Move to Next" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                       OnClick="() => RemoveSongRequest(context)" Title="Remove Request" />
+                                        <MudTooltip Text="Move to Next">
+                                            <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small"
+                                                           OnClick="() => Priority(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Remove Request">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                           OnClick="() => RemoveSongRequest(context)" />
+                                        </MudTooltip>
                                     </MudStack>
                                 </MudTd>
                             </RowTemplate>
@@ -187,8 +195,10 @@
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                   OnClick="() => RemoveSong(context)" Title="Remove from Playlist" />
+                                    <MudTooltip Text="Remove from Playlist">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="() => RemoveSong(context)" />
+                                    </MudTooltip>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>

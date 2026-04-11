@@ -105,12 +105,15 @@
                 <MudStack Spacing="2">
                     <MudStack Row="true" Spacing="3">
                         <MudSwitch @bind-Value="TimerGroup.Active" Label="Active" Color="Color.Success" />
-                        <MudSwitch @bind-Value="TimerGroup.Repeat" Label="Repeat" Color="Color.Primary" 
-                                   HelperText="If disabled, timer will run once and then deactivate" />
-                        <MudSwitch @bind-Value="TimerGroup.Shuffle" Label="Shuffle" Color="Color.Info" 
-                                   HelperText="Randomly select from associated actions" />
-                        <MudSwitch @bind-Value="TimerGroup.OnlineOnly" Label="Online Only" Color="Color.Warning" 
-                                   HelperText="If enabled, timer only runs when stream is online" />
+                        <MudTooltip Text="If disabled, timer will run once and then deactivate">
+                            <MudSwitch @bind-Value="TimerGroup.Repeat" Label="Repeat" Color="Color.Primary" />
+                        </MudTooltip>
+                        <MudTooltip Text="Randomly select from associated actions">
+                            <MudSwitch @bind-Value="TimerGroup.Shuffle" Label="Shuffle" Color="Color.Info" />
+                        </MudTooltip>
+                        <MudTooltip Text="If enabled, timer only runs when stream is online">
+                            <MudSwitch @bind-Value="TimerGroup.OnlineOnly" Label="Online Only" Color="Color.Warning" />
+                        </MudTooltip>
                     </MudStack>
                 </MudStack>
             </MudItem>
