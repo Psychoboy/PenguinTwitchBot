@@ -285,12 +285,21 @@
 
     private Task<IEnumerable<DefaultCommand>> SearchDefaultCommands(string value, CancellationToken token)
     {
+        // Filter to only supported commands with configured events
+        var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death"
+        };
+
+        var supportedCommands = _defaultCommands
+            .Where(d => supportedCommandNames.Contains(d.CommandName));
+
         if (string.IsNullOrWhiteSpace(value))
         {
-            return Task.FromResult(_defaultCommands.AsEnumerable());
+            return Task.FromResult(supportedCommands);
         }
 
-        var filtered = _defaultCommands.Where(d => 
+        var filtered = supportedCommands.Where(d => 
             d.CommandName.Contains(value, StringComparison.OrdinalIgnoreCase));
 
         return Task.FromResult(filtered);
@@ -321,7 +330,7 @@
 
     private List<string> GetEventTypesForCommand(string commandName)
     {
-        return commandName.ToLower() switch
+        return commandName.ToLowerInvariant() switch
         {
             "gamble" => new List<string>
             {
@@ -333,6 +342,39 @@
             {
                 DefaultCommandEventTypes.DefuseSuccess,
                 DefaultCommandEventTypes.DefuseFailure
+            },
+            "roll" or "dice" => new List<string>
+            {
+                DefaultCommandEventTypes.RollDoubles,
+                DefaultCommandEventTypes.RollSnakeEyes,
+                DefaultCommandEventTypes.RollBoxcars,
+                DefaultCommandEventTypes.RollLose
+            },
+            "slot" or "slots" => new List<string>
+            {
+                DefaultCommandEventTypes.SlotsThreeOfAKind,
+                DefaultCommandEventTypes.SlotsTwoOfAKind,
+                DefaultCommandEventTypes.SlotsLose
+            },
+            "steal" => new List<string>
+            {
+                DefaultCommandEventTypes.StealSuccess,
+                DefaultCommandEventTypes.StealFailed,
+                DefaultCommandEventTypes.StealToPoor
+            },
+            "heist" => new List<string>
+            {
+                DefaultCommandEventTypes.HeistStarted,
+                DefaultCommandEventTypes.HeistUserSurvived,
+                DefaultCommandEventTypes.HeistUserCaught,
+                DefaultCommandEventTypes.HeistEnded
+            },
+            "death" => new List<string>
+            {
+                DefaultCommandEventTypes.DeathIncremented,
+                DefaultCommandEventTypes.DeathDecremented,
+                DefaultCommandEventTypes.DeathReset,
+                DefaultCommandEventTypes.DeathSet
             },
             _ => new List<string>()
         };
@@ -347,6 +389,24 @@
             DefaultCommandEventTypes.GambleLose => "Lose",
             DefaultCommandEventTypes.DefuseSuccess => "Success",
             DefaultCommandEventTypes.DefuseFailure => "Failure",
+            DefaultCommandEventTypes.RollDoubles => "Doubles",
+            DefaultCommandEventTypes.RollSnakeEyes => "Snake Eyes",
+            DefaultCommandEventTypes.RollBoxcars => "Boxcars",
+            DefaultCommandEventTypes.RollLose => "Lose",
+            DefaultCommandEventTypes.SlotsThreeOfAKind => "3 of a Kind",
+            DefaultCommandEventTypes.SlotsTwoOfAKind => "2 of a Kind",
+            DefaultCommandEventTypes.SlotsLose => "Lose",
+            DefaultCommandEventTypes.StealSuccess => "Success",
+            DefaultCommandEventTypes.StealFailed => "Failed",
+            DefaultCommandEventTypes.StealToPoor => "Target Too Poor",
+            DefaultCommandEventTypes.HeistStarted => "Heist Started",
+            DefaultCommandEventTypes.HeistUserSurvived => "User Survived",
+            DefaultCommandEventTypes.HeistUserCaught => "User Caught",
+            DefaultCommandEventTypes.HeistEnded => "Heist Ended",
+            DefaultCommandEventTypes.DeathIncremented => "Death Added (+)",
+            DefaultCommandEventTypes.DeathDecremented => "Death Removed (-)",
+            DefaultCommandEventTypes.DeathReset => "Death Reset",
+            DefaultCommandEventTypes.DeathSet => "Death Set",
             _ => eventType
         };
     }

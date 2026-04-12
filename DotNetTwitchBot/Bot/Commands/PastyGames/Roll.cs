@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
@@ -12,7 +13,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IPointsSystem pointsSystem,
         IServiceBackbone serviceBackbone,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ICommandHandler commandHandler
+        ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, "Roll", dispatcher), IHostedService
     {
         private readonly List<string> WinMessages = LoadWinMessages();
@@ -59,35 +61,70 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             var resultMessage = string.Format("{0} rolls a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
             if (dice1 == dice2)
             {
+                string prizeName = "";
                 switch (dice1)
                 {
                     case 1:
                         resultMessage += string.Format("Snake eyes for {0} pasties! ", prizes[0]);
+                        prizeName = "Snake eyes";
                         break;
                     case 2:
                         resultMessage += string.Format("Hard four for {0} pasties! ", prizes[1]);
+                        prizeName = "Hard four";
                         break;
                     case 3:
                         resultMessage += string.Format("Hard six for {0} pasties! ", prizes[2]);
+                        prizeName = "Hard six";
                         break;
                     case 4:
                         resultMessage += string.Format("Hard eight for {0} pasties! ", prizes[3]);
+                        prizeName = "Hard eight";
                         break;
                     case 5:
                         resultMessage += string.Format("Hard ten for {0} pasties! ", prizes[4]);
+                        prizeName = "Hard ten";
                         break;
                     case 6:
                         resultMessage += string.Format("Boxcars to the max!!! {0} pasties! ", prizes[5]);
+                        prizeName = "Boxcars";
                         break;
                 }
                 var winMessage = string.Format(WinMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + winMessage);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizes[dice1 - 1]);
+
+                // Trigger default command event for doubles
+                var eventType = dice1 == 1 ? DefaultCommandEventTypes.RollSnakeEyes :
+                               dice1 == 6 ? DefaultCommandEventTypes.RollBoxcars :
+                               DefaultCommandEventTypes.RollDoubles;
+
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "roll",
+                    eventType,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "Dice1", dice1.ToString() },
+                        { "Dice2", dice2.ToString() },
+                        { "WinAmount", prizes[dice1 - 1].ToString("N0") },
+                        { "PrizeName", prizeName }
+                    });
             }
             else
             {
                 var lostMessage = string.Format(LostMessages.RandomElementOrDefault(), e.DisplayName);
                 await ServiceBackbone.SendChatMessage(resultMessage + lostMessage);
+
+                // Trigger default command event for lose
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "roll",
+                    DefaultCommandEventTypes.RollLose,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "Dice1", dice1.ToString() },
+                        { "Dice2", dice2.ToString() }
+                    });
             }
 
         }

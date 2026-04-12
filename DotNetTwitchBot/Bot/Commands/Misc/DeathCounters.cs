@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -12,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ILogger<DeathCounters> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IViewerFeature _viewerFeature;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
 
         public DeathCounters(
             ITwitchService twitchService,
@@ -58,26 +60,63 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                         if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
+                            var oldAmount = counter.Amount;
                             counter.Amount++;
                             await UpdateCounter(counter);
 
+                            // Trigger death incremented event
+                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "death",
+                                DefaultCommandEventTypes.DeathIncremented,
+                                e,
+                                new Dictionary<string, string>
+                                {
+                                    { "Game", game },
+                                    { "NewCount", counter.Amount.ToString() },
+                                    { "OldCount", oldAmount.ToString() }
+                                });
                         }
                         break;
                     case "-":
                         if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
+                            var oldAmount = counter.Amount;
                             counter.Amount--;
                             if (counter.Amount < 0) counter.Amount = 0;
                             await UpdateCounter(counter);
+
+                            // Trigger death decremented event
+                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "death",
+                                DefaultCommandEventTypes.DeathDecremented,
+                                e,
+                                new Dictionary<string, string>
+                                {
+                                    { "Game", game },
+                                    { "NewCount", counter.Amount.ToString() },
+                                    { "OldCount", oldAmount.ToString() }
+                                });
                         }
                         break;
                     case "reset":
                         if (e.IsBroadcaster || e.IsMod)
                         {
                             var counter = await GetCounter(game);
+                            var oldAmount = counter.Amount;
                             counter.Amount = 0;
                             await UpdateCounter(counter);
+
+                            // Trigger death reset event
+                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "death",
+                                DefaultCommandEventTypes.DeathReset,
+                                e,
+                                new Dictionary<string, string>
+                                {
+                                    { "Game", game },
+                                    { "OldCount", oldAmount.ToString() }
+                                });
                         }
                         break;
                     case "set":
@@ -87,8 +126,21 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                             if (Int32.TryParse(modifiers[1], out var amount))
                             {
                                 var counter = await GetCounter(game);
+                                var oldAmount = counter.Amount;
                                 counter.Amount = amount;
                                 await UpdateCounter(counter);
+
+                                // Trigger death set event
+                                await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                    "death",
+                                    DefaultCommandEventTypes.DeathSet,
+                                    e,
+                                    new Dictionary<string, string>
+                                    {
+                                        { "Game", game },
+                                        { "NewCount", amount.ToString() },
+                                        { "OldCount", oldAmount.ToString() }
+                                    });
                             }
                         }
                         break;

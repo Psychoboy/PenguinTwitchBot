@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -13,7 +14,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ICommandHandler commandHandler,
         MaxBetCalculator maxBetCalculator,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        IGameSettingsService gameSettingsService
+        IGameSettingsService gameSettingsService,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         private List<string> Emotes = [];
@@ -73,6 +75,20 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
 
                 await ServiceBackbone.SendChatMessage(message);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
+
+                // Trigger default command event for 3 of a kind
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "slot",
+                    DefaultCommandEventTypes.SlotsThreeOfAKind,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "Emote1", Emotes[e1] },
+                        { "Emote2", Emotes[e2] },
+                        { "Emote3", Emotes[e3] },
+                        { "WinAmount", prizeWinnings.ToString("N0") },
+                        { "MatchType", "3 of a kind" }
+                    });
                 return;
             }
             else if (e1 == e2 || e2 == e3 || e3 == e1) // 2 of a kind
@@ -98,6 +114,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
             //{NAME_HERE}
             message += randomLoseMessage;
             await ServiceBackbone.SendChatMessage(message.Replace("{NAME_HERE}", e.DisplayName));
+
+            // Trigger default command event for lose
+            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                "slot",
+                DefaultCommandEventTypes.SlotsLose,
+                e,
+                new Dictionary<string, string>
+                {
+                    { "Emote1", Emotes[e1] },
+                    { "Emote2", Emotes[e2] },
+                    { "Emote3", Emotes[e3] }
+                });
         }
 
         private async Task<long> CheckBetAmount(CommandEventArgs e)
