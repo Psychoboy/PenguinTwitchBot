@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
@@ -18,7 +19,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IViewerFeature viewerFeature,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<Defuse> logger,
-        ICommandHandler commandHandler
+        ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         //For Game Settings
@@ -88,6 +90,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await ServiceBackbone.SendChatMessage(startMessage + success);
 
                 await dispatcher.Publish(new QueueAlert(new AlertImage().Generate("defuse.gif,8")));
+
+                // Trigger default command event for success
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "defuse",
+                    DefaultCommandEventTypes.DefuseSuccess,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "WinAmount", value.ToString("N0") },
+                        { "ChosenWire", e.Arg },
+                        { "CorrectWire", chosenWire }
+                    });
             }
             else
             {
@@ -95,6 +109,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 fail = await ReplaceVariables(fail, nameWithTitle, e.Arg, cost, wires);
                 await ServiceBackbone.SendChatMessage(startMessage + fail);
                 await dispatcher.Publish(new QueueAlert(new AlertImage().Generate("detonated.gif,10")));
+
+                // Trigger default command event for failure
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "defuse",
+                    DefaultCommandEventTypes.DefuseFailure,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "LoseAmount", cost.ToString("N0") },
+                        { "ChosenWire", e.Arg },
+                        { "CorrectWire", chosenWire }
+                    });
             }
         }
 

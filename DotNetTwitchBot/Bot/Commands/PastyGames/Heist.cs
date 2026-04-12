@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -14,7 +15,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ICommandHandler commandHandler,
         TimeProvider timeProvider,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ITools tools
+        ITools tools,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         private readonly List<Participant> Entered = [];
@@ -275,6 +277,9 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     payouts.Add(formattedName);
                 }
 
+                // Trigger individual heist events for survivors and caught
+                await TriggerIndividualHeistEvents();
+
                 if (payouts.Count == 0)
                 {
                     var message = await gameSettingsService.GetStringSetting(GAMENAME, NOONEWON, "The heist ended! There are no survivors.");
@@ -294,6 +299,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     message = message.Replace("{Payouts}", string.Join(", ", payouts), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(message); //HEISTENDED
                 }
+
+                // Trigger heist ended event
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "heist",
+                    DefaultCommandEventTypes.HeistEnded,
+                    new CommandEventArgs { Name = ServiceBackbone.BroadcasterName, DisplayName = ServiceBackbone.BroadcasterName, UserId = "" },
+                    new Dictionary<string, string>
+                    {
+                        { "TotalParticipants", Entered.Count.ToString() },
+                        { "TotalSurvivors", Survivors.Count.ToString() },
+                        { "TotalCaught", Caught.Count.ToString() }
+                    });
+
                 await CleanUp();
             }
             catch (Exception e)
@@ -346,6 +364,56 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     Caught.Add(participant);
                 }
+            }
+        }
+
+        private async Task TriggerIndividualHeistEvents()
+        {
+            // Trigger events for each survivor
+            foreach (var survivor in Survivors)
+            {
+                var winMultiplier = await gameSettingsService.GetDoubleSetting(GAMENAME, WIN_MULTIPLIER, 1.5);
+                var winnings = Convert.ToInt64(survivor.Bet * winMultiplier);
+
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "heist",
+                    DefaultCommandEventTypes.HeistUserSurvived,
+                    new CommandEventArgs 
+                    { 
+                        Name = survivor.Name, 
+                        DisplayName = survivor.DisplayName,
+                        UserId = "" // We don't have UserId in Participant, service will handle this
+                    },
+                    new Dictionary<string, string>
+                    {
+                        { "BetAmount", survivor.Bet.ToString("N0") },
+                        { "WinAmount", winnings.ToString("N0") },
+                        { "TotalPayout", (survivor.Bet + winnings).ToString("N0") },
+                        { "TotalParticipants", Entered.Count.ToString() },
+                        { "TotalSurvivors", Survivors.Count.ToString() },
+                        { "TotalCaught", Caught.Count.ToString() }
+                    });
+            }
+
+            // Trigger events for each caught participant
+            foreach (var caught in Caught)
+            {
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "heist",
+                    DefaultCommandEventTypes.HeistUserCaught,
+                    new CommandEventArgs 
+                    { 
+                        Name = caught.Name, 
+                        DisplayName = caught.DisplayName,
+                        UserId = "" 
+                    },
+                    new Dictionary<string, string>
+                    {
+                        { "LostAmount", caught.Bet.ToString("N0") },
+                        { "TotalParticipants", Entered.Count.ToString() },
+                        { "TotalSurvivors", Survivors.Count.ToString() },
+                        { "TotalCaught", Caught.Count.ToString() }
+                    });
             }
         }
 

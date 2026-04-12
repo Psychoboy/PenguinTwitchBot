@@ -29,6 +29,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly Heist _heist;
         private readonly ITools _tools;
         private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
 
         public HeistTests()
         {
@@ -40,6 +41,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             _timeProvider = new FakeTimeProvider();
             _tools = Substitute.For<ITools>();
             dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            _defaultCommandTriggerService = Substitute.For<IDefaultCommandTriggerService>();
 
             _heist = new Heist(
                 _pointsSystem,
@@ -49,7 +51,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 _commandHandler,
                 _timeProvider,
                 dispatcherSubstitute,
-                _tools
+                _tools,
+                _defaultCommandTriggerService
             );
         }
 

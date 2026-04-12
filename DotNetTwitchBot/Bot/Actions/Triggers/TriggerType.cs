@@ -25,5 +25,6 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         // These are populated based on trigger type and stored alongside Configuration JSON
         public int? TimerGroupId { get; set; } // For TriggerTypes.Timer
         public int? CommandId { get; set; }     // For TriggerTypes.Command
+        public int? DefaultCommandId { get; set; } // For TriggerTypes.DefaultCommand
     }
 }

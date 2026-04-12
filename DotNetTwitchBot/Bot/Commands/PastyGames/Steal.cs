@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
@@ -11,7 +12,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         IViewerFeature viewerFeature,
         IServiceBackbone serviceBackbone,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ICommandHandler commandHandler
+        ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, "Steal", dispatcher), IHostedService
     {
         private readonly int StealMin = 100;
@@ -62,6 +64,18 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await ServiceBackbone.ResponseWithMessage(e,
                 string.Format("{0} is to poor for you to steal from them, instead you give them {1} pasties.", targetDisplayName, amount.ToString("N0")));
                 await MovePoints(e.Name, e.TargetUser, amount);
+
+                // Trigger default command event for too poor
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "steal",
+                    DefaultCommandEventTypes.StealToPoor,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "TargetUser", e.TargetUser },
+                        { "TargetDisplayName", targetDisplayName },
+                        { "Amount", amount.ToString("N0") }
+                    });
                 return;
             }
             var rand = StaticTools.Next(1, 12 + 1);
@@ -71,12 +85,36 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 e.DisplayName, amount, targetDisplayName));
 
                 await MovePoints(e.TargetUser, e.Name, amount);
+
+                // Trigger default command event for success
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "steal",
+                    DefaultCommandEventTypes.StealSuccess,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "TargetUser", e.TargetUser },
+                        { "TargetDisplayName", targetDisplayName },
+                        { "Amount", amount.ToString("N0") }
+                    });
             }
             else
             {
                 await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} pasties from {2}, {2} gets {1} pasties from {0} instead",
                e.DisplayName, amount, targetDisplayName));
                 await MovePoints(e.Name, e.TargetUser, amount);
+
+                // Trigger default command event for failed
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "steal",
+                    DefaultCommandEventTypes.StealFailed,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "TargetUser", e.TargetUser },
+                        { "TargetDisplayName", targetDisplayName },
+                        { "Amount", amount.ToString("N0") }
+                    });
             }
         }
 

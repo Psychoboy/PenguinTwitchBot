@@ -23,6 +23,7 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
         private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILogger<Defuse> _logger;
         private readonly ICommandHandler _commandHandler;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
         private readonly RandomNumberGenerator _randomNumberGenerator;
         private readonly Defuse _defuse;
 
@@ -35,11 +36,12 @@ namespace DotNetTwitchBot.Tests.Bot.Commands.PastyGames
             _dispatcher = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
             _logger = Substitute.For<ILogger<Defuse>>();
             _commandHandler = Substitute.For<ICommandHandler>();
+            _defaultCommandTriggerService = Substitute.For<IDefaultCommandTriggerService>();
             _randomNumberGenerator = Substitute.For<RandomNumberGenerator>();
 
             _pointsSystem.GetPointTypeForGame("Defuse").Returns(new DotNetTwitchBot.Bot.Models.Points.PointType { Name = "Points"});
 
-            _defuse = new Defuse(_pointsSystem, _serviceBackbone, _gameSettingsService, _viewerFeature, _dispatcher, _logger, _commandHandler);
+            _defuse = new Defuse(_pointsSystem, _serviceBackbone, _gameSettingsService, _viewerFeature, _dispatcher, _logger, _commandHandler, _defaultCommandTriggerService);
         }
 
         [Fact]

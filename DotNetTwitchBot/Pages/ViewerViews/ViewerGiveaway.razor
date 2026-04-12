@@ -33,41 +33,8 @@
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
     <MudGrid Spacing="3">
         <MudItem xs="12" md="6">
-            <BonusTickets/>
-            <MudPaper Class="pa-6" Elevation="3">
-                <MudStack AlignItems="AlignItems.Center" Spacing="3">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
-                        <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
-                        <MudText Typo="Typo.h4" class="mud-contrast-text" Align="Align.Center">Current Giveaway</MudText>
-                    </MudStack>
-                    <MudDivider />
-                    @if (string.IsNullOrEmpty(prize))
-                    {
-                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="40px" />
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.h5" Align="Align.Center"><strong>@prize</strong></MudText>
-                    }
-                    @if (string.IsNullOrEmpty(imageUrl))
-                    {
-                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
-                    }
-                    else
-                    {
-                        <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
-                    }
-                    @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
-                    {
-                        <MudPaper Class="pa-3" Elevation="0" Style="background-color: rgba(255,255,255,0.05);">
-                            <MudMarkdown Value="@prizeAdditionalDetails" />
-                        </MudPaper>
-                    }
-                </MudStack>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" md="6">
             <MudStack Spacing="3">
+                <BonusTickets/>
                 <MudPaper Class="pa-4 stat-card" Elevation="2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
@@ -191,6 +158,39 @@
             </AuthorizeView>
             </MudStack>
 
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-6" Elevation="3">
+                <MudStack AlignItems="AlignItems.Center" Spacing="3">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
+                        <MudText Typo="Typo.h4" class="mud-contrast-text" Align="Align.Center">Current Giveaway</MudText>
+                    </MudStack>
+                    <MudDivider />
+                    @if (string.IsNullOrEmpty(prize))
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="40px" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5" Align="Align.Center"><strong>@prize</strong></MudText>
+                    }
+                    @if (string.IsNullOrEmpty(imageUrl))
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
+                    }
+                    else
+                    {
+                        <MudImage Fluid="true" Class="rounded-lg" Src="@imageUrl" Elevation="2" />
+                    }
+                    @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
+                    {
+                        <MudPaper Class="pa-3" Elevation="0" Style="background-color: rgba(255,255,255,0.05);">
+                            <MudMarkdown Value="@prizeAdditionalDetails" />
+                        </MudPaper>
+                    }
+                </MudStack>
+            </MudPaper>
         </MudItem>
         <MudItem xs="12">
             <Bookmark BookmarkName="howtoearn">
