@@ -482,10 +482,13 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Fourth Pass: Remap Command trigger IDs based on CommandName
             await RemapCommandTriggerIds(_context, actions, logger);
 
-            // Fifth Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
+            // Fifth Pass: Remap DefaultCommand trigger IDs based on DefaultCommandName
+            await RemapDefaultCommandTriggerIds(_context, actions, logger);
+
+            // Sixth Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
             await RemapTimerGroupSubActionIds(_context, actions, logger);
 
-            // Sixth Pass: Validate ToggleCommandDisabled SubAction CommandNames
+            // Seventh Pass: Validate ToggleCommandDisabled SubAction CommandNames
             await RemapToggleCommandDisabledSubActions(_context, actions, logger);
 
             logger?.LogInformation("Completed post-restore entity reference remapping");
@@ -844,6 +847,89 @@ namespace DotNetTwitchBot.Repository.Repositories
             {
                 await context.SaveChangesAsync();
                 logger?.LogInformation("Remapped {RemappedCount} command triggers, {FailedCount} failed", remappedCount, failedCount);
+            }
+        }
+
+        /// <summary>
+        /// Remaps DefaultCommand trigger IDs based on DefaultCommandName after restore.
+        /// DefaultCommand IDs change during restore, so we use names to re-establish the relationships.
+        /// </summary>
+        private async Task RemapDefaultCommandTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var defaultCommandTriggers = records
+                .SelectMany(a => a.Triggers)
+                .Where(t => t.Type == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(t.Configuration))
+                .ToList();
+
+            if (!defaultCommandTriggers.Any())
+            {
+                logger?.LogDebug("No default command triggers to remap");
+                return;
+            }
+
+            // Load all default commands from the database (with their new IDs)
+            var defaultCommands = await context.Set<Bot.Models.Commands.DefaultCommand>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var commandNameToIdMap = defaultCommands
+                .Where(dc => dc.Id.HasValue)
+                .GroupBy(dc => dc.CommandName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => 
+                    {
+                        if (g.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple default commands found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
+                        }
+                        return g.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            int remappedCount = 0;
+            int failedCount = 0;
+
+            foreach (var trigger in defaultCommandTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Bot.Actions.Triggers.Configurations.DefaultCommandTriggerConfiguration>(trigger.Configuration);
+                    if (config == null)
+                    {
+                        failedCount++;
+                        logger?.LogWarning("Failed to deserialize DefaultCommandTriggerConfiguration. Configuration: {Config}", trigger.Configuration);
+                        continue;
+                    }
+
+                    // Get DefaultCommandName from configuration
+                    if (!string.IsNullOrEmpty(config.DefaultCommandName) && 
+                        commandNameToIdMap.TryGetValue(config.DefaultCommandName, out var newDefaultCommandId))
+                    {
+                        // Update the reference column with the new ID
+                        trigger.DefaultCommandId = newDefaultCommandId;
+
+                        remappedCount++;
+                        logger?.LogDebug("Remapped default command trigger for '{CommandName}' event '{EventType}': new ID is {NewId}", 
+                            config.DefaultCommandName, config.EventType, newDefaultCommandId);
+                    }
+                    else
+                    {
+                        failedCount++;
+                        logger?.LogWarning("Default command trigger references unknown default command: {CommandName}", config.DefaultCommandName);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap default command trigger. Configuration: {Config}", trigger.Configuration);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} default command triggers, {FailedCount} failed", remappedCount, failedCount);
             }
         }
 

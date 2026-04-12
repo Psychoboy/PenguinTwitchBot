@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Models.Actions.Triggers
 @using DotNetTwitchBot.Bot.Actions
 @using DotNetTwitchBot.Bot.Actions.Triggers
+@using DotNetTwitchBot.Bot.Actions.Triggers.Configurations
 @using TwitchEventConfig = DotNetTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using DotNetTwitchBot.Pages.Actions
 @using System.Text.Json
@@ -9,6 +10,7 @@
 @inject IDialogService DialogService
 @inject DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService
 @inject DotNetTwitchBot.Bot.Validation.IValidationService ValidationService
+@inject DotNetTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -62,6 +64,13 @@
                             <MudStack Spacing="0">
                                 <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Command Trigger</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.DefaultCommand && context.DefaultCommandId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@context.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandEventSummary(context.Configuration)</MudText>
                             </MudStack>
                         }
                         else
@@ -230,6 +239,23 @@
                     }
                     catch { /* Ignore JSON parsing errors */ }
                 }
+                else if (triggerType == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
+                        if (config != null && !string.IsNullOrEmpty(config.DefaultCommandName))
+                        {
+                            // Look up the default command by name to get the ID
+                            var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(config.DefaultCommandName);
+                            if (defaultCommand?.Id.HasValue == true)
+                            {
+                                newTrigger.DefaultCommandId = defaultCommand.Id.Value;
+                            }
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
 
                 // If we have an ActionId, save the trigger immediately
                 // Otherwise, just add to local list and it will be saved when the action is created
@@ -305,6 +331,7 @@
             TriggerTypes.TwitchEvent => Color.Secondary,
             TriggerTypes.Timer => Color.Info,
             TriggerTypes.Manual => Color.Default,
+            TriggerTypes.DefaultCommand => Color.Success,
             _ => Color.Default
         };
     }
@@ -396,5 +423,38 @@
         }
 
         return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";
+    }
+
+    private string GetDefaultCommandEventSummary(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return "No configuration";
+        }
+
+        try
+        {
+            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configurationJson);
+            if (config == null)
+            {
+                return "Invalid configuration";
+            }
+
+            var eventDisplayName = config.EventType switch
+            {
+                DefaultCommandEventTypes.GambleJackpotWin => "Jackpot Win",
+                DefaultCommandEventTypes.GambleWin => "Win",
+                DefaultCommandEventTypes.GambleLose => "Lose",
+                DefaultCommandEventTypes.DefuseSuccess => "Success",
+                DefaultCommandEventTypes.DefuseFailure => "Failure",
+                _ => config.EventType
+            };
+
+            return $"Event: {eventDisplayName}";
+        }
+        catch
+        {
+            return "Invalid configuration";
+        }
     }
 }

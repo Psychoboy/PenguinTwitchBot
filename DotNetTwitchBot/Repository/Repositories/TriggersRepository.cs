@@ -103,6 +103,20 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Efficiently queries triggers by DefaultCommandId using the reference column instead of JSON deserialization.
+        /// </summary>
+        public async Task<List<TriggerType>> GetByDefaultCommandIdAsync(int defaultCommandId)
+        {
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
+                .Where(t => t.Type == TriggerTypes.DefaultCommand && t.DefaultCommandId == defaultCommandId)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+        }
+
         public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             // No-op: Triggers are now backed up as children of Actions

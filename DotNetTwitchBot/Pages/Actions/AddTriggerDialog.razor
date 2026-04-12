@@ -3,6 +3,7 @@
 @using DotNetTwitchBot.Bot.Commands
 @using DotNetTwitchBot.Bot.Models.Timers
 @using DotNetTwitchBot.Bot.Actions.Triggers
+@using DotNetTwitchBot.Bot.Actions.Triggers.Configurations
 @using MudBlazor
 @using DotNetTwitchBot.Pages.Components
 
@@ -39,6 +40,16 @@
                             <MudStack Spacing="0">
                                 <MudText Typo="Typo.body1"><b>Timer</b></MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on a schedule or interval</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.DefaultCommand))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Functions" Color="Color.Success" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Default Command</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on default command events (gamble win, defuse, etc.)</MudText>
                             </MudStack>
                         </MudStack>
                     </MudListItem>
@@ -100,6 +111,40 @@
 
                     @* Trigger name is auto-set to the event name and hidden from user *@
                 }
+                else if (_selectedType == TriggerTypes.DefaultCommand)
+                {
+                    <MudText Typo="Typo.h6">Configure Default Command Trigger</MudText>
+
+                    <MudAutocomplete T="DefaultCommand" 
+                                     Value="_selectedDefaultCommand" 
+                                     ValueChanged="OnDefaultCommandChanged"
+                                     Label="Select Default Command" 
+                                     Variant="Variant.Outlined" 
+                                     Required="true" 
+                                     SearchFunc="SearchDefaultCommands"
+                                     ToStringFunc="@(d => d?.CommandName ?? string.Empty)"
+                                     MaxItems="null"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceValue="false" />
+
+                    @if (_selectedDefaultCommand != null)
+                    {
+                        <MudSelect T="string" 
+                                   Value="_selectedEventType"
+                                   ValueChanged="OnEventTypeChanged"
+                                   Label="Select Event Type" 
+                                   Variant="Variant.Outlined" 
+                                   Required="true">
+                            @foreach (var eventType in GetEventTypesForCommand(_selectedDefaultCommand.CommandName))
+                            {
+                                <MudSelectItem Value="@eventType">@GetEventTypeDisplayName(eventType)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., Gamble Jackpot Win" ReadOnly="true" />
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
@@ -149,13 +194,17 @@
     [Parameter] public int ActionId { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService { get; set; } = null!;
+    [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
     private List<ActionCommand> _commands = new();
     private List<TimerGroup> _timerGroups = new();
+    private List<DefaultCommand> _defaultCommands = new();
     private int? _selectedCommandId;
     private TimerGroup? _selectedTimerGroup;
+    private DefaultCommand? _selectedDefaultCommand;
+    private string _selectedEventType = "";
     private string _selectedTwitchEvent = "";
     private Bot.Actions.Triggers.TwitchEventTriggerConfig _twitchEventConfig = new();
     private string _triggerName = "";
@@ -167,6 +216,9 @@
 
         // Load all timer groups for the dropdown
         _timerGroups = (await TimersService.GetTimerGroupsAsync()).OrderBy(t => t.Name).ToList();
+
+        // Load all default commands for the dropdown
+        _defaultCommands = (await CommandHandler.GetDefaultCommandsFromDb()).OrderBy(d => d.CommandName).ToList();
     }
 
     private void SelectType(TriggerTypes type)
@@ -231,6 +283,74 @@
         _twitchEventConfig = config;
     }
 
+    private Task<IEnumerable<DefaultCommand>> SearchDefaultCommands(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult(_defaultCommands.AsEnumerable());
+        }
+
+        var filtered = _defaultCommands.Where(d => 
+            d.CommandName.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(filtered);
+    }
+
+    private void OnDefaultCommandChanged(DefaultCommand? defaultCommand)
+    {
+        _selectedDefaultCommand = defaultCommand;
+        _selectedEventType = ""; // Reset event type when command changes
+
+        // Auto-populate trigger name when both command and event are selected
+        UpdateDefaultCommandTriggerName();
+    }
+
+    private void UpdateDefaultCommandTriggerName()
+    {
+        if (_selectedDefaultCommand != null && !string.IsNullOrEmpty(_selectedEventType))
+        {
+            _triggerName = $"{_selectedDefaultCommand.CommandName}_{_selectedEventType.Split('.').LastOrDefault()}";
+        }
+    }
+
+    private void OnEventTypeChanged(string eventType)
+    {
+        _selectedEventType = eventType;
+        UpdateDefaultCommandTriggerName();
+    }
+
+    private List<string> GetEventTypesForCommand(string commandName)
+    {
+        return commandName.ToLower() switch
+        {
+            "gamble" => new List<string>
+            {
+                DefaultCommandEventTypes.GambleJackpotWin,
+                DefaultCommandEventTypes.GambleWin,
+                DefaultCommandEventTypes.GambleLose
+            },
+            "defuse" => new List<string>
+            {
+                DefaultCommandEventTypes.DefuseSuccess,
+                DefaultCommandEventTypes.DefuseFailure
+            },
+            _ => new List<string>()
+        };
+    }
+
+    private string GetEventTypeDisplayName(string eventType)
+    {
+        return eventType switch
+        {
+            DefaultCommandEventTypes.GambleJackpotWin => "Jackpot Win",
+            DefaultCommandEventTypes.GambleWin => "Win",
+            DefaultCommandEventTypes.GambleLose => "Lose",
+            DefaultCommandEventTypes.DefuseSuccess => "Success",
+            DefaultCommandEventTypes.DefuseFailure => "Failure",
+            _ => eventType
+        };
+    }
+
     private void OnCommandCreated(ActionCommand command)
     {
         // Add the newly created command to the list
@@ -256,6 +376,11 @@
 
         // For Twitch event type, require an event to be selected
         if (_selectedType == TriggerTypes.TwitchEvent && string.IsNullOrEmpty(_selectedTwitchEvent))
+            return false;
+
+        // For default command type, require a command and event type to be selected
+        if (_selectedType == TriggerTypes.DefaultCommand && 
+            (_selectedDefaultCommand == null || string.IsNullOrEmpty(_selectedEventType)))
             return false;
 
         return true;
@@ -292,6 +417,14 @@
         {
             _twitchEventConfig.EventName = _selectedTwitchEvent;
             configuration = _twitchEventConfig.ToJson();
+        }
+        else if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null)
+        {
+            configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            {
+                DefaultCommandName = _selectedDefaultCommand.CommandName,
+                EventType = _selectedEventType
+            });
         }
 
         var result = new

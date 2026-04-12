@@ -1,3 +1,4 @@
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Commands.Features;
 using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
@@ -17,7 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ITools tools,
-        MaxBetCalculator maxBetCalculator
+        MaxBetCalculator maxBetCalculator,
+        IDefaultCommandTriggerService defaultCommandTriggerService
             ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService
     {
         public static readonly string GAMENAME = "Gamble";
@@ -145,7 +147,19 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await twitchServices.Announcement(jackpotWin);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, winnings + jackpotWinnings);
-                await LaunchFireworks();
+
+                // Trigger default command event for jackpot win
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "gamble",
+                    DefaultCommandEventTypes.GambleJackpotWin,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "JackpotAmount", jackpotWinnings.ToString("N0") },
+                        { "WinAmount", winnings.ToString("N0") },
+                        { "TotalWinnings", (winnings + jackpotWinnings).ToString("N0") },
+                        { "RolledValue", value.ToString() }
+                    });
             }
             //If not jackpot see if they win at all
             else if (value > winRange || value == jackpotNumber)
@@ -163,6 +177,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 {
                     await ServiceBackbone.ResponseWithMessage(e, "You hit the jackpot! But the stream is offline so just normal win :(");
                 }
+
+                // Trigger default command event for win
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "gamble",
+                    DefaultCommandEventTypes.GambleWin,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "WinAmount", winnings.ToString("N0") },
+                        { "RolledValue", value.ToString() }
+                    });
             }
             //Otherwise they lose
             else
@@ -176,26 +201,17 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                     .Replace("{Points}", amount.ToString("N0"), StringComparison.OrdinalIgnoreCase)
                     .Replace("{PointType}", (await pointsSystem.GetPointTypeForGame(ModuleName)).Name, StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.ResponseWithMessage(e, loseMessage);
-            }
-        }
 
-        //Special function to launch fireworks Not for public use yet
-        private static async Task LaunchFireworks()
-        {
-            try
-            {
-                var httpClient = new HttpClient();
-                var request = new HttpRequestMessage
-                {
-                    RequestUri = new Uri("http://127.0.0.1:7474/DoAction"),
-                    Method = HttpMethod.Post,
-                    Content = new StringContent("{\"action\":{\"id\":\"c4a5e3b8-a607-4b34-b8fe-ff7b36c3f3d4\",\"name\":\"Fireworks - General - 50 fireworks\"},\"args\": {}}")
-                };
-                await httpClient.SendAsync(request);
-            }
-            catch (Exception)
-            {
-                // do nothing
+                // Trigger default command event for lose
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "gamble",
+                    DefaultCommandEventTypes.GambleLose,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "LoseAmount", amount.ToString("N0") },
+                        { "RolledValue", value.ToString() }
+                    });
             }
         }
 

@@ -28,6 +28,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
         private readonly DotNetTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly ITools _tools;
         private readonly MaxBetCalculator _maxBetCalculator;
+        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
         private readonly Gamble _gamble;
 
         public GambleTests()
@@ -41,6 +42,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
             dispatcherSubstitute = Substitute.For<DotNetTwitchBot.Application.Notifications.IPenguinDispatcher>();
             _tools = Substitute.For<ITools>();
             _maxBetCalculator = new MaxBetCalculator(_pointsSystem);
+            _defaultCommandTriggerService = Substitute.For<IDefaultCommandTriggerService>();
 
             _gamble = new Gamble(
                 _logger,
@@ -51,7 +53,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.PastyGames
                 _commandHandler,
                 dispatcherSubstitute,
                 _tools,
-                _maxBetCalculator
+                _maxBetCalculator,
+                _defaultCommandTriggerService
             );
         }
 

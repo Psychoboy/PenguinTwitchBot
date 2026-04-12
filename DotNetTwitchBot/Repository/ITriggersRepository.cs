@@ -15,5 +15,6 @@ namespace DotNetTwitchBot.Repository
         // New efficient query methods using reference columns
         Task<List<TriggerType>> GetByTimerGroupIdAsync(int timerGroupId);
         Task<List<TriggerType>> GetByCommandIdAsync(int commandId);
+        Task<List<TriggerType>> GetByDefaultCommandIdAsync(int defaultCommandId);
     }
 }
