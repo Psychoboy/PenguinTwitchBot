@@ -7,35 +7,22 @@ using DotNetTwitchBot.Repository;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
-    public class DeathCounters : BaseCommandService, IHostedService
+    public class DeathCounters(
+        ITwitchService twitchService,
+        ILogger<DeathCounters> logger,
+        IServiceBackbone serviceBackbone,
+        IViewerFeature viewerFeature,
+        IServiceScopeFactory scopeFactory,
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "DeathCounters", dispatcher), IHostedService
     {
-        private readonly ITwitchService _twitchService;
-        private readonly ILogger<DeathCounters> _logger;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IViewerFeature _viewerFeature;
-        private readonly IDefaultCommandTriggerService _defaultCommandTriggerService;
-
-        public DeathCounters(
-            ITwitchService twitchService,
-            ILogger<DeathCounters> logger,
-            IServiceBackbone serviceBackbone,
-            IViewerFeature viewerFeature,
-            IServiceScopeFactory scopeFactory,
-            Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
-            ) : base(serviceBackbone, commandHandler, "DeathCounters", dispatcher)
-        {
-            _twitchService = twitchService;
-            _logger = logger;
-            _scopeFactory = scopeFactory;
-            _viewerFeature = viewerFeature;
-        }
-
         public override async Task Register()
         {
             var moduleName = "DeathCounter";
             await RegisterDefaultCommand("death", this, moduleName);
-            _logger.LogInformation("Registered commands for {moduleName}", moduleName);
+            logger.LogInformation("Registered commands for {moduleName}", moduleName);
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -44,10 +31,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("death")) return;
 
-            var game = await _twitchService.GetCurrentGame();
+            var game = await twitchService.GetCurrentGame();
             if (string.IsNullOrWhiteSpace(game))
             {
-                _logger.LogWarning("Game is not set for counter");
+                logger.LogWarning("Game is not set for counter");
                 throw new SkipCooldownException();
             }
             var modifiers = e.Args;
@@ -65,7 +52,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                             await UpdateCounter(counter);
 
                             // Trigger death incremented event
-                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
                                 "death",
                                 DefaultCommandEventTypes.DeathIncremented,
                                 e,
@@ -87,7 +74,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                             await UpdateCounter(counter);
 
                             // Trigger death decremented event
-                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
                                 "death",
                                 DefaultCommandEventTypes.DeathDecremented,
                                 e,
@@ -108,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                             await UpdateCounter(counter);
 
                             // Trigger death reset event
-                            await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
                                 "death",
                                 DefaultCommandEventTypes.DeathReset,
                                 e,
@@ -131,7 +118,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                                 await UpdateCounter(counter);
 
                                 // Trigger death set event
-                                await _defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
                                     "death",
                                     DefaultCommandEventTypes.DeathSet,
                                     e,
@@ -154,18 +141,18 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var counter = await GetCounter(counterName);
             if (counter.Amount == 0)
             {
-                await SendChatMessage(string.Format("{0} has not died in {1} YET", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counterName), sourceOnly);
+                await SendChatMessage(string.Format("{0} has not died in {1} YET", await viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counterName), sourceOnly);
 
             }
             else
             {
-                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await _viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counter.Amount, counterName), sourceOnly);
+                await SendChatMessage(string.Format("{0} has died {1} times in {2}", await viewerFeature.GetDisplayNameByUsername(ServiceBackbone.BroadcasterName), counter.Amount, counterName), sourceOnly);
             }
         }
 
         private async Task<Models.DeathCounter> GetCounter(string counterName)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var counter = await db.DeathCounters.Find(x => x.Game.Equals(counterName)).FirstOrDefaultAsync();
             counter ??= new Models.DeathCounter
@@ -177,7 +164,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private async Task UpdateCounter(Models.DeathCounter counter)
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
+            await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.DeathCounters.Update(counter);
             await db.SaveChangesAsync();
@@ -185,13 +172,13 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting {moduledname}", ModuleName);
+            logger.LogInformation("Starting {moduledname}", ModuleName);
             return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            logger.LogInformation("Stopped {moduledname}", ModuleName);
             return Task.CompletedTask;
         }
     }
