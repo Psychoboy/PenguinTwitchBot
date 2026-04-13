@@ -1,5 +1,8 @@
 using DotNetTwitchBot.Application.Alert.Notification;
+using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Actions.SubActions.UI;
+using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Bot.Alerts;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
@@ -88,6 +91,13 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
             return Commands.ToDictionary();
         }
 
+        public async Task<List<Models.Commands.AudioCommand>> GetAllAsync()
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return (await db.AudioCommands.GetAllAsync()).ToList();
+        }
+
         public async Task<Models.Commands.AudioCommand?> GetAudioCommand(int id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
@@ -168,11 +178,29 @@ namespace DotNetTwitchBot.Bot.Commands.AudioCommand
 
         private async Task RunCommand(Models.Commands.AudioCommand audioCommand, CommandEventArgs e)
         {
-            var alertSound = new AlertSound
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+            var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+            var action = new ActionType
             {
-                AudioHook = audioCommand.AudioFile
+                Name = $"Audio Command: {audioCommand.CommandName}",
+                Group = "Audio Commands",
+                Enabled = true,
+                ConcurrentAction = true,
+                OnlineOnly = false,
+                SubActions =
+                [
+                    new PlaySoundType
+                    {
+                        File = audioCommand.AudioFile,
+                        Enabled = true,
+                    }
+                ]
             };
-            await dispatcher.Publish(new QueueAlert(alertSound.Generate()));
+
+            await actionService.EnqueueAction(CommandEventArgsConverter.ToDictionary(e), action);
+
             if (Commands[e.Command].GlobalCooldown > 0)
             {
                 var globalCooldown = CooldownHelper.CalculateCooldown(Commands[e.Command].GlobalCooldown, Commands[e.Command].GlobalCooldownMax);

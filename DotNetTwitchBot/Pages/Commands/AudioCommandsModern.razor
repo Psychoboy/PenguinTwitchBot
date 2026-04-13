@@ -1,0 +1,330 @@
+@page "/actions/audiocommands"
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Pages.Components
+@implements IDisposable
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject ICommandHelper CommandHelper
+
+<PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Audio Commands</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Manage audio commands for the bot.</MudText>
+
+    <MudGrid>
+        <!-- Left Panel - Commands List -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Audio Commands (@_commands.Count)</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                                       OnClick="CreateNewCommand" />
+                    </MudStack>
+
+                    <MudTextField @bind-Value="_searchString" Placeholder="Search commands" 
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                  IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
+                                  OnDebounceIntervalElapsed="FilterCommands" />
+
+                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
+                        <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
+                        @foreach (var category in _categories)
+                        {
+                            <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudDivider />
+
+                    @if (_filteredCommands.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                            No audio commands found
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudList T="AudioCommand" @bind-SelectedValue="_selectedCommand" Dense="true">
+                            @foreach (var category in _filteredCommands.Select(a => (a.Category ?? string.Empty).Trim()).Distinct().Order())
+                            {
+                                <MudListItem Text="@(string.IsNullOrWhiteSpace(category) ? None : category)" Expanded="@(string.IsNullOrWhiteSpace(category) ? _commandCategory == None : _commandCategory == category)">
+                                    <NestedList>
+                                        @foreach (var command in _filteredCommands.Where(c => (c.Category ?? string.Empty).Trim() == category))
+                                        {
+                                            <MudListItem T="AudioCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))">
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.body1">!@command.CommandName</MudText>
+                                                    <MudStack Row="true" Spacing="1">
+                                                        <MudChip T="string" Size="Size.Small" Color="@(command.Disabled ? Color.Error : Color.Success)">
+                                                            @(command.Disabled ? "Disabled" : "Enabled")
+                                                        </MudChip>
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Icon="@Icons.Material.Filled.VolumeUp">
+                                                            @command.AudioFile
+                                                        </MudChip>
+                                                    </MudStack>
+                                                </MudStack>
+                                            </MudListItem>
+                                            <MudDivider />
+                                        }
+                                    </NestedList>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Right Panel - Command Details -->
+        <MudItem xs="12" md="8">
+            @if (_isLoading)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading audio commands...</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else if (_selectedCommand == null)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Select an audio command to view details</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Or create a new command to get started</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <AudioCommandEditor Command="_selectedCommand"
+                                        AudioFiles="_audioFiles"
+                                        OnSave="SaveCommand"
+                                        OnCancel="CancelEdit"
+                                        OnDelete="DeleteCommand"
+                                        IsNewCommand="_isNewCommand"
+                                        ShowActions="true" />
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "commandId")]
+    public int? CommandIdFromQuery { get; set; }
+    public string None => "None";
+
+    private List<AudioCommand> _commands = new();
+    private List<AudioCommand> _filteredCommands = new();
+    private List<string> _categories = new();
+    private List<string> _audioFiles = new();
+    private AudioCommand? _selectedCommand;
+    private bool _isNewCommand = false;
+    private bool _isLoading = true;
+    private bool _isNavigating = false;
+    private string _searchString = "";
+    private string _filterCategory = "";
+    public string? _commandCategory = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to location changes for browser back/forward button support
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        await LoadCommands();
+        _audioFiles = AudioCommand.GetAudioFiles();
+
+        // Check if a command was specified in the query string
+        if (CommandIdFromQuery.HasValue)
+        {
+            var command = _commands.FirstOrDefault(c => c.Id == CommandIdFromQuery.Value);
+            if (command != null)
+            {
+                OnCommandSelected(command);
+            }
+        }
+
+        _isLoading = false;
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_isNavigating) return;
+
+        var uri = new Uri(e.Location);
+        var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryString.TryGetValue("commandId", out var commandIdString) && int.TryParse(commandIdString, out var commandId))
+        {
+            var command = _commands.FirstOrDefault(c => c.Id == commandId);
+            if (command != null && command != _selectedCommand)
+            {
+                await InvokeAsync(() =>
+                {
+                    OnCommandSelected(command);
+                    StateHasChanged();
+                });
+            }
+        }
+    }
+
+    private async Task LoadCommands()
+    {
+        _commands = await AudioCommand.GetAllAsync();
+        _categories = _commands.Select(c => c.Category ?? string.Empty).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+        FilterCommands();
+    }
+
+    private void FilterCommands()
+    {
+        _filteredCommands = _commands.Where(c =>
+        {
+            var matchesSearch = string.IsNullOrWhiteSpace(_searchString) ||
+                               c.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                               (c.Description ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+
+            var matchesCategory = string.IsNullOrWhiteSpace(_filterCategory) ||
+                                 c.Category == _filterCategory;
+
+            return matchesSearch && matchesCategory;
+        }).ToList();
+
+        _commandCategory = _filteredCommands.Select(c => (c.Category ?? string.Empty).Trim()).FirstOrDefault();
+    }
+
+    private void OnCategoryFilterChanged(string category)
+    {
+        _filterCategory = category;
+        FilterCommands();
+    }
+
+    private void OnCommandSelected(AudioCommand command)
+    {
+        _selectedCommand = command;
+        _isNewCommand = false;
+
+        // Update URL to include commandId
+        if (command.Id.HasValue)
+        {
+            _isNavigating = true;
+            NavigationManager.NavigateTo($"/actions/audiocommands?commandId={command.Id.Value}", false);
+            _isNavigating = false;
+        }
+    }
+
+    private void CreateNewCommand()
+    {
+        _selectedCommand = new AudioCommand
+        {
+            Category = string.Empty,
+            Description = string.Empty,
+            SayCooldown = true,
+            SourceOnly = true,
+            SpecificUsersOnly = new List<string>(),
+            SpecificRanks = new List<Rank>()
+        };
+        _isNewCommand = true;
+
+        // Navigate to new command URL
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/audiocommands", false);
+        _isNavigating = false;
+    }
+
+    private async Task SaveCommand(AudioCommand command)
+    {
+        if (command == null) return;
+
+        try
+        {
+            if (_isNewCommand)
+            {
+                // Check if command already exists
+                if (await AudioCommand.CommandExists(command.CommandName))
+                {
+                    bool? result = await DialogService.ShowMessageBoxAsync(
+                        "Warning",
+                        $"Command '!{command.CommandName}' already exists. Continue anyway?",
+                        yesText: "Yes", cancelText: "Cancel");
+
+                    if (result != true) return;
+                }
+
+                await AudioCommand.AddAudioCommand(command);
+                Snackbar.Add($"Audio command '!{command.CommandName}' created successfully", Severity.Success);
+                _isNewCommand = false;
+            }
+            else
+            {
+                await AudioCommand.SaveAudioCommand(command);
+                Snackbar.Add($"Audio command '!{command.CommandName}' updated successfully", Severity.Success);
+            }
+
+            await LoadCommands();
+
+            // Clear selection and URL after save
+            _selectedCommand = null;
+            _isNavigating = true;
+            NavigationManager.NavigateTo("/actions/audiocommands", false);
+            _isNavigating = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving audio command: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteCommand(AudioCommand command)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Audio Command",
+            $"Are you sure you want to delete the audio command '!{command.CommandName}'? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true && command.Id.HasValue)
+        {
+            try
+            {
+                await AudioCommand.DeleteAudioCommand(command);
+                Snackbar.Add($"Audio command '!{command.CommandName}' deleted successfully", Severity.Success);
+
+                await LoadCommands();
+                _selectedCommand = null;
+                _isNewCommand = false;
+
+                _isNavigating = true;
+                NavigationManager.NavigateTo("/actions/audiocommands", false);
+                _isNavigating = false;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting audio command: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _selectedCommand = null;
+        _isNewCommand = false;
+
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/audiocommands", false);
+        _isNavigating = false;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,0 +1,347 @@
+@*
+    AudioCommandEditor - A reusable component for editing audio command details with all available options
+
+    Usage:
+    <AudioCommandEditor Command="_command" 
+                        AudioFiles="_audioFiles"
+                        OnSave="HandleSave" 
+                        OnCancel="HandleCancel"
+                        OnDelete="HandleDelete"
+                        IsNewCommand="true" />
+
+    Parameters:
+    - Command: The audio command to edit
+    - AudioFiles: List of available audio files
+    - OnSave: Event callback when save is clicked
+    - OnCancel: Event callback when cancel is clicked  
+    - OnDelete: Event callback when delete is clicked (optional, only shown for existing commands)
+    - IsNewCommand: Whether this is a new command being created
+    - ShowActions: Whether to show Save/Delete/Cancel buttons (default: true)
+*@
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Commands
+@inject IPointsSystem PointSystem
+@inject Bot.Commands.AudioCommand.AudioCommands AudioCommandService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" Elevation="0" Outlined="true">
+    @if (ShowActions)
+    {
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6">
+                @(IsNewCommand ? "New Audio Command" : $"Edit Command: !{Command?.CommandName}")
+            </MudText>
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           OnClick="SaveCommand" StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@(!CanSave())">
+                    Save
+                </MudButton>
+                @if (!IsNewCommand && OnDelete.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                               OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete">
+                        Delete
+                    </MudButton>
+                }
+                @if (OnCancel.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
+                        Cancel
+                    </MudButton>
+                }
+            </MudStack>
+        </MudStack>
+        <MudDivider Class="mb-3" />
+    }
+
+    @if (Command != null)
+    {
+        <MudGrid>
+            <!-- Basic Information -->
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Basic Information</b></MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Command.CommandName" Label="Command Name" 
+                              Required="true" Variant="Variant.Outlined" 
+                              HelperText="Do not include the ! prefix"
+                              Adornment="Adornment.Start"
+                              AdornmentText="!" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="string" @bind-Value="Command.Category" Label="Category" 
+                                 Variant="Variant.Outlined" 
+                                 SearchFunc="@SearchCategories"
+                                 Clearable="true"
+                                 CoerceText="false"
+                                 CoerceValue="true"
+                                 MaxItems="null"
+                                 HelperText="Organize commands into categories" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="@Command.AudioFile" 
+                           Required="true" 
+                           Label="Audio File"
+                           Variant="Variant.Outlined"
+                           HelperText="Select the audio file to play when command is triggered"
+                           Adornment="Adornment.Start"
+                           AdornmentIcon="@Icons.Material.Filled.VolumeUp">
+                    @foreach (string file in AudioFiles)
+                    {
+                        <MudSelectItem Value="@file">@file</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Command.Description" Label="Description" 
+                              Lines="3" Variant="Variant.Outlined" 
+                              HelperText="Describe what this command does" />
+            </MudItem>
+
+            <!-- Cooldowns and Cost -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Cooldowns and Cost</b></MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.UserCooldown" Label="User Min (sec)" 
+                                 Variant="Variant.Outlined" Min="0" 
+                                 HelperText="Minimum cooldown per user" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.UserCooldownMax" Label="User Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.GlobalCooldown" Label="Global Min (sec)" 
+                                 Variant="Variant.Outlined" Min="0" 
+                                 HelperText="Minimum global cooldown" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Command.GlobalCooldownMax" Label="Global Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="Command.Cost" Label="Cost" 
+                                 Variant="Variant.Outlined" Min="0" 
+                                 HelperText="Points required to use this command" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
+                           Variant="Variant.Outlined"
+                           Required="@(Command.Cost > 0)"
+                           ToStringFunc="@(p => p?.Name ?? "None")">
+                    <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
+                    @foreach (var pointType in _pointTypes)
+                    {
+                        <MudSelectItem Value="@pointType">@pointType.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- Permissions -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Permissions</b></MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Rank" @bind-Value="Command.MinimumRank" Label="Minimum Rank" 
+                           Variant="Variant.Outlined">
+                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Command.SpecificUserOnly" Label="Specific User Only" 
+                              Variant="Variant.Outlined"
+                              HelperText="Only this user can use the command" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.body2">Specific Users Only (Advanced)</MudText>
+                    <MudStack Row="true" Spacing="1">
+                        <MudTextField @bind-Value="_newSpecificUser" Label="Add User" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Enter username and press + to add" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" 
+                                       OnClick="AddSpecificUser" 
+                                       Disabled="@string.IsNullOrWhiteSpace(_newSpecificUser)" />
+                    </MudStack>
+                    @if (Command.SpecificUsersOnly.Any())
+                    {
+                        <MudStack Row="true" Spacing="1" Style="flex-wrap: wrap;">
+                            @foreach (var user in Command.SpecificUsersOnly)
+                            {
+                                <MudChip T="string" OnClose="@(() => RemoveSpecificUser(user))">@user</MudChip>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="Rank" Label="Specific Ranks (Advanced)" MultiSelection="true" 
+                           SelectedValues="_selectedRanks" SelectedValuesChanged="OnSelectedRanksChanged" 
+                           Variant="Variant.Outlined"
+                           HelperText="Allows only these ranks to use the command">
+                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- Settings -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Settings</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="Command.Disabled" Label="Disabled" Color="Color.Error" />
+                        <MudSwitch @bind-Value="Command.SayCooldown" Label="Say Cooldown" Color="Color.Info" />
+                        <MudSwitch @bind-Value="Command.SayRankRequirement" Label="Say Rank Requirement" Color="Color.Info" />
+                    </MudStack>
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="Command.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
+                        <MudSwitch @bind-Value="Command.SourceOnly" Label="Source Only" Color="Color.Warning" />
+                    </MudStack>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public AudioCommand? Command { get; set; }
+    [Parameter] public List<string> AudioFiles { get; set; } = new();
+    [Parameter] public EventCallback<AudioCommand> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<AudioCommand> OnDelete { get; set; }
+    [Parameter] public bool IsNewCommand { get; set; } = false;
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    private List<string> _categories = new();
+    private List<PointType> _pointTypes = new();
+    private PointType? _selectedPointType;
+    private IReadOnlyCollection<Rank> _selectedRanks = new List<Rank>();
+    private string _newSpecificUser = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPointTypes();
+        await LoadCategories();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Command != null)
+        {
+            _selectedPointType = Command.PointType;
+            _selectedRanks = Command.SpecificRanks;
+        }
+    }
+
+    private async Task LoadPointTypes()
+    {
+        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
+    }
+
+    private async Task LoadCategories()
+    {
+        var commands = await AudioCommandService.GetAllAsync();
+        _categories = commands.Select(c => c.Category ?? string.Empty).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+    }
+
+    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(_categories);
+        }
+
+        value = value.Trim();
+
+        var filteredCategories = _categories
+            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // If the user's input is not in the list, add it as an option (for creating new categories)
+        if (!filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredCategories.Insert(0, value);
+        }
+
+        return Task.FromResult<IEnumerable<string>>(filteredCategories);
+    }
+
+    private bool CanSave()
+    {
+        if (Command == null || string.IsNullOrWhiteSpace(Command.CommandName)) return false;
+        if (string.IsNullOrWhiteSpace(Command.AudioFile)) return false;
+        if (Command.Cost > 0 && _selectedPointType == null) return false;
+        return true;
+    }
+
+    private async Task SaveCommand()
+    {
+        if (Command == null || !CanSave())
+        {
+            return;
+        }
+
+        // Update references from the UI selections
+        Command.PointTypeId = _selectedPointType?.Id;
+        Command.PointType = _selectedPointType;
+        Command.SpecificRanks = _selectedRanks.ToList();
+        Command.Category = Command.Category ?? string.Empty;
+
+        await OnSave.InvokeAsync(Command);
+    }
+
+    private async Task DeleteCommand()
+    {
+        if (Command != null)
+        {
+            await OnDelete.InvokeAsync(Command);
+        }
+    }
+
+    private async Task CancelEdit()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    private void AddSpecificUser()
+    {
+        if (!string.IsNullOrWhiteSpace(_newSpecificUser) && Command != null)
+        {
+            if (!Command.SpecificUsersOnly.Contains(_newSpecificUser))
+            {
+                Command.SpecificUsersOnly.Add(_newSpecificUser);
+                _newSpecificUser = "";
+            }
+            else
+            {
+                Snackbar.Add($"User '{_newSpecificUser}' is already in the list", Severity.Warning);
+            }
+        }
+    }
+
+    private void RemoveSpecificUser(string user)
+    {
+        Command?.SpecificUsersOnly.Remove(user);
+    }
+
+    private void OnSelectedRanksChanged(IEnumerable<Rank> ranks)
+    {
+        _selectedRanks = ranks.ToList();
+    }
+}
