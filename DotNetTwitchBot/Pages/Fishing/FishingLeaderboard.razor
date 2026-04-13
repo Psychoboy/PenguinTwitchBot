@@ -132,14 +132,14 @@
                                             </MudStack>
                                         </MudTd>
                                     </RowTemplate>
-                                            </MudTable>
-                                                        }
-                                                    }
-                                                else
-                                            {
-                                                <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No fish have been caught yet. Be the first to catch one!</MudAlert>
-                                            }
-                                        </MudTabPanel>
+                                </MudTable>
+                            }
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No fish have been caught yet. Be the first to catch one!</MudAlert>
+                        }
+                    </MudTabPanel>
 
                                         <MudTabPanel Text="Dex" Icon="@Icons.Material.Filled.MenuBook">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4 mt-4">
@@ -648,23 +648,9 @@
     {
         if (string.IsNullOrEmpty(currentUserId)) return;
 
-        userDexCatches = new List<FishCatch>();
-        userDexCatchCounts = new Dictionary<int, int>();
-
-        foreach (var fishType in fishTypes)
-        {
-            var bestCatch = await fishingService.GetUserBestCatchForFishType(currentUserId, fishType.Id);
-            if (bestCatch != null)
-            {
-                userDexCatches.Add(bestCatch);
-            }
-
-            var catchCount = await fishingService.GetUserCatchCountForFishType(currentUserId, fishType.Id);
-            if (catchCount > 0)
-            {
-                userDexCatchCounts[fishType.Id] = catchCount;
-            }
-        }
+        var bestCatchesDict = await fishingService.GetUserBestCatchesForAllFishTypes(currentUserId);
+        userDexCatches = bestCatchesDict.Values.ToList();
+        userDexCatchCounts = await fishingService.GetUserCatchCountsForAllFishTypes(currentUserId);
     }
 
     private async Task OnFishTypeChanged(int newFishTypeId)

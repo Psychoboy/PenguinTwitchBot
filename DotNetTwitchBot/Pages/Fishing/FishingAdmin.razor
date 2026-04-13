@@ -185,6 +185,26 @@
                            Class="mt-4">
                     Save Settings
                 </MudButton>
+
+                <MudDivider Class="mt-6 mb-4" />
+
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Color="Color.Error">Danger Zone</MudText>
+                    </MudStack>
+                    <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                        <strong>Warning:</strong> The following action will permanently delete all user catches, gold, and purchased boosts. Fish types and shop items will remain. This cannot be undone!
+                    </MudAlert>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Error" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.DeleteForever"
+                               OnClick="ShowResetConfirmation"
+                               Disabled="isResetting">
+                        @(isResetting ? "Resetting..." : "Reset All User Data")
+                    </MudButton>
+                </MudStack>
             </MudStack>
         </MudPaper>
     </MudTabPanel>
@@ -420,6 +440,54 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="resetConfirmVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" />
+            <MudText Typo="Typo.h6" Color="Color.Error">Confirm Reset</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Error" Icon="@Icons.Material.Filled.Error">
+                <strong>This action cannot be undone!</strong>
+            </MudAlert>
+            <MudText Typo="Typo.body1">
+                Are you sure you want to reset all user data? This will permanently delete:
+            </MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All fish catches from all users
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All user gold balances
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All purchased boosts
+                </MudListItem>
+            </MudList>
+            <MudText Typo="Typo.body2" Color="Color.Success">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                Fish types and shop items will be preserved.
+            </MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => resetConfirmVisible = false" 
+                   StartIcon="@Icons.Material.Filled.Cancel"
+                   Disabled="isResetting">
+            Cancel
+        </MudButton>
+        <MudButton Color="Color.Error" 
+                   OnClick="ResetAllUserData"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                   Disabled="isResetting">
+            @(isResetting ? "Resetting..." : "Yes, Reset Everything")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
@@ -431,8 +499,10 @@
 
     private bool fishDialogVisible = false;
     private bool shopItemDialogVisible = false;
+    private bool resetConfirmVisible = false;
     private FishType? editingFish;
     private FishingShopItem? editingShopItem;
+    private bool isResetting = false;
 
     private string uploadedImageFileName = string.Empty;
     private string uploadedSoundFileName = string.Empty;
@@ -538,14 +608,15 @@
 
         try
         {
-            // Save uploaded files first
+            var fishesPath = Path.Combine(WebHostEnvironment.WebRootPath, "fishes");
+            Directory.CreateDirectory(fishesPath);
+
+            // Use sanitized fish name as base filename
+            var baseFileName = SanitizeFileName(editingFish.Name);
+
+            // Save uploaded image file
             if (pendingImageFile != null)
             {
-                var fishesPath = Path.Combine(WebHostEnvironment.WebRootPath, "fishes");
-                Directory.CreateDirectory(fishesPath);
-
-                // Use sanitized fish name as base filename
-                var baseFileName = SanitizeFileName(editingFish.Name);
                 var imageExtension = Path.GetExtension(pendingImageFile.Name);
                 var imageFileName = $"{baseFileName}{imageExtension}";
                 var imagePath = Path.Combine(fishesPath, imageFileName);
@@ -566,18 +637,18 @@
                 }
 
                 editingFish.ImageFileName = imageFileName;
+            }
 
-                // Save sound file if provided
-                if (pendingSoundFile != null)
+            // Save sound file if provided (independent of image upload)
+            if (pendingSoundFile != null)
+            {
+                var soundExtension = Path.GetExtension(pendingSoundFile.Name);
+                var soundFileName = $"{baseFileName}{soundExtension}";
+                var soundPath = Path.Combine(fishesPath, soundFileName);
+
+                using (var stream = new FileStream(soundPath, FileMode.Create))
                 {
-                    var soundExtension = Path.GetExtension(pendingSoundFile.Name);
-                    var soundFileName = $"{baseFileName}{soundExtension}";
-                    var soundPath = Path.Combine(fishesPath, soundFileName);
-
-                    using (var stream = new FileStream(soundPath, FileMode.Create))
-                    {
-                        await pendingSoundFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream);
-                    }
+                    await pendingSoundFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream);
                 }
             }
 
@@ -706,6 +777,32 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ShowResetConfirmation()
+    {
+        resetConfirmVisible = true;
+    }
+
+    private async Task ResetAllUserData()
+    {
+        if (isResetting) return;
+
+        isResetting = true;
+        try
+        {
+            await fishingService.ResetAllUserData();
+            Snackbar.Add("All user data has been reset successfully", Severity.Success);
+            resetConfirmVisible = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error resetting user data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isResetting = false;
         }
     }
 }

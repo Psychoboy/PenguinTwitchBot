@@ -15,6 +15,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<List<FishCatch>> GetUserCatches(string userId, int count = 50);
         Task<FishCatch?> GetUserBestCatchForFishType(string userId, int fishTypeId);
         Task<int> GetUserCatchCountForFishType(string userId, int fishTypeId);
+        Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId);
+        Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId);
 
         Task<FishingGold?> GetUserGold(string userId);
         Task AddGoldToUser(string userId, string username, int amount);
@@ -33,5 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task UpdateSettings(FishingSettings settings);
 
         Task<FishCatch> PerformFishingAttempt(string userId, string username);
+
+        Task ResetAllUserData();
     }
 }

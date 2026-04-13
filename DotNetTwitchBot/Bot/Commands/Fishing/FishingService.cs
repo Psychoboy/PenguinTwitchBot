@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            return await context.FishTypes.ToListAsync();
         }
 
         public async Task<List<FishType>> GetFishTypesWithCatches()
@@ -114,6 +114,37 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .CountAsync();
         }
 
+        public async Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var bestCatches = await context.FishCatches
+                .Include(c => c.FishType)
+                .Where(c => c.UserId == userId)
+                .GroupBy(c => c.FishTypeId)
+                .Select(g => g.OrderByDescending(c => c.Stars)
+                             .ThenByDescending(c => c.Weight)
+                             .First())
+                .ToListAsync();
+
+            return bestCatches.ToDictionary(c => c.FishTypeId, c => c);
+        }
+
+        public async Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var counts = await context.FishCatches
+                .Where(c => c.UserId == userId)
+                .GroupBy(c => c.FishTypeId)
+                .Select(g => new { FishTypeId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            return counts.ToDictionary(c => c.FishTypeId, c => c.Count);
+        }
+
         public async Task<FishingGold?> GetUserGold(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -157,7 +188,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             return await context.FishingShopItems
                 .Include(s => s.TargetFishType)
-                .Where(s => s.Enabled)
                 .ToListAsync();
         }
 
@@ -430,6 +460,23 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             };
 
             return (int)(fishType.BaseGold * starMultiplier);
+        }
+
+        public async Task ResetAllUserData()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Remove all user catches
+            await context.FishCatches.ExecuteDeleteAsync();
+
+            // Remove all user gold records
+            await context.FishingGolds.ExecuteDeleteAsync();
+
+            // Remove all user boosts (purchased items)
+            await context.UserFishingBoosts.ExecuteDeleteAsync();
+
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -19,14 +19,19 @@ function connectWS() {
             printDebug(event, true);
         });
         ws.addEventListener('message', (message) => {
-            let rawMessage = event.data;
-            if (rawMessage == "ping") {
-                socket.send("pong");
-                return;
-            }
-            let jsonData = JSON.parse(message.data);
-            if (jsonData.fishing !== undefined) {
-                queue.push(jsonData);
+            try {
+                const rawMessage = message.data;
+                if (rawMessage === "ping") {
+                    ws.send("pong");
+                    return;
+                }
+                const jsonData = JSON.parse(rawMessage);
+                if (jsonData.fishing !== undefined) {
+                    queue.push(jsonData);
+                }
+            } catch (ex) {
+                printDebug('Error parsing WebSocket message:', true);
+                printDebug(ex, true);
             }
         });
     } catch (ex) {
@@ -43,25 +48,6 @@ function printDebug(message, force) {
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function promisePoll(fn, { pollIntervalMs = 2000 } = {}) {
-    const endTime = Date.now() + pollIntervalMs;
-    const checkCondition = async (resolve, reject) => {
-        try {
-            const result = await fn();
-            if (result) {
-                resolve();
-            } else if (Date.now() < endTime) {
-                setTimeout(checkCondition, pollIntervalMs, resolve, reject);
-            } else {
-                reject(new Error('Exceeded max polling time'));
-            }
-        } catch (error) {
-            reject(error);
-        }
-    };
-    return new Promise(checkCondition);
 }
 
 setInterval(() => handleQueue(), 250);
