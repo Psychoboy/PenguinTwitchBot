@@ -33,11 +33,13 @@ namespace DotNetTwitchBot.Bot.Validation
             var triggerResult = await ValidateTriggersAsync();
             var subActionResult = await ValidateSubActionsAsync();
             var commandResult = await ValidateCommandsAsync();
+            var keywordResult = await ValidateKeywordsAsync();
 
             result.Issues.AddRange(actionResult.Issues);
             result.Issues.AddRange(triggerResult.Issues);
             result.Issues.AddRange(subActionResult.Issues);
             result.Issues.AddRange(commandResult.Issues);
+            result.Issues.AddRange(keywordResult.Issues);
 
             _logger.LogInformation(
                 "Validation completed. Found {ErrorCount} errors and {WarningCount} warnings",
@@ -266,6 +268,11 @@ namespace DotNetTwitchBot.Bot.Validation
                 .Where(c => c.Id.HasValue)
                 .ToDictionary(c => c.Id!.Value, c => c);
 
+            var keywords = await db.ActionKeywords.GetAsync();
+            var keywordDict = keywords
+                .Where(k => k.Id.HasValue)
+                .ToDictionary(k => k.Id!.Value, k => k);
+
             // Get all actions to check for orphaned triggers
             var allActions = await db.Actions.GetAllWithDetailsAsync();
             var actionIds = new HashSet<int>(allActions.Where(a => a.Id.HasValue).Select(a => a.Id!.Value));
@@ -322,6 +329,12 @@ namespace DotNetTwitchBot.Bot.Validation
                 if (trigger.Type == TriggerTypes.Command)
                 {
                     ValidateCommandTrigger(trigger, commandDict, result);
+                }
+
+                // Validate Keyword triggers
+                if (trigger.Type == TriggerTypes.Keyword)
+                {
+                    ValidateKeywordTrigger(trigger, keywordDict, result);
                 }
 
                 // Validate TwitchEvent triggers
@@ -1255,6 +1268,160 @@ namespace DotNetTwitchBot.Bot.Validation
             }
         }
 
+        private void ValidateKeywordTrigger(TriggerType trigger, Dictionary<int, ActionKeyword> keywordDict, ValidationResult result)
+        {
+            var configData = ParseKeywordTriggerConfiguration(trigger.Configuration);
+            var configKeywordId = configData?.KeywordId;
+            var configKeywordName = configData?.KeywordName;
+            var hasReferenceColumn = trigger.KeywordId.HasValue;
+            var hasConfigValue = configKeywordId.HasValue;
+
+            // Validate Keyword trigger name format: should be the keyword pattern
+            var keywordIdToCheck = trigger.KeywordId ?? configKeywordId;
+            if (keywordIdToCheck.HasValue && !string.IsNullOrWhiteSpace(trigger.Name))
+            {
+                if (keywordDict.TryGetValue(keywordIdToCheck.Value, out var keyword))
+                {
+                    var expectedName = keyword.CommandName;
+                    if (!trigger.Name.Equals(expectedName, StringComparison.Ordinal))
+                    {
+                        result.Issues.Add(new ValidationIssue
+                        {
+                            IssueType = ValidationIssueType.TriggerInvalidName,
+                            Severity = ValidationSeverity.Warning,
+                            EntityType = "Trigger",
+                            EntityId = trigger.Id,
+                            EntityName = trigger.Name,
+                            Message = $"Keyword trigger '{trigger.Name}' has incorrect name format. Expected: '{expectedName}'",
+                            RelatedActionId = trigger.ActionId,
+                            RelatedActionName = trigger.Action?.Name
+                        });
+                    }
+                }
+            }
+
+            // Check if both are missing
+            if (!hasReferenceColumn && !hasConfigValue)
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
+                    Severity = ValidationSeverity.Error,
+                    EntityType = "Trigger",
+                    EntityId = trigger.Id,
+                    EntityName = trigger.Name,
+                    Message = $"Keyword trigger '{trigger.Name}' is missing both KeywordId reference column and Configuration data",
+                    RelatedActionId = trigger.ActionId,
+                    RelatedActionName = trigger.Action?.Name
+                });
+                return;
+            }
+
+            // Check if Configuration is invalid/missing but reference column exists
+            if (hasReferenceColumn && !hasConfigValue && !string.IsNullOrWhiteSpace(trigger.Configuration))
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.TriggerInvalidConfiguration,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Trigger",
+                    EntityId = trigger.Id,
+                    EntityName = trigger.Name,
+                    Message = $"Keyword trigger '{trigger.Name}' has invalid or malformed Configuration JSON (missing KeywordId)",
+                    RelatedActionId = trigger.ActionId,
+                    RelatedActionName = trigger.Action?.Name
+                });
+            }
+
+            // Check if Configuration is completely missing
+            if (hasReferenceColumn && string.IsNullOrWhiteSpace(trigger.Configuration))
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.TriggerMissingConfiguration,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Trigger",
+                    EntityId = trigger.Id,
+                    EntityName = trigger.Name,
+                    Message = $"Keyword trigger '{trigger.Name}' is missing Configuration JSON data",
+                    RelatedActionId = trigger.ActionId,
+                    RelatedActionName = trigger.Action?.Name
+                });
+            }
+
+            // Check if reference column is missing but Configuration has a value
+            if (!hasReferenceColumn && hasConfigValue)
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.TriggerConfigurationMismatch,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Trigger",
+                    EntityId = trigger.Id,
+                    EntityName = trigger.Name,
+                    Message = $"Keyword trigger '{trigger.Name}' has KeywordId in Configuration ({configKeywordId}) but missing reference column",
+                    RelatedActionId = trigger.ActionId,
+                    RelatedActionName = trigger.Action?.Name
+                });
+            }
+
+            // Check if both exist but don't match
+            if (hasReferenceColumn && hasConfigValue && trigger.KeywordId != configKeywordId)
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.TriggerConfigurationIdMismatch,
+                    Severity = ValidationSeverity.Warning,
+                    EntityType = "Trigger",
+                    EntityId = trigger.Id,
+                    EntityName = trigger.Name,
+                    Message = $"Keyword trigger '{trigger.Name}' has mismatched KeywordId: reference column={trigger.KeywordId}, Configuration={configKeywordId}",
+                    RelatedActionId = trigger.ActionId,
+                    RelatedActionName = trigger.Action?.Name
+                });
+            }
+
+            // Check if the referenced Keyword exists
+            if (keywordIdToCheck.HasValue)
+            {
+                if (!keywordDict.TryGetValue(keywordIdToCheck.Value, out var keyword))
+                {
+                    result.Issues.Add(new ValidationIssue
+                    {
+                        IssueType = ValidationIssueType.TriggerKeywordNotFound,
+                        Severity = ValidationSeverity.Error,
+                        EntityType = "Trigger",
+                        EntityId = trigger.Id,
+                        EntityName = trigger.Name,
+                        Message = $"Keyword trigger '{trigger.Name}' references non-existent Keyword ID: {keywordIdToCheck}",
+                        RelatedActionId = trigger.ActionId,
+                        RelatedActionName = trigger.Action?.Name
+                    });
+                }
+                else
+                {
+                    // Validate KeywordName if it exists in configuration
+                    if (!string.IsNullOrWhiteSpace(configKeywordName))
+                    {
+                        if (!configKeywordName.Equals(keyword.CommandName, StringComparison.Ordinal))
+                        {
+                            result.Issues.Add(new ValidationIssue
+                            {
+                                IssueType = ValidationIssueType.TriggerConfigurationNameMismatch,
+                                Severity = ValidationSeverity.Warning,
+                                EntityType = "Trigger",
+                                EntityId = trigger.Id,
+                                EntityName = trigger.Name,
+                                Message = $"Keyword trigger '{trigger.Name}' has incorrect KeywordName in Configuration: expected '{keyword.CommandName}', found '{configKeywordName}'",
+                                RelatedActionId = trigger.ActionId,
+                                RelatedActionName = trigger.Action?.Name
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         private void ValidateCommandTrigger(TriggerType trigger, Dictionary<int, ActionCommand> commandDict, ValidationResult result)
         {
             var configData = ParseCommandTriggerConfiguration(trigger.Configuration);
@@ -1440,6 +1607,37 @@ namespace DotNetTwitchBot.Bot.Validation
             }
         }
 
+        private KeywordTriggerConfig? ParseKeywordTriggerConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+                return null;
+
+            try
+            {
+                var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configuration);
+                if (config == null) return null;
+
+                var result = new KeywordTriggerConfig();
+
+                if (config.TryGetValue("KeywordId", out var keywordIdElement))
+                {
+                    result.KeywordId = keywordIdElement.GetInt32();
+                }
+
+                if (config.TryGetValue("KeywordName", out var keywordNameElement))
+                {
+                    result.KeywordName = keywordNameElement.GetString();
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to parse Keyword trigger configuration");
+                return null;
+            }
+        }
+
         private CommandTriggerConfig? ParseCommandTriggerConfiguration(string configuration)
         {
             if (string.IsNullOrWhiteSpace(configuration))
@@ -1523,6 +1721,59 @@ namespace DotNetTwitchBot.Bot.Validation
             _logger.LogDebug("Command validation found {IssueCount} issues", result.Issues.Count);
             return result;
         }
+
+        public async Task<ValidationResult> ValidateKeywordsAsync()
+        {
+            var result = new ValidationResult();
+
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            // Get all keywords
+            var keywords = await db.ActionKeywords.GetAsync();
+            _logger.LogDebug("Validating {KeywordCount} keywords", keywords.Count);
+
+            // Get all triggers to check which keywords are referenced
+            var allTriggers = await db.Triggers.GetAllAsync();
+            var keywordsReferencedByTriggers = new HashSet<int>(
+                allTriggers
+                    .Where(t => t.Type == TriggerTypes.Keyword && t.KeywordId.HasValue)
+                    .Select(t => t.KeywordId!.Value));
+
+            foreach (var keyword in keywords)
+            {
+                // Validate keyword pattern
+                if (string.IsNullOrWhiteSpace(keyword.CommandName))
+                {
+                    result.Issues.Add(new ValidationIssue
+                    {
+                        IssueType = ValidationIssueType.KeywordInvalidPattern,
+                        Severity = ValidationSeverity.Error,
+                        EntityType = "Keyword",
+                        EntityId = keyword.Id,
+                        EntityName = keyword.CommandName ?? "(unnamed)",
+                        Message = $"Keyword (ID: {keyword.Id}) has an invalid or missing Pattern"
+                    });
+                }
+
+                // Warn about orphaned keywords (not referenced by any trigger)
+                if (keyword.Id.HasValue && !keywordsReferencedByTriggers.Contains(keyword.Id.Value))
+                {
+                    result.Issues.Add(new ValidationIssue
+                    {
+                        IssueType = ValidationIssueType.KeywordNoTriggers,
+                        Severity = ValidationSeverity.Warning,
+                        EntityType = "Keyword",
+                        EntityId = keyword.Id,
+                        EntityName = keyword.CommandName ?? "(unknown)",
+                        Message = $"Keyword '{keyword.CommandName}' is not used by any action trigger"
+                    });
+                }
+            }
+
+            _logger.LogDebug("Keyword validation found {IssueCount} issues", result.Issues.Count);
+            return result;
+        }
     }
 
     internal class TimerTriggerConfig
@@ -1535,5 +1786,11 @@ namespace DotNetTwitchBot.Bot.Validation
     {
         public int? CommandId { get; set; }
         public string? CommandName { get; set; }
+    }
+
+    internal class KeywordTriggerConfig
+    {
+        public int? KeywordId { get; set; }
+        public string? KeywordName { get; set; }
     }
 }

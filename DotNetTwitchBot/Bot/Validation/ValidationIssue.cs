@@ -10,6 +10,7 @@ namespace DotNetTwitchBot.Bot.Validation
     {
         // Trigger-related issues
         TriggerCommandNotFound,
+        TriggerKeywordNotFound,
         TriggerTimerGroupNotFound,
         TriggerMissingConfiguration,
         TriggerInvalidConfiguration,
@@ -38,7 +39,11 @@ namespace DotNetTwitchBot.Bot.Validation
 
         // Command-related issues
         CommandNoTriggers,
-        CommandInvalidName
+        CommandInvalidName,
+
+        // Keyword-related issues
+        KeywordNoTriggers,
+        KeywordInvalidPattern
     }
 
     public class ValidationIssue

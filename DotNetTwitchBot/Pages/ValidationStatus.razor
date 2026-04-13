@@ -268,6 +268,44 @@
                         </MudTable>
                     </MudTabPanel>
                 }
+
+                @if (_lastResult.Issues.Any(i => i.EntityType == "Keyword"))
+                {
+                    <MudTabPanel Text="Keyword Issues" BadgeData="@_lastResult.Issues.Count(i => i.EntityType == "Keyword")" BadgeColor="Color.Error" BadgeDot="false">
+                        <MudTable Items="@_lastResult.Issues.Where(i => i.EntityType == "Keyword")" Hover="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Severity</MudTh>
+                                <MudTh>Keyword Name</MudTh>
+                                <MudTh>Issue</MudTh>
+                                <MudTh>Keyword Link</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Severity">
+                                    @if (context.Severity == ValidationSeverity.Error)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Error</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">Warning</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Keyword Name">@context.EntityName</MudTd>
+                                <MudTd DataLabel="Issue">@context.Message</MudTd>
+                                <MudTd DataLabel="Keyword Link">
+                                    @if (context.EntityId.HasValue)
+                                    {
+                                        <MudLink Href="@($"/actions/keywords?keywordId={context.EntityId}")">View Keyword</MudLink>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                }
             </MudTabs>
         </MudPaper>
     }
