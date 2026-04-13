@@ -50,6 +50,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
+            services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
             services.AddScoped<ILurkBait, LurkBait>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
@@ -80,7 +81,6 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Misc.Weather>();
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
             services.AddHostedApiService<Bot.Commands.Misc.AutoTimers>();
-            services.AddHostedApiService<Bot.Commands.Custom.CustomCommand>();
             services.AddHostedApiService<AudioCommands>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();

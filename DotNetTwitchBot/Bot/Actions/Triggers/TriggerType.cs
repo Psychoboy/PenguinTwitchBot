@@ -26,5 +26,6 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         public int? TimerGroupId { get; set; } // For TriggerTypes.Timer
         public int? CommandId { get; set; }     // For TriggerTypes.Command
         public int? DefaultCommandId { get; set; } // For TriggerTypes.DefaultCommand
+        public int? KeywordId { get; set; }     // For TriggerTypes.Keyword
     }
 }

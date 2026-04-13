@@ -66,6 +66,13 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Command Trigger</MudText>
                             </MudStack>
                         }
+                        else if (context.Type == TriggerTypes.Keyword && context.KeywordId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@context.Name</MudLink>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Keyword Trigger</MudText>
+                            </MudStack>
+                        }
                         else if (context.Type == TriggerTypes.DefaultCommand && context.DefaultCommandId.HasValue)
                         {
                             <MudStack Spacing="0">
@@ -223,6 +230,18 @@
                         if (config.TryGetProperty("CommandId", out var commandIdElement))
                         {
                             newTrigger.CommandId = commandIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+                else if (triggerType == TriggerTypes.Keyword && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("KeywordId", out var keywordIdElement))
+                        {
+                            newTrigger.KeywordId = keywordIdElement.GetInt32();
                         }
                     }
                     catch { /* Ignore JSON parsing errors */ }

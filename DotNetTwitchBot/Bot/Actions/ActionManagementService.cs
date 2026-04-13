@@ -226,5 +226,27 @@ namespace DotNetTwitchBot.Bot.Actions
                 throw;
             }
         }
+
+        public async Task DeleteTriggersForKeywordAsync(int keywordId)
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            try
+            {
+                var triggers = await unitOfWork.Triggers.GetByKeywordIdAsync(keywordId);
+                _logger.LogInformation("Deleting {Count} triggers for keyword ID {KeywordId}", triggers.Count, keywordId);
+
+                foreach (var trigger in triggers)
+                {
+                    await unitOfWork.Triggers.DeleteAsync(trigger.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting triggers for keyword {KeywordId}", keywordId);
+                throw;
+            }
+        }
     }
 }

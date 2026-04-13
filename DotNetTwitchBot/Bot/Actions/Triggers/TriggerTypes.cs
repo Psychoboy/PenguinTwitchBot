@@ -6,6 +6,7 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
         TwitchEvent,
         Timer,
         Manual,
-        DefaultCommand
+        DefaultCommand,
+        Keyword
     }
 }

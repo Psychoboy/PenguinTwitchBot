@@ -117,6 +117,20 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Efficiently queries triggers by KeywordId using the reference column instead of JSON deserialization.
+        /// </summary>
+        public async Task<List<TriggerType>> GetByKeywordIdAsync(int keywordId)
+        {
+            return await _context.Triggers
+                .AsNoTracking()
+                .Include(t => t.Action)
+                    .ThenInclude(a => a!.SubActions)
+                .Where(t => t.Type == TriggerTypes.Keyword && t.KeywordId == keywordId)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+        }
+
         public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             // No-op: Triggers are now backed up as children of Actions

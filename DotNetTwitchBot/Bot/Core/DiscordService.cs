@@ -3,7 +3,6 @@ using Discord.Net;
 using Discord.Rest;
 using Discord.WebSocket;
 using DotNetTwitchBot.Application.Discord;
-using DotNetTwitchBot.Bot.Commands.Custom;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -16,7 +15,6 @@ namespace DotNetTwitchBot.Bot.Core
         private DiscordSocketClient _client;
         private readonly ILogger<DiscordService> _logger;
         private readonly IServiceBackbone _serviceBackbone;
-        private readonly CustomCommand _customCommands;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
@@ -25,7 +23,6 @@ namespace DotNetTwitchBot.Bot.Core
         private bool isReady = false;
 
         public DiscordService(
-            CustomCommand customCommands,
             ILogger<DiscordService> logger,
             IServiceBackbone serviceBackbone,
             ITwitchService twitchService,
@@ -37,7 +34,6 @@ namespace DotNetTwitchBot.Bot.Core
             _logger = logger;
             _serviceBackbone = serviceBackbone;
             _serviceBackbone.StreamStarted += StreamStarted;
-            _customCommands = customCommands;
             _twitchService = twitchService;
             _scopeFactory = scopeFactory;
             _dispatcher = dispatcher;

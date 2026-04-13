@@ -1,0 +1,417 @@
+@*
+    KeywordEditor - A reusable component for editing keyword details with all available options
+
+    Usage:
+    <KeywordEditor Keyword="_keyword" 
+                   OnSave="HandleSave" 
+                   OnCancel="HandleCancel"
+                   OnDelete="HandleDelete"
+                   IsNewKeyword="true" />
+
+    Parameters:
+    - Keyword: The keyword to edit
+    - OnSave: Event callback when save is clicked
+    - OnCancel: Event callback when cancel is clicked  
+    - OnDelete: Event callback when delete is clicked (optional, only shown for existing keywords)
+    - IsNewKeyword: Whether this is a new keyword being created
+    - ShowActions: Whether to show Save/Delete/Cancel buttons (default: true)
+*@
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Commands
+@inject IPointsSystem PointSystem
+@inject IActionKeywordService KeywordService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" Elevation="0" Outlined="true">
+    @if (ShowActions)
+    {
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6">
+                @(IsNewKeyword ? "New Keyword" : $"Edit Keyword: {Keyword?.CommandName}")
+            </MudText>
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           OnClick="SaveKeyword" StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@(!CanSave())">
+                    Save
+                </MudButton>
+                @if (!IsNewKeyword && OnDelete.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                               OnClick="DeleteKeyword" StartIcon="@Icons.Material.Filled.Delete">
+                        Delete
+                    </MudButton>
+                }
+                @if (OnCancel.HasDelegate)
+                {
+                    <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
+                        Cancel
+                    </MudButton>
+                }
+            </MudStack>
+        </MudStack>
+        <MudDivider Class="mb-3" />
+    }
+
+    @if (Keyword != null)
+    {
+        <MudGrid>
+            <!-- Basic Information -->
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Basic Information</b></MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Keyword.CommandName" Label="Keyword/Pattern" 
+                              Required="true" Variant="Variant.Outlined" 
+                              HelperText="@(Keyword.IsRegex ? "Regex pattern" : "Text to match")" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="string" @bind-Value="Keyword.Category" Label="Category" 
+                                 Variant="Variant.Outlined" 
+                                 SearchFunc="@SearchCategories"
+                                 Clearable="true"
+                                 CoerceText="false"
+                                 CoerceValue="true"
+                                 MaxItems="null" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Keyword.Description" Label="Description" 
+                              Lines="3" Variant="Variant.Outlined" />
+            </MudItem>
+
+            <!-- Keyword Matching Options -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Matching Options</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="Keyword.IsRegex" Label="Is Regex" Color="Color.Info" />
+                        <MudSwitch @bind-Value="Keyword.IsCaseSensitive" Label="Case Sensitive" Color="Color.Info" />
+                    </MudStack>
+                </MudStack>
+            </MudItem>
+
+            <!-- Cooldowns and Cost -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Cooldowns and Cost</b></MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Keyword.UserCooldown" Label="User Min (sec)" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Keyword.UserCooldownMax" Label="User Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Keyword.GlobalCooldown" Label="Global Min (sec)" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudNumericField @bind-Value="Keyword.GlobalCooldownMax" Label="Global Max (sec)" 
+                                 Variant="Variant.Outlined" Min="0"
+                                 HelperText="0 = use min only" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField @bind-Value="Keyword.Cost" Label="Cost" 
+                                 Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
+                           Variant="Variant.Outlined"
+                           Required="@(Keyword.Cost > 0)"
+                           ToStringFunc="@(p => p?.Name ?? "None")">
+                    <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
+                    @foreach (var pointType in _pointTypes)
+                    {
+                        <MudSelectItem Value="@pointType">@pointType.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- Permissions -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Permissions</b></MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Rank" @bind-Value="Keyword.MinimumRank" Label="Minimum Rank" 
+                           Variant="Variant.Outlined">
+                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Keyword.SpecificUserOnly" Label="Specific User Only" 
+                              Variant="Variant.Outlined"
+                              HelperText="Leave empty to allow all users" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.body2">Specific Users Only (Advanced)</MudText>
+                    <MudStack Row="true" Spacing="1">
+                        <MudTextField @bind-Value="_newSpecificUser" Label="Add User" 
+                                      Variant="Variant.Outlined" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" 
+                                       OnClick="AddSpecificUser" />
+                    </MudStack>
+                    @if (Keyword.SpecificUsersOnly.Any())
+                    {
+                        <MudStack Row="true" Spacing="1" Style="flex-wrap: wrap;">
+                            @foreach (var user in Keyword.SpecificUsersOnly)
+                            {
+                                <MudChip T="string" OnClose="@(() => RemoveSpecificUser(user))">@user</MudChip>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="Rank" Label="Specific Ranks (Advanced)" MultiSelection="true" 
+                           SelectedValues="_selectedRanks" SelectedValuesChanged="OnSelectedRanksChanged" 
+                           Variant="Variant.Outlined"
+                           HelperText="Allows only these ranks to trigger the keyword">
+                    @foreach (Rank rank in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- Settings -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Settings</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="Keyword.Disabled" Label="Disabled" Color="Color.Error" />
+                        <MudSwitch @bind-Value="Keyword.SayCooldown" Label="Say Cooldown" Color="Color.Info" />
+                        <MudSwitch @bind-Value="Keyword.SayRankRequirement" Label="Say Rank Requirement" Color="Color.Info" />
+                    </MudStack>
+                    <MudStack Row="true" Spacing="3">
+                        <MudSwitch @bind-Value="Keyword.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
+                        <MudSwitch @bind-Value="Keyword.SourceOnly" Label="Source Only" Color="Color.Warning" />
+                    </MudStack>
+                </MudStack>
+            </MudItem>
+
+            <!-- Test Section -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Test Keyword</b></MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                    <MudStack Spacing="2">
+                        <MudTextField @bind-Value="_testMessage" Label="Test Message" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Enter a test message to check if it matches"
+                                      Lines="2" />
+                        <MudStack Row="true" Spacing="2" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" 
+                                       OnClick="TestKeyword" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                       Disabled="@(string.IsNullOrWhiteSpace(Keyword?.CommandName) || string.IsNullOrWhiteSpace(_testMessage))">
+                                Test Match
+                            </MudButton>
+                            @if (_testResult.HasValue)
+                            {
+                                <MudChip T="string" Color="@(_testResult.Value ? Color.Success : Color.Default)" Size="Size.Medium">
+                                    @(_testResult.Value ? "✓ Match!" : "✗ No Match")
+                                </MudChip>
+                            }
+                        </MudStack>
+                        @if (!string.IsNullOrWhiteSpace(_testError))
+                        {
+                            <MudAlert Severity="Severity.Error">@_testError</MudAlert>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public ActionKeyword? Keyword { get; set; }
+    [Parameter] public EventCallback<ActionKeyword> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<ActionKeyword> OnDelete { get; set; }
+    [Parameter] public bool IsNewKeyword { get; set; } = false;
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    private List<string> _categories = new();
+    private List<PointType> _pointTypes = new();
+    private PointType? _selectedPointType;
+    private IReadOnlyCollection<Rank> _selectedRanks = new List<Rank>();
+    private string _newSpecificUser = "";
+
+    // Test functionality
+    private string _testMessage = "";
+    private bool? _testResult = null;
+    private string _testError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPointTypes();
+        await LoadCategories();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Keyword != null)
+        {
+            _selectedPointType = Keyword.PointType;
+            _selectedRanks = Keyword.SpecificRanks;
+        }
+    }
+
+    private async Task LoadPointTypes()
+    {
+        _pointTypes = (await PointSystem.GetPointTypes()).ToList();
+    }
+
+    private async Task LoadCategories()
+    {
+        var keywords = await KeywordService.GetAllAsync();
+        _categories = keywords.Select(c => c.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+    }
+
+    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(_categories);
+        }
+
+        value = value.Trim();
+
+        var filteredCategories = _categories
+            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // If the typed value doesn't exist in the list, add it as the first option
+        if (!string.IsNullOrWhiteSpace(value) && !filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredCategories.Insert(0, value);
+        }
+
+        return Task.FromResult(filteredCategories.AsEnumerable());
+    }
+
+    private void OnSelectedRanksChanged(IEnumerable<Rank> ranks)
+    {
+        _selectedRanks = ranks.ToList();
+        if (Keyword != null)
+        {
+            Keyword.SpecificRanks = _selectedRanks.ToList();
+        }
+    }
+
+    private void AddSpecificUser()
+    {
+        if (string.IsNullOrWhiteSpace(_newSpecificUser) || Keyword == null) return;
+
+        if (!Keyword.SpecificUsersOnly.Contains(_newSpecificUser))
+        {
+            Keyword.SpecificUsersOnly.Add(_newSpecificUser);
+            _newSpecificUser = "";
+        }
+    }
+
+    private void RemoveSpecificUser(string user)
+    {
+        Keyword?.SpecificUsersOnly.Remove(user);
+    }
+
+    private bool CanSave()
+    {
+        if (Keyword == null || string.IsNullOrWhiteSpace(Keyword.CommandName)) return false;
+        if (Keyword.Cost > 0 && _selectedPointType == null) return false;
+        return true;
+    }
+
+    private async Task SaveKeyword()
+    {
+        if (Keyword == null || !CanSave()) return;
+
+        // Update references from the UI selections
+        Keyword.PointTypeId = _selectedPointType?.Id;
+        Keyword.PointType = _selectedPointType;
+        Keyword.SpecificRanks = _selectedRanks.ToList();
+        Keyword.Category = Keyword.Category ?? string.Empty;
+
+        await OnSave.InvokeAsync(Keyword);
+    }
+
+    private async Task DeleteKeyword()
+    {
+        if (Keyword == null) return;
+        await OnDelete.InvokeAsync(Keyword);
+    }
+
+    private async Task CancelEdit()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    private void TestKeyword()
+    {
+        if (Keyword == null || string.IsNullOrWhiteSpace(Keyword.CommandName) || string.IsNullOrWhiteSpace(_testMessage))
+        {
+            return;
+        }
+
+        try
+        {
+            _testError = "";
+            bool isMatch = false;
+
+            if (Keyword.IsRegex)
+            {
+                try
+                {
+                    var regex = new System.Text.RegularExpressions.Regex(
+                        Keyword.CommandName,
+                        Keyword.IsCaseSensitive ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                        TimeSpan.FromMilliseconds(500));
+                    isMatch = regex.IsMatch(_testMessage);
+                }
+                catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+                {
+                    _testError = "Regex matching timed out (>500ms). Pattern may be too complex.";
+                    _testResult = null;
+                    return;
+                }
+                catch (ArgumentException ex)
+                {
+                    _testError = $"Invalid regex pattern: {ex.Message}";
+                    _testResult = null;
+                    return;
+                }
+            }
+            else
+            {
+                isMatch = _testMessage.Contains(
+                    Keyword.CommandName,
+                    Keyword.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+            }
+
+            _testResult = isMatch;
+        }
+        catch (Exception ex)
+        {
+            _testError = $"Error testing keyword: {ex.Message}";
+            _testResult = null;
+        }
+    }
+}

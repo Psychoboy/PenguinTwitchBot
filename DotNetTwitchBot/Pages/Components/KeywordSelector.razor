@@ -1,0 +1,191 @@
+@*
+    KeywordSelector - A reusable component for selecting or creating keywords
+
+    Usage:
+    <KeywordSelector SelectedKeywordId="_selectedKeywordId" 
+                     SelectedKeywordIdChanged="OnKeywordSelected"
+                     OnKeywordCreated="OnKeywordCreated"
+                     SelectLabel="Select Keyword"
+                     Required="true"
+                     AllowNone="true"
+                     AllowCreate="true" />
+
+    Parameters:
+    - SelectedKeywordId: The currently selected keyword ID (two-way binding)
+    - SelectedKeywordIdChanged: Event callback when keyword selection changes
+    - OnKeywordCreated: Event callback when a new keyword is created
+    - SelectLabel: Label for the select dropdown (default: "Select Keyword")
+    - Required: Whether selection is required (default: true)
+    - AllowNone: Whether to show "None" option (default: true)
+    - AllowCreate: Whether to show "Create New" option (default: true)
+*@
+@using DotNetTwitchBot.Bot.Models.Commands
+@using DotNetTwitchBot.Bot.Commands
+@using DotNetTwitchBot.Bot.Models.Points
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Pages.Components
+@inject IActionKeywordService KeywordService
+@inject IPointsSystem PointSystem
+@inject MudBlazor.ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudStack Spacing="3">
+    @if (!_showCreateForm)
+    {
+        <!-- Selection Mode -->
+        <MudSelect T="int?" Value="_selectedKeywordId" Label="@SelectLabel" Variant="Variant.Outlined" 
+                   Required="@Required" AnchorOrigin="Origin.BottomCenter"
+                   ValueChanged="OnKeywordSelectedInternal">
+            @if (AllowNone)
+            {
+                <MudSelectItem T="int?" Value="null">None</MudSelectItem>
+            }
+            @foreach (var keyword in _keywords)
+            {
+                <MudSelectItem T="int?" Value="@keyword.Id">
+                    @keyword.CommandName @(keyword.IsRegex ? "(Regex)" : "")
+                </MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (AllowCreate)
+        {
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Or create a new keyword
+                </MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="ShowCreateForm">
+                    Create New
+                </MudButton>
+            </MudStack>
+        }
+    }
+    else
+    {
+        <!-- Creation Mode -->
+        <KeywordEditor Keyword="_newKeyword" 
+                       OnSave="CreateKeyword"
+                       OnCancel="CancelCreate"
+                       IsNewKeyword="true"
+                       ShowActions="true" />
+    }
+</MudStack>
+
+@code {
+    [Parameter] public int? SelectedKeywordId { get; set; }
+    [Parameter] public EventCallback<int?> SelectedKeywordIdChanged { get; set; }
+    [Parameter] public EventCallback<ActionKeyword> OnKeywordCreated { get; set; }
+    [Parameter] public string SelectLabel { get; set; } = "Select Keyword";
+    [Parameter] public bool Required { get; set; } = true;
+    [Parameter] public bool AllowNone { get; set; } = true;
+    [Parameter] public bool AllowCreate { get; set; } = true;
+
+    private List<ActionKeyword> _keywords = new();
+    private int? _selectedKeywordId;
+    private bool _showCreateForm = false;
+    private ActionKeyword _newKeyword = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKeywords();
+        _selectedKeywordId = SelectedKeywordId;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_selectedKeywordId != SelectedKeywordId)
+        {
+            _selectedKeywordId = SelectedKeywordId;
+        }
+    }
+
+    private async Task LoadKeywords()
+    {
+        _keywords = (await KeywordService.GetAllAsync()).OrderBy(k => k.CommandName).ToList();
+    }
+
+    private async Task OnKeywordSelectedInternal(int? keywordId)
+    {
+        _selectedKeywordId = keywordId;
+        await SelectedKeywordIdChanged.InvokeAsync(keywordId);
+    }
+
+    private void ShowCreateForm()
+    {
+        _newKeyword = new ActionKeyword
+        {
+            CommandName = "",
+            Category = "",
+            Description = "",
+            Disabled = false,
+            UserCooldown = 0,
+            GlobalCooldown = 0,
+            Cost = 0,
+            MinimumRank = Rank.Viewer,
+            SayCooldown = true,
+            SayRankRequirement = false,
+            ExcludeFromUi = false,
+            SourceOnly = true,
+            IsRegex = false,
+            IsCaseSensitive = false
+        };
+        _showCreateForm = true;
+    }
+
+    private void CancelCreate()
+    {
+        _showCreateForm = false;
+        _newKeyword = new ActionKeyword();
+    }
+
+    private async Task CreateKeyword(ActionKeyword keyword)
+    {
+        try
+        {
+            // Check if keyword already exists
+            if (await KeywordService.KeywordExistsAsync(keyword.CommandName))
+            {
+                bool? result = await DialogService.ShowMessageBoxAsync(
+                    "Warning",
+                    $"Keyword '{keyword.CommandName}' already exists. Do you want to select it instead?",
+                    yesText: "Yes", cancelText: "Cancel");
+
+                if (result != true) return;
+
+                // Find and select existing keyword
+                var existingKeyword = _keywords.FirstOrDefault(k => 
+                    k.CommandName.Equals(keyword.CommandName, StringComparison.OrdinalIgnoreCase));
+                if (existingKeyword != null)
+                {
+                    _selectedKeywordId = existingKeyword.Id;
+                    await SelectedKeywordIdChanged.InvokeAsync(_selectedKeywordId);
+                    _showCreateForm = false;
+                    return;
+                }
+            }
+
+            var created = await KeywordService.AddAsync(keyword);
+            Snackbar.Add($"Keyword '{created.CommandName}' created successfully", Severity.Success);
+
+            await LoadKeywords();
+
+            // Select the newly created keyword
+            _selectedKeywordId = created.Id;
+            await SelectedKeywordIdChanged.InvokeAsync(_selectedKeywordId);
+
+            // Invoke callback if provided
+            if (OnKeywordCreated.HasDelegate)
+            {
+                await OnKeywordCreated.InvokeAsync(created);
+            }
+
+            // Hide the create form
+            _showCreateForm = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating keyword: {ex.Message}", Severity.Error);
+        }
+    }
+}
