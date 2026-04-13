@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Actions;
+using DotNetTwitchBot.Bot.Commands.Actions;
 using DotNetTwitchBot.Bot.Models.Commands;
 using DotNetTwitchBot.Repository;
 
@@ -7,6 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands
     public class ActionKeywordService(
         IUnitOfWork unitOfWork,
         IActionManagementService actionManagementService,
+        IActionKeywordCache keywordCache,
         ILogger<ActionKeywordService> logger) : IActionKeywordService
     {
         public async Task<List<ActionKeyword>> GetAllAsync()
@@ -47,6 +49,8 @@ namespace DotNetTwitchBot.Bot.Commands
             await unitOfWork.ActionKeywords.AddAsync(keyword);
             await unitOfWork.SaveChangesAsync();
 
+            keywordCache.InvalidateCache();
+
             return keyword;
         }
 
@@ -72,6 +76,8 @@ namespace DotNetTwitchBot.Bot.Commands
             unitOfWork.ActionKeywords.Update(keyword);
             await unitOfWork.SaveChangesAsync();
 
+            keywordCache.InvalidateCache();
+
             return keyword;
         }
 
@@ -94,6 +100,8 @@ namespace DotNetTwitchBot.Bot.Commands
 
                 unitOfWork.ActionKeywords.Remove(keyword);
                 await unitOfWork.SaveChangesAsync();
+
+                keywordCache.InvalidateCache();
             }
         }
 

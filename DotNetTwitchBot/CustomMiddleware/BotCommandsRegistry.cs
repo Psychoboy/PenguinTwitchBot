@@ -51,6 +51,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
+            services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
             services.AddScoped<ILurkBait, LurkBait>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:

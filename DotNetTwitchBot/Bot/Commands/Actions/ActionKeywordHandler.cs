@@ -1,94 +1,17 @@
 using DotNetTwitchBot.Bot.Actions;
 using DotNetTwitchBot.Bot.Actions.Utilities;
 using DotNetTwitchBot.Application.ChatMessage.Notifications;
-using System.Text.RegularExpressions;
 using DotNetTwitchBot.Bot.Events.Chat;
-using DotNetTwitchBot.Bot.Models.Commands;
+using System.Text.RegularExpressions;
 
 namespace DotNetTwitchBot.Bot.Commands.Actions
 {
-    internal class KeywordWithCompiledRegex
-    {
-        public ActionKeyword Keyword { get; set; } = null!;
-        public Regex? CompiledRegex { get; set; }
-
-        public KeywordWithCompiledRegex(ActionKeyword keyword)
-        {
-            Keyword = keyword;
-            if (keyword.IsRegex)
-            {
-                try
-                {
-                    CompiledRegex = new Regex(
-                        keyword.CommandName,
-                        keyword.IsCaseSensitive ? RegexOptions.Compiled : RegexOptions.Compiled | RegexOptions.IgnoreCase,
-                        TimeSpan.FromMilliseconds(500));
-                }
-                catch (Exception)
-                {
-                    // Invalid regex, will be null
-                    CompiledRegex = null;
-                }
-            }
-        }
-    }
-
     public class ActionKeywordHandler(
         IServiceScopeFactory serviceScopeFactory,
         ICommandHandler commandHandler,
+        IActionKeywordCache keywordCache,
         ILogger<ActionKeywordHandler> logger) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
-        private readonly SemaphoreSlim _keywordLock = new(1, 1);
-        private List<KeywordWithCompiledRegex> _cachedKeywords = new();
-        private DateTime _lastCacheUpdate = DateTime.MinValue;
-        private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(1); // Cache expires after 1 minute
-
-        private async Task<List<KeywordWithCompiledRegex>> GetKeywordsAsync()
-        {
-            await _keywordLock.WaitAsync();
-            try
-            {
-                // Reload cache if expired
-                if (DateTime.UtcNow - _lastCacheUpdate > _cacheExpiration)
-                {
-                    await ReloadKeywordsCacheAsync();
-                }
-
-                return _cachedKeywords;
-            }
-            finally
-            {
-                _keywordLock.Release();
-            }
-        }
-
-        private async Task ReloadKeywordsCacheAsync()
-        {
-            try
-            {
-                await using var scope = serviceScopeFactory.CreateAsyncScope();
-                var actionKeywordService = scope.ServiceProvider.GetRequiredService<IActionKeywordService>();
-
-                var keywords = await actionKeywordService.GetAllEnabledAsync();
-                _cachedKeywords = keywords.Select(k => new KeywordWithCompiledRegex(k)).ToList();
-                _lastCacheUpdate = DateTime.UtcNow;
-
-                logger.LogInformation("Reloaded {Count} keywords into cache", _cachedKeywords.Count);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error reloading keywords cache");
-            }
-        }
-
-        /// <summary>
-        /// Invalidates the keyword cache, forcing a reload on the next message
-        /// </summary>
-        public void InvalidateCache()
-        {
-            _lastCacheUpdate = DateTime.MinValue;
-            logger.LogInformation("Keyword cache invalidated");
-        }
 
         public async Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {
@@ -102,7 +25,7 @@ namespace DotNetTwitchBot.Bot.Commands.Actions
                     return;
 
                 // Get cached keywords
-                var keywordsWithRegex = await GetKeywordsAsync();
+                var keywordsWithRegex = await keywordCache.GetKeywordsAsync();
 
                 foreach (var keywordEntry in keywordsWithRegex)
                 {
