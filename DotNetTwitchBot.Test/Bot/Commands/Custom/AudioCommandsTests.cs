@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ReceivedExtensions;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Tests
 {
@@ -337,11 +338,15 @@ namespace DotNetTwitchBot.Tests
             var serviceProvider = Substitute.For<IServiceProvider>();
             var scope = Substitute.For<IServiceScope>();
             var serviceBackbone = Substitute.For<IServiceBackbone>();
+            var actionManagement = Substitute.For<DotNetTwitchBot.Bot.Actions.IActionManagementService>();
+            var actionService = Substitute.For<DotNetTwitchBot.Bot.Actions.IAction>();
 
             scopeFactory.CreateScope().Returns(scope);
 
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            serviceProvider.GetService(typeof(DotNetTwitchBot.Bot.Actions.IActionManagementService)).Returns(actionManagement);
+            serviceProvider.GetService(typeof(DotNetTwitchBot.Bot.Actions.IAction)).Returns(actionService);
 
             var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
             dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
@@ -364,7 +369,7 @@ namespace DotNetTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await dispatcher.Received(1).Publish(Arg.Any<QueueAlert>());
+            await actionService.Received(1).EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<DotNetTwitchBot.Bot.Actions.ActionType>());
         }
     }
 }

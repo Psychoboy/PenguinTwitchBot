@@ -284,9 +284,10 @@
 
     private bool CanSave()
     {
-        return Command != null && 
-               !string.IsNullOrWhiteSpace(Command.CommandName) &&
-               !string.IsNullOrWhiteSpace(Command.AudioFile);
+        if (Command == null || string.IsNullOrWhiteSpace(Command.CommandName)) return false;
+        if (string.IsNullOrWhiteSpace(Command.AudioFile)) return false;
+        if (Command.Cost > 0 && _selectedPointType == null) return false;
+        return true;
     }
 
     private async Task SaveCommand()
@@ -296,11 +297,11 @@
             return;
         }
 
-        // Update point type
+        // Update references from the UI selections
+        Command.PointTypeId = _selectedPointType?.Id;
         Command.PointType = _selectedPointType;
-
-        // Update specific ranks
         Command.SpecificRanks = _selectedRanks.ToList();
+        Command.Category = Command.Category ?? string.Empty;
 
         await OnSave.InvokeAsync(Command);
     }
@@ -339,8 +340,8 @@
         Command?.SpecificUsersOnly.Remove(user);
     }
 
-    private void OnSelectedRanksChanged(IReadOnlyCollection<Rank> ranks)
+    private void OnSelectedRanksChanged(IEnumerable<Rank> ranks)
     {
-        _selectedRanks = ranks;
+        _selectedRanks = ranks.ToList();
     }
 }
