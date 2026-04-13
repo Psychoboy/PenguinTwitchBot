@@ -19,6 +19,11 @@ function connectWS() {
             printDebug(event, true);
         });
         ws.addEventListener('message', (message) => {
+            let rawMessage = event.data;
+            if (rawMessage == "ping") {
+                socket.send("pong");
+                return;
+            }
             let jsonData = JSON.parse(message.data);
             if (jsonData.fishing !== undefined) {
                 queue.push(jsonData);
