@@ -59,6 +59,9 @@
                         <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                     </MudNavGroup>
+                    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing Admin" Expanded="false">
+                        <MudNavLink Icon="@Icons.Material.Filled.List" Href="/fishing/admin" Match="NavLinkMatch.Prefix">Manage Fish & Shop</MudNavLink>
+                    </MudNavGroup>
                     <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/connectedviewers" Match="NavLinkMatch.Prefix">Current Users</MudNavLink>
                     
@@ -85,6 +88,7 @@
     <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
+    <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Phishing">Fishing</MudNavLink>
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/signout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Log Out</MudNavLink>

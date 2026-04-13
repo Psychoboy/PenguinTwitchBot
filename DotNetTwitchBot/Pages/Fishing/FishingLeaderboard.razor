@@ -1,0 +1,709 @@
+@page "/fishing/leaderboard"
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Fishing Leaderboard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Size="Size.Large" Class="mr-2" />
+            Fishing Leaderboard
+        </MudText>
+
+        <AuthorizeView>
+            <Authorized Context="Auth">
+                <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
+                    <MudTabPanel Text="Leaderboard" Icon="@Icons.Material.Filled.Leaderboard">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mb-3">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Refresh"
+                                       OnClick="RefreshLeaderboard"
+                                       Size="Size.Small">
+                                Refresh
+                            </MudButton>
+                        </MudStack>
+                        @if (leaderboardFishTypes.Any())
+                        {
+                            <MudPaper Elevation="3" Class="pa-4 mb-4 mt-4">
+                                <MudSelect Value="@selectedFishTypeId" 
+                                           ValueChanged="@(async (int value) => await OnFishTypeChanged(value))"
+                                           Label="Select Fish Type" 
+                                           Variant="Variant.Outlined"
+                                           AnchorOrigin="Origin.BottomCenter"
+                                           Adornment="Adornment.Start"
+                                           AdornmentIcon="@Icons.Material.Filled.Phishing">
+                                    @foreach (var fish in leaderboardFishTypes)
+                                    {
+                                        <MudSelectItem Value="@fish.Id">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudChip T="string" Color="GetRarityColor(fish.Rarity)" Size="Size.Small">@fish.Rarity</MudChip>
+                                                <MudText>@fish.Name</MudText>
+                                            </MudStack>
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudPaper>
+
+                            @if (selectedFishTypeId > 0)
+                            {
+                                var selectedFish = leaderboardFishTypes.FirstOrDefault(f => f.Id == selectedFishTypeId);
+                                <MudPaper Elevation="5" Class="pa-5 mb-4">
+                                    <MudStack Spacing="2" AlignItems="AlignItems.Center">
+                                        @if (!string.IsNullOrEmpty(selectedFish?.ImageFileName))
+                                        {
+                                            <MudImage Src="@($"/fishes/{selectedFish.ImageFileName}")" 
+                                                      Alt="@selectedFish.Name" 
+                                                      Width="150"
+                                                      Height="150"
+                                                      ObjectFit="ObjectFit.Contain"
+                                                      Elevation="3"
+                                                      Class="rounded-lg" />
+                                        }
+                                        <MudText Typo="Typo.h4">@selectedFish?.Name</MudText>
+                                        <MudChip T="string" 
+                                                 Color="GetRarityColor(selectedFish?.Rarity ?? FishRarity.Common)" 
+                                                 Size="Size.Large">
+                                            @selectedFish?.Rarity
+                                        </MudChip>
+                                    </MudStack>
+                                </MudPaper>
+
+                                <MudTable Items="@topCatches" Hover="true" Striped="true" Dense="true" Elevation="4">
+                                    <HeaderContent>
+                                        <MudTh>Rank</MudTh>
+                                        <MudTh>Player</MudTh>
+                                        <MudTh>Stars</MudTh>
+                                        <MudTh>Weight</MudTh>
+                                        <MudTh>Gold Earned</MudTh>
+                                        <MudTh>Caught At</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="fishCatch">
+                                        <MudTd DataLabel="Rank">
+                                            @{
+                                                var rank = topCatches.IndexOf(fishCatch) + 1;
+                                                var rankColor = rank switch
+                                                {
+                                                    1 => Color.Warning,
+                                                    2 => Color.Default,
+                                                    3 => Color.Tertiary,
+                                                    _ => Color.Default
+                                                };
+                                                var rankIcon = rank switch
+                                                {
+                                                    1 => Icons.Material.Filled.EmojiEvents,
+                                                    2 => Icons.Material.Filled.WorkspacePremium,
+                                                    3 => Icons.Material.Filled.MilitaryTech,
+                                                    _ => Icons.Material.Filled.Tag
+                                                };
+                                            }
+                                            <MudChip T="string" Color="@rankColor" Icon="@rankIcon">@rank</MudChip>
+                                        </MudTd>
+                                        <MudTd DataLabel="Player">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                                <MudText><strong>@fishCatch.Username</strong></MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Stars">
+                                            @for (int i = 0; i < fishCatch.Stars; i++)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                            }
+                                        </MudTd>
+                                        <MudTd DataLabel="Weight">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Info" />
+                                                <MudText>@fishCatch.Weight kg</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Gold Earned">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                                <MudText>@fishCatch.GoldEarned</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Caught At">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                                <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                    </RowTemplate>
+                                            </MudTable>
+                                                        }
+                                                    }
+                                                else
+                                            {
+                                                <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No fish have been caught yet. Be the first to catch one!</MudAlert>
+                                            }
+                                        </MudTabPanel>
+
+                                        <MudTabPanel Text="Dex" Icon="@Icons.Material.Filled.MenuBook">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4 mt-4">
+                            <MudText Typo="Typo.h5">
+                                <MudIcon Icon="@Icons.Material.Filled.Collections" Size="Size.Large" Class="mr-2" />
+                                Your Fish Collection
+                            </MudText>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Refresh"
+                                       OnClick="RefreshDex"
+                                       Size="Size.Small">
+                                Refresh
+                            </MudButton>
+                        </MudStack>
+
+                        @if (fishTypes.Any())
+                        {
+                            <MudGrid>
+                                @foreach (var fish in fishTypes.OrderBy(f => (int)f.Rarity).ThenBy(f => f.Name))
+                                {
+                                    var userBest = userDexCatches.FirstOrDefault(c => c.FishTypeId == fish.Id);
+                                    var hasCaught = userBest != null;
+                                    var catchCount = userDexCatchCounts.GetValueOrDefault(fish.Id, 0);
+
+                                    <MudItem xs="12" sm="6" md="4" lg="3">
+                                        <MudCard Elevation="4" Class="@(hasCaught ? "" : "opacity-50")">
+                                            <div style="height: 200px; display: flex; align-items: center; justify-content: center; padding: 8px;">
+                                                @if (!string.IsNullOrEmpty(fish.ImageFileName))
+                                                {
+                                                    <MudImage Src="@($"/fishes/{fish.ImageFileName}")" 
+                                                              Alt="@fish.Name" 
+                                                              Height="184"
+                                                              ObjectFit="ObjectFit.Contain"
+                                                              Style="@(hasCaught ? "" : "filter: grayscale(100%) brightness(0.7);")" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.QuestionMark" Size="Size.Large" Style="font-size: 100px; opacity: 0.3;" />
+                                                }
+                                            </div>
+                                            <MudCardContent>
+                                                <MudStack Spacing="2">
+                                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                        <MudText Typo="Typo.h6">@(hasCaught ? fish.Name : "???")</MudText>
+                                                        <MudChip T="string" 
+                                                                 Color="GetRarityColor(fish.Rarity)" 
+                                                                 Size="Size.Small">
+                                                            @fish.Rarity
+                                                        </MudChip>
+                                                    </MudStack>
+
+                                                    @if (hasCaught && userBest != null)
+                                                    {
+                                                        <MudDivider />
+                                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                            <MudText Typo="Typo.subtitle2" Color="Color.Success">
+                                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                                                                Caught!
+                                                            </MudText>
+                                                            <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                                                                @catchCount @(catchCount == 1 ? "catch" : "catches")
+                                                            </MudChip>
+                                                        </MudStack>
+                                                        <MudStack Spacing="1">
+                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                                <MudText Typo="Typo.body2"><strong>Best:</strong></MudText>
+                                                                @for (int i = 0; i < userBest.Stars; i++)
+                                                                {
+                                                                    <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                                                }
+                                                            </MudStack>
+                                                            <MudText Typo="Typo.body2">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Info" />
+                                                                @userBest.Weight kg
+                                                            </MudText>
+                                                            <MudText Typo="Typo.body2">
+                                                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                                                @userBest.GoldEarned gold
+                                                            </MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                                @userBest.CaughtAt.ToLocalTime().ToString("g")
+                                                            </MudText>
+                                                        </MudStack>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudDivider />
+                                                        <MudText Typo="Typo.subtitle2" Color="Color.Default">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" />
+                                                            Not caught yet
+                                                        </MudText>
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                            Weight: @fish.MinWeight - @fish.MaxWeight kg
+                                                        </MudText>
+                                                    }
+                                                </MudStack>
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+
+                            <MudPaper Elevation="3" Class="pa-4 mt-4">
+                                <MudStack Row="true" Justify="Justify.SpaceAround" AlignItems="AlignItems.Center" Class="flex-wrap">
+                                    <MudStack AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h4">@userDexCatches.Count</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Caught</MudText>
+                                    </MudStack>
+                                    <MudDivider Vertical="true" FlexItem="true" />
+                                    <MudStack AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h4">@fishTypes.Count</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Total Fish</MudText>
+                                    </MudStack>
+                                    <MudDivider Vertical="true" FlexItem="true" />
+                                    <MudStack AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h4">@GetCompletionPercentage()%</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Completion</MudText>
+                                    </MudStack>
+                                </MudStack>
+                                <MudProgressLinear Color="Color.Success" 
+                                                   Value="@GetCompletionPercentage()" 
+                                                   Class="mt-4" 
+                                                   Size="Size.Large" />
+                            </MudPaper>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No fish types have been configured yet.</MudAlert>
+                        }
+                    </MudTabPanel>
+
+                <MudTabPanel Text="Shop" Icon="@Icons.Material.Filled.ShoppingCart">
+                    <MudPaper Elevation="5" Class="pa-5 mt-4 mb-4">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Justify="Justify.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Warning" Size="Size.Large" />
+                            <MudText Typo="Typo.h4">Your Gold: <MudChip T="string" Color="Color.Warning" Size="Size.Large">@userGold</MudChip></MudText>
+                        </MudStack>
+                    </MudPaper>
+
+                    @if (shopItems.Any())
+                    {
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Size="Size.Large" />
+                                <MudText Typo="Typo.h4">Available Boosts</MudText>
+                            </MudStack>
+                            <MudGrid>
+                                @foreach (var item in shopItems.Where(i => i.Enabled))
+                                {
+                                    <MudItem xs="12" sm="6" md="4">
+                                        <MudCard Elevation="6">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Color="Color.Primary" />
+                                                        <MudText Typo="Typo.h6">@item.Name</MudText>
+                                                    </MudStack>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudStack Spacing="2">
+                                                    <MudText Typo="Typo.body2">@item.Description</MudText>
+                                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.TrendingUp">@item.BoostType</MudChip>
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
+                                                        <MudText Typo="Typo.body2">
+                                                            Boost: <strong>@item.BoostAmount%</strong>
+                                                        </MudText>
+                                                    </MudStack>
+                                                    @if (item.TargetFishTypeId.HasValue)
+                                                    {
+                                                        var fishType = fishTypes.FirstOrDefault(f => f.Id == item.TargetFishTypeId.Value);
+                                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Small" Color="Color.Primary" />
+                                                            <MudText Typo="Typo.body2">
+                                                                Target: <strong>@fishType?.Name</strong>
+                                                            </MudText>
+                                                        </MudStack>
+                                                    }
+                                                    <MudDivider />
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Justify="Justify.Center">
+                                                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" />
+                                                        <MudText Typo="Typo.h5" Color="Color.Warning">
+                                                            <strong>@item.Cost</strong>
+                                                        </MudText>
+                                                    </MudStack>
+                                                </MudStack>
+                                            </MudCardContent>
+                                            <MudCardActions>
+                                                <MudButton Variant="Variant.Filled" 
+                                                         Color="Color.Primary" 
+                                                         FullWidth="true"
+                                                         Size="Size.Large"
+                                                         StartIcon="@Icons.Material.Filled.ShoppingCart"
+                                                         Disabled="@(userGold < item.Cost || isPurchasing)"
+                                                         OnClick="@(() => PurchaseItem(item.Id))">
+                                                    @(userGold < item.Cost ? "Insufficient Gold" : "Purchase")
+                                                </MudButton>
+                                            </MudCardActions>
+                                        </MudCard>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No shop items available yet.</MudAlert>
+                    }
+
+                    @if (userBoosts.Any())
+                    {
+                        <MudStack Spacing="3" Class="mt-5">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Large" />
+                                <MudText Typo="Typo.h4">Your Active Boosts</MudText>
+                                <MudBadge Content="@userBoosts.Count" Color="Color.Success" Overlap="true">
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Default" />
+                                </MudBadge>
+                            </MudStack>
+                            <MudTable Items="@userBoosts" Striped="true" Hover="true" Dense="true" Elevation="4">
+                                <HeaderContent>
+                                    <MudTh>Boost Type</MudTh>
+                                    <MudTh>Amount</MudTh>
+                                    <MudTh>Target Fish</MudTh>
+                                    <MudTh>Purchased At</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="boost">
+                                    @{
+                                        var shopItem = shopItems.FirstOrDefault(i => i.Id == boost.ShopItemId);
+                                        var fishType = fishTypes.FirstOrDefault(f => f.Id == shopItem?.TargetFishTypeId);
+                                    }
+                                    <MudTd DataLabel="Boost Type">
+                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@shopItem?.BoostType</MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Amount">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
+                                            <MudText>@shopItem?.BoostAmount%</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Target Fish">
+                                        @if (fishType != null)
+                                        {
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudChip T="string" Color="GetRarityColor(fishType.Rarity)" Size="Size.Small">@fishType.Rarity</MudChip>
+                                                <MudText>@fishType.Name</MudText>
+                                            </MudStack>
+                                        }
+                                        else
+                                        {
+                                            <MudText Color="Color.Secondary">All Fish</MudText>
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Purchased At">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                            <MudText>@boost.PurchasedAt.ToLocalTime().ToString("g")</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudStack>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </Authorized>
+        <NotAuthorized>
+            @if (fishTypes.Any())
+            {
+                <MudPaper Elevation="3" Class="pa-4 mb-4 mt-4">
+                    <MudSelect Value="@selectedFishTypeId" 
+                               ValueChanged="@(async (int value) => await OnFishTypeChanged(value))"
+                               Label="Select Fish Type" 
+                               Variant="Variant.Outlined"
+                               AnchorOrigin="Origin.BottomCenter"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Phishing">
+                        @foreach (var fish in fishTypes)
+                        {
+                            <MudSelectItem Value="@fish.Id">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudChip T="string" Color="GetRarityColor(fish.Rarity)" Size="Size.Small">@fish.Rarity</MudChip>
+                                    <MudText>@fish.Name</MudText>
+                                </MudStack>
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudPaper>
+
+                @if (selectedFishTypeId > 0)
+                {
+                    var selectedFish = fishTypes.FirstOrDefault(f => f.Id == selectedFishTypeId);
+                    <MudPaper Elevation="5" Class="pa-5 mb-4">
+                        <MudStack Spacing="2" AlignItems="AlignItems.Center">
+                            @if (!string.IsNullOrEmpty(selectedFish?.ImageFileName))
+                            {
+                                <MudImage Src="@($"/fishes/{selectedFish.ImageFileName}")" 
+                                          Alt="@selectedFish.Name" 
+                                          Width="150"
+                                          Height="150"
+                                          ObjectFit="ObjectFit.Contain"
+                                          Elevation="3"
+                                          Class="rounded-lg" />
+                            }
+                            <MudText Typo="Typo.h4">@selectedFish?.Name</MudText>
+                            <MudChip T="string" 
+                                     Color="GetRarityColor(selectedFish?.Rarity ?? FishRarity.Common)" 
+                                     Size="Size.Large">
+                                @selectedFish?.Rarity
+                            </MudChip>
+                        </MudStack>
+                    </MudPaper>
+
+                    <MudTable Items="@topCatches" Hover="true" Striped="true" Dense="true" Elevation="4">
+                        <HeaderContent>
+                            <MudTh>Rank</MudTh>
+                            <MudTh>Player</MudTh>
+                            <MudTh>Stars</MudTh>
+                            <MudTh>Weight</MudTh>
+                            <MudTh>Gold Earned</MudTh>
+                            <MudTh>Caught At</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="fishCatch">
+                            <MudTd DataLabel="Rank">
+                                @{
+                                    var rank = topCatches.IndexOf(fishCatch) + 1;
+                                    var rankColor = rank switch
+                                    {
+                                        1 => Color.Warning,
+                                        2 => Color.Default,
+                                        3 => Color.Tertiary,
+                                        _ => Color.Default
+                                    };
+                                    var rankIcon = rank switch
+                                    {
+                                        1 => Icons.Material.Filled.EmojiEvents,
+                                        2 => Icons.Material.Filled.WorkspacePremium,
+                                        3 => Icons.Material.Filled.MilitaryTech,
+                                        _ => Icons.Material.Filled.Tag
+                                    };
+                                }
+                                <MudChip T="string" Color="@rankColor" Icon="@rankIcon">@rank</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Player">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText><strong>@fishCatch.Username</strong></MudText>
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Stars">
+                                @for (int i = 0; i < fishCatch.Stars; i++)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Weight">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Info" />
+                                    <MudText>@fishCatch.Weight kg</MudText>
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Gold Earned">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                    <MudText>@fishCatch.GoldEarned</MudText>
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Caught At">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                    <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No fish types have been configured yet.</MudAlert>
+            }
+
+            <MudPaper Elevation="6" Class="pa-6 mt-4" Style="border: 2px solid var(--mud-palette-primary);">
+                <MudStack Spacing="4" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Primary">
+                        <strong>Unlock Premium Features</strong>
+                    </MudText>
+                    <MudText Typo="Typo.body1" Align="Align.Center">
+                        Sign in to access the shop and purchase boosts to improve your fishing odds!
+                    </MudText>
+                    <MudStack Row="true" Spacing="2" Class="flex-wrap" Justify="Justify.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Success" />
+                        <MudText Typo="Typo.body2" Color="Color.Success"><strong>Shop Access</strong></MudText>
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Warning" />
+                        <MudText Typo="Typo.body2" Color="Color.Warning"><strong>Fishing Boosts</strong></MudText>
+                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Info" />
+                        <MudText Typo="Typo.body2" Color="Color.Info"><strong>Earn Gold</strong></MudText>
+                    </MudStack>
+                    <MudButton Href="/signin" 
+                               Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Login"
+                               Style="width: 300px;">
+                        Sign In with Twitch
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </NotAuthorized>
+    </AuthorizeView>
+    </MudStack>
+</MudContainer>
+
+@code {
+    [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+
+    private List<FishType> fishTypes = new();
+    private List<FishType> leaderboardFishTypes = new();
+    private List<FishCatch> topCatches = new();
+    private List<FishCatch> userDexCatches = new();
+    private Dictionary<int, int> userDexCatchCounts = new();
+    private List<FishingShopItem> shopItems = new();
+    private List<UserFishingBoost> userBoosts = new();
+    private int selectedFishTypeId = 0;
+    private int userGold = 0;
+    private string currentUserId = string.Empty;
+    private bool isPurchasing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        fishTypes = await fishingService.GetAllFishTypes();
+        leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
+
+        if (leaderboardFishTypes.Any())
+        {
+            selectedFishTypeId = leaderboardFishTypes.First().Id;
+            await LoadLeaderboard();
+        }
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            currentUserId = authState.User.FindFirst("sub")?.Value 
+                ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                await LoadUserData();
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (selectedFishTypeId > 0)
+        {
+            await LoadLeaderboard();
+        }
+    }
+
+    private async Task LoadLeaderboard()
+    {
+        topCatches = await fishingService.GetTopCatchesForFishType(selectedFishTypeId, 100);
+    }
+
+    private async Task LoadUserData()
+    {
+        shopItems = await fishingService.GetAllShopItems();
+        userBoosts = await fishingService.GetUserBoosts(currentUserId);
+        var goldData = await fishingService.GetUserGold(currentUserId);
+        userGold = goldData?.TotalGold ?? 0;
+        await LoadUserDex();
+    }
+
+    private async Task PurchaseItem(int shopItemId)
+    {
+        if (isPurchasing) return;
+
+        isPurchasing = true;
+        try
+        {
+            await fishingService.PurchaseBoost(currentUserId, shopItemId);
+            Snackbar.Add("Boost purchased successfully!", Severity.Success);
+            await LoadUserData();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to purchase boost. Please try again.", Severity.Error);
+        }
+        finally
+        {
+            isPurchasing = false;
+        }
+    }
+
+    private async Task LoadUserDex()
+    {
+        if (string.IsNullOrEmpty(currentUserId)) return;
+
+        userDexCatches = new List<FishCatch>();
+        userDexCatchCounts = new Dictionary<int, int>();
+
+        foreach (var fishType in fishTypes)
+        {
+            var bestCatch = await fishingService.GetUserBestCatchForFishType(currentUserId, fishType.Id);
+            if (bestCatch != null)
+            {
+                userDexCatches.Add(bestCatch);
+            }
+
+            var catchCount = await fishingService.GetUserCatchCountForFishType(currentUserId, fishType.Id);
+            if (catchCount > 0)
+            {
+                userDexCatchCounts[fishType.Id] = catchCount;
+            }
+        }
+    }
+
+    private async Task OnFishTypeChanged(int newFishTypeId)
+    {
+        selectedFishTypeId = newFishTypeId;
+        await LoadLeaderboard();
+    }
+
+    private async Task RefreshLeaderboard()
+    {
+        leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
+        await LoadLeaderboard();
+        if (!string.IsNullOrEmpty(currentUserId))
+        {
+            await LoadUserDex();
+        }
+    }
+
+    private async Task RefreshDex()
+    {
+        if (!string.IsNullOrEmpty(currentUserId))
+        {
+            await LoadUserDex();
+        }
+    }
+
+    private int GetCompletionPercentage()
+    {
+        if (fishTypes.Count == 0) return 0;
+        return (int)Math.Round((double)userDexCatches.Count / fishTypes.Count * 100);
+    }
+
+    private Color GetRarityColor(FishRarity rarity) => rarity switch
+    {
+        FishRarity.Common => Color.Default,
+        FishRarity.Uncommon => Color.Success,
+        FishRarity.Rare => Color.Info,
+        FishRarity.Epic => Color.Secondary,
+        FishRarity.Legendary => Color.Warning,
+        _ => Color.Default
+    };
+}

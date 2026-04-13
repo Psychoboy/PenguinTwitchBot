@@ -98,6 +98,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions
         public const string Dice = "mdi-dice-6";
         public const string Controller = "mdi-controller";
         public const string GamepadVariant = "mdi-gamepad-variant";
+        public const string Fish = "mdi-fish";
         public const string Trophy = "mdi-trophy";
         public const string TrophyVariant = "mdi-trophy-variant";
         public const string Medal = "mdi-medal";

@@ -17,6 +17,7 @@ using DotNetTwitchBot.Bot.ServiceTools;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
 using DotNetTwitchBot.Bot.ObsConnector;
+using DotNetTwitchBot.Bot.Commands.Fishing;
 
 namespace DotNetTwitchBot.CustomMiddleware
 {
@@ -104,6 +105,8 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<IWheelService, WheelService>();
             services.AddHostedApiService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>();
             services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
+
+            services.AddSingleton<IFishingService, FishingService>();
 
             services.AddHostedApiService<ScAi>();
 

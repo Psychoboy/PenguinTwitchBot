@@ -36,6 +36,7 @@
         ObsTriggerHotkey,
         ObsSetScene,
         ObsSetSceneFilterState,
-        ExecutePointCommand
+        ExecutePointCommand,
+        Fishing
     }
 }
