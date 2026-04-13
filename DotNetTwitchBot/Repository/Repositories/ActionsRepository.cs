@@ -482,13 +482,16 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Fourth Pass: Remap Command trigger IDs based on CommandName
             await RemapCommandTriggerIds(_context, actions, logger);
 
-            // Fifth Pass: Remap DefaultCommand trigger IDs based on DefaultCommandName
+            // Fifth Pass: Remap Keyword trigger IDs based on KeywordName
+            await RemapKeywordTriggerIds(_context, actions, logger);
+
+            // Sixth Pass: Remap DefaultCommand trigger IDs based on DefaultCommandName
             await RemapDefaultCommandTriggerIds(_context, actions, logger);
 
-            // Sixth Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
+            // Seventh Pass: Remap TimerGroupSetEnabledState SubAction IDs based on TimerGroupName
             await RemapTimerGroupSubActionIds(_context, actions, logger);
 
-            // Seventh Pass: Validate ToggleCommandDisabled SubAction CommandNames
+            // Eighth Pass: Validate ToggleCommandDisabled SubAction CommandNames
             await RemapToggleCommandDisabledSubActions(_context, actions, logger);
 
             logger?.LogInformation("Completed post-restore entity reference remapping");
@@ -893,6 +896,101 @@ namespace DotNetTwitchBot.Repository.Repositories
             {
                 await context.SaveChangesAsync();
                 logger?.LogInformation("Remapped {RemappedCount} command triggers, {FailedCount} failed", remappedCount, failedCount);
+            }
+        }
+
+        /// <summary>
+        /// Remaps Keyword trigger IDs based on KeywordName after restore.
+        /// Keyword IDs change during restore, so we use names to re-establish the relationships.
+        /// </summary>
+        private async Task RemapKeywordTriggerIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var keywordTriggers = records
+                .SelectMany(a => a.Triggers)
+                .Where(t => t.Type == TriggerTypes.Keyword && !string.IsNullOrEmpty(t.Configuration))
+                .ToList();
+
+            if (!keywordTriggers.Any())
+            {
+                logger?.LogDebug("No keyword triggers to remap");
+                return;
+            }
+
+            // Load all action keywords from the database (with their new IDs)
+            var actionKeywords = await context.Set<Bot.Models.Commands.ActionKeyword>()
+                .AsNoTracking()
+                .ToListAsync();
+
+            var keywordNameToIdMap = actionKeywords
+                .Where(ak => ak.Id.HasValue)
+                .GroupBy(ak => ak.CommandName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => 
+                    {
+                        if (g.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple keywords found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", g.Key, g.First().Id);
+                        }
+                        return g.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            int remappedCount = 0;
+            int failedCount = 0;
+
+            foreach (var trigger in keywordTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
+                    if (config == null) continue;
+
+                    // Try to get KeywordName
+                    if (config.TryGetValue("KeywordName", out var keywordNameElement))
+                    {
+                        var keywordName = keywordNameElement.GetString();
+                        if (!string.IsNullOrEmpty(keywordName) && 
+                            keywordNameToIdMap.TryGetValue(keywordName, out var newKeywordId))
+                        {
+                            // Update the configuration with the new KeywordId
+                            var newConfig = new
+                            {
+                                KeywordId = newKeywordId,
+                                KeywordName = keywordName
+                            };
+                            trigger.Configuration = JsonSerializer.Serialize(newConfig);
+
+                            // Update the reference column as well
+                            trigger.KeywordId = newKeywordId;
+
+                            remappedCount++;
+                            logger?.LogDebug("Remapped keyword trigger for '{KeywordName}': new ID is {NewId}", keywordName, newKeywordId);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("Keyword trigger references unknown keyword: {KeywordName}", keywordName);
+                        }
+                    }
+                    else
+                    {
+                        // Old format - only has KeywordId, cannot remap
+                        failedCount++;
+                        logger?.LogWarning("Keyword trigger uses old format (KeywordId only) and cannot be remapped. Configuration: {Config}", trigger.Configuration);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap keyword trigger. Configuration: {Config}", trigger.Configuration);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} keyword triggers, {FailedCount} failed", remappedCount, failedCount);
             }
         }
 
