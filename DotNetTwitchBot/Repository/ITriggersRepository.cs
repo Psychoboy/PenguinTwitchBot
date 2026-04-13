@@ -16,5 +16,6 @@ namespace DotNetTwitchBot.Repository
         Task<List<TriggerType>> GetByTimerGroupIdAsync(int timerGroupId);
         Task<List<TriggerType>> GetByCommandIdAsync(int commandId);
         Task<List<TriggerType>> GetByDefaultCommandIdAsync(int defaultCommandId);
+        Task<List<TriggerType>> GetByKeywordIdAsync(int keywordId);
     }
 }

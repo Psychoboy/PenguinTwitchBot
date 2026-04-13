@@ -23,6 +23,7 @@
         IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
         IActionCommandsRepository ActionCommands { get; }
+        IActionKeywordsRepository ActionKeywords { get; }
         IKeywordsRepository Keywords { get; }
         ICountersRepository Counters { get; }
         IQuotesRepository Quotes { get; }

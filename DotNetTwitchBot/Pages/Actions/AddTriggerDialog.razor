@@ -44,6 +44,16 @@
                         </MudStack>
                     </MudListItem>
                     <MudDivider />
+                    <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.Keyword))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Warning" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Keyword</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a keyword/pattern is detected in chat</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
                     <MudListItem T="string" OnClick="@(() => SelectType(TriggerTypes.DefaultCommand))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.Functions" Color="Color.Success" />
@@ -101,6 +111,21 @@
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Timer Trigger" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.Keyword)
+                {
+                    <MudText Typo="Typo.h6">Configure Keyword Trigger</MudText>
+
+                    <KeywordSelector SelectedKeywordId="_selectedKeywordId" 
+                                     SelectedKeywordIdChanged="OnKeywordSelected"
+                                     OnKeywordCreated="OnKeywordCreated"
+                                     SelectLabel="Select Keyword"
+                                     Required="true"
+                                     AllowNone="true"
+                                     AllowCreate="true" />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., My Keyword Trigger" ReadOnly="true" />
                 }
                 else if (_selectedType == TriggerTypes.TwitchEvent)
                 {
@@ -193,15 +218,18 @@
 
     [Parameter] public int ActionId { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
+    [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
     [Inject] private DotNetTwitchBot.Bot.Commands.Misc.AutoTimers TimersService { get; set; } = null!;
     [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
     private List<ActionCommand> _commands = new();
+    private List<ActionKeyword> _keywords = new();
     private List<TimerGroup> _timerGroups = new();
     private List<DefaultCommand> _defaultCommands = new();
     private int? _selectedCommandId;
+    private int? _selectedKeywordId;
     private TimerGroup? _selectedTimerGroup;
     private DefaultCommand? _selectedDefaultCommand;
     private string _selectedEventType = "";
@@ -213,6 +241,9 @@
     {
         // Load all action commands for the dropdown
         _commands = (await CommandService.GetAllAsync()).OrderBy(c => c.CommandName).ToList();
+
+        // Load all action keywords for the dropdown
+        _keywords = (await KeywordService.GetAllAsync()).OrderBy(k => k.CommandName).ToList();
 
         // Load all timer groups for the dropdown
         _timerGroups = (await TimersService.GetTimerGroupsAsync()).OrderBy(t => t.Name).ToList();
@@ -243,6 +274,37 @@
                 _triggerName = $"!{command.CommandName}";
             }
         }
+    }
+
+    private void OnKeywordSelected(int? keywordId)
+    {
+        _selectedKeywordId = keywordId;
+
+        // Auto-populate trigger name with keyword name
+        if (keywordId.HasValue)
+        {
+            var keyword = _keywords.FirstOrDefault(k => k.Id == keywordId);
+            if (keyword != null)
+            {
+                _triggerName = keyword.CommandName;
+            }
+        }
+    }
+
+    private Task OnCommandCreated(ActionCommand command)
+    {
+        _commands.Add(command);
+        _selectedCommandId = command.Id;
+        _triggerName = $"!{command.CommandName}";
+        return Task.CompletedTask;
+    }
+
+    private Task OnKeywordCreated(ActionKeyword keyword)
+    {
+        _keywords.Add(keyword);
+        _selectedKeywordId = keyword.Id;
+        _triggerName = keyword.CommandName;
+        return Task.CompletedTask;
     }
 
     private Task<IEnumerable<TimerGroup>> SearchTimerGroups(string value, CancellationToken token)
@@ -411,16 +473,6 @@
         };
     }
 
-    private void OnCommandCreated(ActionCommand command)
-    {
-        // Add the newly created command to the list
-        _commands.Add(command);
-        _commands = _commands.OrderBy(c => c.CommandName).ToList();
-
-        // Auto-populate trigger name with command name (with !)
-        _triggerName = $"!{command.CommandName}";
-    }
-
     private bool CanSubmit()
     {
         if (_showTypeSelection) return false;
@@ -428,6 +480,10 @@
 
         // For command type, require a command to be selected
         if (_selectedType == TriggerTypes.Command && !_selectedCommandId.HasValue)
+            return false;
+
+        // For keyword type, require a keyword to be selected
+        if (_selectedType == TriggerTypes.Keyword && !_selectedKeywordId.HasValue)
             return false;
 
         // For timer type, require a timer group to be selected
@@ -451,6 +507,10 @@
         if (!CanSubmit() || !_selectedType.HasValue) return;
 
         var configuration = "";
+        int? commandIdRef = null;
+        int? keywordIdRef = null;
+        int? timerGroupIdRef = null;
+        int? defaultCommandIdRef = null;
 
         // Build configuration JSON based on trigger type
         if (_selectedType == TriggerTypes.Command && _selectedCommandId.HasValue)
@@ -458,6 +518,7 @@
             var command = _commands.FirstOrDefault(c => c.Id == _selectedCommandId);
             if (command != null)
             {
+                commandIdRef = command.Id;
                 configuration = System.Text.Json.JsonSerializer.Serialize(new
                 {
                     CommandId = command.Id,
@@ -465,8 +526,22 @@
                 });
             }
         }
+        else if (_selectedType == TriggerTypes.Keyword && _selectedKeywordId.HasValue)
+        {
+            var keyword = _keywords.FirstOrDefault(k => k.Id == _selectedKeywordId);
+            if (keyword != null)
+            {
+                keywordIdRef = keyword.Id;
+                configuration = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    KeywordId = keyword.Id,
+                    KeywordName = keyword.CommandName
+                });
+            }
+        }
         else if (_selectedType == TriggerTypes.Timer && _selectedTimerGroup?.Id.HasValue == true)
         {
+            timerGroupIdRef = _selectedTimerGroup.Id;
             configuration = System.Text.Json.JsonSerializer.Serialize(new
             {
                 TimerGroupId = _selectedTimerGroup.Id.Value,
@@ -480,6 +555,7 @@
         }
         else if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null)
         {
+            defaultCommandIdRef = _selectedDefaultCommand.Id;
             configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
             {
                 DefaultCommandName = _selectedDefaultCommand.CommandName,
@@ -491,7 +567,11 @@
         {
             TriggerName = _triggerName,
             TriggerType = _selectedType.Value,
-            Configuration = configuration
+            Configuration = configuration,
+            CommandId = commandIdRef,
+            KeywordId = keywordIdRef,
+            TimerGroupId = timerGroupIdRef,
+            DefaultCommandId = defaultCommandIdRef
         };
 
         MudDialog.Close(DialogResult.Ok(result));

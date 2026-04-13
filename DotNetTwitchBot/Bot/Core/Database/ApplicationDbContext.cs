@@ -20,6 +20,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Viewer> Viewers { get; set; } = null!;
         public DbSet<Counter> Counters { get; set; } = null!;
         public DbSet<ActionCommand> ActionCommands { get; set; } = null!;
+        public DbSet<ActionKeyword> ActionKeywords { get; set; } = null!;
         public DbSet<AudioCommand> AudioCommands { get; set; } = null!;
         public DbSet<ViewerTime> ViewersTime { get; set; } = null!;
         public DbSet<ViewerMessageCount> ViewerMessageCounts { get; set; } = null!;

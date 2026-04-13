@@ -596,6 +596,52 @@ namespace DotNetTwitchBot.Repository.Repositories
         }
 
         /// <summary>
+        /// Updates KeywordName in all Keyword trigger configurations when a keyword is renamed.
+        /// </summary>
+        public async Task UpdateKeywordTriggerConfigurationsForRenamedKeyword(int keywordId, string oldKeywordName, string newKeywordName)
+        {
+            var keywordTriggers = await _context.Triggers
+                .Where(x => x.Type == TriggerTypes.Keyword && x.KeywordId == keywordId).ToListAsync();
+
+            var updatedCount = 0;
+            foreach (var trigger in keywordTriggers)
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(trigger.Configuration);
+                    if (config == null) continue;
+                    // Update the KeywordName in the configuration
+                    var newConfig = new
+                    {
+                        KeywordId = keywordId,
+                        KeywordName = newKeywordName
+                    };
+                    trigger.Configuration = JsonSerializer.Serialize(newConfig);
+                    trigger.Name = newKeywordName;
+
+                    // Update the reference column as well
+                    trigger.KeywordId = keywordId;
+
+                    // Explicitly mark the properties as modified
+                    _context.Entry(trigger).Property(t => t.Configuration).IsModified = true;
+                    _context.Entry(trigger).Property(t => t.Name).IsModified = true;
+                    _context.Entry(trigger).Property(t => t.KeywordId).IsModified = true;
+                    updatedCount++;
+                }
+                catch (Exception)
+                {
+                    // Skip triggers with invalid configuration
+                    continue;
+                }
+            }
+
+            if (updatedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
         /// Updates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) referencing the given timerGroupId.
         /// </summary>
         public async Task UpdateTimerGroupNamesForRenamedTimerGroup(int timerGroupId, string newName)
