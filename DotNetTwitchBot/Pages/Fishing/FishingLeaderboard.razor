@@ -644,19 +644,64 @@
 
     private async Task RefreshLeaderboard()
     {
-        leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
-        await LoadLeaderboard();
-        if (!string.IsNullOrEmpty(currentUserId))
-        {
-            await LoadUserDex();
-        }
+        await RefreshAllData();
     }
 
     private async Task RefreshDex()
     {
+        await RefreshAllData();
+    }
+
+    private async Task RefreshGoldLeaderboard()
+    {
+        await RefreshAllData();
+    }
+
+    private async Task RefreshValuableCatchesLeaderboard()
+    {
+        await RefreshAllData();
+    }
+
+    private async Task RefreshAllData()
+    {
+        // Set all loading states
+        isLoadingFishLeaderboard = true;
+        isLoadingGoldLeaderboard = true;
+        isLoadingValuableCatches = true;
         if (!string.IsNullOrEmpty(currentUserId))
         {
-            await LoadUserDex();
+            isLoadingDex = true;
+        }
+
+        try
+        {
+            // Reload core data
+            fishTypes = await fishingService.GetAllFishTypes();
+            leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
+
+            // Reload all leaderboards in parallel for better performance
+            var tasks = new List<Task>
+            {
+                LoadLeaderboard(),
+                LoadGoldLeaderboard(),
+                LoadValuableCatchesLeaderboard()
+            };
+
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                tasks.Add(LoadUserDex());
+            }
+
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception)
+        {
+            // Reset all loading states on error
+            isLoadingFishLeaderboard = false;
+            isLoadingGoldLeaderboard = false;
+            isLoadingValuableCatches = false;
+            isLoadingDex = false;
+            throw;
         }
     }
 
@@ -700,16 +745,6 @@
         {
             isLoadingValuableCatches = false;
         }
-    }
-
-    private async Task RefreshGoldLeaderboard()
-    {
-        await LoadGoldLeaderboard();
-    }
-
-    private async Task RefreshValuableCatchesLeaderboard()
-    {
-        await LoadValuableCatchesLeaderboard();
     }
 
     private RenderFragment RenderRankBadge(int rank) => __builder =>
