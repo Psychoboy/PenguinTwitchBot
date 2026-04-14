@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Fishing</title>
+    <style>
+        :root {
+            --text-color: #fff;
+            --background-color: #000;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 500px;
+            height: 250px;
+        }
+
+        #fishing-alert {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            color: var(--text-color);
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #fishing-alert.show {
+            opacity: 1;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .username {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .fish-image {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin: 10px auto;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+        }
+
+        .fish-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .rarity {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            margin: 5px 0;
+            text-transform: uppercase;
+        }
+
+        .rarity.common { background: #808080; }
+        .rarity.uncommon { background: #4CAF50; }
+        .rarity.rare { background: #2196F3; }
+        .rarity.epic { background: #9C27B0; }
+        .rarity.legendary { background: linear-gradient(45deg, #FFD700, #FFA500); animation: legendary-glow 2s infinite; }
+
+        @keyframes legendary-glow {
+            0%, 100% { box-shadow: 0 0 20px #FFD700; }
+            50% { box-shadow: 0 0 40px #FFA500; }
+        }
+
+        .stars {
+            font-size: 1.2em;
+            margin: 8px 0;
+        }
+
+        .star {
+            color: #FFD700;
+            text-shadow: 0 0 5px #FFA500;
+            margin: 0 3px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            font-size: 1em;
+        }
+
+        .stat-item {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-label {
+            font-size: 0.7em;
+            opacity: 0.8;
+            margin-bottom: 3px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .gold {
+            color: #FFD700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="fishing-alert" style="display: none;">
+            <div class="content">
+                <div class="username" id="username"></div>
+                <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
+                <div class="fish-name" id="fish-name"></div>
+                <div class="rarity" id="rarity"></div>
+                <div class="stars" id="stars"></div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Weight</div>
+                        <div class="stat-value" id="weight"></div>
+                    </div>
+                    <div class="stat-item gold">
+                        <div class="stat-label">Gold Earned</div>
+                        <div class="stat-value" id="gold"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
+    <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="js/fishing.js" asp-append-version="true"></script>
+</body>
+</html>

@@ -1,0 +1,915 @@
+@page "/fishing/admin"
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+<PageTitle>Fishing Game</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Large" Class="mr-2" />
+            Fishing Game Manager
+        </MudText>
+
+        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
+            <MudTabPanel Text="Fish Types" Icon="@Icons.Material.Filled.Phishing">
+                <MudPaper Elevation="3" Class="pa-4 ma-2">
+                    <MudStack Spacing="3">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   @onclick="AddNewFish">
+                            Add Fish Type
+                        </MudButton>
+                        <MudTable Items="@fishTypes" Hover="true" Striped="true" Dense="true" Elevation="2">
+                            <HeaderContent>
+                                <MudTh>Image</MudTh>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Rarity</MudTh>
+                                <MudTh>Base Weight</MudTh>
+                                <MudTh>Base Gold</MudTh>
+                                <MudTh>Enabled</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Image">
+                                    @if (!string.IsNullOrEmpty(context.ImageFileName))
+                                    {
+                                        <MudImage Src="@($"/fishes/{context.ImageFileName}")" 
+                                                  Alt="@context.Name" 
+                                                  Width="50" 
+                                                  Height="50" 
+                                                  ObjectFit="ObjectFit.Cover"
+                                                  Class="rounded" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Image" Color="Color.Default" Size="Size.Large" />
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Name">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Small" Color="Color.Primary" />
+                                        <MudText><strong>@context.Name</strong></MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Rarity">
+                                    <MudChip T="string" Color="GetRarityColor(context.Rarity)" Size="Size.Small">@context.Rarity</MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Base Weight">@context.BaseWeight kg</MudTd>
+                                <MudTd DataLabel="Base Gold">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                        <MudText>@context.BaseGold</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Enabled">
+                                    <MudCheckBox @bind-Value="context.Enabled" ReadOnly="true" Color="Color.Success" />
+                                </MudTd>
+                                <MudTd DataLabel="Actions">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small" 
+                                                   OnClick="() => EditFish(context)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Color="Color.Error"
+                                                   Size="Size.Small" 
+                                                   OnClick="() => DeleteFish(context)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudStack>
+                </MudPaper>
+            </MudTabPanel>
+
+    <MudTabPanel Text="Shop Items" Icon="@Icons.Material.Filled.ShoppingCart">
+        <MudPaper Elevation="3" Class="pa-4 ma-2">
+            <MudStack Spacing="3">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           @onclick="AddNewShopItem">
+                    Add Shop Item
+                </MudButton>
+                <MudTable Items="@shopItems" Hover="true" Striped="true" Dense="true" Elevation="2">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh>Cost</MudTh>
+                        <MudTh>Boost Type</MudTh>
+                        <MudTh>Boost Amount</MudTh>
+                        <MudTh>Equipment Slot</MudTh>
+                        <MudTh>Uses</MudTh>
+                        <MudTh>Enabled</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Size="Size.Small" Color="Color.Primary" />
+                                <MudText><strong>@context.Name</strong></MudText>
+                                @if (context.IsConsumable)
+                                {
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Consumable</MudChip>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Description">@context.Description</MudTd>
+                        <MudTd DataLabel="Cost">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Cost</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Boost Type">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Boost Amount">+@((context.BoostAmount * 100).ToString("F0"))%</MudTd>
+                        <MudTd DataLabel="Equipment Slot">
+                            @if (context.EquipmentSlot.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.EquipmentSlot.Value)">
+                                    @context.EquipmentSlot.Value
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">Permanent</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Uses">
+                            @if (context.MaxUses.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Numbers">
+                                    @context.MaxUses uses
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
+                                    Unlimited
+                                </MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Enabled">
+                            <MudCheckBox @bind-Value="context.Enabled" ReadOnly="true" Color="Color.Success" />
+                        </MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                           Color="Color.Primary"
+                                           Size="Size.Small" 
+                                           OnClick="() => EditShopItem(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Color="Color.Error"
+                                           Size="Size.Small" 
+                                           OnClick="() => DeleteShopItem(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudStack>
+        </MudPaper>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Settings" Icon="@Icons.Material.Filled.Settings">
+        <MudPaper Elevation="3" Class="pa-4 ma-2">
+            <MudStack Spacing="3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">Fishing Settings</MudText>
+                </MudStack>
+                <MudDivider />
+                <MudSwitch @bind-Value="settings.Enabled" 
+                           Label="Enable Fishing" 
+                           Color="Color.Success"
+                           ThumbIcon="@(settings.Enabled ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)" />
+                <MudNumericField @bind-Value="settings.DisplayDurationMs" 
+                                 Label="Display Duration (ms)" 
+                                 HelperText="How long the fishing result appears on overlay"
+                                 Min="1000" 
+                                 Max="30000"
+                                 Adornment="Adornment.End"
+                                 AdornmentIcon="@Icons.Material.Filled.Timer" />
+                <MudDivider />
+                <MudStack Spacing="1">
+                    <MudSwitch @bind-Value="settings.BoostMode" 
+                               Label="Boost Mode" 
+                               Color="Color.Warning"
+                               ThumbIcon="@(settings.BoostMode ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingDown)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Temporarily increase rare fish catch rates</MudText>
+                </MudStack>
+                <MudNumericField @bind-Value="settings.BoostModeRarityMultiplier" 
+                                 Label="Boost Mode Multiplier" 
+                                 HelperText="Multiplier applied to rarity when boost mode is active"
+                                 Min="1.0" 
+                                 Max="10.0" 
+                                 Step="0.1"
+                                 Adornment="Adornment.End"
+                                 AdornmentText="x" />
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveSettings" 
+                           Class="mt-4">
+                    Save Settings
+                </MudButton>
+
+                <MudDivider Class="mt-6 mb-4" />
+
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" Size="Size.Large" />
+                        <MudText Typo="Typo.h5" Color="Color.Error">Danger Zone</MudText>
+                    </MudStack>
+                    <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                        <strong>Warning:</strong> The following action will permanently delete all user catches, gold, and purchased boosts. Fish types and shop items will remain. This cannot be undone!
+                    </MudAlert>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Error" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.DeleteForever"
+                               OnClick="ShowResetConfirmation"
+                               Disabled="isResetting">
+                        @(isResetting ? "Resetting..." : "Reset All User Data")
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudTabPanel>
+</MudTabs>
+    </MudStack>
+</MudContainer>
+
+<MudDialog @bind-Visible="fishDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@(editingFish?.Id == 0 ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(editingFish?.Id == 0 ? "Add" : "Edit") Fish Type</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (editingFish != null)
+        {
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="editingFish.Name" 
+                              Label="Name" 
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Phishing" />
+
+                <MudSelect @bind-Value="editingFish.Rarity" 
+                           Label="Rarity" 
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
+                    {
+                        <MudSelectItem Value="@rarity">
+                            <MudChip T="string" Color="GetRarityColor(rarity)" Size="Size.Small">@rarity</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudNumericField @bind-Value="editingFish.BaseWeight" 
+                                 Label="Base Weight (kg)" 
+                                 HelperText="Actual weight will vary between 0.8x and 1.13x of base, modified by stars"
+                                 Min="0.1" 
+                                 Step="0.1"
+                                 Variant="Variant.Outlined"
+                                 Adornment="Adornment.End"
+                                 AdornmentText="kg" />
+
+                <MudNumericField Value="@editingFish.BaseGold"
+                                 ValueChanged="@((int value) => OnBaseGoldChanged(value))"
+                                 Label="Base Gold" 
+                                 Min="1"
+                                 Variant="Variant.Outlined"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.AttachMoney"
+                                 HelperText="Rarity will be set automatically based on gold value" />
+
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.subtitle2">Fish Image & Sound</MudText>
+                    <MudStack Spacing="2">
+                        <MudPaper Elevation="0" Class="pa-2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudButton HtmlTag="label"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.CloudUpload">
+                                    Upload Image
+                                    <InputFile id="image-upload" OnChange="OnImageFilesChanged" accept=".png,.jpg,.jpeg,.gif,.webp" hidden />
+                                </MudButton>
+                                @if (!string.IsNullOrEmpty(uploadedImageFileName))
+                                {
+                                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
+                                        @uploadedImageFileName
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="pa-2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudButton HtmlTag="label"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Secondary"
+                                           StartIcon="@Icons.Material.Filled.AudioFile">
+                                    Upload Sound (Optional)
+                                    <InputFile id="sound-upload" OnChange="OnSoundFilesChanged" accept=".mp3,.wav,.ogg,.webm" hidden />
+                                </MudButton>
+                                @if (!string.IsNullOrEmpty(uploadedSoundFileName))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small">
+                                        @uploadedSoundFileName
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudStack>
+                </MudStack>
+
+                @if (!string.IsNullOrEmpty(editingFish.ImageFileName))
+                {
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudStack Spacing="2" AlignItems="AlignItems.Center">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Current Image</MudText>
+                            <MudImage Src="@($"/fishes/{editingFish.ImageFileName}")" 
+                                      Alt="Fish Preview" 
+                                      Width="200"
+                                      Height="200"
+                                      ObjectFit="ObjectFit.Contain"
+                                      Elevation="3"
+                                      Class="rounded" />
+                            <MudText Typo="Typo.caption">@editingFish.ImageFileName</MudText>
+                        </MudStack>
+                    </MudPaper>
+                }
+
+                <MudSwitch @bind-Value="editingFish.Enabled" 
+                           Label="Enabled" 
+                           Color="Color.Success"
+                           ThumbIcon="@(editingFish.Enabled ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)" />
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelFishDialog" 
+                   StartIcon="@Icons.Material.Filled.Cancel">
+            Cancel
+        </MudButton>
+        <MudButton Color="Color.Primary" 
+                   OnClick="SaveFish"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="shopItemDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@(editingShopItem?.Id == 0 ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(editingShopItem?.Id == 0 ? "Add" : "Edit") Shop Item</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (editingShopItem != null)
+        {
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="editingShopItem.Name" 
+                              Label="Name" 
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.LocalOffer" />
+
+                <MudTextField @bind-Value="editingShopItem.Description" 
+                              Label="Description" 
+                              Lines="3"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Description" />
+
+                <MudNumericField @bind-Value="editingShopItem.Cost" 
+                                 Label="Cost (gold)" 
+                                 Min="1"
+                                 Variant="Variant.Outlined"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+
+                <MudSelect @bind-Value="editingShopItem.BoostType" 
+                           Label="Boost Type" 
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
+                    {
+                        <MudSelectItem Value="@type">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudNumericField @bind-Value="editingShopItem.BoostAmount" 
+                                 Label="Boost Amount" 
+                                 HelperText="Enter as decimal (0.05 = 5%)"
+                                 Min="0.01" 
+                                 Max="5.0" 
+                                 Step="0.01"
+                                 Variant="Variant.Outlined"
+                                 Adornment="Adornment.End"
+                                 AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
+
+                @if (editingShopItem.BoostType == FishingBoostType.SpecificFishBoost)
+                {
+                    <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
+                               Label="Target Fish"
+                               Variant="Variant.Outlined"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@((int?)null)">None</MudSelectItem>
+                        @foreach (var fish in fishTypes)
+                        {
+                            <MudSelectItem Value="@((int?)fish.Id)">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudChip T="string" Color="GetRarityColor(fish.Rarity)" Size="Size.Small">@fish.Rarity</MudChip>
+                                    <MudText>@fish.Name</MudText>
+                                </MudStack>
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+
+                <MudDivider />
+
+                <MudText Typo="Typo.h6" Color="Color.Primary">Equipment Settings</MudText>
+
+                <MudSelect @bind-Value="editingShopItem.EquipmentSlot" 
+                           Label="Equipment Slot" 
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           HelperText="Assign to a slot (only 1 item per slot can be equipped)"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@((EquipmentSlot?)null)">None (Permanent Boost)</MudSelectItem>
+                    @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
+                    {
+                        <MudSelectItem Value="@((EquipmentSlot?)slot)">
+                            <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(slot)">@slot</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudCheckBox @bind-Value="hasMaxUses" 
+                                 Label="Limited Uses" 
+                                 Color="Color.Warning" />
+                    @if (hasMaxUses)
+                    {
+                        <MudNumericField @bind-Value="maxUsesValue" 
+                                         Label="Max Uses" 
+                                         Min="1"
+                                         Variant="Variant.Outlined"
+                                         HelperText="Number of times item can be used"
+                                         Style="flex: 1;" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Unlimited uses</MudText>
+                    }
+                </MudStack>
+
+                <MudStack Spacing="1">
+                    <MudSwitch @bind-Value="editingShopItem.IsConsumable" 
+                               Label="Consumable" 
+                               Color="Color.Error"
+                               ThumbIcon="@(editingShopItem.IsConsumable ? Icons.Material.Filled.DeleteForever : Icons.Material.Filled.Loop)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, item is removed from inventory when uses run out</MudText>
+                </MudStack>
+
+                <MudDivider />
+
+                <MudSwitch @bind-Value="editingShopItem.Enabled" 
+                           Label="Enabled" 
+                           Color="Color.Success"
+                           ThumbIcon="@(editingShopItem.Enabled ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)" />
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelShopItemDialog"
+                   StartIcon="@Icons.Material.Filled.Cancel">
+            Cancel
+        </MudButton>
+        <MudButton Color="Color.Primary" 
+                   OnClick="SaveShopItem"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="resetConfirmVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" />
+            <MudText Typo="Typo.h6" Color="Color.Error">Confirm Reset</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Error" Icon="@Icons.Material.Filled.Error">
+                <strong>This action cannot be undone!</strong>
+            </MudAlert>
+            <MudText Typo="Typo.body1">
+                Are you sure you want to reset all user data? This will permanently delete:
+            </MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All fish catches from all users
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All user gold balances
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    All purchased boosts
+                </MudListItem>
+            </MudList>
+            <MudText Typo="Typo.body2" Color="Color.Success">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                Fish types and shop items will be preserved.
+            </MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => resetConfirmVisible = false" 
+                   StartIcon="@Icons.Material.Filled.Cancel"
+                   Disabled="isResetting">
+            Cancel
+        </MudButton>
+        <MudButton Color="Color.Error" 
+                   OnClick="ResetAllUserData"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                   Disabled="isResetting">
+            @(isResetting ? "Resetting..." : "Yes, Reset Everything")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private IWebHostEnvironment WebHostEnvironment { get; set; } = null!;
+
+    private List<FishType> fishTypes = new();
+    private List<FishingShopItem> shopItems = new();
+    private FishingSettings settings = new();
+
+    private bool fishDialogVisible = false;
+    private bool shopItemDialogVisible = false;
+    private bool resetConfirmVisible = false;
+    private FishType? editingFish;
+    private FishingShopItem? editingShopItem;
+    private bool isResetting = false;
+
+    private string uploadedImageFileName = string.Empty;
+    private string uploadedSoundFileName = string.Empty;
+    private IBrowserFile? pendingImageFile;
+    private IBrowserFile? pendingSoundFile;
+
+    // Shop item dialog state
+    private bool hasMaxUses = false;
+    private int maxUsesValue = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        fishTypes = await fishingService.GetAllFishTypes();
+        shopItems = await fishingService.GetAllShopItems();
+        var loadedSettings = await fishingService.GetSettings();
+        if (loadedSettings != null)
+        {
+            settings = loadedSettings;
+        }
+    }
+
+    private Color GetRarityColor(FishRarity rarity) => rarity switch
+    {
+        FishRarity.Common => Color.Default,
+        FishRarity.Uncommon => Color.Success,
+        FishRarity.Rare => Color.Info,
+        FishRarity.Epic => Color.Secondary,
+        FishRarity.Legendary => Color.Warning,
+        _ => Color.Default
+    };
+
+    private void OnBaseGoldChanged(int newGoldValue)
+    {
+        if (editingFish == null) return;
+
+        editingFish.BaseGold = newGoldValue;
+
+        // Auto-set rarity based on gold value
+        editingFish.Rarity = newGoldValue switch
+        {
+            >= 201 => FishRarity.Legendary,
+            >= 110 => FishRarity.Epic,
+            >= 60 => FishRarity.Rare,
+            >= 35 => FishRarity.Uncommon,
+            _ => FishRarity.Common
+        };
+    }
+
+    private void AddNewFish()
+    {
+        editingFish = new FishType();
+        uploadedImageFileName = string.Empty;
+        uploadedSoundFileName = string.Empty;
+        pendingImageFile = null;
+        pendingSoundFile = null;
+        fishDialogVisible = true;
+    }
+
+    private void EditFish(FishType fish)
+    {
+        editingFish = new FishType
+            {
+                Id = fish.Id,
+                Name = fish.Name,
+                Rarity = fish.Rarity,
+                BaseWeight = fish.BaseWeight,
+                BaseGold = fish.BaseGold,
+                ImageFileName = fish.ImageFileName,
+                Enabled = fish.Enabled
+            };
+        uploadedImageFileName = string.Empty;
+        uploadedSoundFileName = string.Empty;
+        pendingImageFile = null;
+        pendingSoundFile = null;
+        fishDialogVisible = true;
+    }
+
+    private void OnImageFilesChanged(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            pendingImageFile = file;
+            uploadedImageFileName = file.Name;
+        }
+    }
+
+    private void OnSoundFilesChanged(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            pendingSoundFile = file;
+            uploadedSoundFileName = file.Name;
+        }
+    }
+
+    private async Task SaveFish()
+    {
+        if (editingFish == null) return;
+
+        try
+        {
+            var fishesPath = Path.Combine(WebHostEnvironment.WebRootPath, "fishes");
+            Directory.CreateDirectory(fishesPath);
+
+            // Use sanitized fish name as base filename
+            var baseFileName = SanitizeFileName(editingFish.Name);
+
+            // Save uploaded image file
+            if (pendingImageFile != null)
+            {
+                var imageExtension = Path.GetExtension(pendingImageFile.Name);
+                var imageFileName = $"{baseFileName}{imageExtension}";
+                var imagePath = Path.Combine(fishesPath, imageFileName);
+
+                // Delete old file if exists and name changed
+                if (!string.IsNullOrEmpty(editingFish.ImageFileName) && editingFish.ImageFileName != imageFileName)
+                {
+                    var oldImagePath = Path.Combine(fishesPath, editingFish.ImageFileName);
+                    if (File.Exists(oldImagePath))
+                    {
+                        File.Delete(oldImagePath);
+                    }
+                }
+
+                using (var stream = new FileStream(imagePath, FileMode.Create))
+                {
+                    await pendingImageFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream); // 10MB max
+                }
+
+                editingFish.ImageFileName = imageFileName;
+            }
+
+            // Save sound file if provided (independent of image upload)
+            if (pendingSoundFile != null)
+            {
+                var soundExtension = Path.GetExtension(pendingSoundFile.Name);
+                var soundFileName = $"{baseFileName}{soundExtension}";
+                var soundPath = Path.Combine(fishesPath, soundFileName);
+
+                using (var stream = new FileStream(soundPath, FileMode.Create))
+                {
+                    await pendingSoundFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream);
+                }
+            }
+
+            if (editingFish.Id == 0)
+            {
+                await fishingService.AddFishType(editingFish);
+                Snackbar.Add("Fish type added successfully", Severity.Success);
+            }
+            else
+            {
+                await fishingService.UpdateFishType(editingFish);
+                Snackbar.Add("Fish type updated successfully", Severity.Success);
+            }
+
+            await LoadData();
+            fishDialogVisible = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving fish type: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string SanitizeFileName(string fileName)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var sanitized = string.Join("_", fileName.Split(invalid, StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
+        return sanitized.ToLowerInvariant().Replace(" ", "_");
+    }
+
+    private void CancelFishDialog()
+    {
+        fishDialogVisible = false;
+        editingFish = null;
+    }
+
+    private async Task DeleteFish(FishType fish)
+    {
+        try
+        {
+            await fishingService.DeleteFishType(fish.Id);
+            Snackbar.Add("Fish type deleted successfully", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting fish type: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddNewShopItem()
+    {
+        editingShopItem = new FishingShopItem();
+        hasMaxUses = false;
+        maxUsesValue = 10;
+        shopItemDialogVisible = true;
+    }
+
+    private void EditShopItem(FishingShopItem item)
+    {
+        editingShopItem = new FishingShopItem
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Description = item.Description,
+                Cost = item.Cost,
+                BoostType = item.BoostType,
+                BoostAmount = item.BoostAmount,
+                TargetFishTypeId = item.TargetFishTypeId,
+                Enabled = item.Enabled,
+                EquipmentSlot = item.EquipmentSlot,
+                MaxUses = item.MaxUses,
+                IsConsumable = item.IsConsumable
+            };
+        hasMaxUses = item.MaxUses.HasValue;
+        maxUsesValue = item.MaxUses ?? 10;
+        shopItemDialogVisible = true;
+    }
+
+    private async Task SaveShopItem()
+    {
+        if (editingShopItem == null) return;
+
+        try
+        {
+            // Set MaxUses based on checkbox
+            editingShopItem.MaxUses = hasMaxUses ? maxUsesValue : null;
+
+            if (editingShopItem.Id == 0)
+            {
+                await fishingService.AddShopItem(editingShopItem);
+                Snackbar.Add("Shop item added successfully", Severity.Success);
+            }
+            else
+            {
+                await fishingService.UpdateShopItem(editingShopItem);
+                Snackbar.Add("Shop item updated successfully", Severity.Success);
+            }
+
+            await LoadData();
+            shopItemDialogVisible = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving shop item: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetSlotIcon(EquipmentSlot slot) => slot switch
+    {
+        EquipmentSlot.Rod => Icons.Material.Filled.Phishing,
+        EquipmentSlot.Reel => Icons.Material.Filled.Settings,
+        EquipmentSlot.Bait => Icons.Material.Filled.BugReport,
+        EquipmentSlot.Lure => Icons.Material.Filled.Star,
+        EquipmentSlot.Accessory => Icons.Material.Filled.Diamond,
+        EquipmentSlot.Special => Icons.Material.Filled.AutoAwesome,
+        _ => Icons.Material.Filled.Category
+    };
+
+    private string GetBoostTypeDisplay(FishingBoostType boostType) => boostType switch
+    {
+        FishingBoostType.GeneralRarityBoost => "Rarity Boost",
+        FishingBoostType.SpecificFishBoost => "Specific Fish Boost",
+        FishingBoostType.WeightBoost => "Weight Boost",
+        FishingBoostType.StarBoost => "Star Boost",
+        _ => boostType.ToString()
+    };
+
+    private void CancelShopItemDialog()
+    {
+        shopItemDialogVisible = false;
+        editingShopItem = null;
+    }
+
+    private async Task DeleteShopItem(FishingShopItem item)
+    {
+        try
+        {
+            await fishingService.DeleteShopItem(item.Id);
+            Snackbar.Add("Shop item deleted successfully", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting shop item: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            await fishingService.UpdateSettings(settings);
+            Snackbar.Add("Settings saved successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ShowResetConfirmation()
+    {
+        resetConfirmVisible = true;
+    }
+
+    private async Task ResetAllUserData()
+    {
+        if (isResetting) return;
+
+        isResetting = true;
+        try
+        {
+            await fishingService.ResetAllUserData();
+            Snackbar.Add("All user data has been reset successfully", Severity.Success);
+            resetConfirmVisible = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error resetting user data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isResetting = false;
+        }
+    }
+}

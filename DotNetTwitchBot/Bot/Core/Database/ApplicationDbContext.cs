@@ -8,6 +8,7 @@ using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Models.Obs;
+using DotNetTwitchBot.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core.Database
@@ -58,6 +59,14 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<Models.MarkovValue> MarkovValues { get; set; }
 
         public DbSet<Models.ScAiResponseCodes> ScAiResponseCodes { get; set; }
+
+        // Fishing tables
+        public DbSet<FishType> FishTypes { get; set; } = null!;
+        public DbSet<FishCatch> FishCatches { get; set; } = null!;
+        public DbSet<FishingGold> FishingGolds { get; set; } = null!;
+        public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
+        public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
+        public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
 
         //Virtual tables
         public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;

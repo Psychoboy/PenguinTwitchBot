@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413210235_addFishing")]
+    partial class addFishing
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -881,15 +884,18 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("BaseGold")
                         .HasColumnType("int");
 
-                    b.Property<double>("BaseWeight")
-                        .HasColumnType("double");
-
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("ImageFileName")
+                    b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<double>("MaxWeight")
+                        .HasColumnType("double");
+
+                    b.Property<double>("MinWeight")
+                        .HasColumnType("double");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -976,15 +982,6 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int?>("EquipmentSlot")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsConsumable")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("MaxUses")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -1007,17 +1004,8 @@ namespace DotNetTwitchBot.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsEquipped")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<DateTime>("PurchasedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<int>("RemainingUses")
-                        .HasColumnType("int");
 
                     b.Property<int>("ShopItemId")
                         .HasColumnType("int");
