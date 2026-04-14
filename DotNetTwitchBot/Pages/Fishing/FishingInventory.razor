@@ -356,10 +356,31 @@
     private Dictionary<EquipmentSlot, UserFishingBoost> equippedBySlot = new();
     private List<FishType> fishTypes = new();
 
-    // Filter state
-    private EquipmentSlot? inventoryFilterSlot = null;
-    private bool? inventoryFilterEquipped = null;
-    private string inventoryFilterSearch = string.Empty;
+    // Filter state with cache invalidation
+    private EquipmentSlot? _inventoryFilterSlot = null;
+    private EquipmentSlot? inventoryFilterSlot
+    {
+        get => _inventoryFilterSlot;
+        set { _inventoryFilterSlot = value; cachedFilteredItems = null; }
+    }
+
+    private bool? _inventoryFilterEquipped = null;
+    private bool? inventoryFilterEquipped
+    {
+        get => _inventoryFilterEquipped;
+        set { _inventoryFilterEquipped = value; cachedFilteredItems = null; }
+    }
+
+    private string _inventoryFilterSearch = string.Empty;
+    private string inventoryFilterSearch
+    {
+        get => _inventoryFilterSearch;
+        set { _inventoryFilterSearch = value; cachedFilteredItems = null; }
+    }
+
+    // Performance optimization: cached filter results and lookups
+    private List<UserFishingBoost>? cachedFilteredItems = null;
+    private Dictionary<int, string> fishTypeLookup = new();
 
     private bool equipDialogVisible = false;
     private EquipmentSlot selectedSlot;
@@ -382,10 +403,22 @@
         allItems = await fishingService.GetUserBoosts(userId);
         equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
         fishTypes = await fishingService.GetAllFishTypes();
+
+        // Build fish type lookup for O(1) access
+        fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+
+        // Invalidate cached filter results
+        cachedFilteredItems = null;
     }
 
-    private IEnumerable<UserFishingBoost> GetFilteredInventoryItems()
+    private List<UserFishingBoost> GetFilteredInventoryItems()
     {
+        // Return cached results if available
+        if (cachedFilteredItems != null)
+        {
+            return cachedFilteredItems;
+        }
+
         var filtered = allItems.AsEnumerable();
 
         // Filter by slot
@@ -400,20 +433,31 @@
             filtered = filtered.Where(i => i.IsEquipped == inventoryFilterEquipped.Value);
         }
 
-        // Filter by search text
+        // Filter by search text using culture-insensitive comparison
         if (!string.IsNullOrWhiteSpace(inventoryFilterSearch))
         {
-            var search = inventoryFilterSearch.ToLower();
-            filtered = filtered.Where(i => 
-                (i.ShopItem?.Name.ToLower().Contains(search) ?? false) ||
-                (i.ShopItem?.Description?.ToLower().Contains(search) ?? false) ||
-                (i.ShopItem?.TargetFishTypeId.HasValue == true && 
-                 fishTypes.Any(f => f.Id == i.ShopItem!.TargetFishTypeId.Value && 
-                                   f.Name.ToLower().Contains(search)))
-            );
+            filtered = filtered.Where(i =>
+            {
+                // Search in name and description using OrdinalIgnoreCase
+                if (i.ShopItem?.Name.Contains(inventoryFilterSearch, StringComparison.OrdinalIgnoreCase) == true)
+                    return true;
+
+                if (i.ShopItem?.Description?.Contains(inventoryFilterSearch, StringComparison.OrdinalIgnoreCase) == true)
+                    return true;
+
+                // Search in target fish name using lookup dictionary (O(1) instead of O(n))
+                if (i.ShopItem?.TargetFishTypeId.HasValue == true &&
+                    fishTypeLookup.TryGetValue(i.ShopItem.TargetFishTypeId.Value, out var fishName) &&
+                    fishName.Contains(inventoryFilterSearch, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                return false;
+            });
         }
 
-        return filtered;
+        // Materialize to list and cache
+        cachedFilteredItems = filtered.ToList();
+        return cachedFilteredItems;
     }
 
     private async Task EquipItem(int userBoostId)

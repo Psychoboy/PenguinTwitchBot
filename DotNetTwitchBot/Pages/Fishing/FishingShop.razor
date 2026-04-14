@@ -272,11 +272,38 @@
     private int userGold = 0;
     private bool isPurchasing = false;
 
-    // Filter state
-    private EquipmentSlot? filterSlot = null;
-    private FishingBoostType? filterBoostType = null;
-    private bool? filterConsumable = null;
-    private string filterSearch = string.Empty;
+    // Filter state with cache invalidation
+    private EquipmentSlot? _filterSlot = null;
+    private EquipmentSlot? filterSlot
+    {
+        get => _filterSlot;
+        set { _filterSlot = value; cachedFilteredShopItems = null; }
+    }
+
+    private FishingBoostType? _filterBoostType = null;
+    private FishingBoostType? filterBoostType
+    {
+        get => _filterBoostType;
+        set { _filterBoostType = value; cachedFilteredShopItems = null; }
+    }
+
+    private bool? _filterConsumable = null;
+    private bool? filterConsumable
+    {
+        get => _filterConsumable;
+        set { _filterConsumable = value; cachedFilteredShopItems = null; }
+    }
+
+    private string _filterSearch = string.Empty;
+    private string filterSearch
+    {
+        get => _filterSearch;
+        set { _filterSearch = value; cachedFilteredShopItems = null; }
+    }
+
+    // Performance optimization: cached filter results and lookups
+    private List<FishingShopItem>? cachedFilteredShopItems = null;
+    private Dictionary<int, string> fishTypeLookup = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -296,6 +323,12 @@
         userBoosts = await fishingService.GetUserBoosts(userId);
         var goldData = await fishingService.GetUserGold(userId);
         userGold = goldData?.TotalGold ?? 0;
+
+        // Build fish type lookup for O(1) access
+        fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+
+        // Invalidate cached filter results
+        cachedFilteredShopItems = null;
     }
 
     private async Task PurchaseItem(int shopItemId)
@@ -323,8 +356,15 @@
         }
     }
 
-    private IEnumerable<FishingShopItem> GetFilteredShopItems()
+    private List<FishingShopItem> GetFilteredShopItems()
     {
+        // Return cached results if available
+        if (cachedFilteredShopItems != null)
+        {
+            return cachedFilteredShopItems;
+        }
+
+        // Start with enabled items
         var filtered = shopItems.Where(i => i.Enabled);
 
         // Filter by slot
@@ -345,20 +385,31 @@
             filtered = filtered.Where(i => i.IsConsumable == filterConsumable.Value);
         }
 
-        // Filter by search text
+        // Filter by search text using culture-insensitive comparison
         if (!string.IsNullOrWhiteSpace(filterSearch))
         {
-            var search = filterSearch.ToLower();
-            filtered = filtered.Where(i => 
-                i.Name.ToLower().Contains(search) || 
-                (i.Description?.ToLower().Contains(search) ?? false) ||
-                (i.TargetFishTypeId.HasValue && 
-                 fishTypes.Any(f => f.Id == i.TargetFishTypeId.Value && 
-                                   f.Name.ToLower().Contains(search)))
-            );
+            filtered = filtered.Where(i =>
+            {
+                // Search in name and description using OrdinalIgnoreCase
+                if (i.Name.Contains(filterSearch, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (i.Description?.Contains(filterSearch, StringComparison.OrdinalIgnoreCase) == true)
+                    return true;
+
+                // Search in target fish name using lookup dictionary (O(1) instead of O(n))
+                if (i.TargetFishTypeId.HasValue &&
+                    fishTypeLookup.TryGetValue(i.TargetFishTypeId.Value, out var fishName) &&
+                    fishName.Contains(filterSearch, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                return false;
+            });
         }
 
-        return filtered.OrderBy(i => i.Cost);
+        // Materialize to list and cache
+        cachedFilteredShopItems = filtered.OrderBy(i => i.Cost).ToList();
+        return cachedFilteredShopItems;
     }
 
     private string GetSlotIcon(EquipmentSlot slot) => slot switch

@@ -683,8 +683,16 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var existingItems = await context.FishingShopItems.ToListAsync();
             var itemsToAdd = new List<FishingShopItem>();
 
-            // Helper to check if item already exists
-            bool ItemExists(string name) => existingItems.Any(i => i.Name == name);
+            // Build case-insensitive set of existing item names
+            var existingNames = new HashSet<string>(
+                existingItems.Select(i => i.Name), 
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            // Helper to check if item already exists (in DB or pending)
+            bool ItemExists(string name) => 
+                existingNames.Contains(name) || 
+                itemsToAdd.Any(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
             // Equipment - Fishing Rods (Rod Slot, Permanent, Rarity Boost)
             if (!ItemExists("Basic Rod"))
