@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Models.Fishing;
 using DotNetTwitchBot.Extensions;
+using DotNetTwitchBot.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -1021,6 +1022,44 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             result.MostCommonFish = result.FishCounts.OrderByDescending(kvp => kvp.Value).First().Key;
 
             return result;
+        }
+
+        public async Task<List<LeaderPosition>> GetTotalGoldLeaderboard(int count = 50)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get top players by total gold
+            var topPlayers = await context.FishingGolds
+                .OrderByDescending(g => g.TotalGold)
+                .Take(count)
+                .ToListAsync();
+
+            // Map to LeaderPosition with rank
+            var leaderboard = topPlayers.Select((gold, index) => new LeaderPosition
+            {
+                Rank = index + 1,
+                Name = gold.Username,
+                Amount = gold.TotalGold
+            }).ToList();
+
+            return leaderboard;
+        }
+
+        public async Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get top catches by gold earned
+            var topCatches = await context.FishCatches
+                .Include(c => c.FishType)
+                .OrderByDescending(c => c.GoldEarned)
+                .ThenByDescending(c => c.CaughtAt)
+                .Take(count)
+                .ToListAsync();
+
+            return topCatches;
         }
     }
 }
