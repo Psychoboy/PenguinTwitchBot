@@ -380,8 +380,7 @@
                                                @bind-SelectedValues="simSelectedItems" 
                                                Label="Select Items" 
                                                MultiSelection="true"
-                                               Variant="Variant.Outlined"
-                                               AnchorOrigin="Origin.BottomCenter">
+                                               Variant="Variant.Outlined">
                                         @foreach (var item in shopItems.Where(i => i.Enabled))
                                         {
                                             <MudSelectItem T="int" Value="@item.Id">
@@ -618,8 +617,7 @@
                 <MudSelect @bind-Value="editingFish.Rarity" 
                            Label="Rarity" 
                            Required="true"
-                           Variant="Variant.Outlined"
-                           AnchorOrigin="Origin.BottomCenter">
+                           Variant="Variant.Outlined">
                     @foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
                     {
                         <MudSelectItem Value="@rarity">
@@ -759,8 +757,7 @@
                 <MudSelect @bind-Value="editingShopItem.BoostType" 
                            Label="Boost Type" 
                            Required="true"
-                           Variant="Variant.Outlined"
-                           AnchorOrigin="Origin.BottomCenter">
+                           Variant="Variant.Outlined">
                     @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
                     {
                         <MudSelectItem Value="@type">
@@ -783,8 +780,7 @@
                 {
                     <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
                                Label="Target Fish"
-                               Variant="Variant.Outlined"
-                               AnchorOrigin="Origin.BottomCenter">
+                               Variant="Variant.Outlined">
                         <MudSelectItem Value="@((int?)null)">None</MudSelectItem>
                         @foreach (var fish in fishTypes)
                         {
@@ -806,8 +802,7 @@
                            Label="Equipment Slot" 
                            Variant="Variant.Outlined"
                            Clearable="true"
-                           HelperText="Assign to a slot (only 1 item per slot can be equipped)"
-                           AnchorOrigin="Origin.BottomCenter">
+                           HelperText="Assign to a slot (only 1 item per slot can be equipped)">
                     <MudSelectItem Value="@((EquipmentSlot?)null)">None (Permanent Boost)</MudSelectItem>
                     @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
                     {
