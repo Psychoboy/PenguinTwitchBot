@@ -388,7 +388,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             {
                 userBoost.IsEquipped = false;
                 // Optionally delete the item entirely
-                // context.UserFishingBoosts.Remove(userBoost);
+                context.UserFishingBoosts.Remove(userBoost);
             }
             else if (userBoost.RemainingUses <= 0)
             {
