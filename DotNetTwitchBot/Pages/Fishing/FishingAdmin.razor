@@ -325,11 +325,275 @@
                                Disabled="isResetting">
                         @(isResetting ? "Resetting..." : "Reset All User Data")
                     </MudButton>
-                </MudStack>
-            </MudStack>
-        </MudPaper>
-    </MudTabPanel>
-</MudTabs>
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Simulator" Icon="@Icons.Material.Filled.Science">
+                        <MudPaper Elevation="3" Class="pa-4 ma-2">
+                            <MudStack Spacing="3">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Science" Color="Color.Info" Size="Size.Large" />
+                                    <MudText Typo="Typo.h5">Fishing Simulator</MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Test fishing mechanics without affecting the database. Run multiple simulations to see catch distributions.
+                                </MudText>
+
+                                <MudDivider />
+
+                                <MudNumericField @bind-Value="simIterations" 
+                                                 Label="Number of Simulations" 
+                                                 HelperText="How many fishing attempts to simulate"
+                                                 Min="1" 
+                                                 Max="10000"
+                                                 Variant="Variant.Outlined"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentIcon="@Icons.Material.Filled.Replay" />
+
+                                <MudStack Spacing="2">
+                                    <MudSwitch @bind-Value="simUseBoostMode" 
+                                               Label="Use Boost Mode" 
+                                               Color="Color.Warning"
+                                               ThumbIcon="@(simUseBoostMode ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingFlat)" />
+
+                                    @if (simUseBoostMode)
+                                    {
+                                        <MudNumericField @bind-Value="simBoostMultiplier" 
+                                                         Label="Boost Mode Multiplier" 
+                                                         Min="1.0" 
+                                                         Max="10.0" 
+                                                         Step="0.1"
+                                                         Variant="Variant.Outlined"
+                                                         Adornment="Adornment.End"
+                                                         AdornmentText="x" />
+                                    }
+                                </MudStack>
+
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.subtitle2">Equipped Items (Optional)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Select shop items to simulate their effects
+                                    </MudText>
+                                    <MudSelect T="int"
+                                               @bind-SelectedValues="simSelectedItems" 
+                                               Label="Select Items" 
+                                               MultiSelection="true"
+                                               Variant="Variant.Outlined"
+                                               AnchorOrigin="Origin.BottomCenter">
+                                        @foreach (var item in shopItems.Where(i => i.Enabled))
+                                        {
+                                            <MudSelectItem T="int" Value="@item.Id">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.BoostType)</MudChip>
+                                                    <MudText>@item.Name</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">(+@(item.BoostAmount * 100)%)</MudText>
+                                                </MudStack>
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudStack>
+
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           Size="Size.Large"
+                                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                                           OnClick="RunSimulation"
+                                           Disabled="isSimulating">
+                                    @if (isSimulating)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <span>Simulating...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Run Simulation</span>
+                                    }
+                                </MudButton>
+
+                                @if (simulationResult != null)
+                                {
+                                    <MudDivider Class="my-4" />
+
+                                    <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                                        <MudText Typo="Typo.body1"><strong>Simulation Complete!</strong></MudText>
+                                        <MudText Typo="Typo.body2">@simulationResult.TotalIterations catches simulated</MudText>
+                                    </MudAlert>
+
+                                    <MudExpansionPanels>
+                                        <MudExpansionPanel Text="Rarity Distribution" IsInitiallyExpanded="true">
+                                            <MudSimpleTable Dense="true" Striped="true">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Rarity</th>
+                                                        <th>Count</th>
+                                                        <th>Percentage</th>
+                                                        <th>Visual</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var kvp in simulationResult.RarityCounts.OrderBy(k => (int)k.Key))
+                                                    {
+                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        <tr>
+                                                            <td>
+                                                                <MudChip T="string" Color="GetRarityColor(kvp.Key)" Size="Size.Small">@kvp.Key</MudChip>
+                                                            </td>
+                                                            <td><strong>@kvp.Value</strong></td>
+                                                            <td>@percentage%</td>
+                                                            <td>
+                                                                <MudProgressLinear Color="GetRarityColor(kvp.Key)" Value="@percentage" Size="Size.Medium" />
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Star Quality Distribution">
+                                            <MudSimpleTable Dense="true" Striped="true">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Stars</th>
+                                                        <th>Count</th>
+                                                        <th>Percentage</th>
+                                                        <th>Visual</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var kvp in simulationResult.StarCounts.OrderByDescending(k => k.Key))
+                                                    {
+                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        <tr>
+                                                            <td>
+                                                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                                                    @for (int i = 0; i < kvp.Key; i++)
+                                                                    {
+                                                                        <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                                                    }
+                                                                </MudStack>
+                                                            </td>
+                                                            <td><strong>@kvp.Value</strong></td>
+                                                            <td>@percentage%</td>
+                                                            <td>
+                                                                <MudProgressLinear Color="Color.Warning" Value="@percentage" Size="Size.Medium" />
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Most Common Fish">
+                                            <MudSimpleTable Dense="true" Striped="true">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Fish Name</th>
+                                                        <th>Count</th>
+                                                        <th>Percentage</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var kvp in simulationResult.FishCounts.OrderByDescending(k => k.Value).Take(10))
+                                                    {
+                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        <tr>
+                                                            <td><strong>@kvp.Key</strong></td>
+                                                            <td>@kvp.Value</td>
+                                                            <td>@percentage%</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Statistics Summary">
+                                            <MudGrid>
+                                                <MudItem xs="6" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Avg Gold</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.AverageGold</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Scale" Color="Color.Info" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Avg Weight</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.AverageWeight kg</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Total Gold</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.TotalGold</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Color="Color.Default" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Min Weight</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.MinWeight kg</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Error" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Max Weight</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.MaxWeight kg</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="12" sm="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Phishing" Color="Color.Primary" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Heaviest</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.HeaviestFish</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                            </MudGrid>
+
+                                            @if (simulationResult.ItemsUsed.Any())
+                                            {
+                                                <MudDivider Class="my-3" />
+                                                <MudText Typo="Typo.subtitle2">Items Used:</MudText>
+                                                <MudStack Row="true" Spacing="1">
+                                                    @foreach (var item in simulationResult.ItemsUsed)
+                                                    {
+                                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@item</MudChip>
+                                                    }
+                                                </MudStack>
+                                            }
+
+                                            @if (simulationResult.BoostModeUsed)
+                                            {
+                                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                                    <MudText Typo="Typo.body2">
+                                                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+                                                        <strong>Boost Mode:</strong> @(simulationResult.BoostModeMultiplier)x multiplier active
+                                                    </MudText>
+                                                </MudAlert>
+                                            }
+                                        </MudExpansionPanel>
+                                    </MudExpansionPanels>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudTabPanel>
+                </MudTabs>
     </MudStack>
 </MudContainer>
 
@@ -674,6 +938,14 @@
     private string uploadedSoundFileName = string.Empty;
     private IBrowserFile? pendingImageFile;
     private IBrowserFile? pendingSoundFile;
+
+    // Simulator state
+    private bool isSimulating = false;
+    private int simIterations = 100;
+    private bool simUseBoostMode = false;
+    private double simBoostMultiplier = 2.0;
+    private IReadOnlyCollection<int> simSelectedItems = new HashSet<int>();
+    private FishingSimulationResult? simulationResult;
 
     // Shop item dialog state
     private bool hasMaxUses = false;
@@ -1064,6 +1336,35 @@
         finally
         {
             isGeneratingItems = false;
+        }
+    }
+
+    private async Task RunSimulation()
+    {
+        if (isSimulating) return;
+
+        isSimulating = true;
+        simulationResult = null;
+
+        try
+        {
+            var selectedItemIds = simSelectedItems.ToList();
+            simulationResult = await fishingService.SimulateFishing(
+                simIterations, 
+                simUseBoostMode, 
+                simBoostMultiplier, 
+                selectedItemIds
+            );
+
+            Snackbar.Add($"Simulation complete! {simIterations} catches analyzed.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error running simulation: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSimulating = false;
         }
     }
 }

@@ -44,5 +44,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task ResetAllUserData();
         Task<int> SyncAllFishRarities();
         Task<int> GenerateDefaultShopItems();
+
+        Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
     }
 }
