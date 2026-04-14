@@ -440,7 +440,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var fishType = SelectRandomFish(fishTypes, settings, userBoosts);
             var stars = CalculateStars(fishType, userBoosts);
             var weight = CalculateWeight(fishType, stars, userBoosts);
-            var gold = CalculateGold(fishType, stars);
+            var gold = CalculateGold(fishType, stars, weight);
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -504,6 +504,63 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         }
                     }
                 }
+                else if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    // Find the target fish and boost its rarity tier
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        // Boost the rarity tier of the target fish
+                        rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                    }
+                }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    // Find the target fish and boost its rarity tier
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        // Boost the rarity tier of the target fish
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    // Find the target fish and boost its rarity tier
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        // Boost the rarity tier of the target fish
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                    }
+                }
             }
 
             var totalWeight = rarityWeights.Values.Sum();
@@ -527,8 +584,11 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 fishOfRarity = fishTypes;
             }
 
+            // Get all specific fish boosts from all boost type slots
             var specificBoosts = boosts.Where(b => 
-                b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
                 b.ShopItem.TargetFishTypeId != null).ToList();
 
             if (specificBoosts.Any())
@@ -537,10 +597,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 foreach (var fish in fishOfRarity)
                 {
                     var weight = 1.0;
-                    var boost = specificBoosts.FirstOrDefault(b => b.ShopItem?.TargetFishTypeId == fish.Id);
-                    if (boost != null)
+                    // Apply all specific boosts targeting this fish
+                    foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == fish.Id))
                     {
-                        weight *= (1.0 + boost.ShopItem!.BoostAmount);
+                        if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + boost.ShopItem.BoostAmount);
+                        }
+                        if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                        if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
                     }
                     weightedFish.Add((fish, weight));
                 }
@@ -567,6 +638,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var starBoosts = boosts.Where(b => b.ShopItem?.BoostType == FishingBoostType.StarBoost).ToList();
             var boostAmount = starBoosts.Sum(b => b.ShopItem?.BoostAmount ?? 0);
 
+            // Apply secondary boost types
+            var starBoosts2 = boosts.Where(b => b.ShopItem?.BoostType2 == FishingBoostType.StarBoost).ToList();
+            boostAmount += starBoosts2.Sum(b => b.ShopItem?.BoostAmount2 ?? 0);
+
+            // Apply tertiary boost types
+            var starBoosts3 = boosts.Where(b => b.ShopItem?.BoostType3 == FishingBoostType.StarBoost).ToList();
+            boostAmount += starBoosts3.Sum(b => b.ShopItem?.BoostAmount3 ?? 0);
+
             var threeStarChance = 5.0 + (boostAmount * 100);
             var twoStarChance = 20.0 + (boostAmount * 100);
 
@@ -580,6 +659,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         {
             var weightBoosts = boosts.Where(b => b.ShopItem?.BoostType == FishingBoostType.WeightBoost).ToList();
             var boostMultiplier = 1.0 + weightBoosts.Sum(b => b.ShopItem?.BoostAmount ?? 0);
+
+            // Apply secondary boost types
+            var weightBoosts2 = boosts.Where(b => b.ShopItem?.BoostType2 == FishingBoostType.WeightBoost).ToList();
+            boostMultiplier += weightBoosts2.Sum(b => b.ShopItem?.BoostAmount2 ?? 0);
+
+            // Apply tertiary boost types
+            var weightBoosts3 = boosts.Where(b => b.ShopItem?.BoostType3 == FishingBoostType.WeightBoost).ToList();
+            boostMultiplier += weightBoosts3.Sum(b => b.ShopItem?.BoostAmount3 ?? 0);
 
             // Star multipliers increase weight for higher quality catches
             var starMultiplier = stars switch
@@ -599,7 +686,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return Math.Round(weight, 2);
         }
 
-        private int CalculateGold(FishType fishType, int stars)
+        private int CalculateGold(FishType fishType, int stars, double actualWeight)
         {
             // Star levels determine consecutive, non-overlapping gold ranges
             var (minMultiplier, maxMultiplier) = stars switch
@@ -610,7 +697,18 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             };
 
             var randomValue = RandomNumberGenerator.GetInt32((int)(minMultiplier * 1000), (int)(maxMultiplier * 1000)) / 1000.0;
-            return Math.Max(1, (int)(fishType.BaseGold * randomValue));
+
+            // Weight influences gold: heavier fish relative to base weight = more gold
+            // Weight multiplier ranges from 0.8x to 1.13x (based on CalculateWeight), which translates to 0.9x to 1.065x gold
+            // This ensures heavier catches are always worth more, but not dramatically so
+            var weightMultiplier = 1.0;
+            if (fishType.BaseWeight > 0)
+            {
+                weightMultiplier = 0.9 + ((actualWeight / fishType.BaseWeight - 0.8) / (1.13 - 0.8) * 0.165);
+                weightMultiplier = Math.Max(0.9, Math.Min(1.065, weightMultiplier)); // Clamp between 0.9x and 1.065x
+            }
+
+            return Math.Max(1, (int)(fishType.BaseGold * randomValue * weightMultiplier));
         }
 
         public async Task ResetAllUserData()
@@ -684,220 +782,201 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var existingItems = await context.FishingShopItems.ToListAsync();
             var itemsToAdd = new List<FishingShopItem>();
 
-            // Build case-insensitive set of existing item names
             var existingNames = new HashSet<string>(
                 existingItems.Select(i => i.Name), 
                 StringComparer.OrdinalIgnoreCase
             );
 
-            // Helper to check if item already exists (in DB or pending)
             bool ItemExists(string name) => 
                 existingNames.Contains(name) || 
                 itemsToAdd.Any(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-            // Equipment - Fishing Rods (Rod Slot, Permanent, Rarity Boost)
-            if (!ItemExists("Basic Rod"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Basic Rod", Description = "A simple fishing rod for beginners", Cost = 200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
+            // ===== RODS (General Rarity Boost) =====
+            if (!ItemExists("Bamboo Rod"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Bamboo Rod", Description = "A basic bamboo fishing rod (+5% rare fish)", Cost = 150, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
 
-            if (!ItemExists("Quality Rod"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Quality Rod", Description = "A well-crafted rod for better catches", Cost = 500, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
+            if (!ItemExists("Fiberglass Rod"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Fiberglass Rod", Description = "Flexible and durable (+10% rare fish)", Cost = 400, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
 
-            if (!ItemExists("Expert Rod"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Expert Rod", Description = "A professional-grade fishing rod", Cost = 1200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
+            if (!ItemExists("Carbon Fiber Rod"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Carbon Fiber Rod", Description = "Lightweight and strong (+15% rare fish)", Cost = 1000, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
 
-            if (!ItemExists("Master Rod"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Master Rod", Description = "The ultimate fishing rod for masters", Cost = 3000, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
+            if (!ItemExists("Legendary Rod"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Legendary Rod", Description = "The stuff of legends (+25% rare fish)", Cost = 2500, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Rod, IsConsumable = false, Enabled = true });
 
-            // Equipment - Fishing Lines (Lure Slot, Permanent, Weight Boost)
-            if (!ItemExists("Basic Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Basic Line", Description = "Reliable fishing line", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Strong Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Strong Line", Description = "Reinforced line for heavier catches", Cost = 600, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Titanium Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Titanium Line", Description = "High-tech line for serious anglers", Cost = 1500, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.35, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Diamond Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Diamond Line", Description = "The strongest line money can buy", Cost = 4000, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
-
-            // Equipment - Fishing Hooks (Accessory Slot, Permanent, Star Boost)
-            if (!ItemExists("Sharp Hook"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Sharp Hook", Description = "A well-sharpened hook", Cost = 300, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Accessory, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Barbed Hook"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Barbed Hook", Description = "Hook with barbs for better grip", Cost = 800, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Accessory, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Master Hook"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Master Hook", Description = "Expertly crafted hook", Cost = 2000, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Accessory, IsConsumable = false, Enabled = true });
-
-            if (!ItemExists("Legendary Hook"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Legendary Hook", Description = "The hook of legends", Cost = 5000, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Accessory, IsConsumable = false, Enabled = true });
-
-            // Equipment - Fishing Reels (Reel Slot, Permanent, Rarity Boost)
+            // ===== REELS (Star Boost - Precision/Control) =====
             if (!ItemExists("Basic Reel"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Basic Reel", Description = "Simple but effective reel", Cost = 200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Basic Reel", Description = "Simple spinning reel (+5% star quality)", Cost = 200, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
 
-            if (!ItemExists("Speed Reel"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Speed Reel", Description = "Fast retrieval for quick catches", Cost = 500, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
+            if (!ItemExists("Precision Reel"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Precision Reel", Description = "Smooth drag system (+10% star quality)", Cost = 500, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Professional Reel"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Professional Reel", Description = "High-quality reel for pros", Cost = 1200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Professional Reel", Description = "Tournament-grade precision (+15% star quality)", Cost = 1200, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
 
-            // Consumables - Baits (Bait Slot, Limited Uses)
-            if (!ItemExists("Lucky Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Lucky Bait", Description = "Increases rare fish chances (3 uses)", Cost = 100, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 3, Enabled = true });
+            if (!ItemExists("Master Reel"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Master Reel", Description = "Ultimate control and smoothness (+20% star quality)", Cost = 3000, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
+
+            // ===== LINES (Weight Boost - Strength) =====
+            if (!ItemExists("Monofilament Line"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Monofilament Line", Description = "Basic fishing line (+10% weight)", Cost = 175, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Braided Line"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Braided Line", Description = "High strength, low stretch (+20% weight)", Cost = 450, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Fluorocarbon Line"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Fluorocarbon Line", Description = "Nearly invisible, very strong (+30% weight)", Cost = 1100, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.30, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Titanium Wire"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Titanium Wire", Description = "Unbreakable fishing wire (+45% weight)", Cost = 2800, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
+
+            // ===== HOOKS (Star Boost - Quality) =====
+            if (!ItemExists("Standard Hook"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Standard Hook", Description = "Reliable J-hook (+5% star quality)", Cost = 150, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.Hook, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Circle Hook"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Circle Hook", Description = "Self-setting design (+10% star quality)", Cost = 400, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Hook, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Treble Hook"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Treble Hook", Description = "Triple the catching power (+15% star quality)", Cost = 1000, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Hook, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Diamond Hook"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Diamond Hook", Description = "Razor-sharp perfection (+22% star quality)", Cost = 2500, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.22, EquipmentSlot = EquipmentSlot.Hook, IsConsumable = false, Enabled = true });
+
+            // ===== TACKLE BOXES (Multiple Boosts) =====
+            if (!ItemExists("Basic Tackle Box"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Basic Tackle Box", Description = "Organized storage (+5% rarity, +5% weight)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.05, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Pro Tackle Box"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Pro Tackle Box", Description = "Everything you need (+10% rarity, +10% weight)", Cost = 800, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.10, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Master Tackle Box"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Master Tackle Box", Description = "Complete arsenal (+15% rarity, +15% weight)", Cost = 2000, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.15, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+
+            // ===== NETS (Weight Bonus) =====
+            if (!ItemExists("Landing Net"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Landing Net", Description = "Helps land bigger fish (+15% weight)", Cost = 350, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Net, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Knotless Net"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Knotless Net", Description = "Gentle on fish, strong hold (+25% weight)", Cost = 900, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Net, IsConsumable = false, Enabled = true });
+
+            if (!ItemExists("Tournament Net"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Tournament Net", Description = "Professional-grade netting (+35% weight)", Cost = 2200, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.35, EquipmentSlot = EquipmentSlot.Net, IsConsumable = false, Enabled = true });
+
+            // ===== CONSUMABLE BAITS (Bait Slot) =====
+            if (!ItemExists("Worms"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Worms", Description = "Classic bait for all fish (+15% rarity, 5 uses)", Cost = 75, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+
+            if (!ItemExists("Minnows"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Minnows", Description = "Live bait for predators (+20% rarity, 5 uses)", Cost = 120, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+
+            if (!ItemExists("Premium Bait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Premium Bait", Description = "Irresistible to rare fish (+30% rarity, 5 uses)", Cost = 200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.30, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
 
             if (!ItemExists("Golden Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Golden Bait", Description = "Attracts higher quality fish (5 uses)", Cost = 150, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Golden Bait", Description = "Legendary attractant (+50% rarity, 3 uses)", Cost = 350, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 3, Enabled = true });
 
-            if (!ItemExists("Power Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Power Bait", Description = "Catches heavier fish (10 uses)", Cost = 200, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.30, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 10, Enabled = true });
+            // ===== CONSUMABLE LURES (Lure Slot) =====
+            if (!ItemExists("Spoon Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Spoon Lure", Description = "Flashy wobbling action (+12% rarity, 8 uses)", Cost = 90, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.12, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 8, Enabled = true });
 
-            if (!ItemExists("Supreme Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Supreme Bait", Description = "Significantly boosts rare catches (5 uses)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+            if (!ItemExists("Crankbait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Crankbait", Description = "Deep diving lure (+18% rarity, 7 uses)", Cost = 140, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.18, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
 
-            if (!ItemExists("Mega Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Mega Bait", Description = "Massive weight boost (5 uses)", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+            if (!ItemExists("Jerkbait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Jerkbait", Description = "Erratic swimming motion (+25% rarity, 6 uses)", Cost = 220, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 6, Enabled = true });
 
-            // Consumables - Lures (Lure Slot, Limited Uses)
-            if (!ItemExists("Shiny Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Shiny Lure", Description = "Attracts rare fish (5 uses)", Cost = 120, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
+            if (!ItemExists("TopWater Popper"))
+                itemsToAdd.Add(new FishingShopItem { Name = "TopWater Popper", Description = "Surface explosion action (+35% rarity, 5 uses)", Cost = 320, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.35, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
 
-            if (!ItemExists("Sparkling Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Sparkling Lure", Description = "Increases star quality (7 uses)", Cost = 180, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.12, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
+            if (!ItemExists("Swimbait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Swimbait", Description = "Realistic swimming lure (+45% rarity, 5 uses)", Cost = 400, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
 
-            if (!ItemExists("Heavy Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Heavy Lure", Description = "Attracts bigger fish (10 uses)", Cost = 220, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 10, Enabled = true });
-
-            if (!ItemExists("Rainbow Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Rainbow Lure", Description = "Powerful rarity boost (7 uses)", Cost = 350, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
-
-            if (!ItemExists("Titan Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Titan Lure", Description = "Massive weight increase (7 uses)", Cost = 280, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
-
-            // Fish-Specific Baits (dynamically generated for valuable fish)
+            // ===== FISH-SPECIFIC ITEMS (Generated Dynamically) =====
             var allFish = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
-            var valuableFish = allFish.Where(f => 
-                f.Rarity >= FishRarity.Rare || // All rare+ fish
-                f.BaseGold >= 100 // Or fish worth 100+ gold
-            ).ToList();
+            var targetFish = allFish.Where(f => f.Rarity >= FishRarity.Rare).ToList();
 
-            foreach (var fish in valuableFish)
+            foreach (var fish in targetFish)
             {
-                var itemName = $"{fish.Name} Bait";
-                if (!ItemExists(itemName))
+                // Fish-Specific Bait
+                var baitName = $"{fish.Name} Bait";
+                if (!ItemExists(baitName))
                 {
-                    // Price based on rarity and value
-                    var baseCost = fish.Rarity switch
+                    var baitCost = fish.Rarity switch
                     {
-                        FishRarity.Legendary => 500,
-                        FishRarity.Epic => 300,
-                        FishRarity.Rare => 200,
-                        FishRarity.Uncommon => 150,
-                        _ => 100
+                        FishRarity.Legendary => 800,
+                        FishRarity.Epic => 450,
+                        FishRarity.Rare => 250,
+                        _ => 150
                     };
 
-                    // Adjust cost based on fish value
-                    var costMultiplier = fish.BaseGold switch
+                    var baitBoost = fish.Rarity switch
                     {
-                        >= 500 => 1.5,
-                        >= 200 => 1.25,
-                        >= 100 => 1.0,
-                        _ => 0.75
+                        FishRarity.Legendary => 3.0,   // 300% boost
+                        FishRarity.Epic => 2.0,        // 200% boost
+                        FishRarity.Rare => 1.5,        // 150% boost
+                        _ => 1.0
                     };
 
-                    var finalCost = (int)(baseCost * costMultiplier);
-
-                    // Boost amount based on rarity (higher rarity = stronger boost)
-                    var boostAmount = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 2.0,  // 200% increased chance
-                        FishRarity.Epic => 1.5,       // 150% increased chance
-                        FishRarity.Rare => 1.0,       // 100% increased chance
-                        FishRarity.Uncommon => 0.75,  // 75% increased chance
-                        _ => 0.5                      // 50% increased chance
-                    };
-
-                    var uses = fish.Rarity switch
+                    var baitUses = fish.Rarity switch
                     {
                         FishRarity.Legendary => 3,
                         FishRarity.Epic => 5,
-                        FishRarity.Rare => 5,
+                        _ => 7
+                    };
+
+                    itemsToAdd.Add(new FishingShopItem
+                    {
+                        Name = baitName,
+                        Description = $"Specialized bait for {fish.Name} ({baitUses} uses)",
+                        Cost = baitCost,
+                        BoostType = FishingBoostType.SpecificFishBoost,
+                        BoostAmount = baitBoost,
+                        TargetFishTypeId = fish.Id,
+                        IsConsumable = true,
+                        MaxUses = baitUses,
+                        Enabled = true,
+                        EquipmentSlot = EquipmentSlot.Bait
+                    });
+                }
+
+                // Fish-Specific Lure
+                var lureName = $"{fish.Name} Lure";
+                if (!ItemExists(lureName))
+                {
+                    var lureCost = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 1000,
+                        FishRarity.Epic => 600,
+                        FishRarity.Rare => 350,
+                        _ => 200
+                    };
+
+                    var lureBoost = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 4.0,   // 400% boost  
+                        FishRarity.Epic => 2.5,        // 250% boost
+                        FishRarity.Rare => 1.8,        // 180% boost
+                        _ => 1.2
+                    };
+
+                    var lureUses = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 5,
+                        FishRarity.Epic => 7,
                         _ => 10
                     };
 
                     itemsToAdd.Add(new FishingShopItem
                     {
-                        Name = itemName,
-                        Description = $"Specialized bait that attracts {fish.Name} ({uses} uses)",
-                        Cost = finalCost,
+                        Name = lureName,
+                        Description = $"Premium lure designed for {fish.Name} ({lureUses} uses)",
+                        Cost = lureCost,
                         BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = boostAmount,
+                        BoostAmount = lureBoost,
                         TargetFishTypeId = fish.Id,
                         IsConsumable = true,
-                        MaxUses = uses,
-                        Enabled = true,
-                        EquipmentSlot = EquipmentSlot.Bait
-                    });
-                }
-            }
-
-            // Fish-Specific Lures (dynamically generated for valuable fish)
-            foreach (var fish in valuableFish)
-            {
-                var itemName = $"{fish.Name} Lure";
-                if (!ItemExists(itemName))
-                {
-                    // Price based on rarity and value (slightly higher than baits)
-                    var baseCost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 600,
-                        FishRarity.Epic => 350,
-                        FishRarity.Rare => 250,
-                        FishRarity.Uncommon => 180,
-                        _ => 120
-                    };
-
-                    // Adjust cost based on fish value
-                    var costMultiplier = fish.BaseGold switch
-                    {
-                        >= 500 => 1.5,
-                        >= 200 => 1.25,
-                        >= 100 => 1.0,
-                        _ => 0.75
-                    };
-
-                    var finalCost = (int)(baseCost * costMultiplier);
-
-                    // Boost amount based on rarity (slightly stronger than baits)
-                    var boostAmount = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 2.5,  // 250% increased chance
-                        FishRarity.Epic => 1.75,      // 175% increased chance
-                        FishRarity.Rare => 1.25,      // 125% increased chance
-                        FishRarity.Uncommon => 0.9,   // 90% increased chance
-                        _ => 0.6                      // 60% increased chance
-                    };
-
-                    var uses = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 5,
-                        FishRarity.Epic => 7,
-                        FishRarity.Rare => 7,
-                        _ => 12
-                    };
-
-                    itemsToAdd.Add(new FishingShopItem
-                    {
-                        Name = itemName,
-                        Description = $"Premium lure designed for {fish.Name} ({uses} uses)",
-                        Cost = finalCost,
-                        BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = boostAmount,
-                        TargetFishTypeId = fish.Id,
-                        IsConsumable = true,
-                        MaxUses = uses,
+                        MaxUses = lureUses,
                         Enabled = true,
                         EquipmentSlot = EquipmentSlot.Lure
                     });
@@ -988,7 +1067,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 var fish = SelectRandomFish(fishTypes, simulationSettings, mockBoosts);
                 var stars = CalculateStars(fish, mockBoosts);
                 var weight = CalculateWeight(fish, stars, mockBoosts);
-                var gold = CalculateGold(fish, stars);
+                var gold = CalculateGold(fish, stars, weight);
 
                 // Update counters
                 result.RarityCounts[fish.Rarity]++;
@@ -1060,6 +1139,317 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .ToListAsync();
 
             return topCatches;
+        }
+
+        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
+        {
+            var settings = await GetSettings();
+            return await CalculateCatchProbabilities(settings?.BoostMode ?? false, settings?.BoostModeRarityMultiplier ?? 1.0, shopItemIds);
+        }
+
+        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get enabled fish types
+            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            if (!fishTypes.Any())
+            {
+                return new Dictionary<int, FishProbability>();
+            }
+
+            // Get shop items
+            var shopItems = await context.FishingShopItems
+                .Include(s => s.TargetFishType)
+                .Where(i => shopItemIds.Contains(i.Id))
+                .ToListAsync();
+
+            // Create mock boosts
+            var mockBoosts = shopItems.Select(item => new UserFishingBoost
+            {
+                UserId = "calculation",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            }).ToList();
+
+            // Calculate rarity weights
+            var rarityWeights = new Dictionary<FishRarity, double>
+            {
+                { FishRarity.Common, 50.0 },
+                { FishRarity.Uncommon, 30.0 },
+                { FishRarity.Rare, 15.0 },
+                { FishRarity.Epic, 4.0 },
+                { FishRarity.Legendary, 1.0 }
+            };
+
+            if (useBoostMode)
+            {
+                rarityWeights[FishRarity.Uncommon] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Rare] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Epic] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Legendary] *= boostModeMultiplier;
+            }
+
+            foreach (var boost in mockBoosts)
+            {
+                if (boost.ShopItem?.BoostType == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                    }
+                }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                    }
+                }
+            }
+
+            var totalRarityWeight = rarityWeights.Values.Sum();
+
+            // Calculate probabilities for each fish
+            var probabilities = new Dictionary<int, FishProbability>();
+
+            foreach (var fish in fishTypes)
+            {
+                var rarityChance = rarityWeights[fish.Rarity] / totalRarityWeight;
+
+                // Get fish of same rarity
+                var fishOfRarity = fishTypes.Where(f => f.Rarity == fish.Rarity).ToList();
+
+                // Calculate specific fish weight within rarity
+                var specificBoosts = mockBoosts.Where(b => 
+                    (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
+                     b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                     b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
+                    b.ShopItem.TargetFishTypeId != null).ToList();
+
+                double withinRarityChance;
+                if (specificBoosts.Any())
+                {
+                    var weightedFish = new List<(FishType fish, double weight)>();
+                    foreach (var f in fishOfRarity)
+                    {
+                        var weight = 1.0;
+                        // Apply all specific boosts targeting this fish
+                        foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == f.Id))
+                        {
+                            if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + boost.ShopItem.BoostAmount);
+                            }
+                            if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                            }
+                            if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                            }
+                        }
+                        weightedFish.Add((f, weight));
+                    }
+
+                    var totalFishWeight = weightedFish.Sum(w => w.weight);
+                    var fishWeight = weightedFish.First(w => w.fish.Id == fish.Id).weight;
+                    withinRarityChance = fishWeight / totalFishWeight;
+                }
+                else
+                {
+                    withinRarityChance = 1.0 / fishOfRarity.Count;
+                }
+
+                var overallChance = rarityChance * withinRarityChance;
+
+                probabilities[fish.Id] = new FishProbability
+                {
+                    FishId = fish.Id,
+                    FishName = fish.Name,
+                    Rarity = fish.Rarity,
+                    RarityChance = Math.Round(rarityChance * 100, 4),
+                    WithinRarityChance = Math.Round(withinRarityChance * 100, 4),
+                    OverallChance = Math.Round(overallChance * 100, 4),
+                    ExpectedAttemptsForOneCatch = overallChance > 0 ? (int)Math.Ceiling(1.0 / overallChance) : 0
+                };
+            }
+
+            return probabilities;
+        }
+
+        public async Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+
+            // Get shop items
+            var shopItems = await context.FishingShopItems
+                .Include(s => s.TargetFishType)
+                .Where(i => shopItemIds.Contains(i.Id))
+                .ToListAsync();
+
+            // Create mock boosts
+            var mockBoosts = shopItems.Select(item => new UserFishingBoost
+            {
+                UserId = "calculation",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            }).ToList();
+
+            var rarityWeights = new Dictionary<FishRarity, double>
+            {
+                { FishRarity.Common, 50.0 },
+                { FishRarity.Uncommon, 30.0 },
+                { FishRarity.Rare, 15.0 },
+                { FishRarity.Epic, 4.0 },
+                { FishRarity.Legendary, 1.0 }
+            };
+
+            if (useBoostMode)
+            {
+                rarityWeights[FishRarity.Uncommon] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Rare] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Epic] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Legendary] *= boostModeMultiplier;
+            }
+
+            foreach (var boost in mockBoosts)
+            {
+                if (boost.ShopItem?.BoostType == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                    }
+                }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                    }
+                }
+            }
+
+            var totalWeight = rarityWeights.Values.Sum();
+
+            var result = new RarityProbability
+            {
+                BoostModeActive = useBoostMode,
+                BoostModeMultiplier = boostModeMultiplier,
+                ItemsEquipped = shopItems.Select(i => i.Name).ToList(),
+                Probabilities = new Dictionary<FishRarity, double>()
+            };
+
+            foreach (var kvp in rarityWeights)
+            {
+                result.Probabilities[kvp.Key] = Math.Round((kvp.Value / totalWeight) * 100, 4);
+            }
+
+            return result;
         }
     }
 }

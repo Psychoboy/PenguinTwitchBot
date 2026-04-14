@@ -1,0 +1,182 @@
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@inject IFishingService FishingService
+
+<MudPaper Elevation="3" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" />
+            Probability Calculator
+        </MudText>
+
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudSwitch @bind-Value="useBoostMode" Color="Color.Primary" Label="Enable Global Boost" />
+            @if (useBoostMode)
+            {
+                <MudNumericField @bind-Value="boostMultiplier" 
+                                 Label="Boost Multiplier" 
+                                 Min="1" 
+                                 Max="20" 
+                                 Step="0.5"
+                                 Variant="Variant.Outlined"
+                                 Style="width: 150px;" />
+            }
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       OnClick="CalculateProbabilities"
+                       StartIcon="@Icons.Material.Filled.Calculate">
+                Calculate
+            </MudButton>
+        </MudStack>
+
+        @if (rarityProbs != null)
+        {
+            <MudDivider />
+            
+            <MudText Typo="Typo.h6" Class="mt-3">Rarity Tier Probabilities</MudText>
+            <MudGrid>
+                @foreach (var rarity in rarityProbs.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
+                {
+                    <MudItem xs="6" sm="4" md="2">
+                        <MudPaper Elevation="2" Class="pa-3">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                                <MudChip T="string" Color="GetRarityColor(rarity.Key)" Size="Size.Small">
+                                    @rarity.Key
+                                </MudChip>
+                                <MudText Typo="Typo.h6">@rarity.Value.ToString("F2")%</MudText>
+                                <MudText Typo="Typo.caption">~1 in @Math.Round(100.0 / rarity.Value, 0)</MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @if (rarityProbs.ItemsEquipped.Any())
+            {
+                <MudText Typo="Typo.caption" Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                    Calculated with items: @string.Join(", ", rarityProbs.ItemsEquipped)
+                </MudText>
+            }
+        }
+
+        @if (fishProbs != null && fishProbs.Any())
+        {
+            <MudDivider Class="mt-4" />
+            
+            <MudText Typo="Typo.h6" Class="mt-3">Individual Fish Probabilities</MudText>
+            <MudTextField @bind-Value="fishFilter" 
+                          Label="Filter Fish" 
+                          Variant="Variant.Outlined" 
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          Class="mb-2" />
+            
+            <MudTable Items="@GetFilteredFish()" 
+                      Dense="true" 
+                      Hover="true" 
+                      Striped="true"
+                      Height="400px"
+                      FixedHeader="true">
+                <HeaderContent>
+                    <MudTh>Fish</MudTh>
+                    <MudTh>Rarity</MudTh>
+                    <MudTh>Overall Chance</MudTh>
+                    <MudTh>Expected Attempts</MudTh>
+                    <MudTh>Details</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Fish">
+                        <strong>@context.Value.FishName</strong>
+                    </MudTd>
+                    <MudTd DataLabel="Rarity">
+                        <MudChip T="string" Color="GetRarityColor(context.Value.Rarity)" Size="Size.Small">
+                            @context.Value.Rarity
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Overall Chance">
+                        <MudText Typo="Typo.body2" Color="Color.Primary">
+                            <strong>@context.Value.OverallChance.ToString("F4")%</strong>
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Expected Attempts">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                            ~@context.Value.ExpectedAttemptsForOneCatch casts
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Details">
+                        <MudTooltip Text="@($"Rarity Tier: {context.Value.RarityChance:F2}% × Within Rarity: {context.Value.WithinRarityChance:F2}%")">
+                            <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (isCalculating)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public List<int> EquippedItemIds { get; set; } = new();
+    
+    private bool useBoostMode = false;
+    private double boostMultiplier = 5.0;
+    private RarityProbability? rarityProbs;
+    private Dictionary<int, FishProbability>? fishProbs;
+    private string fishFilter = string.Empty;
+    private bool isCalculating = false;
+
+    private async Task CalculateProbabilities()
+    {
+        isCalculating = true;
+        try
+        {
+            rarityProbs = await FishingService.CalculateRarityProbabilities(
+                useBoostMode, 
+                boostMultiplier, 
+                EquippedItemIds
+            );
+
+            fishProbs = await FishingService.CalculateCatchProbabilities(
+                useBoostMode,
+                boostMultiplier,
+                EquippedItemIds
+            );
+        }
+        finally
+        {
+            isCalculating = false;
+        }
+    }
+
+    private IEnumerable<KeyValuePair<int, FishProbability>> GetFilteredFish()
+    {
+        if (fishProbs == null) return Enumerable.Empty<KeyValuePair<int, FishProbability>>();
+
+        var filtered = fishProbs.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(fishFilter))
+        {
+            filtered = filtered.Where(f => 
+                f.Value.FishName.Contains(fishFilter, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        return filtered.OrderByDescending(f => f.Value.OverallChance);
+    }
+
+    private Color GetRarityColor(FishRarity rarity) => rarity switch
+    {
+        FishRarity.Common => Color.Default,
+        FishRarity.Uncommon => Color.Success,
+        FishRarity.Rare => Color.Info,
+        FishRarity.Epic => Color.Secondary,
+        FishRarity.Legendary => Color.Warning,
+        _ => Color.Default
+    };
+}

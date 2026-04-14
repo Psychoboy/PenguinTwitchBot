@@ -1,6 +1,7 @@
 @page "/fishing/inventory"
 @using DotNetTwitchBot.Bot.Commands.Fishing
 @using DotNetTwitchBot.Bot.Models.Fishing
+@using DotNetTwitchBot.Components.Fishing
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
 @attribute [Authorize]
@@ -68,13 +69,22 @@
                         @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
                         {
                             var equippedItem = equippedBySlot.GetValueOrDefault(slot);
+                            var availableCount = allItems.Count(i => i.ShopItem?.EquipmentSlot == slot && !i.IsEquipped && !(i.ShopItem!.IsConsumable && i.RemainingUses == 0));
                             <MudItem xs="12" sm="6" md="4" lg="3">
                                 <MudCard Elevation="1" Class="@(equippedItem != null ? "mud-theme-primary" : "")" Style="min-height: 120px">
                                     <MudCardContent Class="pa-2">
                                         <MudStack Spacing="1">
-                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                <MudIcon Icon="@GetSlotIcon(slot)" Size="Size.Small" />
-                                                <MudText Typo="Typo.subtitle2">@slot</MudText>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Justify="Justify.SpaceBetween">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                    <MudIcon Icon="@GetSlotIcon(slot)" Size="Size.Small" />
+                                                    <MudText Typo="Typo.subtitle2">@slot</MudText>
+                                                </MudStack>
+                                                @if (availableCount > 0)
+                                                {
+                                                    <MudBadge Content="@availableCount" Color="Color.Info" Overlap="true">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" />
+                                                    </MudBadge>
+                                                }
                                             </MudStack>
                                                 @if (equippedItem != null)
                                                 {
@@ -135,6 +145,13 @@
                             </MudItem>
                         }
                     </MudGrid>
+
+                    @if (equippedBySlot.Any())
+                    {
+                        <div class="mt-4">
+                            <CurrentProbabilitiesDisplay EquippedItemIds="@equippedBySlot.Values.Select(e => e.ShopItemId).ToList()" />
+                        </div>
+                    }
                 </MudPaper>
             </MudTabPanel>
 
@@ -160,7 +177,9 @@
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Reel)">Reel</MudSelectItem>
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Line)">Line</MudSelectItem>
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Lure)">Lure</MudSelectItem>
-                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Accessory)">Accessory</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Hook)">Hook</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.TackleBox)">Tackle Box</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Net)">Net</MudSelectItem>
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Bait)">Bait</MudSelectItem>
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Special)">Special</MudSelectItem>
                                 </MudSelect>
@@ -243,9 +262,25 @@
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="Boost">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
-                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                        </MudStack>
+                                        @if (context.ShopItem!.BoostType2.HasValue && context.ShopItem!.BoostAmount2.HasValue)
+                                        {
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType2.Value)</MudChip>
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount2.Value * 100).ToString("F0"))%</MudChip>
+                                            </MudStack>
+                                        }
+                                        @if (context.ShopItem!.BoostType3.HasValue && context.ShopItem!.BoostAmount3.HasValue)
+                                        {
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType3.Value)</MudChip>
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount3.Value * 100).ToString("F0"))%</MudChip>
+                                            </MudStack>
+                                        }
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="Uses">
@@ -555,7 +590,9 @@
         EquipmentSlot.Line => Icons.Material.Filled.LinearScale,
         EquipmentSlot.Bait => Icons.Material.Filled.BugReport,
         EquipmentSlot.Lure => Icons.Material.Filled.Star,
-        EquipmentSlot.Accessory => Icons.Material.Filled.Diamond,
+        EquipmentSlot.Hook => Icons.Material.Filled.SettingsInputComponent,
+        EquipmentSlot.TackleBox => Icons.Material.Filled.WorkOutline,
+        EquipmentSlot.Net => Icons.Material.Filled.GridOn,
         EquipmentSlot.Special => Icons.Material.Filled.AutoAwesome,
         _ => Icons.Material.Filled.Category
     };

@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260414182430_updateShopItems")]
+    partial class updateShopItems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -975,19 +978,7 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<double>("BoostAmount")
                         .HasColumnType("double");
 
-                    b.Property<double?>("BoostAmount2")
-                        .HasColumnType("double");
-
-                    b.Property<double?>("BoostAmount3")
-                        .HasColumnType("double");
-
                     b.Property<int>("BoostType")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("BoostType2")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("BoostType3")
                         .HasColumnType("int");
 
                     b.Property<int>("Cost")

@@ -50,5 +50,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         Task<List<LeaderPosition>> GetTotalGoldLeaderboard(int count = 50);
         Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50);
+
+        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds);
+        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+        Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
     }
 }

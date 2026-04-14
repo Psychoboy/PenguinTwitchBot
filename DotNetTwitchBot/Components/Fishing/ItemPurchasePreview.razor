@@ -1,0 +1,318 @@
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@inject IFishingService FishingService
+
+@if (ShopItem != null)
+{
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h5">
+                @ShopItem.Name
+            </MudText>
+            <MudText Typo="Typo.body2">@ShopItem.Description</MudText>
+
+            <MudDivider />
+
+            <MudStack Row="true" Spacing="2">
+                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning">
+                    @ShopItem.Cost Gold
+                </MudChip>
+                @if (ShopItem.EquipmentSlot.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info">
+                        @ShopItem.EquipmentSlot.Value Slot
+                    </MudChip>
+                }
+                @if (ShopItem.IsConsumable && ShopItem.MaxUses.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary">
+                        @ShopItem.MaxUses Uses
+                    </MudChip>
+                }
+            </MudStack>
+
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle1" Class="mt-2">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+                <strong>Boost Effect@(HasMultipleBoosts() ? "s" : "")</strong>
+            </MudText>
+
+            @* Show all boost types *@
+            <MudStack Spacing="2">
+                @* Primary Boost *@
+                @RenderBoostAlert(ShopItem.BoostType, ShopItem.BoostAmount, ShopItem.TargetFishType)
+
+                @* Secondary Boost *@
+                @if (ShopItem.BoostType2.HasValue && ShopItem.BoostAmount2.HasValue)
+                {
+                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, null)
+                }
+
+                @* Tertiary Boost *@
+                @if (ShopItem.BoostType3.HasValue && ShopItem.BoostAmount3.HasValue)
+                {
+                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, null)
+                }
+            </MudStack>
+
+            @* Show detailed boost effect explanations *@
+            @if (HasWeightBoost() || HasStarBoost())
+            {
+                <MudPaper Elevation="2" Class="pa-3 mt-2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                        How This Item Helps:
+                    </MudText>
+                    <MudStack Spacing="2">
+                        @if (HasWeightBoost())
+                        {
+                            var totalWeightBoost = GetTotalWeightBoost();
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Success" />
+                                <strong>Weight Bonus:</strong> Fish will be +@((totalWeightBoost * 100).ToString("F0"))% heavier on average
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                <strong>Gold Impact:</strong> Heavier fish earn up to +6.5% more gold (weight-based bonus)
+                            </MudText>
+                        }
+                        @if (HasStarBoost())
+                        {
+                            var totalStarBoost = GetTotalStarBoost();
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                <strong>Star Quality:</strong> +@((totalStarBoost * 100).ToString("F0"))% better chance for high-quality catches
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="ml-4">
+                                ⭐⭐⭐ 3-Star: +25% to +41% gold bonus, 50% heavier fish
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="ml-4">
+                                ⭐⭐ 2-Star: 0% to +25% gold bonus, 20% heavier fish
+                            </MudText>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @* Show detailed probability preview for SpecificFishBoost *@
+            @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
+            {
+                @if (probabilityPreview != null && ShopItem.TargetFishTypeId.HasValue && probabilityPreview.ContainsKey(ShopItem.TargetFishTypeId.Value))
+                {
+                    var fishProb = probabilityPreview[ShopItem.TargetFishTypeId.Value];
+                    <MudPaper Elevation="2" Class="pa-3 mt-2">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle2">Target Fish Probability:</MudText>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Catch Chance</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Primary">
+                                        @fishProb.OverallChance.ToString("F3")%
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Expected Casts</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Success">
+                                        ~@fishProb.ExpectedAttemptsForOneCatch
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+            }
+            else if (HasGeneralRarityBoost() && rarityPreview != null)
+            {
+                <MudPaper Elevation="2" Class="pa-3 mt-2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Rarity Changes With This Item:</MudText>
+                    <MudSimpleTable Dense="true">
+                        <thead>
+                            <tr>
+                                <th>Rarity</th>
+                                <th>Chance</th>
+                                <th>Frequency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rarity in rarityPreview.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
+                            {
+                                <tr>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="GetRarityColor(rarity.Key)">
+                                            @rarity.Key
+                                        </MudChip>
+                                    </td>
+                                    <td><strong>@rarity.Value.ToString("F2")%</strong></td>
+                                    <td>~1 in @Math.Round(100.0 / rarity.Value, 0)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            @if (isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public FishingShopItem? ShopItem { get; set; }
+    [Parameter] public List<int> CurrentEquippedItemIds { get; set; } = new();
+
+    private RarityProbability? rarityPreview;
+    private Dictionary<int, FishProbability>? probabilityPreview;
+    private bool isLoading = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ShopItem != null)
+        {
+            await LoadProbabilityPreview();
+        }
+    }
+
+    private async Task LoadProbabilityPreview()
+    {
+        if (ShopItem == null) return;
+
+        isLoading = true;
+        try
+        {
+            var settings = await FishingService.GetSettings();
+            // Build itemIds and deduplicate to avoid double-applying if already equipped
+            var itemIds = new List<int>(CurrentEquippedItemIds);
+            if (!itemIds.Contains(ShopItem.Id))
+            {
+                itemIds.Add(ShopItem.Id);
+            }
+
+            rarityPreview = await FishingService.CalculateRarityProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                itemIds
+            );
+
+            if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishTypeId.HasValue)
+            {
+                probabilityPreview = await FishingService.CalculateCatchProbabilities(
+                    settings?.BoostMode ?? false,
+                    settings?.BoostModeRarityMultiplier ?? 1.0,
+                    itemIds
+                );
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetBoostDescription(FishingBoostType boostType, double boostAmount)
+    {
+        var percentage = (boostAmount * 100).ToString("F0");
+        return boostType switch
+        {
+            FishingBoostType.GeneralRarityBoost => $"+{percentage}% chance to catch rare fish (all rarities)",
+            FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
+            FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
+            FishingBoostType.SpecificFishBoost => $"+{percentage}% chance to catch specific fish",
+            _ => $"+{percentage}% boost"
+        };
+    }
+
+    private bool HasMultipleBoosts()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType2.HasValue || ShopItem.BoostType3.HasValue;
+    }
+
+    private bool HasWeightBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.WeightBoost ||
+               ShopItem.BoostType2 == FishingBoostType.WeightBoost ||
+               ShopItem.BoostType3 == FishingBoostType.WeightBoost;
+    }
+
+    private bool HasStarBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.StarBoost ||
+               ShopItem.BoostType2 == FishingBoostType.StarBoost ||
+               ShopItem.BoostType3 == FishingBoostType.StarBoost;
+    }
+
+    private bool HasGeneralRarityBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.GeneralRarityBoost ||
+               ShopItem.BoostType2 == FishingBoostType.GeneralRarityBoost ||
+               ShopItem.BoostType3 == FishingBoostType.GeneralRarityBoost;
+    }
+
+    private double GetTotalWeightBoost()
+    {
+        if (ShopItem == null) return 0;
+        double total = 0;
+        if (ShopItem.BoostType == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount;
+        if (ShopItem.BoostType2 == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount2 ?? 0;
+        if (ShopItem.BoostType3 == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount3 ?? 0;
+        return total;
+    }
+
+    private double GetTotalStarBoost()
+    {
+        if (ShopItem == null) return 0;
+        double total = 0;
+        if (ShopItem.BoostType == FishingBoostType.StarBoost) total += ShopItem.BoostAmount;
+        if (ShopItem.BoostType2 == FishingBoostType.StarBoost) total += ShopItem.BoostAmount2 ?? 0;
+        if (ShopItem.BoostType3 == FishingBoostType.StarBoost) total += ShopItem.BoostAmount3 ?? 0;
+        return total;
+    }
+
+    private Color GetRarityColor(FishRarity rarity) => rarity switch
+    {
+        FishRarity.Common => Color.Default,
+        FishRarity.Uncommon => Color.Success,
+        FishRarity.Rare => Color.Info,
+        FishRarity.Epic => Color.Secondary,
+        FishRarity.Legendary => Color.Warning,
+        _ => Color.Default
+    };
+}
+
+@* Helper method to render boost alerts *@
+@code {
+    private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish) => builder =>
+    {
+        builder.OpenComponent<MudAlert>(0);
+        builder.AddAttribute(1, "Severity", Severity.Success);
+        builder.AddAttribute(2, "Dense", true);
+
+        if (boostType == FishingBoostType.SpecificFishBoost && targetFish != null)
+        {
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(childBuilder =>
+            {
+                childBuilder.AddContent(0, $"Targets: ");
+                childBuilder.OpenElement(1, "strong");
+                childBuilder.AddContent(2, targetFish.Name);
+                childBuilder.CloseElement();
+                childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
+            }));
+        }
+        else
+        {
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(childBuilder =>
+            {
+                childBuilder.AddContent(0, GetBoostDescription(boostType, boostAmount));
+            }));
+        }
+
+        builder.CloseComponent();
+    };
+}
