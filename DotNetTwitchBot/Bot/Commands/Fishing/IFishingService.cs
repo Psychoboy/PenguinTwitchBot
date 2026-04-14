@@ -42,5 +42,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<FishCatch> PerformFishingAttempt(string userId, string username);
 
         Task ResetAllUserData();
+        Task<int> SyncAllFishRarities();
+        Task<int> GenerateDefaultShopItems();
     }
 }
