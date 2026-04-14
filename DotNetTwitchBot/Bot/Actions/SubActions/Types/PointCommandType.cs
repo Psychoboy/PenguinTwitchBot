@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
     {
         public PointCommandType() { SubActionTypes = SubActionTypes.ExecutePointCommand; }
         public string Arguments { get; set; } = string.Empty;
+        public bool RespondToChat { get; set; } = true;
         public bool ElevatedCommand { get; set; }
         public string? RankToExecuteAs { get; set; }
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
@@ -45,6 +46,13 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
                 },
                 new()
                 {
+                    PropertyName = nameof(RespondToChat),
+                    Label = "Respond to Chat?",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "If enabled, the bot will respond in chat with the result of the command execution."
+                },
+                new()
+                {
                     PropertyName = nameof(ElevatedCommand),
                     Label = "Run with Elevated Rank?",
                     FieldType = UIFieldType.Switch,
@@ -74,6 +82,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             {
                 { nameof(Text), Text },
                 { nameof(Arguments), Arguments },
+                { nameof(RespondToChat), RespondToChat },
                 { nameof(ElevatedCommand), ElevatedCommand },
                 { nameof(RankToExecuteAs), RankToExecuteAs },
                 { nameof(Enabled), Enabled }
@@ -98,6 +107,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Types
             {
                 RankToExecuteAs = rankToExecuteAs;
             }
+
+            if(values.TryGetValue(nameof(RespondToChat), out var respondToChatValue) && respondToChatValue is bool respondToChat)
+            {
+                RespondToChat = respondToChat;
+            }
+
             if(values.TryGetValue(nameof(Enabled), out var enabledValue) && enabledValue is bool enabled)
             {
                 Enabled = enabled;
