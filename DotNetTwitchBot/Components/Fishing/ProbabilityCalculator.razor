@@ -141,8 +141,12 @@
                 boostMultiplier, 
                 EquippedItemIds
             );
-            
-            fishProbs = await FishingService.CalculateCatchProbabilities(EquippedItemIds);
+
+            fishProbs = await FishingService.CalculateCatchProbabilities(
+                useBoostMode,
+                boostMultiplier,
+                EquippedItemIds
+            );
         }
         finally
         {

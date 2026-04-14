@@ -184,7 +184,12 @@
         try
         {
             var settings = await FishingService.GetSettings();
-            var itemIds = new List<int>(CurrentEquippedItemIds) { ShopItem.Id };
+            // Build itemIds and deduplicate to avoid double-applying if already equipped
+            var itemIds = new List<int>(CurrentEquippedItemIds);
+            if (!itemIds.Contains(ShopItem.Id))
+            {
+                itemIds.Add(ShopItem.Id);
+            }
 
             rarityPreview = await FishingService.CalculateRarityProbabilities(
                 settings?.BoostMode ?? false,
@@ -194,7 +199,11 @@
 
             if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishTypeId.HasValue)
             {
-                probabilityPreview = await FishingService.CalculateCatchProbabilities(itemIds);
+                probabilityPreview = await FishingService.CalculateCatchProbabilities(
+                    settings?.BoostMode ?? false,
+                    settings?.BoostModeRarityMultiplier ?? 1.0,
+                    itemIds
+                );
             }
         }
         finally

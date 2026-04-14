@@ -562,8 +562,11 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 fishOfRarity = fishTypes;
             }
 
+            // Get all specific fish boosts from all boost type slots
             var specificBoosts = boosts.Where(b => 
-                b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
                 b.ShopItem.TargetFishTypeId != null).ToList();
 
             if (specificBoosts.Any())
@@ -572,10 +575,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 foreach (var fish in fishOfRarity)
                 {
                     var weight = 1.0;
-                    var boost = specificBoosts.FirstOrDefault(b => b.ShopItem?.TargetFishTypeId == fish.Id);
-                    if (boost != null)
+                    // Apply all specific boosts targeting this fish
+                    foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == fish.Id))
                     {
-                        weight *= (1.0 + boost.ShopItem!.BoostAmount);
+                        if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + boost.ShopItem.BoostAmount);
+                        }
+                        if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                        if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
+                        {
+                            weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
                     }
                     weightedFish.Add((fish, weight));
                 }
@@ -665,8 +679,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             // Weight influences gold: heavier fish relative to base weight = more gold
             // Weight multiplier ranges from 0.8x to 1.13x (based on CalculateWeight), which translates to 0.9x to 1.065x gold
             // This ensures heavier catches are always worth more, but not dramatically so
-            var weightMultiplier = 0.9 + ((actualWeight / fishType.BaseWeight - 0.8) / (1.13 - 0.8) * 0.165);
-            weightMultiplier = Math.Max(0.9, Math.Min(1.065, weightMultiplier)); // Clamp between 0.9x and 1.065x
+            var weightMultiplier = 1.0;
+            if (fishType.BaseWeight > 0)
+            {
+                weightMultiplier = 0.9 + ((actualWeight / fishType.BaseWeight - 0.8) / (1.13 - 0.8) * 0.165);
+                weightMultiplier = Math.Max(0.9, Math.Min(1.065, weightMultiplier)); // Clamp between 0.9x and 1.065x
+            }
 
             return Math.Max(1, (int)(fishType.BaseGold * randomValue * weightMultiplier));
         }
@@ -1103,6 +1121,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<Dictionary<string, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
         {
+            var settings = await GetSettings();
+            return await CalculateCatchProbabilities(settings?.BoostMode ?? false, settings?.BoostModeRarityMultiplier ?? 1.0, shopItemIds);
+        }
+
+        public async Task<Dictionary<string, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -1112,9 +1136,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             {
                 return new Dictionary<string, FishProbability>();
             }
-
-            // Get settings
-            var settings = await GetSettings();
 
             // Get shop items
             var shopItems = await context.FishingShopItems
@@ -1142,13 +1163,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 { FishRarity.Legendary, 1.0 }
             };
 
-            if (settings?.BoostMode == true)
+            if (useBoostMode)
             {
-                var multiplier = settings.BoostModeRarityMultiplier;
-                rarityWeights[FishRarity.Uncommon] *= multiplier;
-                rarityWeights[FishRarity.Rare] *= multiplier;
-                rarityWeights[FishRarity.Epic] *= multiplier;
-                rarityWeights[FishRarity.Legendary] *= multiplier;
+                rarityWeights[FishRarity.Uncommon] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Rare] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Epic] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Legendary] *= boostModeMultiplier;
             }
 
             foreach (var boost in mockBoosts)
@@ -1172,6 +1192,48 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
                     }
                 }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                    }
+                }
             }
 
             var totalRarityWeight = rarityWeights.Values.Sum();
@@ -1188,7 +1250,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
                 // Calculate specific fish weight within rarity
                 var specificBoosts = mockBoosts.Where(b => 
-                    b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost && 
+                    (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
+                     b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                     b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
                     b.ShopItem.TargetFishTypeId != null).ToList();
 
                 double withinRarityChance;
@@ -1198,10 +1262,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     foreach (var f in fishOfRarity)
                     {
                         var weight = 1.0;
-                        var boost = specificBoosts.FirstOrDefault(b => b.ShopItem?.TargetFishTypeId == f.Id);
-                        if (boost != null)
+                        // Apply all specific boosts targeting this fish
+                        foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == f.Id))
                         {
-                            weight *= (1.0 + boost.ShopItem!.BoostAmount);
+                            if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + boost.ShopItem.BoostAmount);
+                            }
+                            if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                            }
+                            if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
+                            {
+                                weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                            }
                         }
                         weightedFish.Add((f, weight));
                     }
@@ -1291,6 +1366,48 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     if (targetFish != null)
                     {
                         rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
+                    }
+                }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
                     }
                 }
             }
