@@ -1,0 +1,319 @@
+@page "/fishing/help"
+@using DotNetTwitchBot.Bot.Models.Fishing
+
+<PageTitle>Fishing Help</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudText Typo="Typo.h3" Color="Color.Primary" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Large" />
+        Fishing Guide
+    </MudText>
+    
+    <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mb-6">
+        Learn everything you need to know about the fishing system!
+    </MudText>
+
+    <MudStack Spacing="4">
+        
+        <!-- Getting Started -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Color="Color.Success" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Phishing" />
+                Getting Started
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body1">
+                            <strong>Basic Commands:</strong>
+                        </MudText>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                            <code>!fish</code> - Cast your line and catch a fish!
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                            <code>Fish 5x</code> - Channel point redemption to fish 5 times!
+                        </MudAlert>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudAlert Severity="Severity.Success" Dense="false">
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.TipsAndUpdates" Size="Size.Small" />
+                            <strong>Pro Tip:</strong> Visit the Shop and Inventory pages on the website to manage your equipment and see detailed statistics!
+                        </MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Fish Quality System -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Color="Color.Warning" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Star" />
+                Fish Quality & Rewards
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Star Quality System</MudText>
+                    <MudStack Spacing="2">
+                        <MudCard Elevation="1" Class="pa-2">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                <strong>3-Star Fish</strong>
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                • +25% to +41% gold bonus<br/>
+                                • 50% heavier than base weight<br/>
+                                • Perfect quality catch!
+                            </MudText>
+                        </MudCard>
+                        <MudCard Elevation="1" Class="pa-2">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Info" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Info" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Color="Color.Default" Size="Size.Small" />
+                                <strong>2-Star Fish</strong>
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                • 0% to +25% gold bonus<br/>
+                                • 20% heavier than base weight<br/>
+                                • Good quality catch
+                            </MudText>
+                        </MudCard>
+                        <MudCard Elevation="1" Class="pa-2">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Default" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Color="Color.Default" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Color="Color.Default" Size="Size.Small" />
+                                <strong>1-Star Fish</strong>
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                • -25% to 0% gold penalty<br/>
+                                • Base weight<br/>
+                                • Standard catch
+                            </MudText>
+                        </MudCard>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Fish Rarity</MudText>
+                    <MudStack Spacing="2">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Common (50%)</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Uncommon (30%)</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Rare (15%)</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Epic (4%)</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Legendary (1%)</MudChip>
+                    </MudStack>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                        <MudText Typo="Typo.caption">
+                            <strong>Weight Matters:</strong> Heavier fish within the same rarity earn more gold! 
+                            Weight can provide up to a +6.5% gold bonus.
+                        </MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Equipment System -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Color="Color.Secondary" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Build" />
+                Equipment & Boosts
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" lg="8">
+                    <MudText Typo="Typo.h6" Class="mb-2">Equipment Slots</MudText>
+                    <MudSimpleTable Dense="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>Slot</th>
+                                <th>Primary Effect</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Phishing">Rod</MudChip></td>
+                                <td>Rarity Boost</td>
+                                <td>Increases chance to catch rare fish</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Settings">Reel</MudChip></td>
+                                <td>Star Boost</td>
+                                <td>Better chance for high-quality catches</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.LinearScale">Line</MudChip></td>
+                                <td>Weight Boost</td>
+                                <td>Catch heavier fish (more gold!)</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.SettingsInputComponent">Hook</MudChip></td>
+                                <td>Star Boost</td>
+                                <td>Improved fish quality</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.GridOn">Net</MudChip></td>
+                                <td>Weight Boost</td>
+                                <td>Land bigger fish</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.WorkOutline">Tackle Box</MudChip></td>
+                                <td>Dual Boost</td>
+                                <td><strong>Both</strong> rarity and weight boost!</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+                <MudItem xs="12" lg="4">
+                    <MudAlert Severity="Severity.Warning" Dense="false">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Consumable Items</MudText>
+                        <MudText Typo="Typo.body2">
+                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.BugReport" Color="Color.Primary">Bait</MudChip> 
+                            and <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Star" Color="Color.Primary">Lures</MudChip> 
+                            have limited uses but provide powerful temporary boosts!
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mt-2">
+                            Some target specific fish with huge bonuses - perfect for hunting rare species!
+                        </MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Strategy Tips -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Color="Color.Tertiary" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Psychology" />
+                Strategy & Tips
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Equipment Strategy</MudText>
+                    <MudStack Spacing="2">
+                        <MudAlert Severity="Severity.Success" Dense="true">
+                            <strong>Balanced Build:</strong> Tackle Box + Mixed Equipment
+                            <br/><MudText Typo="Typo.caption">Good all-around performance for consistent earnings</MudText>
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            <strong>Rarity Hunter:</strong> High-tier Rod + Rarity Baits
+                            <br/><MudText Typo="Typo.caption">Focus on catching rare and legendary fish</MudText>
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            <strong>Quality Fisher:</strong> Best Reel + Hook + Star Lures
+                            <br/><MudText Typo="Typo.caption">Maximize 3-star catches for consistent high gold</MudText>
+                        </MudAlert>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Economy Tips</MudText>
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                            <strong>Start Small:</strong> Buy basic equipment first - even small bonuses add up!
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
+                            <strong>Weight = Gold:</strong> Heavier fish are always more valuable - don't ignore weight boosts!
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" Color="Color.Info" />
+                            <strong>Smart Spending:</strong> Consumables are powerful but expensive - use them strategically!
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.Upgrade" Size="Size.Small" Color="Color.Secondary" />
+                            <strong>Upgrade Path:</strong> Replace lower-tier equipment as you earn more gold
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Advanced Features -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Color="Color.Error" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" />
+                Advanced Features
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="1" Class="pa-3 h-100">
+                        <MudText Typo="Typo.h6" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Calculate" />
+                            Probability Calculator
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Use the calculator on the Inventory page to see exactly how your equipment affects catch rates and simulate fishing sessions.
+                        </MudText>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="1" Class="pa-3 h-100">
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">
+                            <MudIcon Icon="@Icons.Material.Filled.Preview" />
+                            Item Previews
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Click "Preview" on any shop item to see exactly how it will improve your fishing before you buy!
+                        </MudText>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="1" Class="pa-3 h-100">
+                        <MudText Typo="Typo.h6" Color="Color.Tertiary">
+                            <MudIcon Icon="@Icons.Material.Filled.Leaderboard" />
+                            Leaderboards
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Compete for the top spots in total gold earned and most valuable single catches!
+                        </MudText>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Quick Reference -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h4" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.MenuBook" />
+                Quick Reference
+            </MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Boost Types Explained</MudText>
+                    <MudStack Spacing="1">
+                        <MudText><strong>Rarity Boost:</strong> Higher chance for rare fish varieties</MudText>
+                        <MudText><strong>Weight Boost:</strong> Heavier fish = more gold (up to +6.5%)</MudText>
+                        <MudText><strong>Star Boost:</strong> Better quality catches (up to +41% gold)</MudText>
+                        <MudText><strong>Specific Fish Boost:</strong> Huge bonuses for one fish type</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6" Class="mb-2">Gold Calculation</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">Final Gold = Base Gold × Star Multiplier × Weight Bonus</MudText>
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        <MudText Typo="Typo.caption">
+                            <strong>Example:</strong> A 100 gold base fish that's 3-star and 20% heavier:<br/>
+                            100 × 1.41 (3-star max) × 1.065 (weight bonus) = <strong>150+ gold!</strong>
+                        </MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Footer -->
+        <MudAlert Severity="Severity.Info" Class="mt-4">
+            <MudText Typo="Typo.body1">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                <strong>Need more help?</strong> Visit the Shop and Inventory pages to see your current equipment and experiment with the probability calculator!
+            </MudText>
+        </MudAlert>
+
+    </MudStack>
+</MudContainer>
+
+@code {
+    // No code needed for this static help page
+}
