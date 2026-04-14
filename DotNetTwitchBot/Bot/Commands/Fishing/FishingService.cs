@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Models.Fishing;
 using DotNetTwitchBot.Extensions;
+using DotNetTwitchBot.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -1021,6 +1022,73 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             result.MostCommonFish = result.FishCounts.OrderByDescending(kvp => kvp.Value).First().Key;
 
             return result;
+        }
+
+        public async Task<PagedDataResponse<LeaderPosition>> GetTotalGoldLeaderboard(PaginationFilter filter)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var validFilter = new PaginationFilter(filter.Page, filter.Count);
+
+            // Query for filtering
+            var query = context.FishingGolds.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                query = query.Where(x => x.Username.Contains(filter.Filter));
+            }
+
+            var totalRecords = await query.CountAsync();
+
+            // Get paged data ordered by TotalGold descending
+            var pagedData = await query
+                .OrderByDescending(g => g.TotalGold)
+                .Skip(validFilter.Page * validFilter.Count)
+                .Take(validFilter.Count)
+                .ToListAsync();
+
+            // Calculate ranks
+            var data = pagedData.Select((gold, index) => new LeaderPosition
+            {
+                Rank = (validFilter.Page * validFilter.Count) + index + 1,
+                Name = gold.Username,
+                Amount = gold.TotalGold
+            }).ToList();
+
+            return new PagedDataResponse<LeaderPosition>
+            {
+                Data = data,
+                TotalItems = totalRecords
+            };
+        }
+
+        public async Task<PagedDataResponse<FishCatch>> GetMostValuableCatchesLeaderboard(PaginationFilter filter)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var validFilter = new PaginationFilter(filter.Page, filter.Count);
+
+            // Query for filtering
+            var query = context.FishCatches.Include(c => c.FishType).AsQueryable();
+            if (!string.IsNullOrWhiteSpace(filter.Filter))
+            {
+                query = query.Where(x => x.Username.Contains(filter.Filter));
+            }
+
+            var totalRecords = await query.CountAsync();
+
+            // Get paged data ordered by GoldEarned descending
+            var pagedData = await query
+                .OrderByDescending(c => c.GoldEarned)
+                .ThenByDescending(c => c.CaughtAt)
+                .Skip(validFilter.Page * validFilter.Count)
+                .Take(validFilter.Count)
+                .ToListAsync();
+
+            return new PagedDataResponse<FishCatch>
+            {
+                Data = pagedData,
+                TotalItems = totalRecords
+            };
         }
     }
 }

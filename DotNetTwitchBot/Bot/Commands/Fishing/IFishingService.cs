@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot.Models.Fishing;
+using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
@@ -46,5 +47,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<int> GenerateDefaultShopItems();
 
         Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+
+        Task<PagedDataResponse<LeaderPosition>> GetTotalGoldLeaderboard(PaginationFilter filter);
+        Task<PagedDataResponse<FishCatch>> GetMostValuableCatchesLeaderboard(PaginationFilter filter);
     }
 }
