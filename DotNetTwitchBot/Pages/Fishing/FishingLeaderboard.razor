@@ -14,18 +14,45 @@
             Fishing Leaderboard
         </MudText>
 
-        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
+        @if (isInitialLoading)
+        {
+            <MudPaper Elevation="4" Class="pa-8">
+                <MudStack AlignItems="AlignItems.Center" Spacing="4">
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">Loading fishing leaderboards...</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Please wait while we fetch the data</MudText>
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
             <MudTabPanel Text="Fish Leaderboard" Icon="@Icons.Material.Filled.Leaderboard">
                         <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mb-3">
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
                                        OnClick="RefreshLeaderboard"
+                                       Disabled="@isLoadingFishLeaderboard"
                                        Size="Size.Small">
-                                Refresh
+                                @if (isLoadingFishLeaderboard)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <text>Loading...</text>
+                                }
+                                else
+                                {
+                                    <text>Refresh</text>
+                                }
                             </MudButton>
                         </MudStack>
-                        @if (leaderboardFishTypes.Any())
+                        @if (isLoadingFishLeaderboard)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading leaderboard...</MudText>
+                            </MudStack>
+                        }
+                        else if (leaderboardFishTypes.Any())
                         {
                             <MudStack AlignItems="AlignItems.Center" Class="mb-4 mt-4">
                                 <MudSelect Value="@selectedFishTypeId" 
@@ -147,11 +174,27 @@
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
                                        OnClick="RefreshGoldLeaderboard"
+                                       Disabled="@isLoadingGoldLeaderboard"
                                        Size="Size.Small">
-                                Refresh
+                                @if (isLoadingGoldLeaderboard)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <text>Loading...</text>
+                                }
+                                else
+                                {
+                                    <text>Refresh</text>
+                                }
                             </MudButton>
                         </MudStack>
-                        @if (goldLeaderboard.Any())
+                        @if (isLoadingGoldLeaderboard)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading gold leaderboard...</MudText>
+                            </MudStack>
+                        }
+                        else if (goldLeaderboard.Any())
                         {
                             <MudTable Items="@goldLeaderboard" Hover="true" Striped="true" Dense="true" Elevation="4">
                                 <ToolBarContent>
@@ -194,11 +237,27 @@
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
                                        OnClick="RefreshValuableCatchesLeaderboard"
+                                       Disabled="@isLoadingValuableCatches"
                                        Size="Size.Small">
-                                Refresh
+                                @if (isLoadingValuableCatches)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <text>Loading...</text>
+                                }
+                                else
+                                {
+                                    <text>Refresh</text>
+                                }
                             </MudButton>
                         </MudStack>
-                        @if (valuableCatchesLeaderboard.Any())
+                        @if (isLoadingValuableCatches)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading valuable catches...</MudText>
+                            </MudStack>
+                        }
+                        else if (valuableCatchesLeaderboard.Any())
                         {
                             <MudTable Items="@valuableCatchesLeaderboard" Hover="true" Striped="true" Dense="true" Elevation="4">
                                 <ToolBarContent>
@@ -300,12 +359,28 @@
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
                                        OnClick="RefreshDex"
+                                       Disabled="@isLoadingDex"
                                        Size="Size.Small">
-                                Refresh
+                                @if (isLoadingDex)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <text>Loading...</text>
+                                }
+                                else
+                                {
+                                    <text>Refresh</text>
+                                }
                             </MudButton>
                         </MudStack>
 
-                        @if (fishTypes.Any())
+                        @if (isLoadingDex)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading your fish collection...</MudText>
+                            </MudStack>
+                        }
+                        else if (fishTypes.Any())
                         {
                             <MudGrid>
                                 @foreach (var fish in fishTypes.OrderBy(f => (int)f.Rarity).ThenBy(f => f.Name))
@@ -454,6 +529,7 @@
                             </MudPaper>
                         </NotAuthorized>
                     </AuthorizeView>
+        }
     </MudStack>
 </MudContainer>
 
@@ -473,32 +549,47 @@
     private List<LeaderPosition> goldLeaderboard = new();
     private List<FishCatch> valuableCatchesLeaderboard = new();
 
+    // Loading states
+    private bool isLoadingFishLeaderboard = false;
+    private bool isLoadingGoldLeaderboard = false;
+    private bool isLoadingValuableCatches = false;
+    private bool isLoadingDex = false;
+    private bool isInitialLoading = true;
+
     protected override async Task OnInitializedAsync()
     {
-        fishTypes = await fishingService.GetAllFishTypes();
-        leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
-
-        if (leaderboardFishTypes.Any())
+        isInitialLoading = true;
+        try
         {
-            selectedFishTypeId = leaderboardFishTypes.First().Id;
-            await LoadLeaderboard();
-        }
+            fishTypes = await fishingService.GetAllFishTypes();
+            leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
 
-        // Load new leaderboards
-        await LoadGoldLeaderboard();
-        await LoadValuableCatchesLeaderboard();
-
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        if (authState.User.Identity?.IsAuthenticated == true)
-        {
-            currentUserId = authState.User.FindFirst("sub")?.Value 
-                ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
-                ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(currentUserId))
+            if (leaderboardFishTypes.Any())
             {
-                await LoadUserData();
+                selectedFishTypeId = leaderboardFishTypes.First().Id;
+                await LoadLeaderboard();
             }
+
+            // Load new leaderboards
+            await LoadGoldLeaderboard();
+            await LoadValuableCatchesLeaderboard();
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                currentUserId = authState.User.FindFirst("sub")?.Value 
+                    ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                    ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(currentUserId))
+                {
+                    await LoadUserData();
+                }
+            }
+        }
+        finally
+        {
+            isInitialLoading = false;
         }
     }
 
@@ -512,7 +603,15 @@
 
     private async Task LoadLeaderboard()
     {
-        topCatches = await fishingService.GetTopCatchesForFishType(selectedFishTypeId, 100);
+        isLoadingFishLeaderboard = true;
+        try
+        {
+            topCatches = await fishingService.GetTopCatchesForFishType(selectedFishTypeId, 100);
+        }
+        finally
+        {
+            isLoadingFishLeaderboard = false;
+        }
     }
 
     private async Task LoadUserData()
@@ -524,9 +623,17 @@
     {
         if (string.IsNullOrEmpty(currentUserId)) return;
 
-        var bestCatchesDict = await fishingService.GetUserBestCatchesForAllFishTypes(currentUserId);
-        userDexCatches = bestCatchesDict.Values.ToList();
-        userDexCatchCounts = await fishingService.GetUserCatchCountsForAllFishTypes(currentUserId);
+        isLoadingDex = true;
+        try
+        {
+            var bestCatchesDict = await fishingService.GetUserBestCatchesForAllFishTypes(currentUserId);
+            userDexCatches = bestCatchesDict.Values.ToList();
+            userDexCatchCounts = await fishingService.GetUserCatchCountsForAllFishTypes(currentUserId);
+        }
+        finally
+        {
+            isLoadingDex = false;
+        }
     }
 
     private async Task OnFishTypeChanged(int newFishTypeId)
@@ -571,12 +678,28 @@
 
     private async Task LoadGoldLeaderboard()
     {
-        goldLeaderboard = await fishingService.GetTotalGoldLeaderboard(50);
+        isLoadingGoldLeaderboard = true;
+        try
+        {
+            goldLeaderboard = await fishingService.GetTotalGoldLeaderboard(50);
+        }
+        finally
+        {
+            isLoadingGoldLeaderboard = false;
+        }
     }
 
     private async Task LoadValuableCatchesLeaderboard()
     {
-        valuableCatchesLeaderboard = await fishingService.GetMostValuableCatchesLeaderboard(50);
+        isLoadingValuableCatches = true;
+        try
+        {
+            valuableCatchesLeaderboard = await fishingService.GetMostValuableCatchesLeaderboard(50);
+        }
+        finally
+        {
+            isLoadingValuableCatches = false;
+        }
     }
 
     private async Task RefreshGoldLeaderboard()
