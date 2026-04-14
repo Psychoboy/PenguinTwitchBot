@@ -1,0 +1,241 @@
+@page "/fishing/imageprocessing"
+@using DotNetTwitchBot.Services
+@inject ImageProcessingService ImageProcessor
+@inject IWebHostEnvironment WebHostEnvironment
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+<PageTitle>Image Processing - Fishing Game</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.Large">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Large" Class="mr-2" />
+            Fish Image Processing
+        </MudText>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Batch Process Existing Images</MudText>
+                <MudText Typo="Typo.body2">
+                    This will process all existing fish images in the /fishes directory and create optimized versions.
+                    Images are resized to fit within each size while maintaining aspect ratio (no cropping):
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        Thumbnail (100x100) - 80% quality - Perfect for small previews
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        Small (200x200) - 85% quality - Good for tables and lists
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        Medium (400x400) - 90% quality - Ideal for cards and dialogs
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        Large (800x800) - 95% quality - High quality display
+                    </MudListItem>
+                </MudList>
+                <MudText Typo="Typo.body2" Color="Color.Info">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                    Images are converted to WebP format for optimal file size and quality.
+                </MudText>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.BatchPrediction"
+                           OnClick="ProcessAllImages"
+                           Disabled="isProcessing">
+                    @if (isProcessing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Processing...</span>
+                    }
+                    else
+                    {
+                        <span>Process All Images</span>
+                    }
+                </MudButton>
+
+                @if (processingResult != null)
+                {
+                    <MudAlert Severity="@(processingResult.FailedCount > 0 ? Severity.Warning : Severity.Success)">
+                        <MudText Typo="Typo.body1">
+                            <strong>Processing Complete!</strong>
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Successfully processed: @processingResult.ProcessedCount images
+                        </MudText>
+                        @if (processingResult.FailedCount > 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error">
+                                Failed: @processingResult.FailedCount images
+                            </MudText>
+                        }
+                    </MudAlert>
+                }
+
+                @if (processingResult?.ProcessedImages.Any() == true)
+                {
+                    <MudPaper Elevation="2" Class="pa-3">
+                        <MudText Typo="Typo.h6" Class="mb-3">Processed Images</MudText>
+                        <MudStack Spacing="2">
+                            @foreach (var img in processingResult.ProcessedImages)
+                            {
+                                <MudPaper Elevation="1" Class="pa-2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Image" Color="Color.Success" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body2">
+                                                <strong>@Path.GetFileName(img.SourceFile)</strong>
+                                            </MudText>
+                                            <MudText Typo="Typo.caption">
+                                                Original: @img.Result.OriginalWidth x @img.Result.OriginalHeight
+                                            </MudText>
+                                            <MudText Typo="Typo.caption">
+                                                Created: @string.Join(", ", img.Result.ProcessedFiles.Keys)
+                                            </MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                }
+
+                @if (processingResult?.FailedImages.Any() == true)
+                {
+                    <MudPaper Elevation="2" Class="pa-3">
+                        <MudText Typo="Typo.h6" Color="Color.Error" Class="mb-3">Failed Images</MudText>
+                        <MudStack Spacing="2">
+                            @foreach (var (filePath, error) in processingResult.FailedImages)
+                            {
+                                <MudAlert Severity="Severity.Error" Dense="true">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>@Path.GetFileName(filePath)</strong>
+                                    </MudText>
+                                    <MudText Typo="Typo.caption">@error</MudText>
+                                </MudAlert>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Image Size Reference</MudText>
+                <MudText Typo="Typo.body2">
+                    After processing, you can use different image sizes in your code:
+                </MudText>
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                            &lt;img src="/fishes/salmon_thumbnail.webp" /&gt; <!-- For small previews -->
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                            &lt;img src="/fishes/salmon_small.webp" /&gt; <!-- For table rows -->
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                            &lt;img src="/fishes/salmon_medium.webp" /&gt; <!-- For cards -->
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                            &lt;img src="/fishes/salmon_large.webp" /&gt; <!-- For full view -->
+                        </MudText>
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Directory Information</MudText>
+                <MudSimpleTable Dense="true" Striped="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Images Directory:</strong></td>
+                            <td style="font-family: monospace;">@fishesPath</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Files:</strong></td>
+                            <td>@imageCount</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Original Images:</strong></td>
+                            <td>@originalImageCount</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="RefreshStats">
+                    Refresh Stats
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private bool isProcessing = false;
+    private DotNetTwitchBot.Services.BatchProcessingResult? processingResult;
+    private string fishesPath = string.Empty;
+    private int imageCount = 0;
+    private int originalImageCount = 0;
+
+    protected override void OnInitialized()
+    {
+        fishesPath = Path.Combine(WebHostEnvironment.WebRootPath, "fishes");
+        RefreshStats();
+    }
+
+    private void RefreshStats()
+    {
+        if (Directory.Exists(fishesPath))
+        {
+            var allFiles = Directory.GetFiles(fishesPath);
+            imageCount = allFiles.Length;
+            
+            var extensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".webp" };
+            originalImageCount = allFiles
+                .Where(f => extensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .Where(f => !Path.GetFileName(f).Contains("_thumbnail")
+                         && !Path.GetFileName(f).Contains("_small")
+                         && !Path.GetFileName(f).Contains("_medium")
+                         && !Path.GetFileName(f).Contains("_large"))
+                .Count();
+        }
+    }
+
+    private async Task ProcessAllImages()
+    {
+        isProcessing = true;
+        processingResult = null;
+
+        try
+        {
+            processingResult = await ImageProcessor.BatchProcessImagesAsync(fishesPath, fishesPath);
+            
+            if (processingResult.FailedCount == 0)
+            {
+                Snackbar.Add($"Successfully processed {processingResult.ProcessedCount} images!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Processed {processingResult.ProcessedCount} images with {processingResult.FailedCount} failures", Severity.Warning);
+            }
+
+            RefreshStats();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error processing images: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

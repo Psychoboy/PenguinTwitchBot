@@ -911,5 +911,116 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             return itemsToAdd.Count;
         }
+
+        public async Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var result = new FishingSimulationResult
+            {
+                TotalIterations = iterations,
+                BoostModeUsed = useBoostMode,
+                BoostModeMultiplier = boostModeMultiplier
+            };
+
+            // Initialize counters
+            foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
+            {
+                result.RarityCounts[rarity] = 0;
+            }
+            result.StarCounts[1] = 0;
+            result.StarCounts[2] = 0;
+            result.StarCounts[3] = 0;
+
+            // Get enabled fish types
+            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            if (!fishTypes.Any())
+            {
+                throw new InvalidOperationException("No fish types available for simulation");
+            }
+
+            // Get shop items for simulation
+            var shopItems = await context.FishingShopItems
+                .Where(i => shopItemIds.Contains(i.Id))
+                .ToListAsync();
+
+            // Create mock user boosts from shop items
+            var mockBoosts = shopItems.Select(item => new UserFishingBoost
+            {
+                UserId = "simulation",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            }).ToList();
+
+            result.ItemsUsed = shopItems.Select(i => i.Name).ToList();
+
+            // Get or create settings
+            var settings = await GetSettings();
+            if (settings == null)
+            {
+                settings = new FishingSettings();
+            }
+
+            // Override boost mode settings for simulation
+            var simulationSettings = new FishingSettings
+            {
+                BoostMode = useBoostMode,
+                BoostModeRarityMultiplier = boostModeMultiplier,
+                RarityUncommonThreshold = settings.RarityUncommonThreshold,
+                RarityRareThreshold = settings.RarityRareThreshold,
+                RarityEpicThreshold = settings.RarityEpicThreshold,
+                RarityLegendaryThreshold = settings.RarityLegendaryThreshold
+            };
+
+            var totalWeight = 0.0;
+            var totalGold = 0;
+            var minWeight = double.MaxValue;
+            var maxWeight = 0.0;
+            var heaviestFishName = string.Empty;
+
+            // Run simulations
+            for (int i = 0; i < iterations; i++)
+            {
+                var fish = SelectRandomFish(fishTypes, simulationSettings, mockBoosts);
+                var stars = CalculateStars(fish, mockBoosts);
+                var weight = CalculateWeight(fish, stars, mockBoosts);
+                var gold = CalculateGold(fish, stars);
+
+                // Update counters
+                result.RarityCounts[fish.Rarity]++;
+
+                if (!result.FishCounts.ContainsKey(fish.Name))
+                    result.FishCounts[fish.Name] = 0;
+                result.FishCounts[fish.Name]++;
+
+                result.StarCounts[stars]++;
+
+                totalWeight += weight;
+                totalGold += gold;
+
+                if (weight < minWeight)
+                    minWeight = weight;
+
+                if (weight > maxWeight)
+                {
+                    maxWeight = weight;
+                    heaviestFishName = fish.Name;
+                }
+            }
+
+            // Calculate statistics
+            result.AverageWeight = Math.Round(totalWeight / iterations, 2);
+            result.AverageGold = Math.Round((double)totalGold / iterations, 2);
+            result.TotalGold = totalGold;
+            result.MinWeight = Math.Round(minWeight, 2);
+            result.MaxWeight = Math.Round(maxWeight, 2);
+            result.HeaviestFish = heaviestFishName;
+            result.MostCommonFish = result.FishCounts.OrderByDescending(kvp => kvp.Value).First().Key;
+
+            return result;
+        }
     }
 }
