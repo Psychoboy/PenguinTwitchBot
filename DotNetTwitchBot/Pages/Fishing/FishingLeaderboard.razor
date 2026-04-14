@@ -27,14 +27,14 @@
                         </MudStack>
                         @if (leaderboardFishTypes.Any())
                         {
-                            <MudPaper Elevation="3" Class="pa-4 mb-4 mt-4">
+                            <MudStack AlignItems="AlignItems.Center" Class="mb-4 mt-4">
                                 <MudSelect Value="@selectedFishTypeId" 
                                            ValueChanged="@(async (int value) => await OnFishTypeChanged(value))"
                                            Label="Select Fish Type" 
                                            Variant="Variant.Outlined"
-                                           AnchorOrigin="Origin.BottomCenter"
                                            Adornment="Adornment.Start"
-                                           AdornmentIcon="@Icons.Material.Filled.Phishing">
+                                           AdornmentIcon="@Icons.Material.Filled.Phishing"
+                                           Style="max-width: 500px; width: 100%;">
                                     @foreach (var fish in leaderboardFishTypes)
                                     {
                                         <MudSelectItem Value="@fish.Id">
@@ -45,7 +45,7 @@
                                         </MudSelectItem>
                                     }
                                 </MudSelect>
-                            </MudPaper>
+                            </MudStack>
 
                             @if (selectedFishTypeId > 0)
                             {
@@ -276,14 +276,14 @@
         <NotAuthorized>
             @if (fishTypes.Any())
             {
-                <MudPaper Elevation="3" Class="pa-4 mb-4 mt-4">
+                <MudStack AlignItems="AlignItems.Center" Class="mb-4 mt-4">
                     <MudSelect Value="@selectedFishTypeId" 
                                ValueChanged="@(async (int value) => await OnFishTypeChanged(value))"
                                Label="Select Fish Type" 
                                Variant="Variant.Outlined"
-                               AnchorOrigin="Origin.BottomCenter"
                                Adornment="Adornment.Start"
-                               AdornmentIcon="@Icons.Material.Filled.Phishing">
+                               AdornmentIcon="@Icons.Material.Filled.Phishing"
+                               Style="max-width: 500px; width: 100%;">
                         @foreach (var fish in fishTypes)
                         {
                             <MudSelectItem Value="@fish.Id">
@@ -294,7 +294,7 @@
                             </MudSelectItem>
                         }
                     </MudSelect>
-                </MudPaper>
+                </MudStack>
 
                 @if (selectedFishTypeId > 0)
                 {

@@ -31,13 +31,74 @@
 
         @if (shopItems.Any(i => i.Enabled))
         {
+            <MudPaper Elevation="2" Class="pa-3 mb-2">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="EquipmentSlot?" 
+                                   @bind-Value="filterSlot" 
+                                   Label="Equipment Slot" 
+                                   Clearable="true"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   AdornmentIcon="@Icons.Material.Filled.Category">
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)null)">All Slots</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Rod)">Rod</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Reel)">Reel</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Lure)">Lure</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Accessory)">Accessory</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Bait)">Bait</MudSelectItem>
+                            <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Special)">Special</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="FishingBoostType?" 
+                                   @bind-Value="filterBoostType" 
+                                   Label="Boost Type" 
+                                   Clearable="true"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   AdornmentIcon="@Icons.Material.Filled.TrendingUp">
+                            <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)null)">All Types</MudSelectItem>
+                            <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.GeneralRarityBoost)">Rarity Boost</MudSelectItem>
+                            <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.StarBoost)">Star Boost</MudSelectItem>
+                            <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.WeightBoost)">Weight Boost</MudSelectItem>
+                            <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.SpecificFishBoost)">Fish-Specific</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="bool?" 
+                                   @bind-Value="filterConsumable" 
+                                   Label="Item Type" 
+                                   Clearable="true"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   AdornmentIcon="@Icons.Material.Filled.FilterList">
+                            <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
+                            <MudSelectItem T="bool?" Value="@((bool?)false)">Permanent</MudSelectItem>
+                            <MudSelectItem T="bool?" Value="@((bool?)true)">Consumable</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudTextField T="string" 
+                                      @bind-Value="filterSearch" 
+                                      Label="Search" 
+                                      Variant="Variant.Outlined"
+                                      Dense="true"
+                                      Immediate="true"
+                                      Clearable="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
             <MudStack Spacing="1">
                 <MudText Typo="Typo.h6">
                     <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Size="Size.Medium" Class="mr-1" />
-                    Available Items
+                    Available Items (@GetFilteredShopItems().Count())
                 </MudText>
 
-                <MudTable Items="@shopItems.Where(i => i.Enabled).OrderBy(i => i.Cost)" Dense="true" Hover="true" Striped="true" Elevation="1">
+                <MudTable Items="@GetFilteredShopItems()" Dense="true" Hover="true" Striped="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Type/Target</MudTh>
@@ -211,6 +272,12 @@
     private int userGold = 0;
     private bool isPurchasing = false;
 
+    // Filter state
+    private EquipmentSlot? filterSlot = null;
+    private FishingBoostType? filterBoostType = null;
+    private bool? filterConsumable = null;
+    private string filterSearch = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         var user = HttpContextAccessor.HttpContext?.User;
@@ -254,6 +321,44 @@
         {
             isPurchasing = false;
         }
+    }
+
+    private IEnumerable<FishingShopItem> GetFilteredShopItems()
+    {
+        var filtered = shopItems.Where(i => i.Enabled);
+
+        // Filter by slot
+        if (filterSlot.HasValue)
+        {
+            filtered = filtered.Where(i => i.EquipmentSlot == filterSlot.Value);
+        }
+
+        // Filter by boost type
+        if (filterBoostType.HasValue)
+        {
+            filtered = filtered.Where(i => i.BoostType == filterBoostType.Value);
+        }
+
+        // Filter by consumable/permanent
+        if (filterConsumable.HasValue)
+        {
+            filtered = filtered.Where(i => i.IsConsumable == filterConsumable.Value);
+        }
+
+        // Filter by search text
+        if (!string.IsNullOrWhiteSpace(filterSearch))
+        {
+            var search = filterSearch.ToLower();
+            filtered = filtered.Where(i => 
+                i.Name.ToLower().Contains(search) || 
+                (i.Description?.ToLower().Contains(search) ?? false) ||
+                (i.TargetFishTypeId.HasValue && 
+                 fishTypes.Any(f => f.Id == i.TargetFishTypeId.Value && 
+                                   f.Name.ToLower().Contains(search)))
+            );
+        }
+
+        return filtered.OrderBy(i => i.Cost);
     }
 
     private string GetSlotIcon(EquipmentSlot slot) => slot switch

@@ -115,18 +115,70 @@
                 <MudPaper Elevation="1" Class="pa-2 ma-1">
                     <MudText Typo="Typo.h6" Class="mb-2">
                         <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
-                        All Items (@allItems.Count)
+                        All Items (@GetFilteredInventoryItems().Count())
                     </MudText>
-                    
+
+                    <MudPaper Elevation="2" Class="pa-2 mb-2">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudSelect T="EquipmentSlot?" 
+                                           @bind-Value="inventoryFilterSlot" 
+                                           Label="Equipment Slot" 
+                                           Clearable="true"
+                                           Variant="Variant.Outlined"
+                                           Dense="true"
+                                           AdornmentIcon="@Icons.Material.Filled.Category">
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)null)">All Slots</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Rod)">Rod</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Reel)">Reel</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Lure)">Lure</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Accessory)">Accessory</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Bait)">Bait</MudSelectItem>
+                                    <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Special)">Special</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudSelect T="bool?" 
+                                           @bind-Value="inventoryFilterEquipped" 
+                                           Label="Status" 
+                                           Clearable="true"
+                                           Variant="Variant.Outlined"
+                                           Dense="true"
+                                           AdornmentIcon="@Icons.Material.Filled.CheckCircle">
+                                    <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
+                                    <MudSelectItem T="bool?" Value="@((bool?)true)">Equipped</MudSelectItem>
+                                    <MudSelectItem T="bool?" Value="@((bool?)false)">Unequipped</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudTextField T="string" 
+                                              @bind-Value="inventoryFilterSearch" 
+                                              Label="Search" 
+                                              Variant="Variant.Outlined"
+                                              Dense="true"
+                                              Immediate="true"
+                                              Clearable="true"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+
                     @if (allItems.Count == 0)
                     {
                         <MudAlert Severity="Severity.Info" Dense="true">
                             No items yet. Visit the shop!
                         </MudAlert>
                     }
+                    else if (!GetFilteredInventoryItems().Any())
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            No items match your filters.
+                        </MudAlert>
+                    }
                     else
                     {
-                        <MudTable Items="@allItems" Hover="true" Striped="true" Dense="true" Elevation="1">
+                        <MudTable Items="@GetFilteredInventoryItems()" Hover="true" Striped="true" Dense="true" Elevation="1">
                             <HeaderContent>
                                 <MudTh>Item</MudTh>
                                 <MudTh>Slot</MudTh>
@@ -304,6 +356,11 @@
     private Dictionary<EquipmentSlot, UserFishingBoost> equippedBySlot = new();
     private List<FishType> fishTypes = new();
 
+    // Filter state
+    private EquipmentSlot? inventoryFilterSlot = null;
+    private bool? inventoryFilterEquipped = null;
+    private string inventoryFilterSearch = string.Empty;
+
     private bool equipDialogVisible = false;
     private EquipmentSlot selectedSlot;
     private List<UserFishingBoost> availableItemsForSlot = new();
@@ -325,6 +382,38 @@
         allItems = await fishingService.GetUserBoosts(userId);
         equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
         fishTypes = await fishingService.GetAllFishTypes();
+    }
+
+    private IEnumerable<UserFishingBoost> GetFilteredInventoryItems()
+    {
+        var filtered = allItems.AsEnumerable();
+
+        // Filter by slot
+        if (inventoryFilterSlot.HasValue)
+        {
+            filtered = filtered.Where(i => i.ShopItem?.EquipmentSlot == inventoryFilterSlot.Value);
+        }
+
+        // Filter by equipped status
+        if (inventoryFilterEquipped.HasValue)
+        {
+            filtered = filtered.Where(i => i.IsEquipped == inventoryFilterEquipped.Value);
+        }
+
+        // Filter by search text
+        if (!string.IsNullOrWhiteSpace(inventoryFilterSearch))
+        {
+            var search = inventoryFilterSearch.ToLower();
+            filtered = filtered.Where(i => 
+                (i.ShopItem?.Name.ToLower().Contains(search) ?? false) ||
+                (i.ShopItem?.Description?.ToLower().Contains(search) ?? false) ||
+                (i.ShopItem?.TargetFishTypeId.HasValue == true && 
+                 fishTypes.Any(f => f.Id == i.ShopItem!.TargetFishTypeId.Value && 
+                                   f.Name.ToLower().Contains(search)))
+            );
+        }
+
+        return filtered;
     }
 
     private async Task EquipItem(int userBoostId)

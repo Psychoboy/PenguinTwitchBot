@@ -88,13 +88,31 @@
     <MudTabPanel Text="Shop Items" Icon="@Icons.Material.Filled.ShoppingCart">
         <MudPaper Elevation="3" Class="pa-4 ma-2">
             <MudStack Spacing="3">
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           Size="Size.Large"
-                           StartIcon="@Icons.Material.Filled.Add"
-                           @onclick="AddNewShopItem">
-                    Add Shop Item
-                </MudButton>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               @onclick="AddNewShopItem">
+                        Add Shop Item
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Secondary" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.AutoAwesome"
+                               OnClick="GenerateDefaultItems"
+                               Disabled="@isGeneratingItems">
+                        @if (isGeneratingItems)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <text>Generating...</text>
+                        }
+                        else
+                        {
+                            <text>Generate Default Items</text>
+                        }
+                    </MudButton>
+                </MudStack>
                 <MudTable Items="@shopItems" Hover="true" Striped="true" Dense="true" Elevation="2">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
@@ -209,6 +227,76 @@
                                  Step="0.1"
                                  Adornment="Adornment.End"
                                  AdornmentText="x" />
+
+                <MudDivider Class="my-4" />
+
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Warning" Size="Size.Medium" />
+                        <MudText Typo="Typo.h6">Rarity Thresholds</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Define the BaseGold values that determine each rarity tier. Fish rarity is auto-calculated based on these thresholds when editing fish or using the sync button.
+                    </MudText>
+
+                    <MudGrid>
+                        <MudItem xs="6" sm="3">
+                            <MudNumericField @bind-Value="settings.RarityUncommonThreshold" 
+                                             Label="Uncommon (≥)" 
+                                             Min="1"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Uncommon</MudChip>
+                            </MudNumericField>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudNumericField @bind-Value="settings.RarityRareThreshold" 
+                                             Label="Rare (≥)" 
+                                             Min="1"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Rare</MudChip>
+                            </MudNumericField>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudNumericField @bind-Value="settings.RarityEpicThreshold" 
+                                             Label="Epic (≥)" 
+                                             Min="1"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                                <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Epic</MudChip>
+                            </MudNumericField>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudNumericField @bind-Value="settings.RarityLegendaryThreshold" 
+                                             Label="Legendary (≥)" 
+                                             Min="1"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Legendary</MudChip>
+                            </MudNumericField>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info" Dense="true">
+                        Common rarity applies to all fish with BaseGold below the Uncommon threshold (@settings.RarityUncommonThreshold)
+                    </MudAlert>
+
+                    <MudStack Row="true" Spacing="2" Class="mt-2">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Tertiary" 
+                                   Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.Sync"
+                                   OnClick="SyncFishRarities" 
+                                   Disabled="isSyncing">
+                            @(isSyncing ? "Syncing..." : "Sync All Fish Rarities")
+                        </MudButton>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="align-self: center;">
+                            Recalculates rarity for all fish based on current thresholds
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+
                 <MudButton Variant="Variant.Filled" 
                            Color="Color.Primary" 
                            Size="Size.Large"
@@ -577,6 +665,8 @@
     private FishType? editingFish;
     private FishingShopItem? editingShopItem;
     private bool isResetting = false;
+    private bool isSyncing = false;
+    private bool isGeneratingItems = false;
 
     private string uploadedImageFileName = string.Empty;
     private string uploadedSoundFileName = string.Empty;
@@ -619,13 +709,13 @@
 
         editingFish.BaseGold = newGoldValue;
 
-        // Auto-set rarity based on gold value
+        // Auto-set rarity based on gold value using current settings
         editingFish.Rarity = newGoldValue switch
         {
-            >= 201 => FishRarity.Legendary,
-            >= 110 => FishRarity.Epic,
-            >= 60 => FishRarity.Rare,
-            >= 35 => FishRarity.Uncommon,
+            var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
+            var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
+            var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,
+            var gold when gold >= settings.RarityUncommonThreshold => FishRarity.Uncommon,
             _ => FishRarity.Common
         };
     }
@@ -910,6 +1000,64 @@
         finally
         {
             isResetting = false;
+        }
+    }
+
+    private async Task SyncFishRarities()
+    {
+        if (isSyncing) return;
+
+        isSyncing = true;
+        try
+        {
+            var updateCount = await fishingService.SyncAllFishRarities();
+
+            if (updateCount > 0)
+            {
+                Snackbar.Add($"Successfully updated {updateCount} fish rarity value(s)", Severity.Success);
+                await LoadData(); // Reload to show updated rarities
+            }
+            else
+            {
+                Snackbar.Add("All fish rarities are already up to date", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error syncing fish rarities: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+
+    private async Task GenerateDefaultItems()
+    {
+        if (isGeneratingItems) return;
+
+        isGeneratingItems = true;
+        try
+        {
+            var itemCount = await fishingService.GenerateDefaultShopItems();
+
+            if (itemCount > 0)
+            {
+                Snackbar.Add($"Successfully generated {itemCount} shop item(s)", Severity.Success);
+                await LoadData(); // Reload to show new items
+            }
+            else
+            {
+                Snackbar.Add("All default shop items already exist", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error generating shop items: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isGeneratingItems = false;
         }
     }
 }
