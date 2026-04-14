@@ -1,0 +1,183 @@
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@inject IFishingService FishingService
+
+@if (ShopItem != null)
+{
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h5">
+                @ShopItem.Name
+            </MudText>
+            <MudText Typo="Typo.body2">@ShopItem.Description</MudText>
+
+            <MudDivider />
+
+            <MudStack Row="true" Spacing="2">
+                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning">
+                    @ShopItem.Cost Gold
+                </MudChip>
+                @if (ShopItem.EquipmentSlot.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info">
+                        @ShopItem.EquipmentSlot.Value Slot
+                    </MudChip>
+                }
+                @if (ShopItem.IsConsumable && ShopItem.MaxUses.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary">
+                        @ShopItem.MaxUses Uses
+                    </MudChip>
+                }
+            </MudStack>
+
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle1" Class="mt-2">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+                <strong>Boost Effect</strong>
+            </MudText>
+
+            @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    <MudText>Targets: <strong>@ShopItem.TargetFishType.Name</strong></MudText>
+                    <MudText Typo="Typo.caption">
+                        +@((ShopItem.BoostAmount * 100).ToString("F0"))% increased chance to catch this specific fish
+                    </MudText>
+                </MudAlert>
+
+                @if (probabilityPreview != null && probabilityPreview.ContainsKey(ShopItem.TargetFishType.Name))
+                {
+                    var fishProb = probabilityPreview[ShopItem.TargetFishType.Name];
+                    <MudPaper Elevation="2" Class="pa-3 mt-2">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle2">With This Item Equipped:</MudText>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Catch Chance</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Primary">
+                                        @fishProb.OverallChance.ToString("F3")%
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.caption" Color="Color.Default">Expected Casts</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Success">
+                                        ~@fishProb.ExpectedAttemptsForOneCatch
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Success" Dense="true">
+                    @GetBoostDescription(ShopItem.BoostType, ShopItem.BoostAmount)
+                </MudAlert>
+
+                @if (rarityPreview != null)
+                {
+                    <MudPaper Elevation="2" Class="pa-3 mt-2">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Rarity Changes With This Item:</MudText>
+                        <MudSimpleTable Dense="true">
+                            <thead>
+                                <tr>
+                                    <th>Rarity</th>
+                                    <th>Chance</th>
+                                    <th>Frequency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var rarity in rarityPreview.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
+                                {
+                                    <tr>
+                                        <td>
+                                            <MudChip T="string" Size="Size.Small" Color="GetRarityColor(rarity.Key)">
+                                                @rarity.Key
+                                            </MudChip>
+                                        </td>
+                                        <td><strong>@rarity.Value.ToString("F2")%</strong></td>
+                                        <td>~1 in @Math.Round(100.0 / rarity.Value, 0)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </MudPaper>
+                }
+            }
+
+            @if (isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public FishingShopItem? ShopItem { get; set; }
+    [Parameter] public List<int> CurrentEquippedItemIds { get; set; } = new();
+
+    private RarityProbability? rarityPreview;
+    private Dictionary<string, FishProbability>? probabilityPreview;
+    private bool isLoading = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ShopItem != null)
+        {
+            await LoadProbabilityPreview();
+        }
+    }
+
+    private async Task LoadProbabilityPreview()
+    {
+        if (ShopItem == null) return;
+
+        isLoading = true;
+        try
+        {
+            var settings = await FishingService.GetSettings();
+            var itemIds = new List<int>(CurrentEquippedItemIds) { ShopItem.Id };
+
+            rarityPreview = await FishingService.CalculateRarityProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                itemIds
+            );
+
+            if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishTypeId.HasValue)
+            {
+                probabilityPreview = await FishingService.CalculateCatchProbabilities(itemIds);
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetBoostDescription(FishingBoostType boostType, double boostAmount)
+    {
+        var percentage = (boostAmount * 100).ToString("F0");
+        return boostType switch
+        {
+            FishingBoostType.GeneralRarityBoost => $"+{percentage}% chance to catch rare fish (all rarities)",
+            FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
+            FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
+            _ => $"+{percentage}% boost"
+        };
+    }
+
+    private Color GetRarityColor(FishRarity rarity) => rarity switch
+    {
+        FishRarity.Common => Color.Default,
+        FishRarity.Uncommon => Color.Success,
+        FishRarity.Rare => Color.Info,
+        FishRarity.Epic => Color.Secondary,
+        FishRarity.Legendary => Color.Warning,
+        _ => Color.Default
+    };
+}

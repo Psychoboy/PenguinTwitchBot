@@ -31,12 +31,14 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
 
     public enum EquipmentSlot
     {
-        Rod,
-        Reel,
-        Bait,
-        Lure,
-        Accessory,
-        Special,
-        Line
+        Rod,        // Main fishing rod - General Rarity Boost
+        Reel,       // Fishing reel - Star Boost (precision/control)
+        Line,       // Fishing line - Weight Boost (strength)
+        Hook,       // Fish hook - Star Boost (quality)
+        Bait,       // Consumable bait - Specific Fish targeting
+        Lure,       // Consumable lure - Specific Fish + General Rarity
+        TackleBox,  // Permanent accessory - Multiple small boosts
+        Net,        // Permanent accessory - Weight bonus
+        Special     // Reserved for special event items
     }
 }
