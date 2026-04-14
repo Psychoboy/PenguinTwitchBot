@@ -253,7 +253,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             try
             {
-                var variables = new ConcurrentDictionary<string, string>
+                var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["timer_name"] = group.Name,
                     ["timer_id"] = group.Id?.ToString() ?? "0"
