@@ -440,7 +440,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var fishType = SelectRandomFish(fishTypes, settings, userBoosts);
             var stars = CalculateStars(fishType, userBoosts);
             var weight = CalculateWeight(fishType, stars, userBoosts);
-            var gold = CalculateGold(fishType, stars);
+            var gold = CalculateGold(fishType, stars, weight);
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -515,6 +515,30 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         rarityWeights[targetFish.Rarity] *= (1.0 + boost.ShopItem.BoostAmount);
                     }
                 }
+
+                // Apply secondary boost if present
+                if (boost.ShopItem?.BoostType2 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                        }
+                    }
+                }
+
+                // Apply tertiary boost if present
+                if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
+                {
+                    foreach (var rarity in rarityWeights.Keys.ToList())
+                    {
+                        if (rarity != FishRarity.Common)
+                        {
+                            rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        }
+                    }
+                }
             }
 
             var totalWeight = rarityWeights.Values.Sum();
@@ -578,6 +602,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var starBoosts = boosts.Where(b => b.ShopItem?.BoostType == FishingBoostType.StarBoost).ToList();
             var boostAmount = starBoosts.Sum(b => b.ShopItem?.BoostAmount ?? 0);
 
+            // Apply secondary boost types
+            var starBoosts2 = boosts.Where(b => b.ShopItem?.BoostType2 == FishingBoostType.StarBoost).ToList();
+            boostAmount += starBoosts2.Sum(b => b.ShopItem?.BoostAmount2 ?? 0);
+
+            // Apply tertiary boost types
+            var starBoosts3 = boosts.Where(b => b.ShopItem?.BoostType3 == FishingBoostType.StarBoost).ToList();
+            boostAmount += starBoosts3.Sum(b => b.ShopItem?.BoostAmount3 ?? 0);
+
             var threeStarChance = 5.0 + (boostAmount * 100);
             var twoStarChance = 20.0 + (boostAmount * 100);
 
@@ -591,6 +623,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         {
             var weightBoosts = boosts.Where(b => b.ShopItem?.BoostType == FishingBoostType.WeightBoost).ToList();
             var boostMultiplier = 1.0 + weightBoosts.Sum(b => b.ShopItem?.BoostAmount ?? 0);
+
+            // Apply secondary boost types
+            var weightBoosts2 = boosts.Where(b => b.ShopItem?.BoostType2 == FishingBoostType.WeightBoost).ToList();
+            boostMultiplier += weightBoosts2.Sum(b => b.ShopItem?.BoostAmount2 ?? 0);
+
+            // Apply tertiary boost types
+            var weightBoosts3 = boosts.Where(b => b.ShopItem?.BoostType3 == FishingBoostType.WeightBoost).ToList();
+            boostMultiplier += weightBoosts3.Sum(b => b.ShopItem?.BoostAmount3 ?? 0);
 
             // Star multipliers increase weight for higher quality catches
             var starMultiplier = stars switch
@@ -610,7 +650,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return Math.Round(weight, 2);
         }
 
-        private int CalculateGold(FishType fishType, int stars)
+        private int CalculateGold(FishType fishType, int stars, double actualWeight)
         {
             // Star levels determine consecutive, non-overlapping gold ranges
             var (minMultiplier, maxMultiplier) = stars switch
@@ -621,7 +661,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             };
 
             var randomValue = RandomNumberGenerator.GetInt32((int)(minMultiplier * 1000), (int)(maxMultiplier * 1000)) / 1000.0;
-            return Math.Max(1, (int)(fishType.BaseGold * randomValue));
+
+            // Weight influences gold: heavier fish relative to base weight = more gold
+            // Weight multiplier ranges from 0.8x to 1.13x (based on CalculateWeight), which translates to 0.9x to 1.065x gold
+            // This ensures heavier catches are always worth more, but not dramatically so
+            var weightMultiplier = 0.9 + ((actualWeight / fishType.BaseWeight - 0.8) / (1.13 - 0.8) * 0.165);
+            weightMultiplier = Math.Max(0.9, Math.Min(1.065, weightMultiplier)); // Clamp between 0.9x and 1.065x
+
+            return Math.Max(1, (int)(fishType.BaseGold * randomValue * weightMultiplier));
         }
 
         public async Task ResetAllUserData()
@@ -758,13 +805,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             // ===== TACKLE BOXES (Multiple Boosts) =====
             if (!ItemExists("Basic Tackle Box"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Basic Tackle Box", Description = "Organized storage (+5% rarity, +5% weight)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Basic Tackle Box", Description = "Organized storage (+5% rarity, +5% weight)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.05, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.05, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Pro Tackle Box"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Pro Tackle Box", Description = "Everything you need (+10% rarity, +10% weight)", Cost = 800, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Pro Tackle Box", Description = "Everything you need (+10% rarity, +10% weight)", Cost = 800, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.10, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.10, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Master Tackle Box"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Master Tackle Box", Description = "Complete arsenal (+15% rarity, +15% weight)", Cost = 2000, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Master Tackle Box", Description = "Complete arsenal (+15% rarity, +15% weight)", Cost = 2000, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, BoostType2 = FishingBoostType.WeightBoost, BoostAmount2 = 0.15, EquipmentSlot = EquipmentSlot.TackleBox, IsConsumable = false, Enabled = true });
 
             // ===== NETS (Weight Bonus) =====
             if (!ItemExists("Landing Net"))
@@ -980,7 +1027,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 var fish = SelectRandomFish(fishTypes, simulationSettings, mockBoosts);
                 var stars = CalculateStars(fish, mockBoosts);
                 var weight = CalculateWeight(fish, stars, mockBoosts);
-                var gold = CalculateGold(fish, stars);
+                var gold = CalculateGold(fish, stars, weight);
 
                 // Update counters
                 result.RarityCounts[fish.Rarity]++;

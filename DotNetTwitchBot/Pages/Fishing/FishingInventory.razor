@@ -262,9 +262,25 @@
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="Boost">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
-                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                        </MudStack>
+                                        @if (context.ShopItem!.BoostType2.HasValue && context.ShopItem!.BoostAmount2.HasValue)
+                                        {
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType2.Value)</MudChip>
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount2.Value * 100).ToString("F0"))%</MudChip>
+                                            </MudStack>
+                                        }
+                                        @if (context.ShopItem!.BoostType3.HasValue && context.ShopItem!.BoostAmount3.HasValue)
+                                        {
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType3.Value)</MudChip>
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount3.Value * 100).ToString("F0"))%</MudChip>
+                                            </MudStack>
+                                        }
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="Uses">

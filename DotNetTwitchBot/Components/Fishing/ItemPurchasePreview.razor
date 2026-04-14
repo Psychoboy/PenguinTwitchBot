@@ -35,24 +35,42 @@
 
             <MudText Typo="Typo.subtitle1" Class="mt-2">
                 <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
-                <strong>Boost Effect</strong>
+                <strong>Boost Effect@(HasMultipleBoosts() ? "s" : "")</strong>
             </MudText>
 
-            @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
-            {
-                <MudAlert Severity="Severity.Info" Dense="true">
-                    <MudText>Targets: <strong>@ShopItem.TargetFishType.Name</strong></MudText>
-                    <MudText Typo="Typo.caption">
-                        +@((ShopItem.BoostAmount * 100).ToString("F0"))% increased chance to catch this specific fish
-                    </MudText>
+            @* Show all boost types *@
+            <MudStack Spacing="2">
+                @* Primary Boost *@
+                <MudAlert Severity="Severity.Success" Dense="true">
+                    @GetBoostDescription(ShopItem.BoostType, ShopItem.BoostAmount)
                 </MudAlert>
 
+                @* Secondary Boost *@
+                @if (ShopItem.BoostType2.HasValue && ShopItem.BoostAmount2.HasValue)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        @GetBoostDescription(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value)
+                    </MudAlert>
+                }
+
+                @* Tertiary Boost *@
+                @if (ShopItem.BoostType3.HasValue && ShopItem.BoostAmount3.HasValue)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        @GetBoostDescription(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value)
+                    </MudAlert>
+                }
+            </MudStack>
+
+            @* Show detailed probability preview for SpecificFishBoost *@
+            @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
+            {
                 @if (probabilityPreview != null && probabilityPreview.ContainsKey(ShopItem.TargetFishType.Name))
                 {
                     var fishProb = probabilityPreview[ShopItem.TargetFishType.Name];
                     <MudPaper Elevation="2" Class="pa-3 mt-2">
                         <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle2">With This Item Equipped:</MudText>
+                            <MudText Typo="Typo.subtitle2">Catch Probability:</MudText>
                             <MudGrid>
                                 <MudItem xs="6">
                                     <MudText Typo="Typo.caption" Color="Color.Default">Catch Chance</MudText>
@@ -71,41 +89,34 @@
                     </MudPaper>
                 }
             }
-            else
+            else if (rarityPreview != null)
             {
-                <MudAlert Severity="Severity.Success" Dense="true">
-                    @GetBoostDescription(ShopItem.BoostType, ShopItem.BoostAmount)
-                </MudAlert>
-
-                @if (rarityPreview != null)
-                {
-                    <MudPaper Elevation="2" Class="pa-3 mt-2">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">Rarity Changes With This Item:</MudText>
-                        <MudSimpleTable Dense="true">
-                            <thead>
+                <MudPaper Elevation="2" Class="pa-3 mt-2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Rarity Changes With This Item:</MudText>
+                    <MudSimpleTable Dense="true">
+                        <thead>
+                            <tr>
+                                <th>Rarity</th>
+                                <th>Chance</th>
+                                <th>Frequency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rarity in rarityPreview.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
+                            {
                                 <tr>
-                                    <th>Rarity</th>
-                                    <th>Chance</th>
-                                    <th>Frequency</th>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="GetRarityColor(rarity.Key)">
+                                            @rarity.Key
+                                        </MudChip>
+                                    </td>
+                                    <td><strong>@rarity.Value.ToString("F2")%</strong></td>
+                                    <td>~1 in @Math.Round(100.0 / rarity.Value, 0)</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var rarity in rarityPreview.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
-                                {
-                                    <tr>
-                                        <td>
-                                            <MudChip T="string" Size="Size.Small" Color="GetRarityColor(rarity.Key)">
-                                                @rarity.Key
-                                            </MudChip>
-                                        </td>
-                                        <td><strong>@rarity.Value.ToString("F2")%</strong></td>
-                                        <td>~1 in @Math.Round(100.0 / rarity.Value, 0)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </MudSimpleTable>
-                    </MudPaper>
-                }
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
             }
 
             @if (isLoading)
@@ -167,8 +178,15 @@
             FishingBoostType.GeneralRarityBoost => $"+{percentage}% chance to catch rare fish (all rarities)",
             FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
             FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
+            FishingBoostType.SpecificFishBoost => $"+{percentage}% chance to catch specific fish",
             _ => $"+{percentage}% boost"
         };
+    }
+
+    private bool HasMultipleBoosts()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType2.HasValue || ShopItem.BoostType3.HasValue;
     }
 
     private Color GetRarityColor(FishRarity rarity) => rarity switch

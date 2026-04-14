@@ -146,6 +146,14 @@
                         <MudTd DataLabel="Type/Target">
                             <MudStack Spacing="0">
                                 <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                                @if (context.BoostType2.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType2.Value)</MudChip>
+                                }
+                                @if (context.BoostType3.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType3.Value)</MudChip>
+                                }
                                 @if (context.TargetFishTypeId.HasValue)
                                 {
                                     var fishType = fishTypes.FirstOrDefault(f => f.Id == context.TargetFishTypeId.Value);
@@ -157,7 +165,17 @@
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Boost">
-                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.BoostAmount * 100).ToString("F0"))%</MudChip>
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                @if (context.BoostType2.HasValue && context.BoostAmount2.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.BoostAmount2.Value * 100).ToString("F0"))%</MudChip>
+                                }
+                                @if (context.BoostType3.HasValue && context.BoostAmount3.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.BoostAmount3.Value * 100).ToString("F0"))%</MudChip>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Slot/Uses">
                             <MudStack Spacing="0">
@@ -258,10 +276,30 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Boost Type">
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem?.BoostType ?? FishingBoostType.GeneralRarityBoost)</MudChip>
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem?.BoostType ?? FishingBoostType.GeneralRarityBoost)</MudChip>
+                                @if (shopItem?.BoostType2.HasValue == true)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem.BoostType2.Value)</MudChip>
+                                }
+                                @if (shopItem?.BoostType3.HasValue == true)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem.BoostType3.Value)</MudChip>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Boost">
-                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((shopItem?.BoostAmount * 100 ?? 0).ToString("F0"))%</MudChip>
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((shopItem?.BoostAmount * 100 ?? 0).ToString("F0"))%</MudChip>
+                                @if (shopItem?.BoostType2.HasValue == true && shopItem?.BoostAmount2.HasValue == true)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((shopItem.BoostAmount2.Value * 100).ToString("F0"))%</MudChip>
+                                }
+                                @if (shopItem?.BoostType3.HasValue == true && shopItem?.BoostAmount3.HasValue == true)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((shopItem.BoostAmount3.Value * 100).ToString("F0"))%</MudChip>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Uses">
                             @if (boost.RemainingUses >= 0)
@@ -482,7 +520,10 @@
         // Filter by boost type
         if (filterBoostType.HasValue)
         {
-            filtered = filtered.Where(i => i.BoostType == filterBoostType.Value);
+            filtered = filtered.Where(i => 
+                i.BoostType == filterBoostType.Value ||
+                i.BoostType2 == filterBoostType.Value ||
+                i.BoostType3 == filterBoostType.Value);
         }
 
         // Filter by consumable/permanent
