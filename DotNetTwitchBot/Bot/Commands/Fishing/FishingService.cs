@@ -376,7 +376,11 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 return;
             }
 
-            userBoost.RemainingUses--;
+            // Only decrement if we have uses remaining (prevent going below 0)
+            if (userBoost.RemainingUses > 0)
+            {
+                userBoost.RemainingUses--;
+            }
             userBoost.LastUsedAt = DateTime.UtcNow;
 
             // If consumable and no uses left, remove the item
@@ -419,10 +423,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<FishCatch> PerformFishingAttempt(string userId, string username)
         {
-            var fishTypes = await GetAllFishTypes();
+            // Only get enabled fish types
+            var allFishTypes = await GetAllFishTypes();
+            var fishTypes = allFishTypes.Where(f => f.Enabled).ToList();
+
             if (fishTypes.Count == 0)
             {
-                throw new InvalidOperationException("No fish types available");
+                throw new InvalidOperationException("No enabled fish types available");
             }
 
             var settings = await GetSettings();

@@ -29,7 +29,7 @@
             </MudStack>
         </MudPaper>
 
-        @if (shopItems.Any())
+        @if (shopItems.Any(i => i.Enabled))
         {
             <MudStack Spacing="1">
                 <MudText Typo="Typo.h6">
