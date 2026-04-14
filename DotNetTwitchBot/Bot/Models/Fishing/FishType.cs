@@ -8,8 +8,7 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public FishRarity Rarity { get; set; } = FishRarity.Common;
-        public double MinWeight { get; set; } = 1.0;
-        public double MaxWeight { get; set; } = 10.0;
+        public double BaseWeight { get; set; } = 5.0;
         public int BaseGold { get; set; } = 10;
         public string ImageFileName { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;

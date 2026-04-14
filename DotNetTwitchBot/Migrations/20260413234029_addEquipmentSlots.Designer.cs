@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413234029_addEquipmentSlots")]
+    partial class addEquipmentSlots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -881,15 +884,18 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<int>("BaseGold")
                         .HasColumnType("int");
 
-                    b.Property<double>("BaseWeight")
-                        .HasColumnType("double");
-
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("ImageFileName")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<double>("MaxWeight")
+                        .HasColumnType("double");
+
+                    b.Property<double>("MinWeight")
+                        .HasColumnType("double");
 
                     b.Property<string>("Name")
                         .IsRequired()

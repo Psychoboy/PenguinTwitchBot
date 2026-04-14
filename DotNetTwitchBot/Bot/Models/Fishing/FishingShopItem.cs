@@ -14,6 +14,11 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public int? TargetFishTypeId { get; set; }
         public virtual FishType? TargetFishType { get; set; }
         public bool Enabled { get; set; } = true;
+
+        // Equipment and usage properties
+        public EquipmentSlot? EquipmentSlot { get; set; }
+        public int? MaxUses { get; set; } // null = unlimited uses
+        public bool IsConsumable { get; set; } = false; // If true, item is removed after uses expire
     }
 
     public enum FishingBoostType
@@ -22,5 +27,15 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         SpecificFishBoost,
         WeightBoost,
         StarBoost
+    }
+
+    public enum EquipmentSlot
+    {
+        Rod,
+        Reel,
+        Bait,
+        Lure,
+        Accessory,
+        Special
     }
 }

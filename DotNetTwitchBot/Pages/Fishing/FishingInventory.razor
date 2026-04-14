@@ -1,0 +1,402 @@
+@page "/fishing/inventory"
+@using DotNetTwitchBot.Bot.Commands.Fishing
+@using DotNetTwitchBot.Bot.Models.Fishing
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+
+<PageTitle>Fishing Inventory</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Large" Class="mr-2" />
+            My Fishing Inventory
+        </MudText>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">Gold: @(userGold?.TotalGold ?? 0)</MudText>
+                </MudStack>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.ShoppingCart"
+                           Href="/fishing/shop">
+                    Visit Shop
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary">
+            <MudTabPanel Text="Equipment" Icon="@Icons.Material.Filled.Category">
+                <MudPaper Elevation="3" Class="pa-4 ma-2">
+                    <MudText Typo="Typo.h5" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" />
+                        Current Equipment
+                    </MudText>
+                    
+                    <MudGrid>
+                        @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
+                        {
+                            var equippedItem = equippedBySlot.GetValueOrDefault(slot);
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudCard Elevation="2" Class="@(equippedItem != null ? "mud-theme-primary" : "")">
+                                    <MudCardHeader>
+                                        <CardHeaderContent>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@GetSlotIcon(slot)" Size="Size.Medium" />
+                                                <MudText Typo="Typo.h6">@slot</MudText>
+                                            </MudStack>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        @if (equippedItem != null)
+                                        {
+                                            <MudStack Spacing="2">
+                                                <MudText Typo="Typo.body1"><strong>@equippedItem.ShopItem!.Name</strong></MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@equippedItem.ShopItem!.Description</MudText>
+                                                <MudStack Row="true" Spacing="1">
+                                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(equippedItem.ShopItem!.BoostType)</MudChip>
+                                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((equippedItem.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                                </MudStack>
+                                                @if (equippedItem.RemainingUses >= 0)
+                                                {
+                                                    <MudProgressLinear Color="@GetUsesColor(equippedItem)" 
+                                                                      Value="@GetUsesPercentage(equippedItem)" 
+                                                                      Size="Size.Medium" 
+                                                                      Class="my-2">
+                                                        <MudText Typo="Typo.body2">
+                                                            @equippedItem.RemainingUses uses left
+                                                        </MudText>
+                                                    </MudProgressLinear>
+                                                }
+                                                else
+                                                {
+                                                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
+                                                        Unlimited Uses
+                                                    </MudChip>
+                                                }
+                                            </MudStack>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                                                <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-1" />
+                                                Empty Slot
+                                            </MudText>
+                                        }
+                                    </MudCardContent>
+                                    <MudCardActions>
+                                        @if (equippedItem != null)
+                                        {
+                                            <MudButton Variant="Variant.Text" 
+                                                      Color="Color.Error" 
+                                                      StartIcon="@Icons.Material.Filled.RemoveCircle"
+                                                      OnClick="@(() => UnequipItem(equippedItem.Id))">
+                                                Unequip
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            <MudButton Variant="Variant.Text" 
+                                                      Color="Color.Primary" 
+                                                      StartIcon="@Icons.Material.Filled.Add"
+                                                      OnClick="@(() => ShowEquipDialog(slot))">
+                                                Equip Item
+                                            </MudButton>
+                                        }
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            </MudTabPanel>
+
+            <MudTabPanel Text="All Items" Icon="@Icons.Material.Filled.List">
+                <MudPaper Elevation="3" Class="pa-4 ma-2">
+                    <MudText Typo="Typo.h5" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-2" />
+                        All Owned Items
+                    </MudText>
+                    
+                    @if (allItems.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info">
+                            You don't have any items yet. Visit the shop to purchase equipment!
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="@allItems" Hover="true" Striped="true" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Item</MudTh>
+                                <MudTh>Slot</MudTh>
+                                <MudTh>Boost</MudTh>
+                                <MudTh>Uses</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Item">
+                                    <MudStack Spacing="1">
+                                        <MudText><strong>@context.ShopItem!.Name</strong></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ShopItem!.Description</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Slot">
+                                    @if (context.ShopItem!.EquipmentSlot.HasValue)
+                                    {
+                                        <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.ShopItem!.EquipmentSlot.Value)">
+                                            @context.ShopItem!.EquipmentSlot.Value
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small">Permanent</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Boost">
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Uses">
+                                    @if (context.RemainingUses >= 0)
+                                    {
+                                        <MudChip T="string" Color="@GetUsesColor(context)" Size="Size.Small" Icon="@Icons.Material.Filled.Numbers">
+                                            @context.RemainingUses / @(context.ShopItem!.MaxUses ?? 0)
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
+                                            Unlimited
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Status">
+                                    @if (context.IsEquipped)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                            Equipped
+                                        </MudChip>
+                                    }
+                                    else if (context.ShopItem!.IsConsumable && context.RemainingUses == 0)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Cancel">
+                                            Depleted
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small">
+                                            In Inventory
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Actions">
+                                    @if (!context.IsEquipped && !(context.ShopItem!.IsConsumable && context.RemainingUses == 0))
+                                    {
+                                        <MudButton Variant="Variant.Text" 
+                                                  Color="Color.Primary" 
+                                                  Size="Size.Small"
+                                                  StartIcon="@Icons.Material.Filled.Add"
+                                                  OnClick="@(() => EquipItem(context.Id))">
+                                            Equip
+                                        </MudButton>
+                                    }
+                                    else if (context.IsEquipped)
+                                    {
+                                        <MudButton Variant="Variant.Text" 
+                                                  Color="Color.Error" 
+                                                  Size="Size.Small"
+                                                  StartIcon="@Icons.Material.Filled.Remove"
+                                                  OnClick="@(() => UnequipItem(context.Id))">
+                                            Unequip
+                                        </MudButton>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+    </MudStack>
+</MudContainer>
+
+<MudDialog @bind-Visible="equipDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@GetSlotIcon(selectedSlot)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Equip @selectedSlot Item</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (availableItemsForSlot.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">
+                You don't have any items for this slot. Visit the shop to purchase equipment!
+            </MudAlert>
+        }
+        else
+        {
+            <MudList T="UserFishingBoost">
+                @foreach (var item in availableItemsForSlot)
+                {
+                    <MudListItem T="UserFishingBoost" OnClick="@(() => EquipItemFromDialog(item.Id))">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.body1"><strong>@item.ShopItem!.Name</strong></MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@item.ShopItem!.Description</MudText>
+                            <MudStack Row="true" Spacing="1">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.ShopItem!.BoostType)</MudChip>
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((item.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                @if (item.RemainingUses >= 0)
+                                {
+                                    <MudChip T="string" Color="@GetUsesColor(item)" Size="Size.Small" Icon="@Icons.Material.Filled.Numbers">
+                                        @item.RemainingUses uses
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
+                                        Unlimited
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => equipDialogVisible = false)" 
+                   StartIcon="@Icons.Material.Filled.Cancel">
+            Cancel
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
+
+    private string userId = string.Empty;
+    private FishingGold? userGold;
+    private List<UserFishingBoost> allItems = new();
+    private Dictionary<EquipmentSlot, UserFishingBoost> equippedBySlot = new();
+    
+    private bool equipDialogVisible = false;
+    private EquipmentSlot selectedSlot;
+    private List<UserFishingBoost> availableItemsForSlot = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = HttpContextAccessor.HttpContext?.User;
+        userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        userGold = await fishingService.GetUserGold(userId);
+        allItems = await fishingService.GetUserBoosts(userId);
+        equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
+    }
+
+    private async Task EquipItem(int userBoostId)
+    {
+        try
+        {
+            await fishingService.EquipItem(userId, userBoostId);
+            Snackbar.Add("Item equipped successfully", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error equipping item: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UnequipItem(int userBoostId)
+    {
+        try
+        {
+            await fishingService.UnequipItem(userId, userBoostId);
+            Snackbar.Add("Item unequipped successfully", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error unequipping item: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ShowEquipDialog(EquipmentSlot slot)
+    {
+        selectedSlot = slot;
+        availableItemsForSlot = allItems
+            .Where(i => i.ShopItem?.EquipmentSlot == slot && 
+                       !i.IsEquipped && 
+                       !(i.ShopItem!.IsConsumable && i.RemainingUses == 0))
+            .ToList();
+        equipDialogVisible = true;
+    }
+
+    private async Task EquipItemFromDialog(int userBoostId)
+    {
+        equipDialogVisible = false;
+        await EquipItem(userBoostId);
+    }
+
+    private string GetSlotIcon(EquipmentSlot slot) => slot switch
+    {
+        EquipmentSlot.Rod => Icons.Material.Filled.Phishing,
+        EquipmentSlot.Reel => Icons.Material.Filled.Settings,
+        EquipmentSlot.Bait => Icons.Material.Filled.BugReport,
+        EquipmentSlot.Lure => Icons.Material.Filled.Star,
+        EquipmentSlot.Accessory => Icons.Material.Filled.Diamond,
+        EquipmentSlot.Special => Icons.Material.Filled.AutoAwesome,
+        _ => Icons.Material.Filled.Category
+    };
+
+    private string GetBoostTypeDisplay(FishingBoostType boostType) => boostType switch
+    {
+        FishingBoostType.GeneralRarityBoost => "Rarity Boost",
+        FishingBoostType.SpecificFishBoost => "Specific Fish Boost",
+        FishingBoostType.WeightBoost => "Weight Boost",
+        FishingBoostType.StarBoost => "Star Boost",
+        _ => boostType.ToString()
+    };
+
+    private Color GetUsesColor(UserFishingBoost item)
+    {
+        if (item.RemainingUses < 0) return Color.Success;
+        var maxUses = item.ShopItem?.MaxUses ?? 1;
+        var percentage = (double)item.RemainingUses / maxUses;
+        return percentage switch
+        {
+            > 0.5 => Color.Success,
+            > 0.25 => Color.Warning,
+            _ => Color.Error
+        };
+    }
+
+    private double GetUsesPercentage(UserFishingBoost item)
+    {
+        if (item.RemainingUses < 0) return 100;
+        var maxUses = item.ShopItem?.MaxUses ?? 1;
+        return ((double)item.RemainingUses / maxUses) * 100;
+    }
+}

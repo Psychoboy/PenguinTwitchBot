@@ -125,7 +125,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .GroupBy(c => c.FishTypeId)
                 .Select(g => g.OrderByDescending(c => c.Stars)
                              .ThenByDescending(c => c.Weight)
-                             .First())
+                             .ThenByDescending(c => c.CaughtAt)
+                             .FirstOrDefault())
+                .OfType<FishCatch>()
                 .ToListAsync();
 
             return bestCatches.ToDictionary(c => c.FishTypeId, c => c);
@@ -239,11 +241,36 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .ToListAsync();
         }
 
+        public async Task<List<UserFishingBoost>> GetUserEquippedItems(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .ThenInclude(s => s!.TargetFishType)
+                .Where(b => b.UserId == userId && b.IsEquipped)
+                .ToListAsync();
+        }
+
+        public async Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var equipped = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .ThenInclude(s => s!.TargetFishType)
+                .Where(b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot != null)
+                .ToListAsync();
+
+            return equipped.Where(e => e.ShopItem?.EquipmentSlot != null)
+                          .ToDictionary(e => e.ShopItem!.EquipmentSlot!.Value, e => e);
+        }
+
         public async Task PurchaseBoost(string userId, int shopItemId)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            
+
             var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
             if (shopItem == null || !shopItem.Enabled)
             {
@@ -257,11 +284,113 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             gold.TotalGold -= shopItem.Cost;
-            context.UserFishingBoosts.Add(new UserFishingBoost
+
+            var userBoost = new UserFishingBoost
             {
                 UserId = userId,
-                ShopItemId = shopItemId
-            });
+                ShopItemId = shopItemId,
+                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+            };
+
+            context.UserFishingBoosts.Add(userBoost);
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task EquipItem(string userId, int userBoostId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var userBoost = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+
+            if (userBoost == null)
+            {
+                throw new InvalidOperationException("Item not found");
+            }
+
+            // Check if item has expired (consumable items with 0 uses)
+            if (userBoost.ShopItem!.IsConsumable && userBoost.RemainingUses == 0)
+            {
+                throw new InvalidOperationException("Item has no remaining uses");
+            }
+
+            // If item has a slot, unequip any item in that slot
+            if (userBoost.ShopItem.EquipmentSlot.HasValue)
+            {
+                var slotItems = await context.UserFishingBoosts
+                    .Include(b => b.ShopItem)
+                    .Where(b => b.UserId == userId && 
+                               b.IsEquipped && 
+                               b.ShopItem!.EquipmentSlot == userBoost.ShopItem.EquipmentSlot)
+                    .ToListAsync();
+
+                foreach (var item in slotItems)
+                {
+                    item.IsEquipped = false;
+                }
+            }
+
+            userBoost.IsEquipped = true;
+            await context.SaveChangesAsync();
+        }
+
+        public async Task UnequipItem(string userId, int userBoostId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var userBoost = await context.UserFishingBoosts
+                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+
+            if (userBoost == null)
+            {
+                throw new InvalidOperationException("Item not found");
+            }
+
+            userBoost.IsEquipped = false;
+            await context.SaveChangesAsync();
+        }
+
+        public async Task ConsumeItemUse(string userId, int userBoostId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var userBoost = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+
+            if (userBoost == null || !userBoost.IsEquipped)
+            {
+                return;
+            }
+
+            // Skip if unlimited uses
+            if (userBoost.RemainingUses == -1)
+            {
+                userBoost.LastUsedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+                return;
+            }
+
+            userBoost.RemainingUses--;
+            userBoost.LastUsedAt = DateTime.UtcNow;
+
+            // If consumable and no uses left, remove the item
+            if (userBoost.ShopItem!.IsConsumable && userBoost.RemainingUses <= 0)
+            {
+                userBoost.IsEquipped = false;
+                // Optionally delete the item entirely
+                // context.UserFishingBoosts.Remove(userBoost);
+            }
+            else if (userBoost.RemainingUses <= 0)
+            {
+                // Non-consumable items just get unequipped when out of uses
+                userBoost.IsEquipped = false;
+            }
 
             await context.SaveChangesAsync();
         }
@@ -270,7 +399,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var settings = await context.FishingSettings.FirstOrDefaultAsync();
+            var settings = await context.FishingSettings.SingleOrDefaultAsync();
             if (settings == null)
             {
                 settings = new FishingSettings();
@@ -297,7 +426,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             var settings = await GetSettings();
-            var userBoosts = await GetUserBoosts(userId);
+            // Only get equipped items, not all boosts
+            var userBoosts = await GetUserEquippedItems(userId);
 
             var fishType = SelectRandomFish(fishTypes, settings, userBoosts);
             var stars = CalculateStars(fishType, userBoosts);
@@ -324,6 +454,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             fishCatch.FishType = fishType;
 
             await AddGoldToUser(userId, username, gold);
+
+            // Consume uses from equipped items
+            foreach (var boost in userBoosts)
+            {
+                await ConsumeItemUse(userId, boost.Id);
+            }
 
             return fishCatch;
         }
@@ -437,7 +573,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var weightBoosts = boosts.Where(b => b.ShopItem?.BoostType == FishingBoostType.WeightBoost).ToList();
             var boostMultiplier = 1.0 + weightBoosts.Sum(b => b.ShopItem?.BoostAmount ?? 0);
 
-            var range = fishType.MaxWeight - fishType.MinWeight;
+            // Star multipliers increase weight for higher quality catches
             var starMultiplier = stars switch
             {
                 3 => 1.5,
@@ -445,21 +581,31 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 _ => 1.0
             };
 
+            // Generate random weight between 0.8x and 1.13x of base weight
+            var minMultiplier = 0.8;
+            var maxMultiplier = 1.13;
             var randomValue = RandomNumberGenerator.GetInt32(0, 10000) / 10000.0;
-            var baseWeight = fishType.MinWeight + (randomValue * range);
-            return Math.Round(baseWeight * starMultiplier * boostMultiplier, 2);
+            var weightMultiplier = minMultiplier + (randomValue * (maxMultiplier - minMultiplier));
+
+            var weight = fishType.BaseWeight * weightMultiplier * starMultiplier * boostMultiplier;
+            return Math.Round(weight, 2);
         }
 
         private int CalculateGold(FishType fishType, int stars)
         {
-            var starMultiplier = stars switch
+            // Star levels determine consecutive, non-overlapping gold ranges
+            // 1 Star: BaseGold × (1.0 to 1.25)
+            // 2 Star: BaseGold × (1.25 to 1.375)
+            // 3 Star: BaseGold × (1.375 to 1.41)
+            var (minMultiplier, maxMultiplier) = stars switch
             {
-                3 => 2.0,
-                2 => 1.5,
-                _ => 1.0
+                3 => (1.375, 1.41),
+                2 => (1.25, 1.375),
+                _ => (1.0, 1.25)
             };
 
-            return (int)(fishType.BaseGold * starMultiplier);
+            var randomValue = RandomNumberGenerator.GetInt32((int)(minMultiplier * 1000), (int)(maxMultiplier * 1000)) / 1000.0;
+            return (int)(fishType.BaseGold * randomValue);
         }
 
         public async Task ResetAllUserData()

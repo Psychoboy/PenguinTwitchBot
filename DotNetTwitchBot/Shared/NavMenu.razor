@@ -88,7 +88,15 @@
     <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
-    <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Phishing">Fishing</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="false">
+        <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboard</MudNavLink>
+        <AuthorizeView>
+            <Authorized>
+                <MudNavLink Href="/fishing/shop" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">Shop</MudNavLink>
+                <MudNavLink Href="/fishing/inventory" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory">My Inventory</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+    </MudNavGroup>
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/signout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Log Out</MudNavLink>

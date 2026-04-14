@@ -29,7 +29,7 @@
                                 <MudTh>Image</MudTh>
                                 <MudTh>Name</MudTh>
                                 <MudTh>Rarity</MudTh>
-                                <MudTh>Weight Range</MudTh>
+                                <MudTh>Base Weight</MudTh>
                                 <MudTh>Base Gold</MudTh>
                                 <MudTh>Enabled</MudTh>
                                 <MudTh>Actions</MudTh>
@@ -59,7 +59,7 @@
                                 <MudTd DataLabel="Rarity">
                                     <MudChip T="string" Color="GetRarityColor(context.Rarity)" Size="Size.Small">@context.Rarity</MudChip>
                                 </MudTd>
-                                <MudTd DataLabel="Weight Range">@context.MinWeight - @context.MaxWeight kg</MudTd>
+                                <MudTd DataLabel="Base Weight">@context.BaseWeight kg</MudTd>
                                 <MudTd DataLabel="Base Gold">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                         <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
@@ -102,6 +102,8 @@
                         <MudTh>Cost</MudTh>
                         <MudTh>Boost Type</MudTh>
                         <MudTh>Boost Amount</MudTh>
+                        <MudTh>Equipment Slot</MudTh>
+                        <MudTh>Uses</MudTh>
                         <MudTh>Enabled</MudTh>
                         <MudTh>Actions</MudTh>
                     </HeaderContent>
@@ -110,6 +112,10 @@
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                 <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Size="Size.Small" Color="Color.Primary" />
                                 <MudText><strong>@context.Name</strong></MudText>
+                                @if (context.IsConsumable)
+                                {
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Consumable</MudChip>
+                                }
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Description">@context.Description</MudTd>
@@ -120,9 +126,35 @@
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Boost Type">
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@context.BoostType</MudChip>
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
                         </MudTd>
                         <MudTd DataLabel="Boost Amount">+@((context.BoostAmount * 100).ToString("F0"))%</MudTd>
+                        <MudTd DataLabel="Equipment Slot">
+                            @if (context.EquipmentSlot.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.EquipmentSlot.Value)">
+                                    @context.EquipmentSlot.Value
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">Permanent</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Uses">
+                            @if (context.MaxUses.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Numbers">
+                                    @context.MaxUses uses
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
+                                    Unlimited
+                                </MudChip>
+                            }
+                        </MudTd>
                         <MudTd DataLabel="Enabled">
                             <MudCheckBox @bind-Value="context.Enabled" ReadOnly="true" Color="Color.Success" />
                         </MudTd>
@@ -243,22 +275,16 @@
                     }
                 </MudSelect>
 
-                <MudStack Row="true" Spacing="2">
-                    <MudNumericField @bind-Value="editingFish.MinWeight" 
-                                     Label="Min Weight (kg)" 
-                                     Min="0.1" 
-                                     Step="0.1"
-                                     Variant="Variant.Outlined"
-                                     Style="flex: 1;" />
-                    <MudNumericField @bind-Value="editingFish.MaxWeight" 
-                                     Label="Max Weight (kg)" 
-                                     Min="0.1" 
-                                     Step="0.1"
-                                     Variant="Variant.Outlined"
-                                     Style="flex: 1;" />
-                </MudStack>
+                <MudNumericField @bind-Value="editingFish.BaseWeight" 
+                                 Label="Base Weight (kg)" 
+                                 HelperText="Actual weight will vary between 0.8x and 1.13x of base, modified by stars"
+                                 Min="0.1" 
+                                 Step="0.1"
+                                 Variant="Variant.Outlined"
+                                 Adornment="Adornment.End"
+                                 AdornmentText="kg" />
 
-                <MudNumericField Value="@editingFish.BaseGold" 
+                <MudNumericField Value="@editingFish.BaseGold"
                                  ValueChanged="@((int value) => OnBaseGoldChanged(value))"
                                  Label="Base Gold" 
                                  Min="1"
@@ -385,7 +411,7 @@
                     @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
                     {
                         <MudSelectItem Value="@type">
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@type</MudChip>
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
                         </MudSelectItem>
                     }
                 </MudSelect>
@@ -418,6 +444,54 @@
                         }
                     </MudSelect>
                 }
+
+                <MudDivider />
+
+                <MudText Typo="Typo.h6" Color="Color.Primary">Equipment Settings</MudText>
+
+                <MudSelect @bind-Value="editingShopItem.EquipmentSlot" 
+                           Label="Equipment Slot" 
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           HelperText="Assign to a slot (only 1 item per slot can be equipped)"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@((EquipmentSlot?)null)">None (Permanent Boost)</MudSelectItem>
+                    @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
+                    {
+                        <MudSelectItem Value="@((EquipmentSlot?)slot)">
+                            <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(slot)">@slot</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudCheckBox @bind-Value="hasMaxUses" 
+                                 Label="Limited Uses" 
+                                 Color="Color.Warning" />
+                    @if (hasMaxUses)
+                    {
+                        <MudNumericField @bind-Value="maxUsesValue" 
+                                         Label="Max Uses" 
+                                         Min="1"
+                                         Variant="Variant.Outlined"
+                                         HelperText="Number of times item can be used"
+                                         Style="flex: 1;" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Unlimited uses</MudText>
+                    }
+                </MudStack>
+
+                <MudStack Spacing="1">
+                    <MudSwitch @bind-Value="editingShopItem.IsConsumable" 
+                               Label="Consumable" 
+                               Color="Color.Error"
+                               ThumbIcon="@(editingShopItem.IsConsumable ? Icons.Material.Filled.DeleteForever : Icons.Material.Filled.Loop)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, item is removed from inventory when uses run out</MudText>
+                </MudStack>
+
+                <MudDivider />
 
                 <MudSwitch @bind-Value="editingShopItem.Enabled" 
                            Label="Enabled" 
@@ -509,6 +583,10 @@
     private IBrowserFile? pendingImageFile;
     private IBrowserFile? pendingSoundFile;
 
+    // Shop item dialog state
+    private bool hasMaxUses = false;
+    private int maxUsesValue = 10;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -569,8 +647,7 @@
                 Id = fish.Id,
                 Name = fish.Name,
                 Rarity = fish.Rarity,
-                MinWeight = fish.MinWeight,
-                MaxWeight = fish.MaxWeight,
+                BaseWeight = fish.BaseWeight,
                 BaseGold = fish.BaseGold,
                 ImageFileName = fish.ImageFileName,
                 Enabled = fish.Enabled
@@ -702,6 +779,8 @@
     private void AddNewShopItem()
     {
         editingShopItem = new FishingShopItem();
+        hasMaxUses = false;
+        maxUsesValue = 10;
         shopItemDialogVisible = true;
     }
 
@@ -716,8 +795,13 @@
                 BoostType = item.BoostType,
                 BoostAmount = item.BoostAmount,
                 TargetFishTypeId = item.TargetFishTypeId,
-                Enabled = item.Enabled
+                Enabled = item.Enabled,
+                EquipmentSlot = item.EquipmentSlot,
+                MaxUses = item.MaxUses,
+                IsConsumable = item.IsConsumable
             };
+        hasMaxUses = item.MaxUses.HasValue;
+        maxUsesValue = item.MaxUses ?? 10;
         shopItemDialogVisible = true;
     }
 
@@ -727,6 +811,9 @@
 
         try
         {
+            // Set MaxUses based on checkbox
+            editingShopItem.MaxUses = hasMaxUses ? maxUsesValue : null;
+
             if (editingShopItem.Id == 0)
             {
                 await fishingService.AddShopItem(editingShopItem);
@@ -746,6 +833,26 @@
             Snackbar.Add($"Error saving shop item: {ex.Message}", Severity.Error);
         }
     }
+
+    private string GetSlotIcon(EquipmentSlot slot) => slot switch
+    {
+        EquipmentSlot.Rod => Icons.Material.Filled.Phishing,
+        EquipmentSlot.Reel => Icons.Material.Filled.Settings,
+        EquipmentSlot.Bait => Icons.Material.Filled.BugReport,
+        EquipmentSlot.Lure => Icons.Material.Filled.Star,
+        EquipmentSlot.Accessory => Icons.Material.Filled.Diamond,
+        EquipmentSlot.Special => Icons.Material.Filled.AutoAwesome,
+        _ => Icons.Material.Filled.Category
+    };
+
+    private string GetBoostTypeDisplay(FishingBoostType boostType) => boostType switch
+    {
+        FishingBoostType.GeneralRarityBoost => "Rarity Boost",
+        FishingBoostType.SpecificFishBoost => "Specific Fish Boost",
+        FishingBoostType.WeightBoost => "Weight Boost",
+        FishingBoostType.StarBoost => "Star Boost",
+        _ => boostType.ToString()
+    };
 
     private void CancelShopItemDialog()
     {
