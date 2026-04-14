@@ -36,6 +36,7 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         Bait,
         Lure,
         Accessory,
-        Special
+        Special,
+        Line
     }
 }

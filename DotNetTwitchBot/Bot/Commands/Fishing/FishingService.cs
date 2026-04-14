@@ -709,16 +709,16 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             // Equipment - Fishing Lines (Lure Slot, Permanent, Weight Boost)
             if (!ItemExists("Basic Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Basic Line", Description = "Reliable fishing line", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Basic Line", Description = "Reliable fishing line", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.10, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Strong Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Strong Line", Description = "Reinforced line for heavier catches", Cost = 600, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Strong Line", Description = "Reinforced line for heavier catches", Cost = 600, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Titanium Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Titanium Line", Description = "High-tech line for serious anglers", Cost = 1500, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.35, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Titanium Line", Description = "High-tech line for serious anglers", Cost = 1500, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.35, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
 
             if (!ItemExists("Diamond Line"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Diamond Line", Description = "The strongest line money can buy", Cost = 4000, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = false, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Diamond Line", Description = "The strongest line money can buy", Cost = 4000, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Line, IsConsumable = false, Enabled = true });
 
             // Equipment - Fishing Hooks (Accessory Slot, Permanent, Star Boost)
             if (!ItemExists("Sharp Hook"))
@@ -743,21 +743,37 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             if (!ItemExists("Professional Reel"))
                 itemsToAdd.Add(new FishingShopItem { Name = "Professional Reel", Description = "High-quality reel for pros", Cost = 1200, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Reel, IsConsumable = false, Enabled = true });
 
-            // Consumables - Baits and Lures (No Slot, Limited Uses)
+            // Consumables - Baits (Bait Slot, Limited Uses)
             if (!ItemExists("Lucky Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Lucky Bait", Description = "Increases rare fish chances (3 uses)", Cost = 100, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, IsConsumable = true, MaxUses = 3, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Lucky Bait", Description = "Increases rare fish chances (3 uses)", Cost = 100, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 3, Enabled = true });
 
-            if (!ItemExists("Golden Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Golden Lure", Description = "Attracts higher quality fish (5 uses)", Cost = 150, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, IsConsumable = true, MaxUses = 5, Enabled = true });
+            if (!ItemExists("Golden Bait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Golden Bait", Description = "Attracts higher quality fish (5 uses)", Cost = 150, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.15, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
 
             if (!ItemExists("Power Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Power Bait", Description = "Catches heavier fish (10 uses)", Cost = 200, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.30, IsConsumable = true, MaxUses = 10, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Power Bait", Description = "Catches heavier fish (10 uses)", Cost = 200, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.30, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 10, Enabled = true });
 
             if (!ItemExists("Supreme Bait"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Supreme Bait", Description = "Significantly boosts rare catches (5 uses)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.50, IsConsumable = true, MaxUses = 5, Enabled = true });
+                itemsToAdd.Add(new FishingShopItem { Name = "Supreme Bait", Description = "Significantly boosts rare catches (5 uses)", Cost = 300, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
 
-            if (!ItemExists("Mega Lure"))
-                itemsToAdd.Add(new FishingShopItem { Name = "Mega Lure", Description = "Massive weight boost (5 uses)", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, IsConsumable = true, MaxUses = 5, Enabled = true });
+            if (!ItemExists("Mega Bait"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Mega Bait", Description = "Massive weight boost (5 uses)", Cost = 250, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.50, EquipmentSlot = EquipmentSlot.Bait, IsConsumable = true, MaxUses = 5, Enabled = true });
+
+            // Consumables - Lures (Lure Slot, Limited Uses)
+            if (!ItemExists("Shiny Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Shiny Lure", Description = "Attracts rare fish (5 uses)", Cost = 120, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.20, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
+
+            if (!ItemExists("Sparkling Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Sparkling Lure", Description = "Increases star quality (7 uses)", Cost = 180, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.12, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
+
+            if (!ItemExists("Heavy Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Heavy Lure", Description = "Attracts bigger fish (10 uses)", Cost = 220, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.25, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 10, Enabled = true });
+
+            if (!ItemExists("Rainbow Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Rainbow Lure", Description = "Powerful rarity boost (7 uses)", Cost = 350, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
+
+            if (!ItemExists("Titan Lure"))
+                itemsToAdd.Add(new FishingShopItem { Name = "Titan Lure", Description = "Massive weight increase (7 uses)", Cost = 280, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 7, Enabled = true });
 
             // Fish-Specific Baits (dynamically generated for valuable fish)
             var allFish = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
@@ -820,7 +836,69 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         TargetFishTypeId = fish.Id,
                         IsConsumable = true,
                         MaxUses = uses,
-                        Enabled = true
+                        Enabled = true,
+                        EquipmentSlot = EquipmentSlot.Bait
+                    });
+                }
+            }
+
+            // Fish-Specific Lures (dynamically generated for valuable fish)
+            foreach (var fish in valuableFish)
+            {
+                var itemName = $"{fish.Name} Lure";
+                if (!ItemExists(itemName))
+                {
+                    // Price based on rarity and value (slightly higher than baits)
+                    var baseCost = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 600,
+                        FishRarity.Epic => 350,
+                        FishRarity.Rare => 250,
+                        FishRarity.Uncommon => 180,
+                        _ => 120
+                    };
+
+                    // Adjust cost based on fish value
+                    var costMultiplier = fish.BaseGold switch
+                    {
+                        >= 500 => 1.5,
+                        >= 200 => 1.25,
+                        >= 100 => 1.0,
+                        _ => 0.75
+                    };
+
+                    var finalCost = (int)(baseCost * costMultiplier);
+
+                    // Boost amount based on rarity (slightly stronger than baits)
+                    var boostAmount = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 2.5,  // 250% increased chance
+                        FishRarity.Epic => 1.75,      // 175% increased chance
+                        FishRarity.Rare => 1.25,      // 125% increased chance
+                        FishRarity.Uncommon => 0.9,   // 90% increased chance
+                        _ => 0.6                      // 60% increased chance
+                    };
+
+                    var uses = fish.Rarity switch
+                    {
+                        FishRarity.Legendary => 5,
+                        FishRarity.Epic => 7,
+                        FishRarity.Rare => 7,
+                        _ => 12
+                    };
+
+                    itemsToAdd.Add(new FishingShopItem
+                    {
+                        Name = itemName,
+                        Description = $"Premium lure designed for {fish.Name} ({uses} uses)",
+                        Cost = finalCost,
+                        BoostType = FishingBoostType.SpecificFishBoost,
+                        BoostAmount = boostAmount,
+                        TargetFishTypeId = fish.Id,
+                        IsConsumable = true,
+                        MaxUses = uses,
+                        Enabled = true,
+                        EquipmentSlot = EquipmentSlot.Lure
                     });
                 }
             }
