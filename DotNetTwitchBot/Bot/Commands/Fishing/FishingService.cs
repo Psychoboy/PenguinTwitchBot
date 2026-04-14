@@ -594,14 +594,11 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         private int CalculateGold(FishType fishType, int stars)
         {
             // Star levels determine consecutive, non-overlapping gold ranges
-            // 1 Star: BaseGold × (1.0 to 1.25)
-            // 2 Star: BaseGold × (1.25 to 1.375)
-            // 3 Star: BaseGold × (1.375 to 1.41)
             var (minMultiplier, maxMultiplier) = stars switch
             {
-                3 => (1.375, 1.41),
-                2 => (1.25, 1.375),
-                _ => (1.0, 1.25)
+                3 => (1.25, 1.41),
+                2 => (1.0, 1.25),
+                _ => (0.75, 1.0)
             };
 
             var randomValue = RandomNumberGenerator.GetInt32((int)(minMultiplier * 1000), (int)(maxMultiplier * 1000)) / 1000.0;

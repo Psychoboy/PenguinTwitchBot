@@ -7,18 +7,18 @@
 
 <PageTitle>Fishing Shop</PageTitle>
 
-<MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraLarge">
-    <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Class="mr-2" />
+<MudContainer Class="pa-2" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h4" Align="Align.Center">
+            <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Medium" Class="mr-1" />
             Fishing Shop
         </MudText>
 
-        <MudPaper Elevation="5" Class="pa-5 mb-4">
+        <MudPaper Elevation="2" Class="pa-3">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Justify="Justify.SpaceBetween">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Warning" Size="Size.Large" />
-                    <MudText Typo="Typo.h4">Your Gold: <MudChip T="string" Color="Color.Warning" Size="Size.Large">@userGold</MudChip></MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Warning" Size="Size.Medium" />
+                    <MudText Typo="Typo.h6">Gold: <MudChip T="string" Color="Color.Warning" Size="Size.Medium">@userGold</MudChip></MudText>
                 </MudStack>
                 <MudButton Variant="Variant.Filled" 
                            Color="Color.Primary" 
@@ -31,115 +31,82 @@
 
         @if (shopItems.Any())
         {
-            <MudStack Spacing="3">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Size="Size.Large" />
-                    <MudText Typo="Typo.h4">Available Items</MudText>
-                </MudStack>
-                
-                <MudGrid>
-                    @foreach (var item in shopItems.Where(i => i.Enabled).OrderBy(i => i.Cost))
-                    {
-                        <MudItem xs="12" sm="6" md="4">
-                            <MudCard Elevation="6">
-                                <MudCardHeader>
-                                    <CardHeaderContent>
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                            @if (item.EquipmentSlot.HasValue)
-                                            {
-                                                <MudIcon Icon="@GetSlotIcon(item.EquipmentSlot.Value)" Color="Color.Primary" />
-                                            }
-                                            else
-                                            {
-                                                <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Color="Color.Primary" />
-                                            }
-                                            <MudText Typo="Typo.h6">@item.Name</MudText>
-                                        </MudStack>
-                                    </CardHeaderContent>
-                                </MudCardHeader>
-                                <MudCardContent>
-                                    <MudStack Spacing="2">
-                                        <MudText Typo="Typo.body2">@item.Description</MudText>
-                                        
-                                        @if (item.EquipmentSlot.HasValue)
-                                        {
-                                            <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(item.EquipmentSlot.Value)">
-                                                @item.EquipmentSlot.Value Slot
-                                            </MudChip>
-                                        }
-                                        else
-                                        {
-                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
-                                                Permanent Boost
-                                            </MudChip>
-                                        }
-                                        
-                                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.TrendingUp">
-                                            @GetBoostTypeDisplay(item.BoostType)
-                                        </MudChip>
-                                        
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
-                                            <MudText Typo="Typo.body2">
-                                                Boost: <strong>+@((item.BoostAmount * 100).ToString("F0"))%</strong>
-                                            </MudText>
-                                        </MudStack>
-                                        
-                                        @if (item.TargetFishTypeId.HasValue)
-                                        {
-                                            var fishType = fishTypes.FirstOrDefault(f => f.Id == item.TargetFishTypeId.Value);
-                                            if (fishType != null)
-                                            {
-                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Small" Color="Color.Primary" />
-                                                    <MudText Typo="Typo.body2">
-                                                        Target: <strong>@fishType.Name</strong>
-                                                    </MudText>
-                                                </MudStack>
-                                            }
-                                        }
-                                        
-                                        @if (item.IsConsumable && item.MaxUses.HasValue)
-                                        {
-                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                <MudIcon Icon="@Icons.Material.Filled.Numbers" Size="Size.Small" Color="Color.Warning" />
-                                                <MudText Typo="Typo.body2">
-                                                    Uses: <strong>@item.MaxUses</strong>
-                                                </MudText>
-                                            </MudStack>
-                                        }
-                                        else if (!item.IsConsumable)
-                                        {
-                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
-                                                Unlimited Uses
-                                            </MudChip>
-                                        }
-                                        
-                                        <MudDivider />
-                                        
-                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Justify="Justify.Center">
-                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" />
-                                            <MudText Typo="Typo.h5" Color="Color.Warning">
-                                                <strong>@item.Cost</strong>
-                                            </MudText>
-                                        </MudStack>
-                                    </MudStack>
-                                </MudCardContent>
-                                <MudCardActions>
-                                    <MudButton Variant="Variant.Filled" 
-                                             Color="Color.Primary" 
-                                             FullWidth="true"
-                                             Size="Size.Large"
-                                             StartIcon="@Icons.Material.Filled.ShoppingCart"
-                                             Disabled="@(userGold < item.Cost || isPurchasing)"
-                                             OnClick="@(() => PurchaseItem(item.Id))">
-                                        @(userGold < item.Cost ? "Insufficient Gold" : "Purchase")
-                                    </MudButton>
-                                </MudCardActions>
-                            </MudCard>
-                        </MudItem>
-                    }
-                </MudGrid>
+            <MudStack Spacing="1">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Size="Size.Medium" Class="mr-1" />
+                    Available Items
+                </MudText>
+
+                <MudTable Items="@shopItems.Where(i => i.Enabled).OrderBy(i => i.Cost)" Dense="true" Hover="true" Striped="true" Elevation="1">
+                    <HeaderContent>
+                        <MudTh>Item</MudTh>
+                        <MudTh>Type/Target</MudTh>
+                        <MudTh>Boost</MudTh>
+                        <MudTh>Slot/Uses</MudTh>
+                        <MudTh>Cost</MudTh>
+                        <MudTh>Action</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Item">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Type/Target">
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                                @if (context.TargetFishTypeId.HasValue)
+                                {
+                                    var fishType = fishTypes.FirstOrDefault(f => f.Id == context.TargetFishTypeId.Value);
+                                    if (fishType != null)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                    }
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Boost">
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.BoostAmount * 100).ToString("F0"))%</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Slot/Uses">
+                            <MudStack Spacing="0">
+                                @if (context.EquipmentSlot.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.EquipmentSlot.Value)">@context.EquipmentSlot.Value</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Permanent</MudChip>
+                                }
+                                @if (context.MaxUses.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.MaxUses uses</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Success">Unlimited</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Cost">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Small" />
+                                <MudText Typo="Typo.body2" Color="Color.Warning"><strong>@context.Cost</strong></MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Action">
+                            <MudButton Variant="Variant.Filled" 
+                                     Color="Color.Primary" 
+                                     Size="Size.Small"
+                                     StartIcon="@Icons.Material.Filled.ShoppingCart"
+                                     Disabled="@(userGold < context.Cost || isPurchasing)"
+                                     OnClick="@(() => PurchaseItem(context.Id))">
+                                @(userGold < context.Cost ? "No Gold" : "Buy")
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
             </MudStack>
         }
         else
@@ -151,24 +118,20 @@
 
         @if (userBoosts.Any())
         {
-            <MudStack Spacing="3" Class="mt-5">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Large" />
-                    <MudText Typo="Typo.h4">Your Owned Items</MudText>
-                    <MudBadge Content="@userBoosts.Count" Color="Color.Success" Overlap="true">
-                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Default" />
-                    </MudBadge>
-                </MudStack>
-                
-                <MudTable Items="@userBoosts" Striped="true" Hover="true" Dense="true" Elevation="4">
+            <MudStack Spacing="1" Class="mt-3">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Medium" Class="mr-1" />
+                    Your Items (@userBoosts.Count)
+                </MudText>
+
+                <MudTable Items="@userBoosts" Striped="true" Hover="true" Dense="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Slot</MudTh>
-                        <MudTh>Boost Type</MudTh>
-                        <MudTh>Amount</MudTh>
+                        <MudTh>Boost</MudTh>
                         <MudTh>Uses</MudTh>
                         <MudTh>Status</MudTh>
-                        <MudTh>Purchased At</MudTh>
+                        <MudTh>Purchased</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="boost">
                         @{
@@ -176,7 +139,13 @@
                             var fishType = fishTypes.FirstOrDefault(f => f.Id == shopItem?.TargetFishTypeId);
                         }
                         <MudTd DataLabel="Item">
-                            <MudText><strong>@shopItem?.Name</strong></MudText>
+                            <MudStack Spacing="0">
+                                <MudText><strong>@shopItem?.Name</strong></MudText>
+                                @if (fishType != null)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Slot">
                             @if (shopItem?.EquipmentSlot.HasValue == true)
@@ -193,51 +162,35 @@
                         <MudTd DataLabel="Boost Type">
                             <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem?.BoostType ?? FishingBoostType.GeneralRarityBoost)</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Amount">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
-                                <MudText>+@((shopItem?.BoostAmount * 100 ?? 0).ToString("F0"))%</MudText>
-                            </MudStack>
+                        <MudTd DataLabel="Boost">
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((shopItem?.BoostAmount * 100 ?? 0).ToString("F0"))%</MudChip>
                         </MudTd>
                         <MudTd DataLabel="Uses">
                             @if (boost.RemainingUses >= 0)
                             {
-                                <MudChip T="string" Color="@GetUsesColor(boost)" Size="Size.Small" Icon="@Icons.Material.Filled.Numbers">
-                                    @boost.RemainingUses / @(shopItem?.MaxUses ?? 0)
-                                </MudChip>
+                                <MudText Typo="Typo.body2" Color="@GetUsesColor(boost)">@boost.RemainingUses / @(shopItem?.MaxUses ?? 0)</MudText>
                             }
                             else
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
-                                    Unlimited
-                                </MudChip>
+                                <MudText Typo="Typo.body2" Color="Color.Success">∞</MudText>
                             }
                         </MudTd>
                         <MudTd DataLabel="Status">
                             @if (boost.IsEquipped)
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
-                                    Equipped
-                                </MudChip>
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
                             }
                             else if (shopItem?.IsConsumable == true && boost.RemainingUses == 0)
                             {
-                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Cancel">
-                                    Depleted
-                                </MudChip>
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
                             }
                             else
                             {
-                                <MudChip T="string" Color="Color.Default" Size="Size.Small">
-                                    In Inventory
-                                </MudChip>
+                                <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Default" Size="Size.Small" />
                             }
                         </MudTd>
-                        <MudTd DataLabel="Purchased At">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
-                                <MudText>@boost.PurchasedAt.ToLocalTime().ToString("g")</MudText>
-                            </MudStack>
+                        <MudTd DataLabel="Purchased">
+                            <MudText Typo="Typo.caption">@boost.PurchasedAt.ToString("MM/dd")</MudText>
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
