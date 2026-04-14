@@ -20,15 +20,42 @@
                     <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Medium" />
                     <MudText Typo="Typo.h6">Gold: @(userGold?.TotalGold ?? 0)</MudText>
                 </MudStack>
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.ShoppingCart"
-                           Href="/fishing/shop">
-                    Visit Shop
-                </MudButton>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshInventory"
+                               Disabled="@isLoading"
+                               Size="Size.Small">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <text>Loading...</text>
+                        }
+                        else
+                        {
+                            <text>Refresh</text>
+                        }
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.ShoppingCart"
+                               Href="/fishing/shop">
+                        Visit Shop
+                    </MudButton>
+                </MudStack>
             </MudStack>
         </MudPaper>
 
+        @if (isLoading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading inventory...</MudText>
+            </MudStack>
+        }
+        else
+        {
         <MudTabs Elevation="2" Rounded="true" Color="Color.Primary">
             <MudTabPanel Text="Equipment" Icon="@Icons.Material.Filled.Category">
                 <MudPaper Elevation="1" Class="pa-2 ma-1">
@@ -126,7 +153,7 @@
                                            Label="Equipment Slot" 
                                            Clearable="true"
                                            Variant="Variant.Outlined"
-                                           Dense="true"
+                                           dense="true"
                                            AdornmentIcon="@Icons.Material.Filled.Category">
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)null)">All Slots</MudSelectItem>
                                     <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Rod)">Rod</MudSelectItem>
@@ -144,7 +171,7 @@
                                            Label="Status" 
                                            Clearable="true"
                                            Variant="Variant.Outlined"
-                                           Dense="true"
+                                           dense="true"
                                            AdornmentIcon="@Icons.Material.Filled.CheckCircle">
                                     <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
                                     <MudSelectItem T="bool?" Value="@((bool?)true)">Equipped</MudSelectItem>
@@ -156,7 +183,7 @@
                                               @bind-Value="inventoryFilterSearch" 
                                               Label="Search" 
                                               Variant="Variant.Outlined"
-                                              Dense="true"
+                                              dense="true"
                                               Immediate="true"
                                               Clearable="true"
                                               Adornment="Adornment.Start"
@@ -167,19 +194,19 @@
 
                     @if (allItems.Count == 0)
                     {
-                        <MudAlert Severity="Severity.Info" Dense="true">
+                        <MudAlert Severity="Severity.Info" dense="true">
                             No items yet. Visit the shop!
                         </MudAlert>
                     }
                     else if (!GetFilteredInventoryItems().Any())
                     {
-                        <MudAlert Severity="Severity.Info" Dense="true">
+                        <MudAlert Severity="Severity.Info" dense="true">
                             No items match your filters.
                         </MudAlert>
                     }
                     else
                     {
-                        <MudTable Items="@GetFilteredInventoryItems()" Hover="true" Striped="true" Dense="true" Elevation="1">
+                        <MudTable Items="@GetFilteredInventoryItems()" Hover="true" Striped="true" dense="true" Elevation="1">
                             <HeaderContent>
                                 <MudTh>Item</MudTh>
                                 <MudTh>Slot</MudTh>
@@ -283,6 +310,7 @@
                 </MudPaper>
             </MudTabPanel>
         </MudTabs>
+        }
     </MudStack>
 </MudContainer>
 
@@ -296,13 +324,13 @@
     <DialogContent>
         @if (availableItemsForSlot.Count == 0)
         {
-            <MudAlert Severity="Severity.Info" Dense="true">
+            <MudAlert Severity="Severity.Info" dense="true">
                 No items for this slot. Visit the shop!
             </MudAlert>
         }
         else
         {
-            <MudList T="UserFishingBoost" Dense="true">
+            <MudList T="UserFishingBoost" dense="true">
                 @foreach (var item in availableItemsForSlot)
                 {
                     <MudListItem T="UserFishingBoost" OnClick="@(() => EquipItemFromDialog(item.Id))">
@@ -356,6 +384,7 @@
     private List<UserFishingBoost> allItems = new();
     private Dictionary<EquipmentSlot, UserFishingBoost> equippedBySlot = new();
     private List<FishType> fishTypes = new();
+    private bool isLoading = false;
 
     // Filter state with cache invalidation
     private EquipmentSlot? _inventoryFilterSlot = null;
@@ -400,16 +429,29 @@
 
     private async Task LoadData()
     {
-        userGold = await fishingService.GetUserGold(userId);
-        allItems = await fishingService.GetUserBoosts(userId);
-        equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
-        fishTypes = await fishingService.GetAllFishTypes();
+        isLoading = true;
+        try
+        {
+            userGold = await fishingService.GetUserGold(userId);
+            allItems = await fishingService.GetUserBoosts(userId);
+            equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
+            fishTypes = await fishingService.GetAllFishTypes();
 
-        // Build fish type lookup for O(1) access
-        fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+            // Build fish type lookup for O(1) access
+            fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
 
-        // Invalidate cached filter results
-        cachedFilteredItems = null;
+            // Invalidate cached filter results
+            cachedFilteredItems = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshInventory()
+    {
+        await LoadData();
     }
 
     private List<UserFishingBoost> GetFilteredInventoryItems()

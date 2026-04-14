@@ -20,16 +20,41 @@
                     <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Warning" Size="Size.Medium" />
                     <MudText Typo="Typo.h6">Gold: <MudChip T="string" Color="Color.Warning" Size="Size.Medium">@userGold</MudChip></MudText>
                 </MudStack>
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.Inventory"
-                           Href="/fishing/inventory">
-                    View Inventory
-                </MudButton>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshShop"
+                               Disabled="@isLoading"
+                               Size="Size.Small">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <text>Loading...</text>
+                        }
+                        else
+                        {
+                            <text>Refresh</text>
+                        }
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Inventory"
+                               Href="/fishing/inventory">
+                        View Inventory
+                    </MudButton>
+                </MudStack>
             </MudStack>
         </MudPaper>
 
-        @if (shopItems.Any(i => i.Enabled))
+        @if (isLoading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading shop items...</MudText>
+            </MudStack>
+        }
+        else if (shopItems.Any(i => i.Enabled))
         {
             <MudPaper Elevation="2" Class="pa-3 mb-2">
                 <MudGrid Spacing="2">
@@ -39,7 +64,7 @@
                                    Label="Equipment Slot" 
                                    Clearable="true"
                                    Variant="Variant.Outlined"
-                                   Dense="true"
+                                   dense="true"
                                    AdornmentIcon="@Icons.Material.Filled.Category">
                             <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)null)">All Slots</MudSelectItem>
                             <MudSelectItem T="EquipmentSlot?" Value="@((EquipmentSlot?)EquipmentSlot.Rod)">Rod</MudSelectItem>
@@ -57,7 +82,7 @@
                                    Label="Boost Type" 
                                    Clearable="true"
                                    Variant="Variant.Outlined"
-                                   Dense="true"
+                                   dense="true"
                                    AdornmentIcon="@Icons.Material.Filled.TrendingUp">
                             <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)null)">All Types</MudSelectItem>
                             <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.GeneralRarityBoost)">Rarity Boost</MudSelectItem>
@@ -72,7 +97,7 @@
                                    Label="Item Type" 
                                    Clearable="true"
                                    Variant="Variant.Outlined"
-                                   Dense="true"
+                                   dense="true"
                                    AdornmentIcon="@Icons.Material.Filled.FilterList">
                             <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
                             <MudSelectItem T="bool?" Value="@((bool?)false)">Permanent</MudSelectItem>
@@ -84,7 +109,7 @@
                                       @bind-Value="filterSearch" 
                                       Label="Search" 
                                       Variant="Variant.Outlined"
-                                      Dense="true"
+                                      dense="true"
                                       Immediate="true"
                                       Clearable="true"
                                       Adornment="Adornment.Start"
@@ -99,7 +124,7 @@
                     Available Items (@GetFilteredShopItems().Count())
                 </MudText>
 
-                <MudTable Items="@GetFilteredShopItems()" Dense="true" Hover="true" Striped="true" Elevation="1">
+                <MudTable Items="@GetFilteredShopItems()" dense="true" Hover="true" Striped="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Type/Target</MudTh>
@@ -186,7 +211,7 @@
                     Your Items (@userBoosts.Count)
                 </MudText>
 
-                <MudTable Items="@userBoosts" Striped="true" Hover="true" Dense="true" Elevation="1">
+                <MudTable Items="@userBoosts" Striped="true" Hover="true" dense="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Slot</MudTh>
@@ -272,6 +297,7 @@
     private List<UserFishingBoost> userBoosts = new();
     private int userGold = 0;
     private bool isPurchasing = false;
+    private bool isLoading = false;
 
     // Filter state with cache invalidation
     private EquipmentSlot? _filterSlot = null;
@@ -319,17 +345,30 @@
 
     private async Task LoadData()
     {
-        fishTypes = await fishingService.GetAllFishTypes();
-        shopItems = await fishingService.GetAllShopItems();
-        userBoosts = await fishingService.GetUserBoosts(userId);
-        var goldData = await fishingService.GetUserGold(userId);
-        userGold = goldData?.TotalGold ?? 0;
+        isLoading = true;
+        try
+        {
+            fishTypes = await fishingService.GetAllFishTypes();
+            shopItems = await fishingService.GetAllShopItems();
+            userBoosts = await fishingService.GetUserBoosts(userId);
+            var goldData = await fishingService.GetUserGold(userId);
+            userGold = goldData?.TotalGold ?? 0;
 
-        // Build fish type lookup for O(1) access
-        fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+            // Build fish type lookup for O(1) access
+            fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
 
-        // Invalidate cached filter results
-        cachedFilteredShopItems = null;
+            // Invalidate cached filter results
+            cachedFilteredShopItems = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshShop()
+    {
+        await LoadData();
     }
 
     private async Task PurchaseItem(int shopItemId)
