@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -33,7 +33,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -55,7 +55,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
     
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -102,7 +102,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -141,7 +141,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -166,7 +166,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -184,7 +184,7 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
         {
             if (eventArgs == null)
             {
-                return new ConcurrentDictionary<string, string>();
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)

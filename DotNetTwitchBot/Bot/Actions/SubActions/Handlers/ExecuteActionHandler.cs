@@ -36,7 +36,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
                 // Pass parent context info so the child action can be linked
                 await action.EnqueueAction(
-                    new ConcurrentDictionary<string, string>(variables), 
+                    new ConcurrentDictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase), 
                     actionItem,
                     parentLogId: context.ActionLogId,
                     parentSubActionIndex: subActionIndex);
@@ -46,7 +46,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             else
             {
                 // No context available, just enqueue normally
-                await action.EnqueueAction(new ConcurrentDictionary<string, string>(variables), actionItem);
+                await action.EnqueueAction(new ConcurrentDictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase), actionItem);
             }
         }
     }
