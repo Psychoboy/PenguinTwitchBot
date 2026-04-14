@@ -633,5 +633,213 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         }
 
         #endregion
+
+        #region Bug Fix Validation Tests
+
+        [Fact]
+        public async Task CalculateCatchProbabilities_DuplicateFishNames_UsesFishIdAsKey()
+        {
+            await SeedTestData();
+
+            // Add two fish with the same name but different IDs to test the dictionary key collision fix
+            var duplicateNameFish = new List<FishType>
+            {
+                new() { Id = 10, Name = "Duplicate Bass", Rarity = FishRarity.Common, BaseWeight = 8.0, BaseGold = 40, Enabled = true },
+                new() { Id = 11, Name = "Duplicate Bass", Rarity = FishRarity.Uncommon, BaseWeight = 12.0, BaseGold = 80, Enabled = true }
+            };
+            _context.FishTypes.AddRange(duplicateNameFish);
+            await _context.SaveChangesAsync();
+
+            var result = await _fishingService.CalculateCatchProbabilities(new List<int>());
+
+            // Verify that both fish are present in the result using fish ID as key (not name)
+            Assert.True(result.ContainsKey(10), "Fish with ID 10 should be present in results");
+            Assert.True(result.ContainsKey(11), "Fish with ID 11 should be present in results");
+
+            // Verify that both fish maintain their distinct properties
+            Assert.Equal("Duplicate Bass", result[10].FishName);
+            Assert.Equal("Duplicate Bass", result[11].FishName);
+            Assert.Equal(FishRarity.Common, result[10].Rarity);
+            Assert.Equal(FishRarity.Uncommon, result[11].Rarity);
+
+            // Verify no data loss - both fish should have different probabilities due to different rarities
+            Assert.NotEqual(result[10].OverallChance, result[11].OverallChance);
+        }
+
+        [Fact]
+        public async Task SelectRandomFish_SpecificFishBoostOnBoostType2_AppliesToCorrectFish()
+        {
+            await SeedTestData();
+
+            // Create specific fish boost item with BoostType2
+            var specificFishBoost = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bass Hunter Lure",
+                EquipmentSlot = EquipmentSlot.Hook,
+                Cost = 200,
+                BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
+                BoostAmount = 0.1,
+                BoostType2 = FishingBoostType.SpecificFishBoost, // Secondary boost: specific fish
+                BoostAmount2 = 2.0, // 200% boost to bass
+                TargetFishTypeId = 1, // Common Bass (ID 1)
+                MaxUses = null
+            };
+            _context.FishingShopItems.Add(specificFishBoost);
+            await _context.SaveChangesAsync();
+
+            // Simulate many fishing attempts to verify the boost is working
+            var bassCount = 0;
+            var totalAttempts = 1000;
+
+            for (int i = 0; i < totalAttempts; i++)
+            {
+                var userBoost = new UserFishingBoost
+                {
+                    Id = i + 100,
+                    UserId = "test-user",
+                    ShopItemId = 1,
+                    ShopItem = specificFishBoost,
+                    IsEquipped = true,
+                    RemainingUses = -1 // Unlimited uses
+                };
+
+                // Call the private method using reflection to test specific fish selection
+                var method = typeof(FishingService).GetMethod("SelectRandomFish", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (method != null)
+                {
+                    var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                    var boosts = new List<UserFishingBoost> { userBoost };
+                    var settings = await _fishingService.GetSettings();
+
+                    var selectedFish = (FishType)method.Invoke(_fishingService, new object[] { fishTypes, settings, boosts });
+                    if (selectedFish.Id == 1) // Common Bass
+                    {
+                        bassCount++;
+                    }
+                }
+            }
+
+            // With a 200% boost to Common Bass (normally ~50% chance), we should see more bass
+            // The boost should increase the rarity tier weight, making bass more likely but not dramatically
+            var bassPercentage = (double)bassCount / totalAttempts * 100;
+
+            // With the boost, bass should be caught more frequently than the baseline ~50%
+            // A more conservative check for > 52% indicates the boost is working
+            Assert.True(bassPercentage > 52.0, 
+                $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}%");
+        }
+
+        [Fact]
+        public async Task SelectRandomFish_SpecificFishBoostOnBoostType3_AppliesToCorrectFish()
+        {
+            await SeedTestData();
+
+            // Create specific fish boost item with BoostType3
+            var specificFishBoost = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Trout Master Rod",
+                EquipmentSlot = EquipmentSlot.Rod,
+                Cost = 300,
+                BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
+                BoostAmount = 0.1,
+                BoostType2 = FishingBoostType.StarBoost, // Secondary boost: star quality
+                BoostAmount2 = 0.15,
+                BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
+                BoostAmount3 = 1.5, // 150% boost to trout
+                TargetFishTypeId = 2, // Uncommon Trout (ID 2)
+                MaxUses = null
+            };
+            _context.FishingShopItems.Add(specificFishBoost);
+            await _context.SaveChangesAsync();
+
+            // Simulate many fishing attempts to verify the boost is working
+            var troutCount = 0;
+            var totalAttempts = 1000;
+
+            for (int i = 0; i < totalAttempts; i++)
+            {
+                var userBoost = new UserFishingBoost
+                {
+                    Id = i + 100,
+                    UserId = "test-user",
+                    ShopItemId = 1,
+                    ShopItem = specificFishBoost,
+                    IsEquipped = true,
+                    RemainingUses = -1 // Unlimited uses
+                };
+
+                // Call the private method using reflection to test specific fish selection
+                var method = typeof(FishingService).GetMethod("SelectRandomFish", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (method != null)
+                {
+                    var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                    var boosts = new List<UserFishingBoost> { userBoost };
+                    var settings = await _fishingService.GetSettings();
+
+                    var selectedFish = (FishType)method.Invoke(_fishingService, new object[] { fishTypes, settings, boosts });
+                    if (selectedFish.Id == 2) // Uncommon Trout
+                    {
+                        troutCount++;
+                    }
+                }
+            }
+
+            // With a 150% boost to Uncommon Trout (normally ~30% chance), we should see more trout
+            var troutPercentage = (double)troutCount / totalAttempts * 100;
+
+            // With the boost, trout should be caught more frequently than the baseline ~30%
+            // A conservative check for > 32% indicates the boost is working
+            Assert.True(troutPercentage > 32.0, 
+                $"SpecificFishBoost on BoostType3 should increase trout catch rate. Got {troutPercentage:F1}%");
+        }
+
+        [Fact]
+        public async Task CalculateCatchProbabilities_ConsistentWithSelectRandomFish_BothUseFishId()
+        {
+            await SeedTestData();
+
+            // Add a specific fish boost to test consistency
+            var specificFishBoost = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bass Targeting Lure",
+                EquipmentSlot = null, // Consumable
+                Cost = 100,
+                BoostType = FishingBoostType.SpecificFishBoost,
+                BoostAmount = 3.0, // 300% boost to bass
+                TargetFishTypeId = 1, // Common Bass (ID 1)
+                MaxUses = 5
+            };
+            _context.FishingShopItems.Add(specificFishBoost);
+            await _context.SaveChangesAsync();
+
+            // Get probability calculations
+            var probabilities = await _fishingService.CalculateCatchProbabilities(new List<int> { 1 });
+
+            // Verify the result uses fish ID as key and includes all enabled fish
+            var enabledFishIds = _context.FishTypes.Where(f => f.Enabled).Select(f => f.Id).ToList();
+
+            foreach (var fishId in enabledFishIds)
+            {
+                Assert.True(probabilities.ContainsKey(fishId), 
+                    $"Probability calculation should include fish with ID {fishId}");
+            }
+
+            // Verify that Common Bass (ID 1) has a higher probability due to the specific boost
+            var bassProb = probabilities[1];
+            var otherFishProb = probabilities[2]; // Uncommon Trout
+
+            // The specific boost should make bass significantly more likely
+            Assert.True(bassProb.OverallChance > otherFishProb.OverallChance * 2,
+                $"Bass with specific boost should have much higher probability. Bass: {bassProb.OverallChance:F2}%, Trout: {otherFishProb.OverallChance:F2}%");
+        }
+
+        #endregion
     }
 }

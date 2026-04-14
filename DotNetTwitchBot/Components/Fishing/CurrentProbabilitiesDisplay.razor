@@ -104,7 +104,7 @@
     [Parameter] public EventCallback OnRefresh { get; set; }
 
     private RarityProbability? rarityProbs;
-    private Dictionary<string, FishProbability>? topFish;
+    private Dictionary<int, FishProbability>? topFish;
     private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()

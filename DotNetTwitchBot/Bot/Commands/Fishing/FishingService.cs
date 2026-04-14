@@ -527,6 +527,17 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         }
                     }
                 }
+                else if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    // Find the target fish and boost its rarity tier
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        // Boost the rarity tier of the target fish
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
+                    }
+                }
 
                 // Apply tertiary boost if present
                 if (boost.ShopItem?.BoostType3 == FishingBoostType.GeneralRarityBoost)
@@ -537,6 +548,17 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         {
                             rarityWeights[rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
                         }
+                    }
+                }
+                else if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost && 
+                         boost.ShopItem.TargetFishTypeId != null)
+                {
+                    // Find the target fish and boost its rarity tier
+                    var targetFish = fishTypes.FirstOrDefault(f => f.Id == boost.ShopItem.TargetFishTypeId);
+                    if (targetFish != null)
+                    {
+                        // Boost the rarity tier of the target fish
+                        rarityWeights[targetFish.Rarity] *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
                     }
                 }
             }
@@ -1119,13 +1141,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return topCatches;
         }
 
-        public async Task<Dictionary<string, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
+        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
         {
             var settings = await GetSettings();
             return await CalculateCatchProbabilities(settings?.BoostMode ?? false, settings?.BoostModeRarityMultiplier ?? 1.0, shopItemIds);
         }
 
-        public async Task<Dictionary<string, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
+        public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -1134,7 +1156,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
-                return new Dictionary<string, FishProbability>();
+                return new Dictionary<int, FishProbability>();
             }
 
             // Get shop items
@@ -1239,7 +1261,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var totalRarityWeight = rarityWeights.Values.Sum();
 
             // Calculate probabilities for each fish
-            var probabilities = new Dictionary<string, FishProbability>();
+            var probabilities = new Dictionary<int, FishProbability>();
 
             foreach (var fish in fishTypes)
             {
@@ -1292,7 +1314,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
                 var overallChance = rarityChance * withinRarityChance;
 
-                probabilities[fish.Name] = new FishProbability
+                probabilities[fish.Id] = new FishProbability
                 {
                     FishId = fish.Id,
                     FishName = fish.Name,

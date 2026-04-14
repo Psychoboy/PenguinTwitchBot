@@ -127,7 +127,7 @@
     private bool useBoostMode = false;
     private double boostMultiplier = 5.0;
     private RarityProbability? rarityProbs;
-    private Dictionary<string, FishProbability>? fishProbs;
+    private Dictionary<int, FishProbability>? fishProbs;
     private string fishFilter = string.Empty;
     private bool isCalculating = false;
 
@@ -154,19 +154,19 @@
         }
     }
 
-    private IEnumerable<KeyValuePair<string, FishProbability>> GetFilteredFish()
+    private IEnumerable<KeyValuePair<int, FishProbability>> GetFilteredFish()
     {
-        if (fishProbs == null) return Enumerable.Empty<KeyValuePair<string, FishProbability>>();
-        
+        if (fishProbs == null) return Enumerable.Empty<KeyValuePair<int, FishProbability>>();
+
         var filtered = fishProbs.AsEnumerable();
-        
+
         if (!string.IsNullOrWhiteSpace(fishFilter))
         {
             filtered = filtered.Where(f => 
                 f.Value.FishName.Contains(fishFilter, StringComparison.OrdinalIgnoreCase)
             );
         }
-        
+
         return filtered.OrderByDescending(f => f.Value.OverallChance);
     }
 

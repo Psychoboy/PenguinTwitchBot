@@ -98,9 +98,9 @@
             @* Show detailed probability preview for SpecificFishBoost *@
             @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
             {
-                @if (probabilityPreview != null && probabilityPreview.ContainsKey(ShopItem.TargetFishType.Name))
+                @if (probabilityPreview != null && ShopItem.TargetFishTypeId.HasValue && probabilityPreview.ContainsKey(ShopItem.TargetFishTypeId.Value))
                 {
-                    var fishProb = probabilityPreview[ShopItem.TargetFishType.Name];
+                    var fishProb = probabilityPreview[ShopItem.TargetFishTypeId.Value];
                     <MudPaper Elevation="2" Class="pa-3 mt-2">
                         <MudStack Spacing="2">
                             <MudText Typo="Typo.subtitle2">Target Fish Probability:</MudText>
@@ -165,7 +165,7 @@
     [Parameter] public List<int> CurrentEquippedItemIds { get; set; } = new();
 
     private RarityProbability? rarityPreview;
-    private Dictionary<string, FishProbability>? probabilityPreview;
+    private Dictionary<int, FishProbability>? probabilityPreview;
     private bool isLoading = false;
 
     protected override async Task OnParametersSetAsync()
