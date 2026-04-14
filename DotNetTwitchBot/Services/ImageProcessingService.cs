@@ -31,7 +31,26 @@ namespace DotNetTwitchBot.Services
             {
                 Directory.CreateDirectory(outputDirectory);
 
+                // Load image with size limits to prevent decompression bombs
                 using var image = await Image.LoadAsync(sourceStream);
+
+                // Validate dimensions to prevent excessive memory usage
+                const int maxDimension = 8192;
+                if (image.Width > maxDimension || image.Height > maxDimension)
+                {
+                    throw new InvalidOperationException(
+                        $"Image dimensions ({image.Width}x{image.Height}) exceed maximum allowed size ({maxDimension}x{maxDimension}). " +
+                        $"Please resize the image before uploading.");
+                }
+
+                // Additional check for total pixel count (prevents wide/tall attack vectors)
+                const long maxPixels = 67_108_864; // 8192 * 8192
+                long totalPixels = (long)image.Width * image.Height;
+                if (totalPixels > maxPixels)
+                {
+                    throw new InvalidOperationException(
+                        $"Image total pixel count ({totalPixels:N0}) exceeds maximum allowed ({maxPixels:N0}).");
+                }
                 
                 var result = new ImageProcessingResult
                 {
@@ -104,7 +123,7 @@ namespace DotNetTwitchBot.Services
         public async Task<BatchProcessingResult> BatchProcessImagesAsync(
             string sourceDirectory, 
             string outputDirectory,
-            string[] fileExtensions = null)
+            string[]? fileExtensions = null)
         {
             fileExtensions ??= new[] { ".png", ".jpg", ".jpeg", ".gif", ".webp" };
             
@@ -159,28 +178,33 @@ namespace DotNetTwitchBot.Services
         /// </summary>
         public void DeleteImageAndVariants(string directory, string baseFileName)
         {
+            var imageExtensions = new[] { ".webp", ".png", ".jpg", ".jpeg", ".gif", ".bmp" };
+
             var patterns = new[]
             {
-                $"{baseFileName}.*",
-                $"{baseFileName}_thumbnail.*",
-                $"{baseFileName}_small.*",
-                $"{baseFileName}_medium.*",
-                $"{baseFileName}_large.*"
+                baseFileName,
+                $"{baseFileName}_thumbnail",
+                $"{baseFileName}_small",
+                $"{baseFileName}_medium",
+                $"{baseFileName}_large"
             };
 
             foreach (var pattern in patterns)
             {
-                var files = Directory.GetFiles(directory, pattern);
-                foreach (var file in files)
+                foreach (var ext in imageExtensions)
                 {
-                    try
+                    var filePath = Path.Combine(directory, $"{pattern}{ext}");
+                    if (File.Exists(filePath))
                     {
-                        File.Delete(file);
-                        _logger.LogInformation($"Deleted: {file}");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, $"Failed to delete: {file}");
+                        try
+                        {
+                            File.Delete(filePath);
+                            _logger.LogInformation($"Deleted: {filePath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, $"Failed to delete: {filePath}");
+                        }
                     }
                 }
             }

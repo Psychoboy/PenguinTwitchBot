@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Helpers
         private static string GetBaseFileName(string fileName)
         {
             var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(fileName);
-            
+
             // Remove size suffixes if present
             var suffixes = new[] { "_thumbnail", "_small", "_medium", "_large" };
             foreach (var suffix in suffixes)
@@ -49,8 +49,21 @@ namespace DotNetTwitchBot.Helpers
                     return nameWithoutExt.Substring(0, nameWithoutExt.Length - suffix.Length);
                 }
             }
-            
+
             return nameWithoutExt;
+        }
+
+        /// <summary>
+        /// Get the base filename without size suffix or extension (public version for use in other classes)
+        /// </summary>
+        /// <param name="fileName">The filename with or without size suffix</param>
+        /// <returns>The base name without size suffix or extension</returns>
+        public static string GetBaseName(string? fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return string.Empty;
+
+            return GetBaseFileName(fileName);
         }
 
         /// <summary>

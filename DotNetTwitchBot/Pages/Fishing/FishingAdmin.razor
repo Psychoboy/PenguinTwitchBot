@@ -789,7 +789,7 @@
                 // Delete old image variants if name changed
                 if (!string.IsNullOrEmpty(editingFish.ImageFileName))
                 {
-                    var oldBaseFileName = Path.GetFileNameWithoutExtension(editingFish.ImageFileName);
+                    var oldBaseFileName = FishImageHelper.GetBaseName(editingFish.ImageFileName);
                     if (oldBaseFileName != baseFileName)
                     {
                         ImageProcessor.DeleteImageAndVariants(fishesPath, oldBaseFileName);
