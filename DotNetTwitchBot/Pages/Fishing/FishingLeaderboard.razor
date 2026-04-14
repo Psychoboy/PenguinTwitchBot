@@ -168,14 +168,13 @@
 
                                     <MudItem xs="12" sm="6" md="4" lg="3">
                                         <MudCard Elevation="4" Class="@(hasCaught ? "" : "opacity-50")">
-                                            <div style="height: 200px; display: flex; align-items: center; justify-content: center; padding: 8px;">
+                                            <div style="height: 200px; display: flex; align-items: center; justify-content: center; padding: 8px; background: rgba(0,0,0,0.02);">
                                                 @if (!string.IsNullOrEmpty(fish.ImageFileName))
                                                 {
                                                     <MudImage Src="@FishImageHelper.GetImagePath(fish.ImageFileName, ImageSize.Medium)" 
                                                               Alt="@fish.Name" 
-                                                              Height="184"
                                                               ObjectFit="ObjectFit.Contain"
-                                                              Style="@(hasCaught ? "" : "filter: grayscale(100%) brightness(0.7);")" />
+                                                              Style="@($"max-width: 100%; max-height: 184px; width: auto; height: auto; {(hasCaught ? "" : "filter: grayscale(100%) brightness(0.7);")}")" />
                                                 }
                                                 else
                                                 {

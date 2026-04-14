@@ -74,7 +74,7 @@ namespace DotNetTwitchBot.Services
 
                     using var outputImage = image.Clone(ctx =>
                     {
-                        // Resize while maintaining aspect ratio
+                        // Resize to fit within bounds while maintaining aspect ratio
                         var resizeOptions = new ResizeOptions
                         {
                             Size = new Size(config.MaxWidth, config.MaxHeight),
