@@ -48,7 +48,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
 
-        Task<PagedDataResponse<LeaderPosition>> GetTotalGoldLeaderboard(PaginationFilter filter);
-        Task<PagedDataResponse<FishCatch>> GetMostValuableCatchesLeaderboard(PaginationFilter filter);
+        Task<List<LeaderPosition>> GetTotalGoldLeaderboard(int count = 50);
+        Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50);
     }
 }

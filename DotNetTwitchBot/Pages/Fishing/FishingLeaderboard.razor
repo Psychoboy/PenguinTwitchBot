@@ -146,29 +146,17 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
-                                       OnClick="@(() => { if (goldTable != null) goldTable.ReloadServerData(); })"
+                                       OnClick="RefreshGoldLeaderboard"
                                        Size="Size.Small">
                                 Refresh
                             </MudButton>
                         </MudStack>
-                        <MudPaper Elevation="3">
-                            <MudTable ServerData="GoldLeaderboardReload"
-                                      Dense="true" 
-                                      Hover="true" 
-                                      @ref="goldTable">
+                        @if (goldLeaderboard.Any())
+                        {
+                            <MudTable Items="@goldLeaderboard" Hover="true" Striped="true" Dense="true" Elevation="4">
                                 <ToolBarContent>
                                     <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Class="mr-2" />
-                                    <MudText Typo="Typo.h6">Total Gold Earned</MudText>
-                                    <MudSpacer />
-                                    <MudTextField DebounceInterval="1000" 
-                                                  T="string" 
-                                                  ValueChanged="@(s=>OnGoldSearch(s))" 
-                                                  Placeholder="Search" 
-                                                  Adornment="Adornment.Start"
-                                                  AdornmentIcon="@Icons.Material.Filled.Search" 
-                                                  IconSize="Size.Medium" 
-                                                  Class="mt-0">
-                                    </MudTextField>
+                                    <MudText Typo="Typo.h6">Top 50 - Total Gold Earned</MudText>
                                 </ToolBarContent>
                                 <HeaderContent>
                                     <MudTh>Rank</MudTh>
@@ -192,17 +180,12 @@
                                         </MudStack>
                                     </MudTd>
                                 </RowTemplate>
-                                <NoRecordsContent>
-                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No players have earned gold yet</MudAlert>
-                                </NoRecordsContent>
-                                <LoadingContent>
-                                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-                                </LoadingContent>
-                                <PagerContent>
-                                    <MudTablePager />
-                                </PagerContent>
                             </MudTable>
-                        </MudPaper>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No players have earned gold yet. Be the first to fish!</MudAlert>
+                        }
                     </MudTabPanel>
 
                     <MudTabPanel Text="Valuable Catches" Icon="@Icons.Material.Filled.Diamond">
@@ -210,33 +193,22 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        StartIcon="@Icons.Material.Filled.Refresh"
-                                       OnClick="@(() => { if (valuableCatchesTable != null) valuableCatchesTable.ReloadServerData(); })"
+                                       OnClick="RefreshValuableCatchesLeaderboard"
                                        Size="Size.Small">
                                 Refresh
                             </MudButton>
                         </MudStack>
-                        <MudPaper Elevation="3">
-                            <MudTable ServerData="ValuableCatchesReload"
-                                      Dense="true" 
-                                      Hover="true" 
-                                      @ref="valuableCatchesTable">
+                        @if (valuableCatchesLeaderboard.Any())
+                        {
+                            <MudTable Items="@valuableCatchesLeaderboard" Hover="true" Striped="true" Dense="true" Elevation="4">
                                 <ToolBarContent>
                                     <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Info" Class="mr-2" />
-                                    <MudText Typo="Typo.h6">Most Valuable Catches</MudText>
-                                    <MudSpacer />
-                                    <MudTextField DebounceInterval="1000" 
-                                                  T="string" 
-                                                  ValueChanged="@(s=>OnValuableCatchesSearch(s))" 
-                                                  Placeholder="Search" 
-                                                  Adornment="Adornment.Start"
-                                                  AdornmentIcon="@Icons.Material.Filled.Search" 
-                                                  IconSize="Size.Medium" 
-                                                  Class="mt-0">
-                                    </MudTextField>
+                                    <MudText Typo="Typo.h6">Top 50 - Most Valuable Catches</MudText>
                                 </ToolBarContent>
                                 <HeaderContent>
                                     <MudTh>Rank</MudTh>
                                     <MudTh>Player</MudTh>
+                                    <MudTh>Image</MudTh>
                                     <MudTh>Fish</MudTh>
                                     <MudTh>Rarity</MudTh>
                                     <MudTh>Stars</MudTh>
@@ -246,9 +218,7 @@
                                 </HeaderContent>
                                 <RowTemplate Context="fishCatch">
                                     @{
-                                        var rank = valuableCatchesTable != null 
-                                            ? (valuableCatchesTable.CurrentPage * valuableCatchesTable.RowsPerPage) + valuableCatchesTable.FilteredItems.ToList().IndexOf(fishCatch) + 1
-                                            : 0;
+                                        var rank = valuableCatchesLeaderboard.IndexOf(fishCatch) + 1;
                                     }
                                     <MudTd DataLabel="Rank">
                                         @RenderRankBadge(rank)
@@ -258,6 +228,22 @@
                                             <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
                                             <MudText><strong>@fishCatch.Username</strong></MudText>
                                         </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Image">
+                                        @if (!string.IsNullOrEmpty(fishCatch.FishType?.ImageFileName))
+                                        {
+                                            <MudImage Src="@FishImageHelper.GetImagePath(fishCatch.FishType.ImageFileName, ImageSize.Thumbnail)" 
+                                                      Alt="@fishCatch.FishType.Name" 
+                                                      Width="50"
+                                                      Height="50"
+                                                      ObjectFit="ObjectFit.Contain"
+                                                      Elevation="2"
+                                                      Class="rounded" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Medium" Color="Color.Default" Style="opacity: 0.3;" />
+                                        }
                                     </MudTd>
                                     <MudTd DataLabel="Fish">
                                         <MudText>@fishCatch.FishType?.Name</MudText>
@@ -294,17 +280,12 @@
                                         </MudStack>
                                     </MudTd>
                                 </RowTemplate>
-                                <NoRecordsContent>
-                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No catches found</MudAlert>
-                                </NoRecordsContent>
-                                <LoadingContent>
-                                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-                                </LoadingContent>
-                                <PagerContent>
-                                    <MudTablePager />
-                                </PagerContent>
                             </MudTable>
-                        </MudPaper>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No catches found yet. Start fishing!</MudAlert>
+                        }
                     </MudTabPanel>
 
                     <AuthorizeView>
@@ -488,12 +469,9 @@
     private int selectedFishTypeId = 0;
     private string currentUserId = string.Empty;
 
-    // New leaderboard tables
-    private MudTable<LeaderPosition>? goldTable;
-    private string? goldSearch = null;
-
-    private MudTable<FishCatch>? valuableCatchesTable;
-    private string? valuableCatchesSearch = null;
+    // New leaderboards
+    private List<LeaderPosition> goldLeaderboard = new();
+    private List<FishCatch> valuableCatchesLeaderboard = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -505,6 +483,10 @@
             selectedFishTypeId = leaderboardFishTypes.First().Id;
             await LoadLeaderboard();
         }
+
+        // Load new leaderboards
+        await LoadGoldLeaderboard();
+        await LoadValuableCatchesLeaderboard();
 
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
@@ -587,52 +569,24 @@
         _ => Color.Default
     };
 
-    private async Task<TableData<LeaderPosition>> GoldLeaderboardReload(TableState state, CancellationToken _)
+    private async Task LoadGoldLeaderboard()
     {
-        var pageFilter = new PaginationFilter
-        {
-            Page = state.Page,
-            Count = state.PageSize
-        };
-        if (goldSearch != null)
-        {
-            pageFilter.Filter = goldSearch;
-        }
-        var response = await fishingService.GetTotalGoldLeaderboard(pageFilter);
-        return new TableData<LeaderPosition>() { TotalItems = response.TotalItems, Items = response.Data };
+        goldLeaderboard = await fishingService.GetTotalGoldLeaderboard(50);
     }
 
-    private void OnGoldSearch(string text)
+    private async Task LoadValuableCatchesLeaderboard()
     {
-        goldSearch = text;
-        if (goldTable != null)
-        {
-            goldTable.ReloadServerData();
-        }
+        valuableCatchesLeaderboard = await fishingService.GetMostValuableCatchesLeaderboard(50);
     }
 
-    private async Task<TableData<FishCatch>> ValuableCatchesReload(TableState state, CancellationToken _)
+    private async Task RefreshGoldLeaderboard()
     {
-        var pageFilter = new PaginationFilter
-        {
-            Page = state.Page,
-            Count = state.PageSize
-        };
-        if (valuableCatchesSearch != null)
-        {
-            pageFilter.Filter = valuableCatchesSearch;
-        }
-        var response = await fishingService.GetMostValuableCatchesLeaderboard(pageFilter);
-        return new TableData<FishCatch>() { TotalItems = response.TotalItems, Items = response.Data };
+        await LoadGoldLeaderboard();
     }
 
-    private void OnValuableCatchesSearch(string text)
+    private async Task RefreshValuableCatchesLeaderboard()
     {
-        valuableCatchesSearch = text;
-        if (valuableCatchesTable != null)
-        {
-            valuableCatchesTable.ReloadServerData();
-        }
+        await LoadValuableCatchesLeaderboard();
     }
 
     private RenderFragment RenderRankBadge(int rank) => __builder =>
