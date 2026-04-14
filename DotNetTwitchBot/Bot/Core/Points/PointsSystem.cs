@@ -6,6 +6,8 @@ using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
+using LinqToDB.Internal.SqlQuery;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -492,6 +494,77 @@ namespace DotNetTwitchBot.Bot.Core.Points
         public Task<List<PointGamePair>> GetPointTypesForGames()
         {
             return gameSettingsService.GetAllPointTypes();
+        }
+
+        public async Task RunFromActionNoResponse(CommandEventArgs e, PointCommand pointCommand, ConcurrentDictionary<string, string> variables)
+        {
+            switch (pointCommand.CommandType)
+            {
+                case PointCommandType.Add:
+                    {
+                        var args = e.Args[1];
+                        args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
+                        if (Int64.TryParse(args, out long amount))
+                        {
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            if (userId == null) return;
+                            await AddPointsByUsername(e.TargetUser, pointCommand.PointType.GetId(), amount);
+                            var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());
+                            //await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
+                            variables["AmountAdded"] = amount.ToString();
+                            variables["TotalPoints"] = userPoints.Points.ToString();
+                            logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+
+                        }
+                        break;
+                    }
+                case PointCommandType.Remove:
+                    {
+                        var args = e.Args[1];
+                        args = string.IsNullOrWhiteSpace(args) ? "" : args.Split(".")[0]; // Remove any additional arguments after the first period
+                        if (Int64.TryParse(args, out long amount))
+                        {
+                            var userId = await viewerFeature.GetViewerId(e.TargetUser);
+                            if (userId == null) return;
+                            await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
+                            logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+                        }
+                        break;
+                    }
+                case PointCommandType.Get:
+                    //var userPoints = await GetUserPointsByUsername(e.Username, pointCommand.PointType.GetId());
+                    //if (userPoints != null)
+                    //{
+                    //    await SendChatMessage(e.Username, $"You have {userPoints.Points} {pointCommand.PointType.Name}");
+                    //}
+                    //await SendPointsMessage(e, pointCommand.PointType.GetId());
+                    {
+                        var pointType = pointCommand.PointType.GetId();
+                        var userId = e.UserId;
+                        await using var scope = scopeFactory.CreateAsyncScope();
+                        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+                        if (userPoints != null)
+                        {
+                            variables["TotalPoints"] = userPoints.Points.ToString();
+                        }
+                        else
+                        {
+                            variables["TotalPoints"] = "0";
+                        }
+                    }
+                    break;
+                case PointCommandType.Set:
+                    break;
+                case PointCommandType.AddActive:
+                    {
+                        if (Int64.TryParse(e.Args[1], out long amount))
+                        {
+                            await AddPointsToActiveUsers(pointCommand.PointType.GetId(), amount);
+                        }
+                        break;
+                    }
+            }
         }
 
         public async Task RunCommand(CommandEventArgs e, PointCommand pointCommand)

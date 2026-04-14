@@ -74,7 +74,16 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 eventArgs.TargetUser = string.Empty;
             }
-            await serviceBackbone.RunCommand(eventArgs);
+
+            if (pointCommandType.RespondToChat)
+            {
+
+                await serviceBackbone.RunCommand(eventArgs);
+            }
+            else
+            {
+                await pointsSystem.RunFromActionNoResponse(eventArgs, pointCommand, variables);
+            }
         }
     }
 }

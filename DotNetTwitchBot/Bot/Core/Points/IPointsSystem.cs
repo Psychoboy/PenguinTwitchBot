@@ -2,6 +2,7 @@
 using DotNetTwitchBot.Bot.Models.Games;
 using DotNetTwitchBot.Bot.Models.Points;
 using DotNetTwitchBot.Models;
+using System.Collections.Concurrent;
 
 namespace DotNetTwitchBot.Bot.Core.Points
 {
@@ -44,5 +45,6 @@ namespace DotNetTwitchBot.Bot.Core.Points
         Task<List<PointGamePair>> GetPointTypesForGames();
         Task<List<PointCommand>> GetAllPointCommands();
         Task<PointType?> GetPointTypeByName(string name);
+        Task RunFromActionNoResponse(CommandEventArgs e, PointCommand pointCommand, ConcurrentDictionary<string, string> variables);
     }
 }
