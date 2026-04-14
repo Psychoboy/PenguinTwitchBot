@@ -221,6 +221,7 @@ internal class Program
             .ForwardToPrometheus();
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<DotNetTwitchBot.Services.ImageProcessingService>();
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
