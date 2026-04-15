@@ -682,6 +682,7 @@
     // SignalR connection
     private IJSObjectReference? signalRModule;
     private DotNetObjectReference<FishingLeaderboard>? dotNetReference;
+    private bool _hasSetupSignalR = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -714,13 +715,19 @@
                     await LoadUserData();
                 }
             }
-
-            // Setup SignalR connection for real-time updates
-            await SetupSignalR();
         }
         finally
         {
             isInitialLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasSetupSignalR)
+        {
+            await SetupSignalR();
+            _hasSetupSignalR = true;
         }
     }
 
@@ -935,8 +942,29 @@
 
         if (shouldAdd)
         {
-            // Reload recent catches to get the latest data
-            await LoadRecentCatches();
+            // Update in-memory list for better performance
+            var newCatch = new FishCatch
+            {
+                UserId = userId,
+                Username = username,
+                Stars = stars,
+                Weight = weight,
+                GoldEarned = goldEarned,
+                CaughtAt = DateTime.UtcNow,
+                FishType = new FishType 
+                { 
+                    Name = fishName,
+                    Rarity = Enum.TryParse<FishRarity>(fishRarity, out var rarity) ? rarity : FishRarity.Common
+                }
+            };
+
+            // Insert at top, trim to 50 items
+            recentCatches.Insert(0, newCatch);
+            if (recentCatches.Count > 50)
+            {
+                recentCatches.RemoveAt(50);
+            }
+
             await InvokeAsync(StateHasChanged);
         }
     }
