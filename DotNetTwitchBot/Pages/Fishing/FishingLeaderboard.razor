@@ -4,6 +4,7 @@
 @using DotNetTwitchBot.Helpers
 @using DotNetTwitchBot.Models
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <PageTitle>Fishing Leaderboard</PageTitle>
 
@@ -517,7 +518,7 @@
                                         <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Warning" />
                                         <MudText Typo="Typo.body2" Color="Color.Warning"><strong>Fishing Boosts</strong></MudText>
                                     </MudStack>
-                                    <MudButton Href="/signin" 
+                            <MudButton OnClick="Signin"
                                                Variant="Variant.Filled" 
                                                Color="Color.Primary" 
                                                Size="Size.Large"
@@ -775,4 +776,9 @@
             <MudText><strong>#@rank</strong></MudText>
         }
     };
+
+    private void Signin()
+    {
+        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+    }
 }

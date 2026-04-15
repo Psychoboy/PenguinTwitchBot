@@ -129,7 +129,7 @@
                         <MudStack Spacing="3" AlignItems="AlignItems.Center">
                             <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Large" Color="Color.Info" />
                             <MudText Typo="Typo.h6" Align="Align.Center">Sign in to participate</MudText>
-                            <MudButton Href="/signin" 
+                                <MudButton OnClick="Signin"
                                        Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Large"
@@ -489,5 +489,10 @@
         {
             await hubConnection.DisposeAsync();
         }
+    }
+
+    private void Signin()
+    {
+        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
     }
 }
