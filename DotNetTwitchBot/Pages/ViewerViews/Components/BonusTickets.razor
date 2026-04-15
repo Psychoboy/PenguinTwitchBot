@@ -56,7 +56,7 @@
                 </Authorized>
                 <NotAuthorized>
                     <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudButton Href="/signin" 
+                        <MudButton OnClick="Signin"
                                    Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    FullWidth="true"
@@ -123,5 +123,9 @@
         {
             await hubConnection.DisposeAsync();
         }
+    }
+    private void Signin()
+    {
+        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
     }
 }
