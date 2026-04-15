@@ -243,6 +243,7 @@
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Slot</MudTh>
+                        <MudTh>Type/Target</MudTh>
                         <MudTh>Boost</MudTh>
                         <MudTh>Uses</MudTh>
                         <MudTh>Status</MudTh>
@@ -508,8 +509,8 @@
             return cachedFilteredShopItems;
         }
 
-        // Start with enabled items
-        var filtered = shopItems.Where(i => i.Enabled);
+        // Start with enabled items that are not admin-only
+        var filtered = shopItems.Where(i => i.Enabled && !i.IsAdminOnly);
 
         // Filter by slot
         if (filterSlot.HasValue)

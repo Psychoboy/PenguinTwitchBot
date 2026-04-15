@@ -28,6 +28,7 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public EquipmentSlot? EquipmentSlot { get; set; }
         public int? MaxUses { get; set; } // null = unlimited uses
         public bool IsConsumable { get; set; } = false; // If true, item is removed after uses expire
+        public bool IsAdminOnly { get; set; } = false; // If true, item is not shown in shop and can only be given by admins
     }
 
     public enum FishingBoostType

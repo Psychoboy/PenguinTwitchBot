@@ -185,6 +185,33 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
         }
 
+        public async Task SetUserGold(string userId, string username, int amount)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            if (gold == null)
+            {
+                gold = new FishingGold { UserId = userId, Username = username, TotalGold = amount };
+                context.FishingGolds.Add(gold);
+            }
+            else
+            {
+                gold.TotalGold = amount;
+                gold.Username = username;
+            }
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<List<FishingGold>> GetAllPlayersWithGold()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await context.FishingGolds
+                .OrderBy(g => g.Username)
+                .ToListAsync();
+        }
+
         public async Task<List<FishingShopItem>> GetAllShopItems()
         {
             using var scope = _scopeFactory.CreateScope();
@@ -273,9 +300,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
-            if (shopItem == null || !shopItem.Enabled)
+            if (shopItem == null || !shopItem.Enabled || shopItem.IsAdminOnly)
             {
-                throw new InvalidOperationException("Shop item not found or disabled");
+                throw new InvalidOperationException("Shop item not found, disabled, or not available for purchase");
             }
 
             var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
@@ -285,6 +312,29 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             gold.TotalGold -= shopItem.Cost;
+
+            var userBoost = new UserFishingBoost
+            {
+                UserId = userId,
+                ShopItemId = shopItemId,
+                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+            };
+
+            context.UserFishingBoosts.Add(userBoost);
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task GiveItemToUser(string userId, int shopItemId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
+            if (shopItem == null)
+            {
+                throw new InvalidOperationException("Shop item not found");
+            }
 
             var userBoost = new UserFishingBoost
             {

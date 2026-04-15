@@ -123,6 +123,7 @@
                         <MudTh>Boost Amount</MudTh>
                         <MudTh>Equipment Slot</MudTh>
                         <MudTh>Uses</MudTh>
+                        <MudTh>Admin Only</MudTh>
                         <MudTh>Enabled</MudTh>
                         <MudTh>Actions</MudTh>
                     </HeaderContent>
@@ -172,6 +173,16 @@
                                 <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AllInclusive">
                                     Unlimited
                                 </MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Admin Only">
+                            @if (context.IsAdminOnly)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">Public</MudChip>
                             }
                         </MudTd>
                         <MudTd DataLabel="Enabled">
@@ -592,6 +603,162 @@
                             </MudStack>
                         </MudPaper>
                     </MudTabPanel>
+
+                    <MudTabPanel Text="Player Management" Icon="@Icons.Material.Filled.People">
+                        <MudPaper Elevation="3" Class="pa-4 ma-2">
+                            <MudStack Spacing="3">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
+                                    <MudText Typo="Typo.h5">Player Management</MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Give gold and items to players who have participated in the fishing game.
+                                </MudText>
+
+                                <MudDivider />
+
+                                <MudAutocomplete T="FishingGold"
+                                                 @bind-Value="selectedPlayer"
+                                                 SearchFunc="SearchPlayers"
+                                                 ToStringFunc="@(p => p?.Username ?? "")"
+                                                 Label="Select Player"
+                                                 Variant="Variant.Outlined"
+                                                 ResetValueOnEmptyText="true"
+                                                 CoerceText="true"
+                                                 CoerceValue="true"
+                                                 AdornmentIcon="@Icons.Material.Filled.Search"
+                                                 Adornment="Adornment.Start">
+                                    <ItemTemplate Context="player">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                            <MudText><strong>@player.Username</strong></MudText>
+                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.AttachMoney">
+                                                @player.TotalGold gold
+                                            </MudChip>
+                                        </MudStack>
+                                    </ItemTemplate>
+                                </MudAutocomplete>
+
+                                @if (selectedPlayer != null)
+                                {
+                                    <MudPaper Elevation="2" Class="pa-3">
+                                        <MudStack Spacing="2">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" Size="Size.Large" />
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.h6">@selectedPlayer.Username</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">User ID: @selectedPlayer.UserId</MudText>
+                                                </MudStack>
+                                            </MudStack>
+                                            <MudDivider />
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Medium" />
+                                                <MudText Typo="Typo.h6">Current Gold: @selectedPlayer.TotalGold</MudText>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudPaper>
+
+                                    <MudDivider />
+
+                                    <MudStack Spacing="2">
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">
+                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Medium" Class="mr-1" />
+                                            Manage Gold
+                                        </MudText>
+
+                                        <MudStack Row="true" Spacing="2">
+                                            <MudNumericField @bind-Value="goldAmount"
+                                                             Label="Gold Amount"
+                                                             Variant="Variant.Outlined"
+                                                             Min="0"
+                                                             Style="flex: 1;"
+                                                             Adornment="Adornment.Start"
+                                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+                                        </MudStack>
+
+                                        <MudStack Row="true" Spacing="2">
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Add"
+                                                       OnClick="AddGoldToPlayer"
+                                                       Disabled="isProcessing || goldAmount <= 0">
+                                                Add Gold
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Warning"
+                                                       StartIcon="@Icons.Material.Filled.Remove"
+                                                       OnClick="RemoveGoldFromPlayer"
+                                                       Disabled="isProcessing || goldAmount <= 0">
+                                                Remove Gold
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Info"
+                                                       StartIcon="@Icons.Material.Filled.Settings"
+                                                       OnClick="SetPlayerGold"
+                                                       Disabled="isProcessing">
+                                                Set Gold
+                                            </MudButton>
+                                        </MudStack>
+                                    </MudStack>
+
+                                    <MudDivider />
+
+                                    <MudStack Spacing="2">
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">
+                                            <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Medium" Class="mr-1" />
+                                            Give Item
+                                        </MudText>
+
+                                        <MudSelect @bind-Value="selectedItemToGive"
+                                                   Label="Select Item to Give"
+                                                   Variant="Variant.Outlined"
+                                                   Clearable="true"
+                                                   AdornmentIcon="@Icons.Material.Filled.LocalOffer"
+                                                   Adornment="Adornment.Start">
+                                            @foreach (var item in shopItems.Where(i => i.Enabled))
+                                            {
+                                                <MudSelectItem T="int?" Value="@((int?)item.Id)">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        @if (item.IsAdminOnly)
+                                                        {
+                                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin</MudChip>
+                                                        }
+                                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.BoostType)</MudChip>
+                                                        <MudText><strong>@item.Name</strong></MudText>
+                                                        @if (item.EquipmentSlot.HasValue)
+                                                        {
+                                                            <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(item.EquipmentSlot.Value)">
+                                                                @item.EquipmentSlot.Value
+                                                            </MudChip>
+                                                        }
+                                                    </MudStack>
+                                                </MudSelectItem>
+                                            }
+                                        </MudSelect>
+
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Large"
+                                                   StartIcon="@Icons.Material.Filled.CardGiftcard"
+                                                   OnClick="GiveItemToPlayer"
+                                                   Disabled="isProcessing || !selectedItemToGive.HasValue">
+                                            Give Item to Player
+                                        </MudButton>
+
+                                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info" Dense="true">
+                                            Items marked with "Admin" badge are admin-only and not visible in the player shop.
+                                        </MudAlert>
+                                    </MudStack>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                                        Select a player to manage their gold and items. Only players who have fished at least once will appear in the list.
+                                    </MudAlert>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudTabPanel>
                 </MudTabs>
     </MudStack>
 </MudContainer>
@@ -841,7 +1008,15 @@
 
                 <MudDivider />
 
-                <MudSwitch @bind-Value="editingShopItem.Enabled" 
+                <MudStack Spacing="1">
+                    <MudSwitch @bind-Value="editingShopItem.IsAdminOnly" 
+                               Label="Admin Only" 
+                               Color="Color.Warning"
+                               ThumbIcon="@(editingShopItem.IsAdminOnly ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.Store)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, item will not appear in player shop and can only be given by admins</MudText>
+                </MudStack>
+
+                <MudSwitch @bind-Value="editingShopItem.Enabled"
                            Label="Enabled" 
                            Color="Color.Success"
                            ThumbIcon="@(editingShopItem.Enabled ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)" />
@@ -910,6 +1085,60 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="goldConfirmVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Confirm Gold Operation</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Info">
+                Please confirm this gold operation
+            </MudAlert>
+            <MudText Typo="Typo.body1">
+                @goldConfirmMessage
+            </MudText>
+            @if (selectedPlayer != null)
+            {
+                <MudPaper Elevation="2" Class="pa-3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2"><strong>Player:</strong> @selectedPlayer.Username</MudText>
+                        <MudText Typo="Typo.body2"><strong>Current Gold:</strong> @selectedPlayer.TotalGold</MudText>
+                        @if (goldConfirmAction == "set")
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Info"><strong>New Gold:</strong> @goldAmount</MudText>
+                        }
+                        else if (goldConfirmAction == "add")
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Success"><strong>After Operation:</strong> @(selectedPlayer.TotalGold + goldAmount)</MudText>
+                        }
+                        else if (goldConfirmAction == "remove")
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Warning"><strong>After Operation:</strong> @(selectedPlayer.TotalGold - goldAmount)</MudText>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => goldConfirmVisible = false" 
+                   StartIcon="@Icons.Material.Filled.Cancel"
+                   Disabled="isProcessing">
+            Cancel
+        </MudButton>
+        <MudButton Color="@GetGoldConfirmColor()" 
+                   OnClick="ExecuteGoldOperation"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Check"
+                   Disabled="isProcessing">
+            @(isProcessing ? "Processing..." : "Confirm")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
@@ -946,6 +1175,16 @@
     private bool hasMaxUses = false;
     private int maxUsesValue = 10;
 
+    // Player management state
+    private List<FishingGold> allPlayers = new();
+    private FishingGold? selectedPlayer;
+    private int goldAmount = 0;
+    private int? selectedItemToGive;
+    private bool isProcessing = false;
+    private bool goldConfirmVisible = false;
+    private string goldConfirmAction = "";
+    private string goldConfirmMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -955,6 +1194,7 @@
     {
         fishTypes = await fishingService.GetAllFishTypes();
         shopItems = await fishingService.GetAllShopItems();
+        allPlayers = await fishingService.GetAllPlayersWithGold();
         var loadedSettings = await fishingService.GetSettings();
         if (loadedSettings != null)
         {
@@ -1160,7 +1400,8 @@
                 Enabled = item.Enabled,
                 EquipmentSlot = item.EquipmentSlot,
                 MaxUses = item.MaxUses,
-                IsConsumable = item.IsConsumable
+                IsConsumable = item.IsConsumable,
+                IsAdminOnly = item.IsAdminOnly
             };
         hasMaxUses = item.MaxUses.HasValue;
         maxUsesValue = item.MaxUses ?? 10;
@@ -1362,6 +1603,119 @@
         finally
         {
             isSimulating = false;
+        }
+    }
+
+    private async Task<IEnumerable<FishingGold>> SearchPlayers(string searchString, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return allPlayers;
+
+        return allPlayers.Where(p => 
+            p.Username.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+            p.UserId.Contains(searchString, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task AddGoldToPlayer()
+    {
+        if (selectedPlayer == null || goldAmount <= 0) return;
+
+        goldConfirmAction = "add";
+        goldConfirmMessage = $"Are you sure you want to add {goldAmount} gold to {selectedPlayer.Username}?";
+        goldConfirmVisible = true;
+    }
+
+    private async Task RemoveGoldFromPlayer()
+    {
+        if (selectedPlayer == null || goldAmount <= 0) return;
+
+        if (selectedPlayer.TotalGold < goldAmount)
+        {
+            Snackbar.Add($"Player only has {selectedPlayer.TotalGold} gold", Severity.Warning);
+            return;
+        }
+
+        goldConfirmAction = "remove";
+        goldConfirmMessage = $"Are you sure you want to remove {goldAmount} gold from {selectedPlayer.Username}?";
+        goldConfirmVisible = true;
+    }
+
+    private async Task SetPlayerGold()
+    {
+        if (selectedPlayer == null || goldAmount < 0) return;
+
+        goldConfirmAction = "set";
+        goldConfirmMessage = $"Are you sure you want to set {selectedPlayer.Username}'s gold to {goldAmount}?";
+        goldConfirmVisible = true;
+    }
+
+    private async Task ExecuteGoldOperation()
+    {
+        if (selectedPlayer == null || isProcessing) return;
+
+        isProcessing = true;
+        try
+        {
+            switch (goldConfirmAction)
+            {
+                case "add":
+                    await fishingService.AddGoldToUser(selectedPlayer.UserId, selectedPlayer.Username, goldAmount);
+                    selectedPlayer.TotalGold += goldAmount;
+                    Snackbar.Add($"Added {goldAmount} gold to {selectedPlayer.Username}", Severity.Success);
+                    break;
+
+                case "remove":
+                    await fishingService.RemoveGoldFromUser(selectedPlayer.UserId, goldAmount);
+                    selectedPlayer.TotalGold -= goldAmount;
+                    Snackbar.Add($"Removed {goldAmount} gold from {selectedPlayer.Username}", Severity.Success);
+                    break;
+
+                case "set":
+                    await fishingService.SetUserGold(selectedPlayer.UserId, selectedPlayer.Username, goldAmount);
+                    selectedPlayer.TotalGold = goldAmount;
+                    Snackbar.Add($"Set {selectedPlayer.Username}'s gold to {goldAmount}", Severity.Success);
+                    break;
+            }
+
+            goldConfirmVisible = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error processing gold operation: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private Color GetGoldConfirmColor() => goldConfirmAction switch
+    {
+        "add" => Color.Success,
+        "remove" => Color.Warning,
+        "set" => Color.Info,
+        _ => Color.Primary
+    };
+
+    private async Task GiveItemToPlayer()
+    {
+        if (selectedPlayer == null || !selectedItemToGive.HasValue || isProcessing) return;
+
+        isProcessing = true;
+        try
+        {
+            await fishingService.GiveItemToUser(selectedPlayer.UserId, selectedItemToGive.Value);
+            var item = shopItems.FirstOrDefault(i => i.Id == selectedItemToGive.Value);
+            Snackbar.Add($"Gave {item?.Name ?? "item"} to {selectedPlayer.Username}", Severity.Success);
+            selectedItemToGive = null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error giving item: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
         }
     }
 }

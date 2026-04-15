@@ -22,6 +22,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<FishingGold?> GetUserGold(string userId);
         Task AddGoldToUser(string userId, string username, int amount);
         Task RemoveGoldFromUser(string userId, int amount);
+        Task SetUserGold(string userId, string username, int amount);
+        Task<List<FishingGold>> GetAllPlayersWithGold();
 
         Task<List<FishingShopItem>> GetAllShopItems();
         Task<FishingShopItem?> GetShopItemById(int id);
@@ -33,6 +35,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<List<UserFishingBoost>> GetUserEquippedItems(string userId);
         Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId);
         Task PurchaseBoost(string userId, int shopItemId);
+        Task GiveItemToUser(string userId, int shopItemId);
         Task EquipItem(string userId, int userBoostId);
         Task UnequipItem(string userId, int userBoostId);
         Task ConsumeItemUse(string userId, int userBoostId);
