@@ -149,7 +149,13 @@
                     @if (equippedBySlot.Any())
                     {
                         <div class="mt-4">
-                            <CurrentProbabilitiesDisplay EquippedItemIds="@equippedBySlot.Values.Select(e => e.ShopItemId).ToList()" />
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Info" 
+                                       StartIcon="@Icons.Material.Filled.Analytics"
+                                       OnClick="ShowCatchRatesDialog"
+                                       FullWidth="true">
+                                View Current Catch Rates
+                            </MudButton>
                         </div>
                     }
                 </MudPaper>
@@ -409,6 +415,27 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="catchRatesDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true }">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Analytics" Color="Color.Info" />
+            <MudText Typo="Typo.h6">Your Current Catch Rates</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (catchRatesDialogVisible)
+        {
+            <CurrentProbabilitiesDisplay EquippedItemIds="@equippedBySlot.Values.Select(e => e.ShopItemId).ToList()" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => catchRatesDialogVisible = false)" 
+                   StartIcon="@Icons.Material.Filled.Close">
+            Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
@@ -450,6 +477,7 @@
     private bool equipDialogVisible = false;
     private EquipmentSlot selectedSlot;
     private List<UserFishingBoost> availableItemsForSlot = new();
+    private bool catchRatesDialogVisible = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -624,5 +652,10 @@
         if (item.RemainingUses < 0) return 100;
         var maxUses = item.ShopItem?.MaxUses ?? 1;
         return ((double)item.RemainingUses / maxUses) * 100;
+    }
+
+    private void ShowCatchRatesDialog()
+    {
+        catchRatesDialogVisible = true;
     }
 }

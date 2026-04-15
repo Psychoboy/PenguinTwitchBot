@@ -3,8 +3,11 @@
 @using DotNetTwitchBot.Bot.Models.Fishing
 @using DotNetTwitchBot.Helpers
 @using DotNetTwitchBot.Models
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Fishing Leaderboard</PageTitle>
 
@@ -348,6 +351,122 @@
                         }
                     </MudTabPanel>
 
+                    <MudTabPanel Text="Recent Catches" Icon="@Icons.Material.Filled.History">
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudSwitch Value="@showPersonalCatches" 
+                                           ValueChanged="@(async (bool value) => await OnShowPersonalCatchesChanged(value))"
+                                           Label="@(showPersonalCatches ? "My Recent Catches" : "Global Recent Catches")" 
+                                           Color="Color.Primary"
+                                           ThumbIcon="@(showPersonalCatches ? Icons.Material.Filled.Person : Icons.Material.Filled.Public)" />
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary" 
+                                           StartIcon="@Icons.Material.Filled.Refresh"
+                                           OnClick="RefreshRecentCatches"
+                                           Disabled="@isLoadingRecentCatches"
+                                           Size="Size.Small">
+                                    @if (isLoadingRecentCatches)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <text>Loading...</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Refresh</text>
+                                    }
+                                </MudButton>
+                            </MudStack>
+                            @if (isLoadingRecentCatches)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                                    <MudText Typo="Typo.body1" Color="Color.Secondary">Loading recent catches...</MudText>
+                                </MudStack>
+                            }
+                            else if (recentCatches.Any())
+                            {
+                                <MudTable Items="@recentCatches" Hover="true" Striped="true" Dense="true" Elevation="4">
+                                    <ToolBarContent>
+                                        <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Success" Class="mr-2" />
+                                        <MudText Typo="Typo.h6">@(showPersonalCatches ? $"Your Last {recentCatches.Count} Catches" : $"Last {recentCatches.Count} Catches")</MudText>
+                                    </ToolBarContent>
+                                    <HeaderContent>
+                                        <MudTh>Player</MudTh>
+                                        <MudTh>Image</MudTh>
+                                        <MudTh>Fish</MudTh>
+                                        <MudTh>Rarity</MudTh>
+                                        <MudTh>Stars</MudTh>
+                                        <MudTh>Weight</MudTh>
+                                        <MudTh>Gold Earned</MudTh>
+                                        <MudTh>Caught At</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="fishCatch">
+                                        <MudTd DataLabel="Player">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                                <MudText><strong>@fishCatch.Username</strong></MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Image">
+                                            @if (!string.IsNullOrEmpty(fishCatch.FishType?.ImageFileName))
+                                            {
+                                                <MudImage Src="@FishImageHelper.GetImagePath(fishCatch.FishType.ImageFileName, ImageSize.Thumbnail)" 
+                                                          Alt="@fishCatch.FishType.Name" 
+                                                          Width="50"
+                                                          Height="50"
+                                                          ObjectFit="ObjectFit.Contain"
+                                                          Elevation="2"
+                                                          Class="rounded" />
+                                            }
+                                            else
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Medium" Color="Color.Default" Style="opacity: 0.3;" />
+                                            }
+                                        </MudTd>
+                                        <MudTd DataLabel="Fish">
+                                            <MudText>@fishCatch.FishType?.Name</MudText>
+                                        </MudTd>
+                                        <MudTd DataLabel="Rarity">
+                                            <MudChip T="string" 
+                                                     Color="GetRarityColor(fishCatch.FishType?.Rarity ?? FishRarity.Common)" 
+                                                     Size="Size.Small">
+                                                @fishCatch.FishType?.Rarity
+                                            </MudChip>
+                                        </MudTd>
+                                        <MudTd DataLabel="Stars">
+                                            @for (int i = 0; i < fishCatch.Stars; i++)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                            }
+                                        </MudTd>
+                                        <MudTd DataLabel="Weight">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Info" />
+                                                <MudText>@fishCatch.Weight kg</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Gold Earned">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
+                                                <MudText>@fishCatch.GoldEarned</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd DataLabel="Caught At">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Color="Color.Default" />
+                                                <MudText>@fishCatch.CaughtAt.ToLocalTime().ToString("g")</MudText>
+                                            </MudStack>
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">@(showPersonalCatches ? "You haven't caught any fish yet. Go fishing!" : "No catches found yet. Start fishing!")</MudAlert>
+                            }
+                        </MudStack>
+                    </MudTabPanel>
+
                     <AuthorizeView>
                         <Authorized>
                             <MudTabPanel Text="Dex" Icon="@Icons.Material.Filled.MenuBook">
@@ -549,13 +668,21 @@
     // New leaderboards
     private List<LeaderPosition> goldLeaderboard = new();
     private List<FishCatch> valuableCatchesLeaderboard = new();
+    private List<FishCatch> recentCatches = new();
+    private bool showPersonalCatches = false;
 
     // Loading states
     private bool isLoadingFishLeaderboard = false;
     private bool isLoadingGoldLeaderboard = false;
     private bool isLoadingValuableCatches = false;
     private bool isLoadingDex = false;
+    private bool isLoadingRecentCatches = false;
     private bool isInitialLoading = true;
+
+    // SignalR connection
+    private IJSObjectReference? signalRModule;
+    private DotNetObjectReference<FishingLeaderboard>? dotNetReference;
+    private bool _hasSetupSignalR = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -574,6 +701,7 @@
             // Load new leaderboards
             await LoadGoldLeaderboard();
             await LoadValuableCatchesLeaderboard();
+            await LoadRecentCatches();
 
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity?.IsAuthenticated == true)
@@ -591,6 +719,15 @@
         finally
         {
             isInitialLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasSetupSignalR)
+        {
+            await SetupSignalR();
+            _hasSetupSignalR = true;
         }
     }
 
@@ -669,6 +806,7 @@
         isLoadingFishLeaderboard = true;
         isLoadingGoldLeaderboard = true;
         isLoadingValuableCatches = true;
+        isLoadingRecentCatches = true;
         if (!string.IsNullOrEmpty(currentUserId))
         {
             isLoadingDex = true;
@@ -685,7 +823,8 @@
             {
                 LoadLeaderboard(),
                 LoadGoldLeaderboard(),
-                LoadValuableCatchesLeaderboard()
+                LoadValuableCatchesLeaderboard(),
+                LoadRecentCatches()
             };
 
             if (!string.IsNullOrEmpty(currentUserId))
@@ -702,6 +841,7 @@
             isLoadingGoldLeaderboard = false;
             isLoadingValuableCatches = false;
             isLoadingDex = false;
+            isLoadingRecentCatches = false;
             throw;
         }
     }
@@ -746,6 +886,103 @@
         {
             isLoadingValuableCatches = false;
         }
+    }
+
+    private async Task LoadRecentCatches()
+    {
+        isLoadingRecentCatches = true;
+        try
+        {
+            if (showPersonalCatches && !string.IsNullOrEmpty(currentUserId))
+            {
+                recentCatches = await fishingService.GetUserRecentCatches(currentUserId, 50);
+            }
+            else
+            {
+                recentCatches = await fishingService.GetRecentCatches(50);
+            }
+        }
+        finally
+        {
+            isLoadingRecentCatches = false;
+        }
+    }
+
+    private async Task RefreshRecentCatches()
+    {
+        await LoadRecentCatches();
+    }
+
+    private async Task OnShowPersonalCatchesChanged(bool value)
+    {
+        showPersonalCatches = value;
+        await LoadRecentCatches();
+    }
+
+    private async Task SetupSignalR()
+    {
+        try
+        {
+            dotNetReference = DotNetObjectReference.Create(this);
+            signalRModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fishingSignalR.js");
+            await signalRModule.InvokeVoidAsync("setupFishingConnection", dotNetReference);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail if SignalR setup fails
+            Console.WriteLine($"Failed to setup SignalR: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnFishCaught(string userId, string username, string fishName, string fishRarity, string fishImageFileName, int stars, double weight, int goldEarned)
+    {
+        // Determine if we should add this catch to our recent list
+        bool shouldAdd = !showPersonalCatches || (showPersonalCatches && userId == currentUserId);
+
+        if (shouldAdd)
+        {
+            // Update in-memory list for better performance
+            var newCatch = new FishCatch
+            {
+                UserId = userId,
+                Username = username,
+                Stars = stars,
+                Weight = weight,
+                GoldEarned = goldEarned,
+                CaughtAt = DateTime.UtcNow,
+                FishType = new FishType 
+                { 
+                    Name = fishName,
+                    Rarity = Enum.TryParse<FishRarity>(fishRarity, out var rarity) ? rarity : FishRarity.Common,
+                    ImageFileName = fishImageFileName
+                }
+            };
+
+            // Insert at top, trim to 50 items
+            recentCatches.Insert(0, newCatch);
+            if (recentCatches.Count > 50)
+            {
+                recentCatches.RemoveAt(50);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (signalRModule != null)
+        {
+            try
+            {
+                await signalRModule.InvokeVoidAsync("disconnectFishing");
+                await signalRModule.DisposeAsync();
+            }
+            catch { /* Ignore disposal errors */ }
+        }
+
+        dotNetReference?.Dispose();
     }
 
     private RenderFragment RenderRankBadge(int rank) => __builder =>

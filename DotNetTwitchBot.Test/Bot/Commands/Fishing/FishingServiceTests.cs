@@ -1,6 +1,8 @@
 using DotNetTwitchBot.Bot.Commands.Fishing;
 using DotNetTwitchBot.Bot.Core.Database;
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Bot.Models.Fishing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,7 +34,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context = _serviceProvider.GetRequiredService<ApplicationDbContext>();
 
             var logger = Substitute.For<ILogger<FishingService>>();
-            _fishingService = new FishingService(_scopeFactory, logger);
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            _fishingService = new FishingService(_scopeFactory, logger, hubContext);
         }
 
         public void Dispose()

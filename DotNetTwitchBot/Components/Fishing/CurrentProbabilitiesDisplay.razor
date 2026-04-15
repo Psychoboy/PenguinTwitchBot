@@ -114,9 +114,15 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Reload if equipped items change
-        await LoadProbabilities();
+        // Only reload if equipped items actually changed
+        if (EquippedItemIds != null && !EquippedItemIds.SequenceEqual(_previousEquippedItemIds ?? new List<int>()))
+        {
+            _previousEquippedItemIds = EquippedItemIds.ToList();
+            await LoadProbabilities();
+        }
     }
+
+    private List<int>? _previousEquippedItemIds = null;
 
     private async Task LoadProbabilities()
     {

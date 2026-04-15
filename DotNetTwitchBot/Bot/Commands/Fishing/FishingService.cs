@@ -1,7 +1,9 @@
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Models.Fishing;
+using DotNetTwitchBot.Bot.Hubs;
 using DotNetTwitchBot.Extensions;
 using DotNetTwitchBot.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -11,11 +13,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingService> _logger;
+        private readonly IHubContext<MainHub> _hubContext;
 
-        public FishingService(IServiceScopeFactory scopeFactory, ILogger<FishingService> logger)
+        public FishingService(IServiceScopeFactory scopeFactory, ILogger<FishingService> logger, IHubContext<MainHub> hubContext)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         public async Task<List<FishType>> GetAllFishTypes()
@@ -185,6 +189,33 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
         }
 
+        public async Task SetUserGold(string userId, string username, int amount)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            if (gold == null)
+            {
+                gold = new FishingGold { UserId = userId, Username = username, TotalGold = amount };
+                context.FishingGolds.Add(gold);
+            }
+            else
+            {
+                gold.TotalGold = amount;
+                gold.Username = username;
+            }
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<List<FishingGold>> GetAllPlayersWithGold()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return await context.FishingGolds
+                .OrderBy(g => g.Username)
+                .ToListAsync();
+        }
+
         public async Task<List<FishingShopItem>> GetAllShopItems()
         {
             using var scope = _scopeFactory.CreateScope();
@@ -273,9 +304,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
-            if (shopItem == null || !shopItem.Enabled)
+            if (shopItem == null || !shopItem.Enabled || shopItem.IsAdminOnly)
             {
-                throw new InvalidOperationException("Shop item not found or disabled");
+                throw new InvalidOperationException("Shop item not found, disabled, or not available for purchase");
             }
 
             var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
@@ -285,6 +316,29 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             gold.TotalGold -= shopItem.Cost;
+
+            var userBoost = new UserFishingBoost
+            {
+                UserId = userId,
+                ShopItemId = shopItemId,
+                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+            };
+
+            context.UserFishingBoosts.Add(userBoost);
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task GiveItemToUser(string userId, int shopItemId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
+            if (shopItem == null)
+            {
+                throw new InvalidOperationException("Shop item not found");
+            }
 
             var userBoost = new UserFishingBoost
             {
@@ -467,6 +521,30 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             foreach (var boost in userBoosts)
             {
                 await ConsumeItemUse(userId, boost.Id);
+            }
+
+            // Broadcast the new catch to all connected clients via SignalR
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                {
+                    fishCatch.Id,
+                    fishCatch.UserId,
+                    fishCatch.Username,
+                    fishCatch.FishTypeId,
+                    FishName = fishType.Name,
+                    FishRarity = fishType.Rarity.ToString(),
+                    FishImageFileName = fishType.ImageFileName,
+                    fishCatch.Stars,
+                    fishCatch.Weight,
+                    fishCatch.GoldEarned,
+                    fishCatch.CaughtAt
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail the fishing attempt if SignalR broadcast fails
+                _logger.LogError(ex, "Failed to broadcast fish catch via SignalR");
             }
 
             return fishCatch;
@@ -1139,6 +1217,37 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .ToListAsync();
 
             return topCatches;
+        }
+
+        public async Task<List<FishCatch>> GetRecentCatches(int count = 50)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get most recent catches globally
+            var recentCatches = await context.FishCatches
+                .Include(c => c.FishType)
+                .OrderByDescending(c => c.CaughtAt)
+                .Take(count)
+                .ToListAsync();
+
+            return recentCatches;
+        }
+
+        public async Task<List<FishCatch>> GetUserRecentCatches(string userId, int count = 50)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get most recent catches for specific user
+            var userCatches = await context.FishCatches
+                .Include(c => c.FishType)
+                .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.CaughtAt)
+                .Take(count)
+                .ToListAsync();
+
+            return userCatches;
         }
 
         public async Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds)
