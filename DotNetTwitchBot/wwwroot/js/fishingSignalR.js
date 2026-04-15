@@ -15,7 +15,7 @@ export async function setupFishingConnection(dotNetReference) {
         // Subscribe to fish catch events
         fishingConnection.on("ReceiveFishCatch", (catchData) => {
             console.log("New fish caught:", catchData);
-            
+
             // Notify the Blazor component
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync(
@@ -24,6 +24,7 @@ export async function setupFishingConnection(dotNetReference) {
                     catchData.username,
                     catchData.fishName,
                     catchData.fishRarity,
+                    catchData.fishImageFileName,
                     catchData.stars,
                     catchData.weight,
                     catchData.goldEarned

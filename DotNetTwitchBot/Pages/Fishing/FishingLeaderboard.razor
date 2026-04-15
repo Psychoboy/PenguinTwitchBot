@@ -935,7 +935,7 @@
     }
 
     [JSInvokable]
-    public async Task OnFishCaught(string userId, string username, string fishName, string fishRarity, int stars, double weight, int goldEarned)
+    public async Task OnFishCaught(string userId, string username, string fishName, string fishRarity, string fishImageFileName, int stars, double weight, int goldEarned)
     {
         // Determine if we should add this catch to our recent list
         bool shouldAdd = !showPersonalCatches || (showPersonalCatches && userId == currentUserId);
@@ -954,7 +954,8 @@
                 FishType = new FishType 
                 { 
                     Name = fishName,
-                    Rarity = Enum.TryParse<FishRarity>(fishRarity, out var rarity) ? rarity : FishRarity.Common
+                    Rarity = Enum.TryParse<FishRarity>(fishRarity, out var rarity) ? rarity : FishRarity.Common,
+                    ImageFileName = fishImageFileName
                 }
             };
 
