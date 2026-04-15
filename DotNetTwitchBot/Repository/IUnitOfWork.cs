@@ -57,5 +57,13 @@
         ISubActionsRepository SubActions { get; }
         ITriggersRepository Triggers { get; }
         IQueueConfigurationsRepository QueueConfigurations { get; }
+
+        // Fishing repositories
+        IFishingRepository FishTypes { get; }
+        IFishCatchRepository FishCatches { get; }
+        IFishingGoldRepository FishingGolds { get; }
+        IFishingShopItemRepository FishingShopItems { get; }
+        IUserFishingBoostRepository UserFishingBoosts { get; }
+        IFishingSettingsRepository FishingSettings { get; }
     }
 }
