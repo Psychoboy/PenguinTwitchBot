@@ -60,6 +60,14 @@ namespace DotNetTwitchBot.Repository
             SubActions = new SubActionsRepository(_context);
             Triggers = new TriggersRepository(_context);
             QueueConfigurations = new QueueConfigurationsRepository(_context);
+
+            // Initialize fishing repositories
+            FishTypes = new FishingRepository(_context);
+            FishCatches = new FishCatchRepository(_context);
+            FishingGolds = new FishingGoldRepository(_context);
+            FishingShopItems = new FishingShopItemRepository(_context);
+            UserFishingBoosts = new UserFishingBoostRepository(_context);
+            FishingSettings = new FishingSettingsRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -113,6 +121,14 @@ namespace DotNetTwitchBot.Repository
         public ISubActionsRepository SubActions { get; private set; }
         public ITriggersRepository Triggers { get; private set; }
         public IQueueConfigurationsRepository QueueConfigurations { get; private set; }
+
+        // Fishing repository properties
+        public IFishingRepository FishTypes { get; private set; }
+        public IFishCatchRepository FishCatches { get; private set; }
+        public IFishingGoldRepository FishingGolds { get; private set; }
+        public IFishingShopItemRepository FishingShopItems { get; private set; }
+        public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
+        public IFishingSettingsRepository FishingSettings { get; private set; }
 
         public void Dispose()
         {

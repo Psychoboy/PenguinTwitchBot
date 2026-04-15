@@ -104,6 +104,9 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
         {
             logger?.LogInformation("Restoring database");
 
+            // Reset fishing deletion flag at the start of restore
+            Repository.Repositories.FishingRepository.ResetDeletionFlag();
+
             // Get all handler types
             var allHandlers = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
@@ -116,7 +119,15 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
                 { "ActionsRepository", 1 },        // First (includes SubActions and Triggers)
                 { "SubActionsRepository", 999 },   // Skip (no-op)
                 { "TriggersRepository", 999 },     // Skip (no-op)
-                { "ActionTriggersRepository", 999 } // Skip (no-op, deprecated)
+                { "ActionTriggersRepository", 999 }, // Skip (no-op, deprecated)
+
+                // Fishing system - must restore in dependency order
+                { "FishingRepository", 10 },       // FishType first (master table)
+                { "FishingShopItemRepository", 11 }, // FishingShopItem second (references FishType)
+                { "FishCatchRepository", 12 },     // FishCatch (depends on FishType)
+                { "UserFishingBoostRepository", 13 }, // UserFishingBoost (depends on FishingShopItem)
+                { "FishingGoldRepository", 14 },   // FishingGold (no dependencies)
+                { "FishingSettingsRepository", 15 } // FishingSettings (no dependencies)
             };
 
             // Sort handlers by priority
