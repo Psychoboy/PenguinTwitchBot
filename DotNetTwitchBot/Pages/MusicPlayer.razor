@@ -323,100 +323,18 @@
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.Reconnecting += error =>
+        try
         {
-            logger.LogWarning(error, "SignalR connection lost, attempting to reconnect...");
-            return Task.CompletedTask;
-        };
-
-        hubConnection.Reconnected += connectionId =>
+            await hubConnection.StartAsync(_hubConnectionCts.Token);
+        }
+        catch (OperationCanceledException)
         {
-            logger.LogInformation("SignalR reconnected successfully");
-            return Task.CompletedTask;
-        };
-
-        hubConnection.Closed += async error =>
+            // Expected during disposal
+        }
+        catch (Exception ex)
         {
-            if (error != null)
-            {
-                logger.LogError(error, "SignalR connection closed with error");
-            }
-            if (hubConnection.State == HubConnectionState.Disconnected && _hubConnectionCts != null && !_hubConnectionCts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(5), _hubConnectionCts.Token);
-                    await hubConnection.StartAsync(_hubConnectionCts.Token);
-                    logger.LogDebug("SignalR connection re-established after initial failure");
-                }
-                catch (OperationCanceledException)
-                {
-                    // Disposal requested - this is expected
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Component disposed during reconnection attempt - this is expected
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to re-establish SignalR connection");
-                }
-            }
-        };
-
-        var retryDelays = new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) };
-        var attempt = 0;
-        var connected = false;
-
-        while (!connected && attempt < retryDelays.Length)
-        {
-            try
-            {
-                if (attempt > 0)
-                {
-                    await Task.Delay(retryDelays[attempt]);
-                }
-                await hubConnection.StartAsync();
-                connected = true;
-            }
-            catch (Microsoft.AspNetCore.Http.Connections.Client.TransportFailedException ex)
-            {
-                attempt++;
-                if (attempt < retryDelays.Length)
-                {
-                    logger.LogDebug(ex, "SignalR initial connection attempt {Attempt} failed, retrying...", attempt);
-                }
-                else
-                {
-                    logger.LogWarning(ex, "SignalR initial connection failed after {Attempts} attempts", attempt);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                attempt++;
-                if (attempt < retryDelays.Length)
-                {
-                    logger.LogDebug("SignalR connection attempt {Attempt} cancelled, retrying...", attempt);
-                }
-                else
-                {
-                    Snackbar.Add("Connection attempt cancelled. Page may need refresh.", Severity.Warning);
-                    logger.LogWarning("SignalR connection cancelled after {Attempts} attempts", attempt);
-                }
-            }
-            catch (Exception ex)
-            {
-                attempt++;
-                if (attempt < retryDelays.Length)
-                {
-                    logger.LogDebug(ex, "SignalR connection attempt {Attempt} failed, retrying...", attempt);
-                }
-                else
-                {
-                    Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-                    logger.LogWarning(ex, "Failed to connect to hub after {Attempts} attempts", attempt);
-                }
-            }
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
         }
     }
 
