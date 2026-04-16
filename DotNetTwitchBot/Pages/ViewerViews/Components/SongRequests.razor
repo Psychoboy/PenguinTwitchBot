@@ -127,11 +127,17 @@
         {
             try
             {
+                // Stop the connection gracefully before disposing
+                if (hubConnection.State == HubConnectionState.Connected)
+                {
+                    await hubConnection.StopAsync();
+                }
                 await hubConnection.DisposeAsync();
             }
             catch (Exception ex)
             {
-                //Just consume any exceptions that occur during dispose, we don't care about them and don't want to crash the app over them
+                // Log but don't throw - disposal should be silent to user
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
             }
         }
     }

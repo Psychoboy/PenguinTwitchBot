@@ -374,7 +374,7 @@
             {
                 await hubConnection.DisposeAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //Just consume any exceptions that occur during dispose, we don't care about them and don't want to crash the app over them
             }
