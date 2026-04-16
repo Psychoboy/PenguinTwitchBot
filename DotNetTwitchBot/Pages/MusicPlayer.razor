@@ -236,6 +236,7 @@
     private Song? currentSong;
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     private string? addSongUrl;
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
@@ -291,8 +292,18 @@
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
-        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
-        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+        _hubConnectionCts = new CancellationTokenSource();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
 
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
         {
@@ -311,19 +322,101 @@
             songRequests = playlist;
             InvokeAsync(StateHasChanged);
         });
-        try
+
+        hubConnection.Reconnecting += error =>
         {
-            await hubConnection.StartAsync();
-        }
-        catch (TaskCanceledException)
+            logger.LogWarning(error, "SignalR connection lost, attempting to reconnect...");
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnected += connectionId =>
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
-        }
-        catch (Exception ex)
+            logger.LogInformation("SignalR reconnected successfully");
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Closed += async error =>
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning(ex, "Failed to connect to hub");
+            if (error != null)
+            {
+                logger.LogError(error, "SignalR connection closed with error");
+            }
+            if (hubConnection.State == HubConnectionState.Disconnected && _hubConnectionCts != null && !_hubConnectionCts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), _hubConnectionCts.Token);
+                    await hubConnection.StartAsync(_hubConnectionCts.Token);
+                    logger.LogDebug("SignalR connection re-established after initial failure");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Disposal requested - this is expected
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Component disposed during reconnection attempt - this is expected
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to re-establish SignalR connection");
+                }
+            }
+        };
+
+        var retryDelays = new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) };
+        var attempt = 0;
+        var connected = false;
+
+        while (!connected && attempt < retryDelays.Length)
+        {
+            try
+            {
+                if (attempt > 0)
+                {
+                    await Task.Delay(retryDelays[attempt]);
+                }
+                await hubConnection.StartAsync();
+                connected = true;
+            }
+            catch (Microsoft.AspNetCore.Http.Connections.Client.TransportFailedException ex)
+            {
+                attempt++;
+                if (attempt < retryDelays.Length)
+                {
+                    logger.LogDebug(ex, "SignalR initial connection attempt {Attempt} failed, retrying...", attempt);
+                }
+                else
+                {
+                    logger.LogWarning(ex, "SignalR initial connection failed after {Attempts} attempts", attempt);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                attempt++;
+                if (attempt < retryDelays.Length)
+                {
+                    logger.LogDebug("SignalR connection attempt {Attempt} cancelled, retrying...", attempt);
+                }
+                else
+                {
+                    Snackbar.Add("Connection attempt cancelled. Page may need refresh.", Severity.Warning);
+                    logger.LogWarning("SignalR connection cancelled after {Attempts} attempts", attempt);
+                }
+            }
+            catch (Exception ex)
+            {
+                attempt++;
+                if (attempt < retryDelays.Length)
+                {
+                    logger.LogDebug(ex, "SignalR connection attempt {Attempt} failed, retrying...", attempt);
+                }
+                else
+                {
+                    Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
+                    logger.LogWarning(ex, "Failed to connect to hub after {Attempts} attempts", attempt);
+                }
+            }
         }
     }
 
@@ -368,16 +461,24 @@
     }
     public async ValueTask DisposeAsync()
     {
+        _hubConnectionCts?.Cancel();
+
         if (hubConnection is not null)
         {
             try
             {
+                if (hubConnection.State == HubConnectionState.Connected)
+                {
+                    await hubConnection.StopAsync();
+                }
                 await hubConnection.DisposeAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //Just consume any exceptions that occur during dispose, we don't care about them and don't want to crash the app over them
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
             }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 }

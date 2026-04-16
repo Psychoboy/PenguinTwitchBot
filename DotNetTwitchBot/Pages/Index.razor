@@ -54,6 +54,7 @@
 @code {
     private List<Song> songRequests = new();
     private HubConnection? ythub;
+    private CancellationTokenSource? _hubConnectionCts;
     private List<Bot.Models.Metrics.SongRequestHistoryWithRank> topSongRequests = new();
     protected override async Task OnInitializedAsync()
     {
@@ -64,6 +65,8 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
+
+        _hubConnectionCts = new CancellationTokenSource();
 
         // Configure SignalR with automatic reconnect and retry policy
         ythub = new HubConnectionBuilder()
@@ -104,14 +107,18 @@
             {
                 logger.LogError(error, "SignalR connection closed with error");
             }
-            // If initial connection never succeeded, attempt to reconnect
-            if (ythub.State == HubConnectionState.Disconnected)
+            // If initial connection never succeeded, attempt to reconnect (unless we're disposing)
+            if (ythub.State == HubConnectionState.Disconnected && _hubConnectionCts != null && !_hubConnectionCts.Token.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(5));
                 try
                 {
-                    await ythub.StartAsync();
+                    await Task.Delay(TimeSpan.FromSeconds(5), _hubConnectionCts.Token);
+                    await ythub.StartAsync(_hubConnectionCts.Token);
                     logger.LogDebug("SignalR connection re-established after initial failure");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Disposal requested - this is expected
                 }
                 catch (ObjectDisposedException)
                 {
@@ -192,6 +199,9 @@
 
     public async ValueTask DisposeAsync()
     {
+        // Cancel any pending reconnection attempts
+        _hubConnectionCts?.Cancel();
+
         if (ythub is not null)
         {
             try
@@ -209,6 +219,8 @@
                 logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
             }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 
     private string GetYoutubeLink(string songId)

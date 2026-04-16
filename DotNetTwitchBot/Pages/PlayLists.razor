@@ -220,6 +220,7 @@
     private Song? currentSong;
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -232,6 +233,8 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
+
+        _hubConnectionCts = new CancellationTokenSource();
 
         // Configure SignalR with automatic reconnect and retry policy
         hubConnection = new HubConnectionBuilder()
@@ -283,14 +286,18 @@
             {
                 logger.LogError(error, "SignalR connection closed with error");
             }
-            // If initial connection never succeeded, attempt to reconnect
-            if (hubConnection.State == HubConnectionState.Disconnected)
+            // If initial connection never succeeded, attempt to reconnect (unless we're disposing)
+            if (hubConnection.State == HubConnectionState.Disconnected && _hubConnectionCts != null && !_hubConnectionCts.Token.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(5));
                 try
                 {
-                    await hubConnection.StartAsync();
+                    await Task.Delay(TimeSpan.FromSeconds(5), _hubConnectionCts.Token);
+                    await hubConnection.StartAsync(_hubConnectionCts.Token);
                     logger.LogDebug("SignalR connection re-established after initial failure");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Disposal requested - this is expected
                 }
                 catch (ObjectDisposedException)
                 {
@@ -409,6 +416,9 @@
     }
     public async ValueTask DisposeAsync()
     {
+        // Cancel any pending reconnection attempts
+        _hubConnectionCts?.Cancel();
+
         if (hubConnection is not null)
         {
             try
@@ -426,5 +436,7 @@
                 logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
             }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 }
