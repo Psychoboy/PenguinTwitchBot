@@ -96,6 +96,10 @@
         {
             // Expected during disposal
         }
+        catch (Microsoft.AspNetCore.SignalR.HubException ex) when (ex.Message.Contains("Handshake was canceled"))
+        {
+            // Expected when user navigates away before connection completes
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to establish SignalR connection");
