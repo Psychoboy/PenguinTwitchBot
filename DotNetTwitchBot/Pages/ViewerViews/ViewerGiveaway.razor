@@ -2,6 +2,7 @@
 
 @using System.Security.Claims
 @using DotNetTwitchBot.Pages.ViewerViews.Components
+@using DotNetTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
 @using DotNetTwitchBot.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -449,23 +450,7 @@
             InvokeAsync(StateHasChanged);
         });
 
-        try
-        {
-            await hubConnection.StartAsync(_hubConnectionCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected during disposal
-        }
-        catch (Microsoft.AspNetCore.SignalR.HubException ex) when (ex.Message.Contains("Handshake was canceled"))
-        {
-            // Expected when user navigates away before connection completes
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to establish SignalR connection");
-            Snackbar.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
-        }
+        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
     }
 
     private static MarkupString RenderMultiline(string textWithLineBreaks)
@@ -507,23 +492,7 @@
         // Cancel any pending reconnection attempts
         _hubConnectionCts?.Cancel();
 
-        if (hubConnection is not null)
-        {
-            try
-            {
-                // Stop the connection gracefully before disposing
-                if (hubConnection.State != HubConnectionState.Disconnected)
-                {
-                    await hubConnection.StopAsync();
-                }
-                await hubConnection.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                // Log but don't throw - disposal should be silent to user
-                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
-            }
-        }
+        await hubConnection.DisposeGracefullyAsync(logger);
 
         _hubConnectionCts?.Dispose();
     }

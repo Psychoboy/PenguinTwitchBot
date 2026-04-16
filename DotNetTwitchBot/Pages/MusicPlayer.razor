@@ -1,6 +1,7 @@
 @page "/musicplayer"
 @attribute [Authorize(Roles = "Streamer")]
 @layout NoMenuLayout
+@using DotNetTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
@@ -323,23 +324,7 @@
             InvokeAsync(StateHasChanged);
         });
 
-        try
-        {
-            await hubConnection.StartAsync(_hubConnectionCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected during disposal
-        }
-        catch (Microsoft.AspNetCore.SignalR.HubException ex) when (ex.Message.Contains("Handshake was canceled"))
-        {
-            // Expected when user navigates away before connection completes
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to establish SignalR connection");
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-        }
+        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
     }
 
     private async Task StartPlaylist(MusicPlaylist musicPlaylist)
@@ -385,21 +370,7 @@
     {
         _hubConnectionCts?.Cancel();
 
-        if (hubConnection is not null)
-        {
-            try
-            {
-                if (hubConnection.State != HubConnectionState.Disconnected)
-                {
-                    await hubConnection.StopAsync();
-                }
-                await hubConnection.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
-            }
-        }
+        await hubConnection.DisposeGracefullyAsync(logger);
 
         _hubConnectionCts?.Dispose();
     }
