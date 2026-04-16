@@ -107,7 +107,14 @@
     {
         if (hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            try
+            {
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                //Just consume any exceptions that occur during dispose, we don't care about them and don't want to crash the app over them
+            }
         }
     }
 }

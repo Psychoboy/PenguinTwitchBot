@@ -102,7 +102,14 @@
     {
         if (ythub is not null)
         {
-            await ythub.DisposeAsync();
+            try
+            {
+                await ythub.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                //Just consume any exceptions that occur during dispose, we don't care about them and don't want to crash the app over them
+            }
         }
     }
 
