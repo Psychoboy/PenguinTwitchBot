@@ -1,4 +1,5 @@
-﻿@using Microsoft.AspNetCore.SignalR.Client
+﻿@using DotNetTwitchBot.Helpers
+@using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 @inject ILogger<LastPlayedSongs> logger
@@ -85,26 +86,7 @@
             InvokeAsync(StateHasChanged);
         });
 
-        try
-        {
-            await hubConnection.StartAsync(_hubConnectionCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected during disposal
-        }
-        catch (Microsoft.AspNetCore.SignalR.HubException ex) when (ex.Message.Contains("Handshake was canceled"))
-        {
-            // Expected when user navigates away before connection completes
-        }
-        catch (System.IO.IOException ex) when (ex.InnerException is System.Net.Sockets.SocketException socketEx && socketEx.ErrorCode == 995)
-        {
-            // SocketException 995: I/O operation aborted due to thread exit or app request
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to establish SignalR connection");
-        }
+        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, cancellationToken: _hubConnectionCts.Token);
 
         StateHasChanged();
     }
@@ -118,21 +100,7 @@
     {
         _hubConnectionCts?.Cancel();
 
-        if (hubConnection is not null)
-        {
-            try
-            {
-                if (hubConnection.State != HubConnectionState.Disconnected)
-                {
-                    await hubConnection.StopAsync();
-                }
-                await hubConnection.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
-            }
-        }
+        await hubConnection.DisposeGracefullyAsync(logger);
 
         _hubConnectionCts?.Dispose();
     }
