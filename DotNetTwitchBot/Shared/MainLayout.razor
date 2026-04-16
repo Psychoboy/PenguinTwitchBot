@@ -50,7 +50,9 @@
                 </div>
                 <div class="rejected failed">
                     <MudSpacer />
-                    <MudAlert Severity="Severity.Warning" NoIcon="true">Reconnect failed. Please refresh.</MudAlert>
+                    <MudAlert Severity="Severity.Warning" NoIcon="true">
+                        Reconnect failed. <a href="javascript:location.reload()" style="color: var(--mud-palette-primary);">Click here to refresh</a>.
+                    </MudAlert>
                 </div>
             </div>
             <MudSpacer />
@@ -196,6 +198,7 @@
     {
         _drawerOpen = !_drawerOpen;
     }
+
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
