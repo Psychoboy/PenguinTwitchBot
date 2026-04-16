@@ -36,12 +36,20 @@
                     </MudStack>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudAlert Severity="Severity.Success" Dense="false">
-                        <MudText Typo="Typo.body2">
-                            <MudIcon Icon="@Icons.Material.Filled.TipsAndUpdates" Size="Size.Small" />
-                            <strong>Pro Tip:</strong> Visit the Shop and Inventory pages on the website to manage your equipment and see detailed statistics!
-                        </MudText>
-                    </MudAlert>
+                    <MudStack Spacing="1">
+                        <MudAlert Severity="Severity.Success" Dense="false">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.TipsAndUpdates" Size="Size.Small" />
+                                <strong>Pro Tip:</strong> Visit the Shop and Inventory pages on the website to manage your equipment and see detailed statistics!
+                            </MudText>
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Success" Dense="false">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.TipsAndUpdates" Size="Size.Small" />
+                                <strong>Hint:</strong> Every fish caught earns pasties! The higher gold, rare, and quality of fish you catch, the more pasties you earn! (Gold is only for fishing)
+                            </MudText>
+                        </MudAlert>
+                    </MudStack>
                 </MudItem>
             </MudGrid>
         </MudPaper>
@@ -150,6 +158,16 @@
                                 <td>Catch heavier fish (more gold!)</td>
                             </tr>
                             <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Star">Lure</MudChip></td>
+                                <td>Rarity or Specific Fish Boost</td>
+                                <td>Increases chance to catch rare fish or specific target fish (can be combined with bait)</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.BugReport">Bait</MudChip></td>
+                                <td>Rarity or Specific Fish Boost</td>
+                                <td>Increases chance to catch rare fish or specific target fish (can be combined with lure)</td>
+                            </tr>
+                            <tr>
                                 <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.SettingsInputComponent">Hook</MudChip></td>
                                 <td>Star Boost</td>
                                 <td>Improved fish quality</td>
@@ -163,6 +181,11 @@
                                 <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.WorkOutline">Tackle Box</MudChip></td>
                                 <td>Dual Boost</td>
                                 <td><strong>Both</strong> rarity and weight boost!</td>
+                            </tr>
+                            <tr>
+                                <td><MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.AutoAwesome">Special</MudChip></td>
+                                <td>Varies</td>
+                                <td>Special items provide unique effects that can greatly enhance your fishing experience (only available during special events)</td>
                             </tr>
                         </tbody>
                     </MudSimpleTable>
