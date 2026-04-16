@@ -114,7 +114,7 @@
         {
             try
             {
-                if (hubConnection.State == HubConnectionState.Connected)
+                if (hubConnection.State != HubConnectionState.Disconnected)
                 {
                     await hubConnection.StopAsync();
                 }

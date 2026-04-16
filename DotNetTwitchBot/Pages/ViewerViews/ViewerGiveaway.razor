@@ -508,7 +508,7 @@
             try
             {
                 // Stop the connection gracefully before disposing
-                if (hubConnection.State == HubConnectionState.Connected)
+                if (hubConnection.State != HubConnectionState.Disconnected)
                 {
                     await hubConnection.StopAsync();
                 }

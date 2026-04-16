@@ -122,7 +122,7 @@
             try
             {
                 // Stop the connection gracefully before disposing
-                if (ythub.State == HubConnectionState.Connected)
+                if (ythub.State != HubConnectionState.Disconnected)
                 {
                     await ythub.StopAsync();
                 }
