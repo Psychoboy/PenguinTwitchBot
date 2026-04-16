@@ -81,6 +81,7 @@
     private string UserId = "";
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
 
@@ -119,8 +120,22 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
-       .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
+
+        _hubConnectionCts = new CancellationTokenSource();
+
+        // Configure SignalR with automatic reconnect and retry policy
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/mainhub"), options =>
+            {
+                // Allow fallback to other transports if WebSockets fail
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false; // Ensure negotiation happens for transport selection
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
+
         hubConnection.On<bool>("StreamChanged", (status) =>
         {
             StreamOnline = status;
@@ -134,20 +149,21 @@
             }
             InvokeAsync(StateHasChanged);
         });
+
         try
         {
-            await hubConnection.StartAsync();
+            await hubConnection.StartAsync(_hubConnectionCts.Token);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
+            // Expected during disposal
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning(ex, "Failed to connect to hub");
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+            Snackbar.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
         }
+
         dataLoaded = true;
         StateHasChanged();
     }
@@ -175,9 +191,28 @@
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
+
+        // Cancel any pending reconnection attempts
+        _hubConnectionCts?.Cancel();
+
         if (hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            try
+            {
+                // Stop the connection gracefully before disposing
+                if (hubConnection.State != HubConnectionState.Disconnected)
+                {
+                    await hubConnection.StopAsync();
+                }
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - disposal should be silent to user
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
+            }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 }

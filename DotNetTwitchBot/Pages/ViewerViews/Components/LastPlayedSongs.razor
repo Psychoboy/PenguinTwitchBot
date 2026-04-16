@@ -1,6 +1,7 @@
 ﻿@using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @inject DotNetTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject ILogger<LastPlayedSongs> logger
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-4" Elevation="3">
@@ -49,6 +50,7 @@
 
 @code {
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     private List<Song> recentlyPlayedSongs = new();
     private bool isLoading = true;
 
@@ -62,9 +64,18 @@
     {
         if (firstRender == false) return;
 
+        _hubConnectionCts = new CancellationTokenSource();
+
+        // Configure SignalR with automatic reconnect and retry policy
         hubConnection = new HubConnectionBuilder()
-            .WithAutomaticReconnect()
-            .WithUrl(Navigation.ToAbsoluteUri("/ythub"))
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
             .Build();
 
         hubConnection.On<List<Song>>("LastPlayedSongs", (songs) =>
@@ -76,14 +87,18 @@
 
         try
         {
-            await hubConnection.StartAsync();
+            await hubConnection.StartAsync(_hubConnectionCts.Token);
         }
-        catch (Exception)
-        { }
-        finally
+        catch (OperationCanceledException)
         {
-            StateHasChanged();
+            // Expected during disposal
         }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+        }
+
+        StateHasChanged();
     }
 
     private string GetYoutubeLink(string songId)
@@ -93,9 +108,24 @@
 
     public async ValueTask DisposeAsync()
     {
+        _hubConnectionCts?.Cancel();
+
         if (hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            try
+            {
+                if (hubConnection.State != HubConnectionState.Disconnected)
+                {
+                    await hubConnection.StopAsync();
+                }
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
+            }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 }

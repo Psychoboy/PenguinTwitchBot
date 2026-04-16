@@ -54,6 +54,7 @@
 @code {
     private List<Song> songRequests = new();
     private HubConnection? ythub;
+    private CancellationTokenSource? _hubConnectionCts;
     private List<Bot.Models.Metrics.SongRequestHistoryWithRank> topSongRequests = new();
     protected override async Task OnInitializedAsync()
     {
@@ -64,8 +65,21 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        ythub = new HubConnectionBuilder().WithAutomaticReconnect()
-        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+
+        _hubConnectionCts = new CancellationTokenSource();
+
+        // Configure SignalR with automatic reconnect and retry policy
+        ythub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                // Allow fallback to other transports if WebSockets fail
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
 
         ythub.On<List<Song>>("CurrentSongRequests", async (playlist) =>
         {
@@ -73,19 +87,19 @@
             UpdateSongList(playlist);
             await InvokeAsync(StateHasChanged);
         });
+
         try
         {
-            await ythub.StartAsync();
+            await ythub.StartAsync(_hubConnectionCts.Token);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
+            // Expected during disposal
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning(ex, "Failed to connect to ythub");
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+            Snackbar.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
         }
     }
 
@@ -100,10 +114,28 @@
 
     public async ValueTask DisposeAsync()
     {
+        // Cancel any pending reconnection attempts
+        _hubConnectionCts?.Cancel();
+
         if (ythub is not null)
         {
-            await ythub.DisposeAsync();
+            try
+            {
+                // Stop the connection gracefully before disposing
+                if (ythub.State != HubConnectionState.Disconnected)
+                {
+                    await ythub.StopAsync();
+                }
+                await ythub.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - disposal should be silent to user
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
+            }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 
     private string GetYoutubeLink(string songId)

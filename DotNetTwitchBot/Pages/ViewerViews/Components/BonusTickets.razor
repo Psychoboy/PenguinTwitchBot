@@ -4,6 +4,7 @@
 @inject IBonusTickets bonusTickets
 @inject DotNetTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject NavigationManager Navigation
+@inject ILogger<BonusTickets> logger
 @implements IAsyncDisposable
 <MudPaper Class="pa-5" Elevation="3">
     <MudStack Spacing="3">
@@ -76,6 +77,7 @@
     private string Username = "";
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     private bool dataLoaded = false;
     protected override async Task OnInitializedAsync()
     {
@@ -94,18 +96,39 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
-       .WithUrl(Navigation.ToAbsoluteUri("/mainhub")).Build();
+
+        _hubConnectionCts = new CancellationTokenSource();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/mainhub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
+
         hubConnection.On<bool>("StreamChanged", (status) =>
         {
             StreamOnline = status;
             InvokeAsync(StateHasChanged);
         });
+
         try
         {
-            await hubConnection.StartAsync();
+            await hubConnection.StartAsync(_hubConnectionCts.Token);
         }
-        finally { }
+        catch (OperationCanceledException)
+        {
+            // Expected during disposal
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+        }
+
         dataLoaded = true;
         StateHasChanged();
     }
@@ -117,15 +140,32 @@
         await bonusTickets.RedeemBonus(Username);
         StateHasChanged();
     }
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
-    }
+
     private void Signin()
     {
         Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _hubConnectionCts?.Cancel();
+
+        if (hubConnection is not null)
+        {
+            try
+            {
+                if (hubConnection.State != HubConnectionState.Disconnected)
+                {
+                    await hubConnection.StopAsync();
+                }
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
+            }
+        }
+
+        _hubConnectionCts?.Dispose();
     }
 }

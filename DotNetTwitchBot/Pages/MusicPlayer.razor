@@ -236,6 +236,7 @@
     private Song? currentSong;
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
     private string? addSongUrl;
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
@@ -291,8 +292,18 @@
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
-        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
-        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+        _hubConnectionCts = new CancellationTokenSource();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
 
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
         {
@@ -311,19 +322,19 @@
             songRequests = playlist;
             InvokeAsync(StateHasChanged);
         });
+
         try
         {
-            await hubConnection.StartAsync();
+            await hubConnection.StartAsync(_hubConnectionCts.Token);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
+            // Expected during disposal
         }
         catch (Exception ex)
         {
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
             Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning(ex, "Failed to connect to hub");
         }
     }
 
@@ -368,9 +379,24 @@
     }
     public async ValueTask DisposeAsync()
     {
+        _hubConnectionCts?.Cancel();
+
         if (hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            try
+            {
+                if (hubConnection.State != HubConnectionState.Disconnected)
+                {
+                    await hubConnection.StopAsync();
+                }
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Exception during SignalR connection disposal (non-critical)");
+            }
         }
+
+        _hubConnectionCts?.Dispose();
     }
 }
