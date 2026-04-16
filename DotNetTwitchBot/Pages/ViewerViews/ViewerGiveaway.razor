@@ -456,7 +456,7 @@
         hubConnection.Reconnected += connectionId =>
         {
             logger.LogInformation("SignalR reconnected successfully");
-            Snackbar.Add("Connection restored.", Severity.Success);
+            InvokeAsync(() => Snackbar.Add("Connection restored.", Severity.Success));
             return Task.CompletedTask;
         };
 
@@ -480,13 +480,13 @@
         }
         catch (TaskCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Please refresh or navigate to another page. If error persist check your browser version and for any OS updates.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
+            Snackbar.Add("Connection attempt cancelled. Page may need refresh.", Severity.Warning);
+            logger.LogWarning("SignalR connection cancelled");
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning(ex, "Failed to connect to hub");
+            Snackbar.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
+            logger.LogWarning(ex, "Failed to connect to SignalR hub");
         }
     }
 

@@ -95,7 +95,7 @@
         ythub.Reconnected += connectionId =>
         {
             logger.LogInformation("SignalR reconnected successfully");
-            Snackbar.Add("Connection restored.", Severity.Success);
+            InvokeAsync(() => Snackbar.Add("Connection restored.", Severity.Success));
             return Task.CompletedTask;
         };
 
