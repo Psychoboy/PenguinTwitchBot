@@ -23,8 +23,23 @@
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="_content/MudBlazor.Markdown/MudBlazor.Markdown.min.css" rel="stylesheet" />
     <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
-</head>
+    <style>
+        /* Don't hide the failed message - we'll control it manually */
+        /* Just ensure proper visibility states */
+        #components-reconnect-modal.components-reconnect-show .show {
+            display: block;
+        }
 
+        #components-reconnect-modal.components-reconnect-failed .rejected,
+        #components-reconnect-modal.components-reconnect-failed .failed {
+            display: block !important;
+        }
+
+        #components-reconnect-modal.components-reconnect-failed .show {
+            display: none;
+        }
+    </style>
+</head>
 <body>
     <script>
         window.ytAPIReady = false;
@@ -154,7 +169,162 @@
 
     </script>
     <component type="typeof(App)" param-RemoteIpAddress=remoteIpAddress render-mode="ServerPrerendered" />
-    <script src="_framework/blazor.server.js"></script>
+    <script src="_framework/blazor.server.js" autostart="false"></script>
+    <script>
+        // Track reconnection state
+        let reconnectionAttempts = 0;
+        let hadMultipleReconnectionAttempts = false;
+        let monitoringCircuit = false;
+        let circuitMonitorTimeout = null;
+
+        // Clear any stale session flags
+        sessionStorage.removeItem('blazor-navigating');
+
+        function triggerReload(reason) {
+            if (sessionStorage.getItem('blazor-navigating')) {
+                return;
+            }
+
+            showReconnectionFailedMessage();
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+
+        function showReconnectionMessage() {
+            const modal = document.getElementById('components-reconnect-modal');
+            if (modal) {
+                modal.classList.remove('components-reconnect-hide');
+                modal.classList.add('components-reconnect-show');
+            }
+        }
+
+        function hideReconnectionMessage() {
+            const modal = document.getElementById('components-reconnect-modal');
+            if (modal) {
+                modal.classList.add('components-reconnect-hide');
+                modal.classList.remove('components-reconnect-show', 'components-reconnect-failed');
+            }
+        }
+
+        function showReconnectionFailedMessage() {
+            const modal = document.getElementById('components-reconnect-modal');
+            if (modal) {
+                modal.classList.remove('components-reconnect-hide', 'components-reconnect-show');
+                modal.classList.add('components-reconnect-failed');
+            }
+        }
+
+        async function verifyCircuitHealth() {
+            let hubConnection = null;
+
+            try {
+                hubConnection = new signalR.HubConnectionBuilder()
+                    .withUrl("/mainhub")
+                    .build();
+
+                const startPromise = hubConnection.start();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Connection timeout')), 3000)
+                );
+
+                await Promise.race([startPromise, timeoutPromise]);
+
+                const pingPromise = hubConnection.invoke("Ping");
+                const pingTimeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Ping timeout')), 3000)
+                );
+
+                const result = await Promise.race([pingPromise, pingTimeoutPromise]);
+
+                return result === "pong";
+            } catch (error) {
+                return false;
+            } finally {
+                if (hubConnection) {
+                    try {
+                        await hubConnection.stop();
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                }
+            }
+        }
+
+        // Intercept console.error to catch circuit errors
+        const originalError = console.error;
+        console.error = function(...args) {
+            const errorMessage = args.join(' ');
+
+            if (errorMessage.includes('Circuit not initialized')) {
+                if (circuitMonitorTimeout) {
+                    clearTimeout(circuitMonitorTimeout);
+                    monitoringCircuit = false;
+                }
+
+                triggerReload('Invalid circuit detected');
+            }
+
+            originalError.apply(console, args);
+        };
+
+        Blazor.start({
+            reconnectionOptions: {
+                maxRetries: 6,
+                retryIntervalMilliseconds: (retryCount, elapsedMs) => {
+                    reconnectionAttempts = retryCount + 1;
+                    if (retryCount >= 1) {
+                        hadMultipleReconnectionAttempts = true;
+                    }
+
+                    // Exponential backoff: 0, 2s, 4s, 8s, 16s, 16s
+                    const delays = [0, 2000, 4000, 8000, 16000, 16000];
+                    return delays[retryCount] || 16000;
+                }
+            }
+        }).then(() => {
+            Blazor.addEventListener('reconnecting', (error) => {
+                if (monitoringCircuit) {
+                    clearTimeout(circuitMonitorTimeout);
+                    monitoringCircuit = false;
+                    triggerReload('Circuit disconnected again after server restart');
+                }
+            });
+
+            Blazor.addEventListener('reconnected', async () => {
+                if (hadMultipleReconnectionAttempts) {
+                    showReconnectionMessage();
+                    monitoringCircuit = true;
+
+                    const isHealthy = await verifyCircuitHealth();
+
+                    if (!isHealthy) {
+                        triggerReload('Circuit health check failed after reconnection');
+                    } else {
+                        circuitMonitorTimeout = setTimeout(() => {
+                            monitoringCircuit = false;
+                            hadMultipleReconnectionAttempts = false;
+                            reconnectionAttempts = 0;
+                            hideReconnectionMessage();
+                        }, 5000);
+                    }
+                } else {
+                    reconnectionAttempts = 0;
+                }
+            });
+
+            Blazor.addEventListener('ended', () => {
+                showReconnectionFailedMessage();
+            });
+
+            window.addEventListener('beforeunload', () => {
+                sessionStorage.setItem('blazor-navigating', 'true');
+            });
+        }).catch(err => {
+            console.error('Blazor failed to start:', err);
+        });
+    </script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js" integrity="sha512-7rhBJh1om/W5Ztx7WiYOR9h2wlSaTmPyQMoHFtbT/FVNIA12y6S6I8HY9mrBS1uJ3dSU/R3qaSAXsGYuRjMDxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"

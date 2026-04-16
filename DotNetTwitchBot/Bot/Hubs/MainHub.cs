@@ -9,6 +9,14 @@ namespace DotNetTwitchBot.Bot.Hubs
     public class MainHub : Hub
     {
         /// <summary>
+        /// Simple ping method for circuit health validation
+        /// </summary>
+        public Task<string> Ping()
+        {
+            return Task.FromResult("pong");
+        }
+
+        /// <summary>
         /// Notify all clients about a new fish catch
         /// </summary>
         public async Task BroadcastFishCatch(object fishCatchData)
