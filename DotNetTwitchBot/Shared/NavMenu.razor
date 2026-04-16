@@ -1,4 +1,6 @@
 ﻿@inject NavigationManager Navigation
+@implements IDisposable
+
 <MudNavMenu>
 <CascadingAuthenticationState>  
     
@@ -8,7 +10,7 @@
                 
 
                     <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Terminal" Title="Commands" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.Terminal" Title="Commands" Expanded="@GetGroupExpanded("commands", "defaultcommands", "aliases", "command-cooldowns", "redeems", "externalcommands")">
                         <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/defaultcommands" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
                         
                         <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz" Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
@@ -16,7 +18,7 @@
                         <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/redeems" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/externalcommands" Match="NavLinkMatch.Prefix">External Commands</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="@GetGroupExpanded("actions", "actions/commands", "actions/keywords", "actions/audiocommands", "actions/timers", "actions/manage", "actions/history", "actions/queues")">
                         <MudNavLink Icon="@Icons.Material.Filled.Bolt" Href="/actions/commands" Match="NavLinkMatch.Prefix">Action Commands</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Key" Href="/actions/keywords" Match="NavLinkMatch.Prefix">Keywords</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.AudioFile" Href="/actions/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
@@ -25,41 +27,41 @@
                         <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Apps" Title="External Apps" Expanded="false">    
+                    <MudNavGroup Icon="@Icons.Material.Filled.Apps" Title="External Apps" Expanded="@GetGroupExpanded("externalApps", "obs/connections")">
                         <MudNavLink Icon="@Icons.Material.Filled.Videocam" Href="/obs/connections" Match="NavLinkMatch.Prefix">OBS Connections</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway", "wheelspin", "giveawaysettings", "giveawayhistory", "twitcheventsettings")">
                         <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.History" Href="/giveawayhistory" Match="NavLinkMatch.Prefix">History</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/twitcheventsettings" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Viewers/Bots" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Viewers/Bots" Expanded="@GetGroupExpanded("viewersBots", "viewers", "autoshoutouts", "knownbots", "giveawaybots")">
                     <MudNavLink Icon="@Icons.Material.Filled.People" Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Campaign" Href="/autoshoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/giveawaybots" Match="NavLinkMatch.Prefix">G Exclusions</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.MusicNote" Title="Music" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.MusicNote" Title="Music" Expanded="@GetGroupExpanded("music", "musicplayer", "playlists")">
                         <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Play Lists</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Games & Points Settings">
+                    <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Games & Points Settings" Expanded="@GetGroupExpanded("gamesPoints", "pointsettings", "gamesettings")">
                         <MudNavLink Icon="@Icons.Material.Filled.Money" Href="/pointsettings" Match="NavLinkMatch.Prefix">Points</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Games" Href="/gamesettings" Match="NavLinkMatch.Prefix">Game</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Settings" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Settings" Expanded="@GetGroupExpanded("settings", "botauth", "voices")">
                         <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/botauth" Match="NavLinkMatch.Prefix">Bot Auth</MudNavLink>
 
                         <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools", "backups", "validation-status")">
                         <MudNavLink Icon="@Icons.Material.Filled.FlashOn" Href="/tools" Match="NavLinkMatch.Prefix">Quick Actions</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                     </MudNavGroup>
-                    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing Admin" Expanded="false">
+                    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing Admin" Expanded="@GetGroupExpanded("fishingAdmin", "fishing/admin", "fishing/imageprocessing")">
                         <MudNavLink Icon="@Icons.Material.Filled.List" Href="/fishing/admin" Match="NavLinkMatch.Prefix">Manage Fish & Shop</MudNavLink>
                         <MudNavLink Icon="@Icons.Material.Filled.List" Href="/fishing/imageprocessing" Match="NavLinkMatch.Prefix">Manage Images</MudNavLink>
                     </MudNavGroup>
@@ -73,7 +75,7 @@
     </AuthorizeView>
     <AuthorizeView Roles="Streamer, Moderator">
         <Authorized>
-                <MudNavGroup Icon="@Icons.Material.Filled.Shield" Title="Moderator" Expanded="false">
+                <MudNavGroup Icon="@Icons.Material.Filled.Shield" Title="Moderator" Expanded="@GetGroupExpanded("moderator", "viewers", "knownbots", "connectedviewers")">
                     <MudNavLink Icon="@Icons.Material.Filled.People" Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/connectedviewers" Match="NavLinkMatch.Prefix">Current Users</MudNavLink>
@@ -89,7 +91,7 @@
     <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
-    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="false">
+    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/shop", "fishing/inventory", "fishing/help")">
         <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboard</MudNavLink>
         <AuthorizeView>
             <Authorized>
@@ -113,8 +115,39 @@
 </MudNavMenu>
 
 @code {
+    private Dictionary<string, bool> _groupExpandedState = new();
+    private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
+
+    private bool GetGroupExpanded(string groupKey, params string[] routes)
+    {
+        bool shouldBeExpanded = routes.Any(route => CurrentUrl.StartsWith(route.TrimStart('/'), StringComparison.OrdinalIgnoreCase));
+
+        // Only auto-expand, never auto-collapse
+        if (shouldBeExpanded && (!_groupExpandedState.ContainsKey(groupKey) || !_groupExpandedState[groupKey]))
+        {
+            _groupExpandedState[groupKey] = true;
+        }
+
+        return _groupExpandedState.GetValueOrDefault(groupKey, false);
+    }
+
     private void Signin()
     {
         Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+    }
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }
