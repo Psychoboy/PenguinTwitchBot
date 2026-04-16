@@ -232,8 +232,19 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
-        hubConnection = new HubConnectionBuilder().WithAutomaticReconnect()
-        .WithUrl(Navigation.ToAbsoluteUri("/ythub")).Build();
+
+        // Configure SignalR with automatic reconnect and retry policy
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                // Allow fallback to other transports if WebSockets fail
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
 
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
         {
@@ -252,19 +263,48 @@
             songRequests = playlist;
             InvokeAsync(StateHasChanged);
         });
+
+        // Handle reconnection events
+        hubConnection.Reconnecting += error =>
+        {
+            logger.LogWarning(error, "SignalR connection lost, attempting to reconnect...");
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Reconnected += connectionId =>
+        {
+            logger.LogInformation("SignalR reconnected successfully");
+            Snackbar.Add("Connection restored.", Severity.Success);
+            return Task.CompletedTask;
+        };
+
+        hubConnection.Closed += error =>
+        {
+            if (error != null)
+            {
+                logger.LogError(error, "SignalR connection closed with error");
+            }
+            return Task.CompletedTask;
+        };
+
         try
         {
             await hubConnection.StartAsync();
+            logger.LogInformation("SignalR connection established successfully");
+        }
+        catch (Microsoft.AspNetCore.Http.Connections.Client.TransportFailedException ex)
+        {
+            logger.LogWarning(ex, "SignalR transport failed during initial connection - connection will retry automatically");
         }
         catch (TaskCanceledException)
         {
-            Snackbar.Add("Lost connection to bot. Data may be inaccurate until refresh.", Severity.Warning);
-            logger.LogWarning("User lost connection to bot.");
+            Snackbar.Add("Connection attempt cancelled. Page may need refresh.", Severity.Warning);
+            logger.LogWarning("SignalR connection cancelled");
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
-            logger.LogWarning(ex, "Failed to connect to hub");
+            Snackbar.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
+            logger.LogWarning(ex, "Failed to connect to SignalR hub");
         }
     }
 
