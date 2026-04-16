@@ -113,6 +113,10 @@
         {
             // Expected when user navigates away before connection completes
         }
+        catch (System.IO.IOException ex) when (ex.InnerException is System.Net.Sockets.SocketException socketEx && socketEx.ErrorCode == 995)
+        {
+            // SocketException 995: I/O operation aborted due to thread exit or app request
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to establish SignalR connection");
