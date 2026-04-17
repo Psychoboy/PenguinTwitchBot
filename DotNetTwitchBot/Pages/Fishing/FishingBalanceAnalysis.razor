@@ -956,6 +956,20 @@
 
             var weeklyIncome = goldPerCatch * 9; // 3 catches × 3 sessions per week
             var currentTotal = permanentItems.Sum(i => i.Cost);
+
+            // Validate inputs to prevent division by zero / invalid calculations
+            if (weeklyIncome <= 0)
+            {
+                Snackbar.Add("Invalid baseline gold calculation (0 or negative). Cannot calculate pricing.", Severity.Error);
+                return;
+            }
+
+            if (currentTotal <= 0)
+            {
+                Snackbar.Add("Total item cost is 0. Please ensure shop items have valid prices.", Severity.Warning);
+                return;
+            }
+
             var targetTotal = (int)Math.Round(weeklyIncome * targetWeeks);
             var currentWeeks = currentTotal / weeklyIncome;
             var multiplier = targetTotal / (double)currentTotal;
