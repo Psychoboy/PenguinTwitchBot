@@ -371,7 +371,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             if(userBoost.RemainingUses >= 0)
             {
-                throw new InvalidOperationException("Can only sell items that have been used up or have limited uses");
+                throw new InvalidOperationException("Can not sell items with limited usage");
             }
 
             if(userBoost.ShopItem?.IsConsumable == true )
@@ -383,8 +383,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
             if (gold == null)
             {
-                gold = new FishingGold { UserId = userId, Username = "Unknown", TotalGold = sellPrice };
-                context.FishingGolds.Add(gold);
+               throw new InvalidOperationException("User gold record not found");
             }
             else
             {
