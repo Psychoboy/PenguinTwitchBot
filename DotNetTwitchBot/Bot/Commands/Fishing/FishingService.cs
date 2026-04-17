@@ -352,6 +352,47 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             await context.SaveChangesAsync();
         }
 
+        public async Task SellItem(string userId, int userBoostId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userBoost = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+            if (userBoost == null || userBoost.ShopItem == null)
+            {
+                throw new InvalidOperationException("Item not found");
+            }
+
+            if(userBoost.IsEquipped)
+            {
+                throw new InvalidOperationException("Cannot sell an equipped item");
+            }
+
+            if(userBoost.RemainingUses >= 0)
+            {
+                throw new InvalidOperationException("Can not sell items with limited usage");
+            }
+
+            if(userBoost.ShopItem?.IsConsumable == true )
+            {
+                throw new InvalidOperationException("Cannot sell consumable items");
+            }
+
+            var sellPrice =  (int)(userBoost.ShopItem?.Cost * 0.15 ?? 0); // 15% of price back
+            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            if (gold == null)
+            {
+               throw new InvalidOperationException("User gold record not found");
+            }
+            else
+            {
+                gold.TotalGold += sellPrice;
+            }
+            context.UserFishingBoosts.Remove(userBoost);
+            await context.SaveChangesAsync();
+        }
+
         public async Task EquipItem(string userId, int userBoostId)
         {
             using var scope = _scopeFactory.CreateScope();
