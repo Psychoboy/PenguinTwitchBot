@@ -71,6 +71,22 @@ internal class Program
 
         builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
 
+        // Filter out common Blazor Server navigation cancellation errors
+        builder.Logging.AddFilter((provider, category, logLevel) =>
+        {
+            // Filter out TaskCanceledException from Blazor Server navigation/circuit components
+            if (logLevel == LogLevel.Error && category != null)
+            {
+                if (category.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteNavigationManager") ||
+                    category.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost") ||
+                    category.StartsWith("Microsoft.AspNetCore.Components.Server.ComponentHub"))
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService("DotNetTwitchBot"))
@@ -99,7 +115,18 @@ internal class Program
             options.LoggingFields = HttpLoggingFields.RequestPropertiesAndHeaders;
         });
 
-        builder.Services.AddServerSideBlazor().AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
+        builder.Services.AddServerSideBlazor(options =>
+        {
+            options.DetailedErrors = builder.Environment.IsDevelopment();
+        })
+        .AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024) // 100 MB
+        .AddCircuitOptions(options =>
+        {
+            if (!builder.Environment.IsDevelopment())
+            {
+                options.DetailedErrors = false;
+            }
+        });
         builder.Services.AddMudServices(config =>
         {
             config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.TopCenter;
@@ -199,7 +226,9 @@ internal class Program
 
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
         builder.Services.AddScoped<CircuitHandler>((sp) =>
-            new CircuitHandlerService(sp.GetRequiredService<ICircuitUserService>()));
+            new CircuitHandlerService(
+                sp.GetRequiredService<ICircuitUserService>(), 
+                sp.GetRequiredService<ILogger<CircuitHandlerService>>()));
 
 
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
