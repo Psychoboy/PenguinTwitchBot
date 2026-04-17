@@ -48,6 +48,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task ResetAllUserData();
         Task<int> SyncAllFishRarities();
         Task<int> GenerateDefaultShopItems();
+        Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates);
+        Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null);
 
         Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
 
@@ -60,5 +62,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task SellItem(string userId, int userBoostId);
+
+        Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null);
+        Task<double> CalculateBaselineExpectedGold();
+        Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26);
     }
 }

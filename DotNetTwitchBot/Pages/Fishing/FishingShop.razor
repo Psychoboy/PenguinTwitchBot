@@ -139,7 +139,15 @@
                     <RowTemplate>
                         <MudTd DataLabel="Item">
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                                    @if (!context.IsConsumable)
+                                    {
+                                        var tier = context.GetTier();
+                                        var (tierColor, tierIcon) = GetTierDisplay(tier);
+                                        <MudChip T="string" Color="tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
                             </MudStack>
                         </MudTd>
@@ -630,5 +638,17 @@
         {
             Snackbar.Add("Failed to unequip item. Please try again.", Severity.Error);
         }
+    }
+
+    private (Color color, string icon) GetTierDisplay(EquipmentTier tier)
+    {
+        return tier switch
+        {
+            EquipmentTier.Entry => (Color.Default, Icons.Material.Filled.Star),
+            EquipmentTier.Mid => (Color.Info, Icons.Material.Filled.StarHalf),
+            EquipmentTier.High => (Color.Secondary, Icons.Material.Filled.Stars),
+            EquipmentTier.Top => (Color.Warning, Icons.Material.Filled.EmojiEvents),
+            _ => (Color.Default, Icons.Material.Filled.ShoppingCart)
+        };
     }
 }

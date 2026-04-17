@@ -244,7 +244,15 @@
                             <RowTemplate>
                                 <MudTd DataLabel="Item">
                                     <MudStack Spacing="1">
-                                        <MudText><strong>@context.ShopItem!.Name</strong></MudText>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudText><strong>@context.ShopItem!.Name</strong></MudText>
+                                            @if (!context.ShopItem!.IsConsumable)
+                                            {
+                                                var tier = context.ShopItem!.GetTier();
+                                                var (tierColor, tierIcon) = GetTierDisplay(tier);
+                                                <MudChip T="string" Color="tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+                                            }
+                                        </MudStack>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ShopItem!.Description</MudText>
                                         @if (context.ShopItem!.TargetFishTypeId.HasValue)
                                         {
@@ -701,5 +709,17 @@
     private void ShowCatchRatesDialog()
     {
         catchRatesDialogVisible = true;
+    }
+
+    private (Color color, string icon) GetTierDisplay(EquipmentTier tier)
+    {
+        return tier switch
+        {
+            EquipmentTier.Entry => (Color.Default, Icons.Material.Filled.Star),
+            EquipmentTier.Mid => (Color.Info, Icons.Material.Filled.StarHalf),
+            EquipmentTier.High => (Color.Secondary, Icons.Material.Filled.Stars),
+            EquipmentTier.Top => (Color.Warning, Icons.Material.Filled.EmojiEvents),
+            _ => (Color.Default, Icons.Material.Filled.ShoppingCart)
+        };
     }
 }

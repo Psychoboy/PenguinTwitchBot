@@ -1111,6 +1111,73 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return itemsToAdd.Count;
         }
 
+        public async Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var updatedCount = 0;
+
+            foreach (var (itemName, newPrice) in priceUpdates)
+            {
+                var item = await context.FishingShopItems
+                    .FirstOrDefaultAsync(i => i.Name == itemName);
+
+                if (item != null && item.Cost != newPrice)
+                {
+                    item.Cost = newPrice;
+                    updatedCount++;
+                }
+            }
+
+            if (updatedCount > 0)
+            {
+                await context.SaveChangesAsync();
+            }
+
+            return updatedCount;
+        }
+
+        public async Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var query = context.FishingShopItems.AsQueryable();
+
+            // Filter by permanent items if specified
+            if (permanentOnly)
+            {
+                query = query.Where(i => !i.IsConsumable);
+            }
+
+            // Filter by equipment slot if specified
+            if (slot.HasValue)
+            {
+                query = query.Where(i => i.EquipmentSlot == slot.Value);
+            }
+
+            var items = await query.ToListAsync();
+            var updatedCount = 0;
+
+            foreach (var item in items)
+            {
+                var newPrice = (int)Math.Round(item.Cost * multiplier);
+                if (newPrice != item.Cost && newPrice > 0)
+                {
+                    item.Cost = newPrice;
+                    updatedCount++;
+                }
+            }
+
+            if (updatedCount > 0)
+            {
+                await context.SaveChangesAsync();
+            }
+
+            return updatedCount;
+        }
+
         public async Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -1607,6 +1674,668 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             return result;
+        }
+
+        public async Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var report = new FishingBalanceReport
+            {
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            // Get catches within date range
+            var catchesQuery = context.FishCatches.Include(c => c.FishType).AsQueryable();
+            if (startDate.HasValue)
+                catchesQuery = catchesQuery.Where(c => c.CaughtAt >= startDate.Value);
+            if (endDate.HasValue)
+                catchesQuery = catchesQuery.Where(c => c.CaughtAt <= endDate.Value);
+
+            var catches = await catchesQuery.ToListAsync();
+            report.TotalCatches = catches.Count;
+
+            if (catches.Count == 0)
+            {
+                report.Summary = "No catches found in the specified date range.";
+                return report;
+            }
+
+            // Get unique users
+            var uniqueUserIds = catches.Select(c => c.UserId).Distinct().ToList();
+            report.UniqueUsers = uniqueUserIds.Count;
+
+            // Rarity Distribution
+            var rarityGroups = catches.GroupBy(c => c.FishType?.Rarity ?? FishRarity.Common);
+            foreach (var group in rarityGroups)
+            {
+                var count = group.Count();
+                report.RarityDistribution[group.Key] = count;
+                report.RarityPercentages[group.Key] = Math.Round((count / (double)report.TotalCatches) * 100, 2);
+            }
+
+            // Ensure all rarities are present
+            foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
+            {
+                if (!report.RarityDistribution.ContainsKey(rarity))
+                {
+                    report.RarityDistribution[rarity] = 0;
+                    report.RarityPercentages[rarity] = 0;
+                }
+            }
+
+            // Star Distribution
+            var starGroups = catches.GroupBy(c => c.Stars);
+            foreach (var group in starGroups)
+            {
+                var count = group.Count();
+                report.StarDistribution[group.Key] = count;
+                report.StarPercentages[group.Key] = Math.Round((count / (double)report.TotalCatches) * 100, 2);
+            }
+
+            // Gold Statistics
+            var goldEarned = catches.Select(c => c.GoldEarned).ToList();
+            report.TotalGoldEarned = goldEarned.Sum();
+            report.AverageGoldPerCatch = Math.Round(goldEarned.Average(), 2);
+            report.MinGoldEarned = goldEarned.Min();
+            report.MaxGoldEarned = goldEarned.Max();
+
+            var sortedGold = goldEarned.OrderBy(g => g).ToList();
+            report.MedianGoldPerCatch = sortedGold.Count % 2 == 0
+                ? (sortedGold[sortedGold.Count / 2 - 1] + sortedGold[sortedGold.Count / 2]) / 2.0
+                : sortedGold[sortedGold.Count / 2];
+
+            // Per-User Statistics
+            var userCatchCounts = catches.GroupBy(c => c.UserId)
+                .Select(g => new { UserId = g.Key, Count = g.Count() })
+                .ToList();
+            report.AverageCatchesPerUser = Math.Round(userCatchCounts.Average(u => u.Count), 2);
+
+            var userGoldTotals = catches.GroupBy(c => c.UserId)
+                .Select(g => new { UserId = g.Key, Username = g.First().Username, Total = g.Sum(c => c.GoldEarned) })
+                .OrderByDescending(u => u.Total)
+                .ToList();
+            report.AverageGoldPerUser = Math.Round(userGoldTotals.Average(u => u.Total), 2);
+
+            // Top 10 users by catches
+            report.TopUsersByCatches = catches
+                .GroupBy(c => c.Username)
+                .Select(g => new { Username = g.Key, Count = g.Count() })
+                .OrderByDescending(u => u.Count)
+                .Take(10)
+                .ToDictionary(u => u.Username, u => u.Count);
+
+            // Top 10 users by gold
+            report.TopUsersByGold = userGoldTotals
+                .Take(10)
+                .ToDictionary(u => u.Username, u => u.Total);
+
+            // Fish Distribution
+            var fishGroups = catches.GroupBy(c => c.FishType?.Name ?? "Unknown");
+            foreach (var group in fishGroups)
+            {
+                var count = group.Count();
+                report.FishCatchCounts[group.Key] = count;
+                report.FishCatchPercentages[group.Key] = Math.Round((count / (double)report.TotalCatches) * 100, 2);
+            }
+
+            report.MostCaughtFish = report.FishCatchCounts.OrderByDescending(f => f.Value).First().Key;
+            report.LeastCaughtFish = report.FishCatchCounts.OrderBy(f => f.Value).First().Key;
+
+            // Get settings for expected probabilities
+            var settings = await GetSettings();
+            report.BoostModeActive = settings?.BoostMode;
+            report.BoostModeMultiplier = settings?.BoostModeRarityMultiplier;
+
+            // Calculate expected probabilities (baseline, no items)
+            var baselineProbs = await CalculateRarityProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                new List<int>()
+            );
+
+            foreach (var kvp in baselineProbs.Probabilities)
+            {
+                report.ExpectedRarityPercentages[kvp.Key] = kvp.Value;
+                var actualPercent = report.RarityPercentages.GetValueOrDefault(kvp.Key, 0);
+                report.RarityVariance[kvp.Key] = Math.Round(actualPercent - kvp.Value, 2);
+            }
+
+            // Calculate average catches per day for time-based affordability
+            var daysInPeriod = 1.0;
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                daysInPeriod = Math.Max(1, (endDate.Value - startDate.Value).TotalDays);
+            }
+            else if (catches.Any())
+            {
+                var firstCatch = catches.Min(c => c.CaughtAt);
+                var lastCatch = catches.Max(c => c.CaughtAt);
+                daysInPeriod = Math.Max(1, (lastCatch - firstCatch).TotalDays);
+            }
+
+            var averageCatchesPerDay = report.TotalCatches / daysInPeriod;
+            var averageGoldPerDay = report.TotalGoldEarned / daysInPeriod;
+
+            // Item Affordability Analysis
+            var shopItems = await context.FishingShopItems
+                .Where(i => i.Enabled && !i.IsAdminOnly)
+                .OrderBy(i => i.Cost)
+                .ToListAsync();
+
+            var userCurrentGold = await context.FishingGolds.ToListAsync();
+            var goldTotals = userCurrentGold.Select(g => g.TotalGold).OrderBy(g => g).ToList();
+
+            foreach (var item in shopItems)
+            {
+                var usersCanAfford = userCurrentGold.Count(g => g.TotalGold >= item.Cost);
+                var percentCanAfford = report.UniqueUsers > 0
+                    ? Math.Round((usersCanAfford / (double)report.UniqueUsers) * 100, 2)
+                    : 0;
+
+                // Use MEDIAN gold per catch for more representative affordability calculations
+                var catchesNeeded = report.MedianGoldPerCatch > 0
+                    ? item.Cost / report.MedianGoldPerCatch
+                    : 0;
+
+                // Time-based affordability calculations
+                // Assuming 3 catches per session, 3 sessions per week = 9 catches/week for median player
+                // At median gold per catch: 9 catches × median gold = weekly income
+                var weeksToAfford3xWeek = report.MedianGoldPerCatch > 0
+                    ? item.Cost / (9 * report.MedianGoldPerCatch)
+                    : 0;
+
+                // Convert to days for backwards compatibility
+                var daysToAfford3xWeek = weeksToAfford3xWeek * 7;
+
+                // For daily fishing (7 days × 3 catches = 21 catches/week vs 9 catches/week)
+                var daysToAfford1xDay = daysToAfford3xWeek / (21.0 / 9.0);
+
+                var medianGold = goldTotals.Count > 0
+                    ? (goldTotals.Count % 2 == 0
+                        ? (goldTotals[goldTotals.Count / 2 - 1] + goldTotals[goldTotals.Count / 2]) / 2.0
+                        : goldTotals[goldTotals.Count / 2])
+                    : 0;
+
+                // Calculate cost per use for consumables
+                var costPerUse = item.IsConsumable && item.MaxUses.HasValue && item.MaxUses > 0
+                    ? (double)item.Cost / item.MaxUses.Value
+                    : item.Cost;
+
+                // Affordability rating for permanent equipment
+                string affordabilityRating = string.Empty;
+                if (!item.IsConsumable)
+                {
+                    // For permanent items, rate based on progression tiers
+                    // Aligned with progressive baseline model (5 tiers over 26 weeks)
+                    // Low=1-3wk, Mid=3-8wk, High=8-16wk, Top=16+ weeks
+                    var weeksToAfford = weeksToAfford3xWeek;
+
+                    if (weeksToAfford < 1) // Less than 1 week
+                        affordabilityRating = "Too Cheap";
+                    else if (weeksToAfford < 3) // 1-3 weeks (Low tier - first purchases)
+                        affordabilityRating = "Low Tier";
+                    else if (weeksToAfford < 8) // 3-8 weeks (Mid tier - second upgrade)
+                        affordabilityRating = "Mid Tier";
+                    else if (weeksToAfford < 16) // 8-16 weeks (High tier - third upgrade)
+                        affordabilityRating = "High Tier";
+                    else // 16+ weeks (Top tier - endgame)
+                        affordabilityRating = "Top Tier";
+                }
+
+                // Value rating for consumables
+                string valueRating = string.Empty;
+                if (item.IsConsumable)
+                {
+                    // For consumables, evaluate if they're good gold sinks
+                    // Compare cost per use vs MEDIAN gold earned (more representative of typical player)
+                    if (report.MedianGoldPerCatch > 0)
+                    {
+                        var usesPerMedianCatch = report.MedianGoldPerCatch / costPerUse;
+
+                        if (usesPerMedianCatch > 3) // Very cheap, can use 3+ times per median catch
+                            valueRating = "Excellent Value";
+                        else if (usesPerMedianCatch > 1.5) // Moderate cost
+                            valueRating = "Fair Trade";
+                        else if (usesPerMedianCatch > 0.5) // Expensive but viable
+                            valueRating = "Gold Sink";
+                        else // Very expensive
+                            valueRating = "Premium Sink";
+                    }
+                }
+
+                report.ItemAffordabilityAnalysis.Add(new ItemAffordability
+                {
+                    ItemName = item.Name,
+                    Cost = item.Cost,
+                    IsConsumable = item.IsConsumable,
+                    MaxUses = item.MaxUses,
+                    EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
+                    CostPerUse = Math.Round(costPerUse, 2),
+                    UsersWhoCanAfford = usersCanAfford,
+                    PercentageWhoCanAfford = percentCanAfford,
+                    CatchesNeededToBuy = Math.Round(catchesNeeded, 1),
+                    DaysToAfford3xWeek = Math.Round(daysToAfford3xWeek, 1),
+                    DaysToAfford1xDay = Math.Round(daysToAfford1xDay, 1),
+                    MedianUserGold = medianGold,
+                    AffordabilityRating = affordabilityRating,
+                    ValueRating = valueRating
+                });
+            }
+
+            // Most Common Equipment (from UserFishingBoosts)
+            var equipmentUsage = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .Where(b => uniqueUserIds.Contains(b.UserId) && b.ShopItem != null)
+                .GroupBy(b => b.ShopItem!.Name)
+                .Select(g => new { ItemName = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(10)
+                .ToListAsync();
+
+            report.MostCommonEquipment = equipmentUsage.ToDictionary(e => e.ItemName, e => e.Count);
+
+            // Generate Summary
+            var summaryLines = new List<string>
+            {
+                $"Analyzed {report.TotalCatches:N0} catches from {report.UniqueUsers} unique users.",
+                $"Date Range: {(startDate?.ToString("yyyy-MM-dd") ?? "Beginning")} to {(endDate?.ToString("yyyy-MM-dd") ?? "Now")}",
+                $"",
+                $"Gold Economy:",
+                $"  - Total Gold Earned: {report.TotalGoldEarned:N0}",
+                $"  - Average per Catch: {report.AverageGoldPerCatch:N2}",
+                $"  - Median per Catch: {report.MedianGoldPerCatch:N2}",
+                $"  - Average per User: {report.AverageGoldPerUser:N0}",
+                $"",
+                $"Rarity Distribution (Actual vs Expected):"
+            };
+
+            foreach (var rarity in report.RarityPercentages.OrderBy(r => (int)r.Key))
+            {
+                var expected = report.ExpectedRarityPercentages.GetValueOrDefault(rarity.Key, 0);
+                var variance = report.RarityVariance.GetValueOrDefault(rarity.Key, 0);
+                var varianceSign = variance >= 0 ? "+" : "";
+                summaryLines.Add($"  - {rarity.Key}: {rarity.Value}% (expected {expected}%, {varianceSign}{variance}%)");
+            }
+
+            summaryLines.Add("");
+            summaryLines.Add($"Star Distribution:");
+            foreach (var star in report.StarPercentages.OrderBy(s => s.Key))
+            {
+                summaryLines.Add($"  - {star.Key}?: {star.Value}% ({report.StarDistribution[star.Key]:N0} catches)");
+            }
+
+            report.Summary = string.Join(Environment.NewLine, summaryLines);
+
+            // Generate Balance Recommendations
+            var recommendations = new List<string>();
+
+            // Check rarity variance
+            foreach (var variance in report.RarityVariance)
+            {
+                if (Math.Abs(variance.Value) > 5) // More than 5% off
+                {
+                    if (variance.Value > 0)
+                        recommendations.Add($"{variance.Key} fish are appearing {variance.Value}% MORE than expected. Consider reducing boost effectiveness.");
+                    else
+                        recommendations.Add($"{variance.Key} fish are appearing {Math.Abs(variance.Value)}% LESS than expected. Consider increasing boost effectiveness.");
+                }
+            }
+
+            // Check item affordability
+            var tooExpensive = report.ItemAffordabilityAnalysis.Count(i => i.AffordabilityRating == "Too Expensive");
+            var tooCheap = report.ItemAffordabilityAnalysis.Count(i => i.AffordabilityRating == "Too Cheap");
+
+            if (tooExpensive > shopItems.Count * 0.3)
+                recommendations.Add($"{tooExpensive} items are too expensive for most users. Consider reducing prices or increasing gold rewards.");
+
+            if (tooCheap > shopItems.Count * 0.3)
+                recommendations.Add($"{tooCheap} items are too cheap. Consider increasing prices or reducing gold rewards.");
+
+            // Check gold accumulation
+            if (report.AverageGoldPerUser > 5000)
+                recommendations.Add($"Users are accumulating high gold amounts (avg {report.AverageGoldPerUser:N0}). Consider adding higher-tier items or gold sinks.");
+
+            if (report.AverageGoldPerUser < 500 && report.AverageCatchesPerUser > 10)
+                recommendations.Add($"Users aren't accumulating enough gold despite fishing. Consider increasing base gold rewards or reducing item costs.");
+
+            // Check star distribution
+            var threeStarPercent = report.StarPercentages.GetValueOrDefault(3, 0);
+            if (threeStarPercent < 3)
+                recommendations.Add($"3? catches are very rare ({threeStarPercent}%). Consider increasing star boost effectiveness.");
+            if (threeStarPercent > 15)
+                recommendations.Add($"3? catches are too common ({threeStarPercent}%). Consider reducing star boost effectiveness.");
+
+            report.BalanceRecommendations = recommendations;
+
+            return report;
+        }
+
+        public async Task<double> CalculateBaselineExpectedGold()
+        {
+            // Calculate expected gold per catch for a player with NO equipment
+            // This uses probability distributions and expected values, not actual catch data
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            if (!fishTypes.Any())
+            {
+                return 0.0;
+            }
+
+            // Base rarity weights (NO equipment bonuses)
+            var rarityWeights = new Dictionary<FishRarity, double>
+            {
+                { FishRarity.Common, 50.0 },
+                { FishRarity.Uncommon, 30.0 },
+                { FishRarity.Rare, 15.0 },
+                { FishRarity.Epic, 4.0 },
+                { FishRarity.Legendary, 1.0 }
+            };
+
+            var totalRarityWeight = rarityWeights.Values.Sum();
+
+            // Base star probabilities (NO equipment bonuses)
+            // From CalculateStars: base 5% for 3-star, 20% for 2-star, 75% for 1-star
+            var starProbabilities = new Dictionary<int, double>
+            {
+                { 1, 0.75 },  // 75% chance
+                { 2, 0.20 },  // 20% chance
+                { 3, 0.05 }   // 5% chance
+            };
+
+            double expectedGold = 0.0;
+
+            // For each rarity tier
+            foreach (var (rarity, rarityWeight) in rarityWeights)
+            {
+                var fishOfRarity = fishTypes.Where(f => f.Rarity == rarity).ToList();
+                if (!fishOfRarity.Any()) continue;
+
+                var rarityProbability = rarityWeight / totalRarityWeight;
+                var perFishProbability = rarityProbability / fishOfRarity.Count;
+
+                // For each fish in this rarity
+                foreach (var fish in fishOfRarity)
+                {
+                    // For each star level
+                    foreach (var (stars, starProb) in starProbabilities)
+                    {
+                        // Calculate expected weight (NO equipment bonuses)
+                        // Base weight range: 0.8x to 1.13x (from CalculateWeight)
+                        var avgWeightMultiplier = (0.8 + 1.13) / 2.0;  // 0.965
+
+                        // Star multiplier for weight
+                        var starWeightMultiplier = stars switch
+                        {
+                            3 => 1.5,
+                            2 => 1.2,
+                            _ => 1.0
+                        };
+
+                        var expectedWeight = fish.BaseWeight * avgWeightMultiplier * starWeightMultiplier;
+
+                        // Calculate expected gold (from CalculateGold logic)
+                        var (minGoldMultiplier, maxGoldMultiplier) = stars switch
+                        {
+                            3 => (1.25, 1.41),
+                            2 => (1.0, 1.25),
+                            _ => (0.75, 1.0)
+                        };
+
+                        var avgGoldMultiplier = (minGoldMultiplier + maxGoldMultiplier) / 2.0;
+
+                        // Weight influence on gold (0.9 to 1.065 based on weight ratio)
+                        var weightGoldMultiplier = 1.0;
+                        if (fish.BaseWeight > 0)
+                        {
+                            var weightRatio = expectedWeight / fish.BaseWeight;
+                            weightGoldMultiplier = 0.9 + ((weightRatio - 0.8) / (1.13 - 0.8) * 0.165);
+                            weightGoldMultiplier = Math.Max(0.9, Math.Min(1.065, weightGoldMultiplier));
+                        }
+
+                        // Calculate gold for this combination
+                        var gold = fish.BaseGold * avgGoldMultiplier * weightGoldMultiplier;
+                        gold = Math.Max(1, gold);
+
+                        // Weight by probability
+                        expectedGold += perFishProbability * starProb * gold;
+                    }
+                }
+            }
+
+            return Math.Round(expectedGold, 2);
+        }
+
+        public async Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26)
+        {
+            // Calculate expected gold assuming player gradually upgrades equipment over time
+            // This models realistic progression: starting naked, buying entry tier, then upgrading
+            //
+            // IMPORTANT: Players can sell old equipment for 15% of original cost when upgrading.
+            // This resale value reduces net upgrade costs by ~10-15% at each tier transition:
+            //   Entry (675g) ? Mid (2675g) = 2574g net after selling entry gear (101g back)
+            //   Mid (2700g) ? High (5300g) = 4895g net after selling mid gear (405g back)  
+            //   High (5300g) ? Top (11300g) = 10505g net after selling high gear (795g back)
+            //
+            // The tier durations below account for this economic factor, making progression
+            // faster than raw item costs would suggest.
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            if (!fishTypes.Any())
+            {
+                return 0.0;
+            }
+
+            // Define progression tiers with equipment loadouts and time allocation
+            // Tier durations account for 15% resale value speeding up upgrades
+            var tiers = new List<ProgressionTier>
+            {
+                // Tier 0: No equipment (Weeks 1-2)
+                // Saving for first equipment purchases (~675g needed)
+                new ProgressionTier
+                {
+                    Name = "Naked",
+                    Weeks = 2,
+                    RarityBoost = 0.0,
+                    StarBoost = 0.0,
+                    WeightBoost = 0.0
+                },
+
+                // Tier 1: Entry equipment (Weeks 3-7)
+                // Bamboo Rod (+5% rarity), Basic Reel (+5% star), Monofilament Line (+10% weight), Standard Hook (+5% star)
+                // Using entry gear while saving ~2574g net for mid tier (after 101g resale)
+                new ProgressionTier
+                {
+                    Name = "Entry",
+                    Weeks = 5,
+                    RarityBoost = 0.05,      // +5% from Bamboo Rod
+                    StarBoost = 0.10,        // +5% from Basic Reel + 5% from Standard Hook
+                    WeightBoost = 0.10       // +10% from Monofilament Line
+                },
+
+                // Tier 2: Mid equipment (Weeks 8-13)
+                // Fiberglass Rod (+10% rarity), Precision Reel (+10% star), Braided Line (+20% weight), Circle Hook (+10% star)
+                // Using mid gear while saving ~4895g net for high tier (after 405g resale)
+                new ProgressionTier
+                {
+                    Name = "Mid",
+                    Weeks = 6,
+                    RarityBoost = 0.10,
+                    StarBoost = 0.20,        // +10% + 10%
+                    WeightBoost = 0.20
+                },
+
+                // Tier 3: High equipment (Weeks 14-20)
+                // Carbon Fiber Rod (+15% rarity), Professional Reel (+15% star), Fluorocarbon Line (+30% weight), Treble Hook (+15% star)
+                // Using high gear while saving ~10505g net for top tier (after 795g resale)
+                new ProgressionTier
+                {
+                    Name = "High",
+                    Weeks = 7,
+                    RarityBoost = 0.15,
+                    StarBoost = 0.30,        // +15% + 15%
+                    WeightBoost = 0.30
+                },
+
+                // Tier 4: Top equipment (Weeks 21-26)
+                // Legendary Rod (+25% rarity), Master Reel (+20% star), Titanium Wire (+45% weight), Diamond Hook (+22% star)
+                // End-game equipment, no more upgrades needed
+                new ProgressionTier
+                {
+                    Name = "Top",
+                    Weeks = 6,
+                    RarityBoost = 0.25,
+                    StarBoost = 0.42,        // +20% + 22%
+                    WeightBoost = 0.45
+                }
+            };
+
+            // Adjust tier durations if target is different from 26 weeks
+            if (targetWeeks != 26)
+            {
+                var scaleFactor = targetWeeks / 26.0;
+                foreach (var tier in tiers)
+                {
+                    tier.Weeks = Math.Max(1, (int)Math.Round(tier.Weeks * scaleFactor));
+                }
+            }
+
+            var totalWeeks = tiers.Sum(t => t.Weeks);
+            double weightedGold = 0.0;
+
+            // Calculate expected gold at each tier and weight by time spent
+            foreach (var tier in tiers)
+            {
+                var tierGold = CalculateExpectedGoldWithBoosts(
+                    fishTypes,
+                    tier.RarityBoost,
+                    tier.StarBoost,
+                    tier.WeightBoost
+                );
+
+                var tierWeight = tier.Weeks / (double)totalWeeks;
+                weightedGold += tierGold * tierWeight;
+            }
+
+            return Math.Round(weightedGold, 2);
+        }
+
+        private double CalculateExpectedGoldWithBoosts(
+            List<FishType> fishTypes,
+            double rarityBoost,
+            double starBoost,
+            double weightBoost)
+        {
+            // Base rarity weights
+            var rarityWeights = new Dictionary<FishRarity, double>
+            {
+                { FishRarity.Common, 50.0 },
+                { FishRarity.Uncommon, 30.0 },
+                { FishRarity.Rare, 15.0 },
+                { FishRarity.Epic, 4.0 },
+                { FishRarity.Legendary, 1.0 }
+            };
+
+            // Apply rarity boost (affects all non-Common rarities)
+            if (rarityBoost > 0)
+            {
+                rarityWeights[FishRarity.Uncommon] *= (1.0 + rarityBoost);
+                rarityWeights[FishRarity.Rare] *= (1.0 + rarityBoost);
+                rarityWeights[FishRarity.Epic] *= (1.0 + rarityBoost);
+                rarityWeights[FishRarity.Legendary] *= (1.0 + rarityBoost);
+            }
+
+            var totalRarityWeight = rarityWeights.Values.Sum();
+
+            // Base star probabilities: 5% 3-star, 20% 2-star, 75% 1-star
+            // Star boost increases both 2-star and 3-star chances
+            var threeStarChance = 5.0 + (starBoost * 100);
+            var twoStarChance = 20.0 + (starBoost * 100);
+            var oneStarChance = 100.0 - threeStarChance - twoStarChance;
+
+            var starProbabilities = new Dictionary<int, double>
+            {
+                { 1, oneStarChance / 100.0 },
+                { 2, twoStarChance / 100.0 },
+                { 3, threeStarChance / 100.0 }
+            };
+
+            // Weight boost multiplier (applied directly to weight calculation)
+            var weightMultiplier = 1.0 + weightBoost;
+
+            double expectedGold = 0.0;
+
+            // For each rarity tier
+            foreach (var (rarity, rarityWeight) in rarityWeights)
+            {
+                var fishOfRarity = fishTypes.Where(f => f.Rarity == rarity).ToList();
+                if (!fishOfRarity.Any()) continue;
+
+                var rarityProbability = rarityWeight / totalRarityWeight;
+                var perFishProbability = rarityProbability / fishOfRarity.Count;
+
+                // For each fish in this rarity
+                foreach (var fish in fishOfRarity)
+                {
+                    // For each star level
+                    foreach (var (stars, starProb) in starProbabilities)
+                    {
+                        // Calculate expected weight with boosts
+                        var avgWeightMultiplier = (0.8 + 1.13) / 2.0;  // 0.965
+                        var starWeightMultiplier = stars switch
+                        {
+                            3 => 1.5,
+                            2 => 1.2,
+                            _ => 1.0
+                        };
+
+                        var expectedWeight = fish.BaseWeight * avgWeightMultiplier * starWeightMultiplier * weightMultiplier;
+
+                        // Calculate expected gold
+                        var (minGoldMultiplier, maxGoldMultiplier) = stars switch
+                        {
+                            3 => (1.25, 1.41),
+                            2 => (1.0, 1.25),
+                            _ => (0.75, 1.0)
+                        };
+
+                        var avgGoldMultiplier = (minGoldMultiplier + maxGoldMultiplier) / 2.0;
+
+                        // Weight influence on gold
+                        var weightGoldMultiplier = 1.0;
+                        if (fish.BaseWeight > 0)
+                        {
+                            var weightRatio = expectedWeight / fish.BaseWeight;
+                            weightGoldMultiplier = 0.9 + ((weightRatio - 0.8) / (1.13 - 0.8) * 0.165);
+                            weightGoldMultiplier = Math.Max(0.9, Math.Min(1.065, weightGoldMultiplier));
+                        }
+
+                        var gold = fish.BaseGold * avgGoldMultiplier * weightGoldMultiplier;
+                        gold = Math.Max(1, gold);
+
+                        expectedGold += perFishProbability * starProb * gold;
+                    }
+                }
+            }
+
+            return expectedGold;
+        }
+
+        private class ProgressionTier
+        {
+            public string Name { get; set; } = string.Empty;
+            public int Weeks { get; set; }
+            public double RarityBoost { get; set; }
+            public double StarBoost { get; set; }
+            public double WeightBoost { get; set; }
         }
     }
 }
