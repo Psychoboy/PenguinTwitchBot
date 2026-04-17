@@ -53,6 +53,19 @@ internal class Program
            .ReadFrom.Configuration(builder.Configuration)
            .Enrich.WithSpan()
            .Enrich.FromLogContext()
+           .Filter.ByExcluding(logEvent =>
+           {
+               // Filter out TaskCanceledException from Blazor Server navigation/circuit components
+               if (logEvent.Exception is TaskCanceledException &&
+                   logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
+               {
+                   var context = sourceContext.ToString().Trim('"');
+                   return context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteNavigationManager", StringComparison.Ordinal) ||
+                          context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost", StringComparison.Ordinal) ||
+                          context.StartsWith("Microsoft.AspNetCore.Components.Server.ComponentHub", StringComparison.Ordinal);
+               }
+               return false;
+           })
            .WriteTo.OpenTelemetry(options =>
            {
                options.Endpoint = "http://localhost:4318"; // Adjust the endpoint as needed
@@ -70,22 +83,6 @@ internal class Program
         builder.Logging.ClearProviders();
 
         builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
-
-        // Filter out common Blazor Server navigation cancellation errors
-        builder.Logging.AddFilter((provider, category, logLevel) =>
-        {
-            // Filter out TaskCanceledException from Blazor Server navigation/circuit components
-            if (logLevel == LogLevel.Error && category != null)
-            {
-                if (category.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteNavigationManager") ||
-                    category.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost") ||
-                    category.StartsWith("Microsoft.AspNetCore.Components.Server.ComponentHub"))
-                {
-                    return false;
-                }
-            }
-            return true;
-        });
 
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()
@@ -119,14 +116,7 @@ internal class Program
         {
             options.DetailedErrors = builder.Environment.IsDevelopment();
         })
-        .AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024) // 100 MB
-        .AddCircuitOptions(options =>
-        {
-            if (!builder.Environment.IsDevelopment())
-            {
-                options.DetailedErrors = false;
-            }
-        });
+        .AddHubOptions(hub => hub.MaximumReceiveMessageSize = 100 * 1024 * 1024); // 100 MB
         builder.Services.AddMudServices(config =>
         {
             config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.TopCenter;
