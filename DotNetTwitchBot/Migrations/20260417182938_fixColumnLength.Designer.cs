@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetTwitchBot.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260417142116_AddFishCatchesUserIdIndex")]
-    partial class AddFishCatchesUserIdIndex
+    [Migration("20260417182938_fixColumnLength")]
+    partial class fixColumnLength
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -857,7 +857,8 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -869,6 +870,9 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FishTypeId");
+
+                    b.HasIndex("UserId", "CaughtAt")
+                        .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
 
                     b.ToTable("FishCatches");
                 });

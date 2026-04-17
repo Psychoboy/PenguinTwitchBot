@@ -6,7 +6,10 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
     {
         [Key]
         public int Id { get; set; }
+
+        [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
+
         public string Username { get; set; } = string.Empty;
         public int FishTypeId { get; set; }
         public virtual FishType? FishType { get; set; }

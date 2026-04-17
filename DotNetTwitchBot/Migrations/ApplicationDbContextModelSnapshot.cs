@@ -854,7 +854,8 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -866,6 +867,9 @@ namespace DotNetTwitchBot.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FishTypeId");
+
+                    b.HasIndex("UserId", "CaughtAt")
+                        .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
 
                     b.ToTable("FishCatches");
                 });
