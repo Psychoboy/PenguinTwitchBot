@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Commands.Fishing
 @using DotNetTwitchBot.Bot.Models.Fishing
 @inject IFishingService FishingService
+@inject IFishingAnalyticsService AnalyticsService
 
 <MudPaper Elevation="3" Class="pa-4">
     <MudStack Spacing="3">
@@ -136,13 +137,13 @@
         isCalculating = true;
         try
         {
-            rarityProbs = await FishingService.CalculateRarityProbabilities(
+            rarityProbs = await AnalyticsService.CalculateRarityProbabilities(
                 useBoostMode, 
                 boostMultiplier, 
                 EquippedItemIds
             );
 
-            fishProbs = await FishingService.CalculateCatchProbabilities(
+            fishProbs = await AnalyticsService.CalculateCatchProbabilities(
                 useBoostMode,
                 boostMultiplier,
                 EquippedItemIds

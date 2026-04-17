@@ -1148,6 +1148,9 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingShopService shopService { get; set; } = null!;
+    [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
+    [Inject] private IFishingAnalyticsService analyticsService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IWebHostEnvironment WebHostEnvironment { get; set; } = null!;
     [Inject] private DotNetTwitchBot.Services.ImageProcessingService ImageProcessor { get; set; } = null!;
@@ -1200,7 +1203,7 @@
     private async Task LoadData()
     {
         fishTypes = await fishingService.GetAllFishTypes();
-        shopItems = await fishingService.GetAllShopItems();
+        shopItems = await shopService.GetAllShopItems();
         allPlayers = await fishingService.GetAllPlayersWithGold();
         var loadedSettings = await fishingService.GetSettings();
         if (loadedSettings != null)
@@ -1426,12 +1429,12 @@
 
             if (editingShopItem.Id == 0)
             {
-                await fishingService.AddShopItem(editingShopItem);
+                await shopService.AddShopItem(editingShopItem);
                 Snackbar.Add("Shop item added successfully", Severity.Success);
             }
             else
             {
-                await fishingService.UpdateShopItem(editingShopItem);
+                await shopService.UpdateShopItem(editingShopItem);
                 Snackbar.Add("Shop item updated successfully", Severity.Success);
             }
 
@@ -1477,7 +1480,7 @@
     {
         try
         {
-            await fishingService.DeleteShopItem(item.Id);
+            await shopService.DeleteShopItem(item.Id);
             Snackbar.Add("Shop item deleted successfully", Severity.Success);
             await LoadData();
         }
@@ -1562,7 +1565,7 @@
         isGeneratingItems = true;
         try
         {
-            var itemCount = await fishingService.GenerateDefaultShopItems();
+            var itemCount = await shopService.GenerateDefaultShopItems();
 
             if (itemCount > 0)
             {
@@ -1594,7 +1597,7 @@
         try
         {
             var selectedItemIds = simSelectedItems.ToList();
-            simulationResult = await fishingService.SimulateFishing(
+            simulationResult = await analyticsService.SimulateFishing(
                 simIterations, 
                 simUseBoostMode, 
                 simBoostMultiplier, 
@@ -1711,7 +1714,7 @@
         isProcessing = true;
         try
         {
-            await fishingService.GiveItemToUser(selectedPlayer.UserId, selectedItemToGive.Value);
+            await inventoryService.GiveItemToUser(selectedPlayer.UserId, selectedItemToGive.Value);
             var item = shopItems.FirstOrDefault(i => i.Id == selectedItemToGive.Value);
             Snackbar.Add($"Gave {item?.Name ?? "item"} to {selectedPlayer.Username}", Severity.Success);
             selectedItemToGive = null;
@@ -1747,12 +1750,12 @@
             {
                 // Apply recommended price adjustments based on production data analysis
                 var priceUpdates = GetRecommendedPriceUpdates();
-                updatedCount = await fishingService.UpdateShopItemPrices(priceUpdates);
+                updatedCount = await shopService.UpdateShopItemPrices(priceUpdates);
             }
             else if (priceUpdatePreset == "multiplier")
             {
                 // Apply custom multiplier to selected items
-                updatedCount = await fishingService.ApplyPriceMultiplier(
+                updatedCount = await shopService.ApplyPriceMultiplier(
                     customMultiplier, 
                     updatePermanentOnly, 
                     updateSpecificSlot

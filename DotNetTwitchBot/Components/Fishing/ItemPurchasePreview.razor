@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Commands.Fishing
 @using DotNetTwitchBot.Bot.Models.Fishing
 @inject IFishingService FishingService
+@inject IFishingAnalyticsService AnalyticsService
 
 @if (ShopItem != null)
 {
@@ -191,7 +192,7 @@
                 itemIds.Add(ShopItem.Id);
             }
 
-            rarityPreview = await FishingService.CalculateRarityProbabilities(
+            rarityPreview = await AnalyticsService.CalculateRarityProbabilities(
                 settings?.BoostMode ?? false,
                 settings?.BoostModeRarityMultiplier ?? 1.0,
                 itemIds
@@ -199,7 +200,7 @@
 
             if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishTypeId.HasValue)
             {
-                probabilityPreview = await FishingService.CalculateCatchProbabilities(
+                probabilityPreview = await AnalyticsService.CalculateCatchProbabilities(
                     settings?.BoostMode ?? false,
                     settings?.BoostModeRarityMultiplier ?? 1.0,
                     itemIds

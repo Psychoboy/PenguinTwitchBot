@@ -656,6 +656,7 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingLeaderboardService leaderboardService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
 
     private List<FishType> fishTypes = new();
@@ -868,7 +869,7 @@
         isLoadingGoldLeaderboard = true;
         try
         {
-            goldLeaderboard = await fishingService.GetTotalGoldLeaderboard(50);
+            goldLeaderboard = await leaderboardService.GetTotalGoldLeaderboard(50);
         }
         finally
         {
@@ -881,7 +882,7 @@
         isLoadingValuableCatches = true;
         try
         {
-            valuableCatchesLeaderboard = await fishingService.GetMostValuableCatchesLeaderboard(50);
+            valuableCatchesLeaderboard = await leaderboardService.GetMostValuableCatchesLeaderboard(50);
         }
         finally
         {
@@ -896,11 +897,11 @@
         {
             if (showPersonalCatches && !string.IsNullOrEmpty(currentUserId))
             {
-                recentCatches = await fishingService.GetUserRecentCatches(currentUserId, 50);
+                recentCatches = await leaderboardService.GetUserRecentCatches(currentUserId, 50);
             }
             else
             {
-                recentCatches = await fishingService.GetRecentCatches(50);
+                recentCatches = await leaderboardService.GetRecentCatches(50);
             }
         }
         finally

@@ -106,7 +106,13 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>();
             services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
 
+            // Fishing services - core service and specialized services
             services.AddSingleton<IFishingService, FishingService>();
+            services.AddSingleton<IFishingShopService, FishingShopService>();
+            services.AddSingleton<IFishingInventoryService, FishingInventoryService>();
+            services.AddSingleton<IFishingGameplayService, FishingGameplayService>();
+            services.AddSingleton<IFishingAnalyticsService, FishingAnalyticsService>();
+            services.AddSingleton<IFishingLeaderboardService, FishingLeaderboardService>();
 
             services.AddHostedApiService<ScAi>();
 

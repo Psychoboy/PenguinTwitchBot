@@ -1,10 +1,14 @@
 using DotNetTwitchBot.Bot.Models.Fishing;
-using DotNetTwitchBot.Models;
 
 namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
+    /// <summary>
+    /// Core fishing service for fish types, catches, gold, and settings management.
+    /// Use specialized services for shop, inventory, gameplay, analytics, and leaderboards.
+    /// </summary>
     public interface IFishingService
     {
+        // Fish Type Management
         Task<List<FishType>> GetAllFishTypes();
         Task<List<FishType>> GetFishTypesWithCatches();
         Task<FishType?> GetFishTypeById(int id);
@@ -12,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task UpdateFishType(FishType fishType);
         Task DeleteFishType(int id);
 
+        // Fish Catch Queries
         Task<List<FishCatch>> GetTopCatchesForFishType(int fishTypeId, int count = 10);
         Task<List<FishCatch>> GetUserCatches(string userId, int count = 50);
         Task<FishCatch?> GetUserBestCatchForFishType(string userId, int fishTypeId);
@@ -19,52 +24,19 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId);
         Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId);
 
+        // Gold Management
         Task<FishingGold?> GetUserGold(string userId);
         Task AddGoldToUser(string userId, string username, int amount);
         Task RemoveGoldFromUser(string userId, int amount);
         Task SetUserGold(string userId, string username, int amount);
         Task<List<FishingGold>> GetAllPlayersWithGold();
 
-        Task<List<FishingShopItem>> GetAllShopItems();
-        Task<FishingShopItem?> GetShopItemById(int id);
-        Task AddShopItem(FishingShopItem item);
-        Task UpdateShopItem(FishingShopItem item);
-        Task DeleteShopItem(int id);
-
-        Task<List<UserFishingBoost>> GetUserBoosts(string userId);
-        Task<List<UserFishingBoost>> GetUserEquippedItems(string userId);
-        Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId);
-        Task PurchaseBoost(string userId, int shopItemId);
-        Task GiveItemToUser(string userId, int shopItemId);
-        Task EquipItem(string userId, int userBoostId);
-        Task UnequipItem(string userId, int userBoostId);
-        Task ConsumeItemUse(string userId, int userBoostId);
-
+        // Settings
         Task<FishingSettings?> GetSettings();
         Task UpdateSettings(FishingSettings settings);
 
-        Task<FishCatch> PerformFishingAttempt(string userId, string username);
-
+        // Admin Operations
         Task ResetAllUserData();
         Task<int> SyncAllFishRarities();
-        Task<int> GenerateDefaultShopItems();
-        Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates);
-        Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null);
-
-        Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
-
-        Task<List<LeaderPosition>> GetTotalGoldLeaderboard(int count = 50);
-        Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50);
-        Task<List<FishCatch>> GetRecentCatches(int count = 50);
-        Task<List<FishCatch>> GetUserRecentCatches(string userId, int count = 50);
-
-        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds);
-        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
-        Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
-        Task SellItem(string userId, int userBoostId);
-
-        Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null);
-        Task<double> CalculateBaselineExpectedGold();
-        Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26);
     }
 }

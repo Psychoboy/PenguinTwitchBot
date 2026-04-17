@@ -1,6 +1,7 @@
 @using DotNetTwitchBot.Bot.Commands.Fishing
 @using DotNetTwitchBot.Bot.Models.Fishing
 @inject IFishingService FishingService
+@inject IFishingAnalyticsService AnalyticsService
 
 <MudPaper Elevation="2" Class="pa-4">
     <MudStack Spacing="3">
@@ -130,8 +131,8 @@
         try
         {
             var settings = await FishingService.GetSettings();
-            
-            rarityProbs = await FishingService.CalculateRarityProbabilities(
+
+            rarityProbs = await AnalyticsService.CalculateRarityProbabilities(
                 settings?.BoostMode ?? false,
                 settings?.BoostModeRarityMultiplier ?? 1.0,
                 EquippedItemIds
@@ -139,7 +140,7 @@
 
             if (ShowTopFish)
             {
-                var allProbs = await FishingService.CalculateCatchProbabilities(EquippedItemIds);
+                var allProbs = await AnalyticsService.CalculateCatchProbabilities(EquippedItemIds);
                 topFish = allProbs
                     .OrderByDescending(f => f.Value.OverallChance)
                     .Take(10)

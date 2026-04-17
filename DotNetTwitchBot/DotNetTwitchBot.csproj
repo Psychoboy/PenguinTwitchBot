@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="DotNetTwitchBot.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Authorization\**" />
     <Compile Remove="Backups\**" />
     <Compile Remove="Logs\**" />

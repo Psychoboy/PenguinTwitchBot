@@ -3,6 +3,8 @@
 @using DotNetTwitchBot.Bot.Models.Fishing
 @using System.Text.Json
 @inject IFishingService FishingService
+@inject IFishingShopService ShopService
+@inject IFishingAnalyticsService AnalyticsService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -173,7 +175,7 @@
                         </MudItem>
                         <MudItem xs="12" md="3">
                             <MudStack Spacing="2">
-                                <MudSwitch T="bool" @bind-Checked="useProgressiveBaseline" Label="Progressive Baseline" Color="Color.Primary" />
+                                <MudSwitch T="bool" @bind-Checked="@useProgressiveBaseline" Label="Progressive Baseline" Color="Color.Primary" />
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                     @if (useProgressiveBaseline)
                                     {
@@ -661,7 +663,7 @@
         isLoading = true;
         try
         {
-            report = await FishingService.AnalyzeGameBalance(startDate, endDate);
+            report = await AnalyticsService.AnalyzeGameBalance(startDate, endDate);
             Snackbar.Add("Analysis completed successfully!", Severity.Success);
         }
         catch (Exception ex)
@@ -884,6 +886,7 @@
     private int targetWeeks = 26; // Default to 6 months
     private bool useMedian = true; // Default to median (recommended)
     private bool useProgressiveBaseline = true; // Use progressive baseline by default (more realistic)
+
     private bool isCalculating = false;
     private bool isApplying = false;
     private PricePreview? pricePreview;
@@ -920,7 +923,7 @@
         try
         {
             // Get all shop items
-            var allItems = await FishingService.GetAllShopItems();
+            var allItems = await ShopService.GetAllShopItems();
 
             // Filter to permanent equipment only (exclude Bait and Lure slots)
             var permanentItems = allItems
@@ -942,13 +945,13 @@
             {
                 // Progressive baseline: assumes player gradually upgrades equipment over time
                 // More realistic - models actual progression path
-                baselineGoldPerCatch = await FishingService.CalculateProgressiveBaselineGold(targetWeeks);
+                baselineGoldPerCatch = await AnalyticsService.CalculateProgressiveBaselineGold(targetWeeks);
             }
             else
             {
                 // Pure baseline: assumes NO equipment for entire duration
                 // More conservative - ensures prices are achievable even without gear
-                baselineGoldPerCatch = await FishingService.CalculateBaselineExpectedGold();
+                baselineGoldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
             }
 
             // Get actual gold for comparison (includes equipment bonuses from actual catches)
@@ -1014,7 +1017,7 @@
         try
         {
             // Apply the multiplier to permanent items only
-            var updatedCount = await FishingService.ApplyPriceMultiplier(
+            var updatedCount = await ShopService.ApplyPriceMultiplier(
                 pricePreview.Multiplier, 
                 permanentOnly: true
             );

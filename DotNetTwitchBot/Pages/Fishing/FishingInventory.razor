@@ -460,6 +460,7 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
 
@@ -518,8 +519,8 @@
         try
         {
             userGold = await fishingService.GetUserGold(userId);
-            allItems = await fishingService.GetUserBoosts(userId);
-            equippedBySlot = await fishingService.GetUserEquipmentBySlot(userId);
+            allItems = await inventoryService.GetUserBoosts(userId);
+            equippedBySlot = await inventoryService.GetUserEquipmentBySlot(userId);
             fishTypes = await fishingService.GetAllFishTypes();
 
             // Build fish type lookup for O(1) access
@@ -604,47 +605,47 @@
            $"Are you sure you want to sell this item for {(int)(item.ShopItem.Cost * 0.15)} gold? This action cannot be undone.",
            yesText: "Sell",
            noText: "Cancel",
-           options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
-           if(result == true)
-           {
-                await fishingService.SellItem(userId, userBoostId);
-                Snackbar.Add("Item sold successfully", Severity.Success);
-                await LoadData();
+                   options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+                  if(result == true)
+                  {
+                       await inventoryService.SellItem(userId, userBoostId);
+                       Snackbar.Add("Item sold successfully", Severity.Success);
+                       await LoadData();
+                  }
+               }
+               catch (Exception ex)
+               {
+                   Snackbar.Add($"Error selling item: {ex.Message}", Severity.Error);
+               }
            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error selling item: {ex.Message}", Severity.Error);
-        }
-    }
 
-    private async Task EquipItem(int userBoostId)
-    {
-        try
-        {
-            await fishingService.EquipItem(userId, userBoostId);
-            Snackbar.Add("Item equipped successfully", Severity.Success);
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error equipping item: {ex.Message}", Severity.Error);
-        }
-    }
+           private async Task EquipItem(int userBoostId)
+           {
+               try
+               {
+                   await inventoryService.EquipItem(userId, userBoostId);
+                   Snackbar.Add("Item equipped successfully", Severity.Success);
+                   await LoadData();
+               }
+               catch (Exception ex)
+               {
+                   Snackbar.Add($"Error equipping item: {ex.Message}", Severity.Error);
+               }
+           }
 
-    private async Task UnequipItem(int userBoostId)
-    {
-        try
-        {
-            await fishingService.UnequipItem(userId, userBoostId);
-            Snackbar.Add("Item unequipped successfully", Severity.Success);
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error unequipping item: {ex.Message}", Severity.Error);
-        }
-    }
+           private async Task UnequipItem(int userBoostId)
+           {
+               try
+               {
+                   await inventoryService.UnequipItem(userId, userBoostId);
+                   Snackbar.Add("Item unequipped successfully", Severity.Success);
+                   await LoadData();
+               }
+               catch (Exception ex)
+               {
+                   Snackbar.Add($"Error unequipping item: {ex.Message}", Severity.Error);
+               }
+           }
 
     private void ShowEquipDialog(EquipmentSlot slot)
     {
