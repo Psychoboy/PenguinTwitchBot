@@ -59,5 +59,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds);
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+        Task SellItem(string userId, int userBoostId);
     }
 }

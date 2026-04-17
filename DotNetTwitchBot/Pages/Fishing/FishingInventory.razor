@@ -4,6 +4,7 @@
 @using DotNetTwitchBot.Components.Fishing
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
+@inject IDialogService DialogService
 @attribute [Authorize]
 
 <PageTitle>Fishing Inventory</PageTitle>
@@ -324,6 +325,19 @@
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
+                                    @if(!context.IsEquipped && !context.ShopItem!.IsConsumable && context.RemainingUses == -1)
+                                    {
+                                        <MudTooltip Text="Sell for 15% of original cost">
+                                            <MudButton Variant="Variant.Text" 
+                                                        Color="Color.Primary" 
+                                                        Size="Size.Small"
+                                                        StartIcon="@Icons.Material.Filled.Sell"
+                                                        OnClick="@(() => SellItem(context.Id))">
+                                                Sell
+                                            </MudButton>
+                                        </MudTooltip>
+                                    }
+                                        
                                     @if (!context.IsEquipped && !(context.ShopItem!.IsConsumable && context.RemainingUses == 0))
                                     {
                                         <MudButton Variant="Variant.Text" 
@@ -564,6 +578,36 @@
         // Materialize to list and cache
         cachedFilteredItems = filtered.ToList();
         return cachedFilteredItems;
+    }
+
+    private async Task SellItem(int userBoostId)
+    {
+       
+        try
+        {
+            var item = allItems.FirstOrDefault(i => i.Id == userBoostId);
+            if (item == null || item.ShopItem == null)
+            {
+                Snackbar.Add("Item not found", Severity.Error);
+                return;
+            }
+            bool? result = await DialogService.ShowMessageBoxAsync(
+           "Confirm Sale",
+           $"Are you sure you want to sell this item for {(int)(item.ShopItem.Cost * 0.15)} gold? This action cannot be undone.",
+           yesText: "Sell",
+           noText: "Cancel",
+           options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+           if(result == true)
+           {
+                await fishingService.SellItem(userId, userBoostId);
+                Snackbar.Add("Item sold successfully", Severity.Success);
+                await LoadData();
+           }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selling item: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task EquipItem(int userBoostId)
