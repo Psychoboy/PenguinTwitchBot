@@ -71,9 +71,9 @@
     <PackageReference Include="MudBlazor.Markdown" Version="9.0.0" />
     <PackageReference Include="obs-websocket-dotnet" Version="5.0.1" />
     <PackageReference Include="OpenAI" Version="2.9.1" />
-    <PackageReference Include="OpenTelemetry" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.2" />
     <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.15.1" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.2" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
