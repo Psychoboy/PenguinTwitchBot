@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         private readonly ServiceProvider _serviceProvider;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly FishingService _fishingService;
+        private readonly FishingAnalyticsService _analyticsService;
         private readonly ApplicationDbContext _context;
         private readonly string _databaseName;
 
@@ -33,9 +34,10 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
             _context = _serviceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var logger = Substitute.For<ILogger<FishingService>>();
-            var hubContext = Substitute.For<IHubContext<MainHub>>();
-            _fishingService = new FishingService(_scopeFactory, logger, hubContext);
+            var fishingLogger = Substitute.For<ILogger<FishingService>>();
+            var analyticsLogger = Substitute.For<ILogger<FishingAnalyticsService>>();
+            _fishingService = new FishingService(_scopeFactory, fishingLogger);
+            _analyticsService = new FishingAnalyticsService(_scopeFactory, analyticsLogger, _fishingService);
         }
 
         public void Dispose()
@@ -111,7 +113,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int>());
 
             Assert.NotNull(result);
             // Base weights: Common=50, Uncommon=30, Rare=15, Epic=4, Legendary=1
@@ -145,7 +147,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id });
 
             // With +50% boost: Uncommon=30*1.5=45, Rare=15*1.5=22.5, Epic=4*1.5=6, Legendary=1*1.5=1.5
             // Common stays 50
@@ -190,7 +192,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int> { tackleBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { tackleBox.Id });
 
             // With +30% boost: Uncommon=30*1.3=39, Rare=15*1.3=19.5, Epic=4*1.3=5.2, Legendary=1*1.3=1.3
             // Common stays 50
@@ -226,7 +228,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(ultimateBox);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int> { ultimateBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { ultimateBox.Id });
 
             // Boosts stack multiplicatively: 1.4 * 1.2 = 1.68
             // Uncommon=30*1.68=50.4, Rare=15*1.68=25.2, Epic=4*1.68=6.72, Legendary=1*1.68=1.68
@@ -276,7 +278,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.AddRange(rod, reel);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id, reel.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { rod.Id, reel.Id });
 
             // Rod: +30% -> *1.3
             // Reel BoostType2: +10% -> *1.1
@@ -301,7 +303,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _fishingService.CalculateRarityProbabilities(true, 5.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<int>());
 
             // With 5x global boost: Uncommon=30*5=150, Rare=15*5=75, Epic=4*5=20, Legendary=1*5=5
             // Common stays 50
@@ -332,7 +334,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(true, 3.0, new List<int> { rod.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 3.0, new List<int> { rod.Id });
 
             // Global boost applies first: Uncommon=30*3=90, Rare=15*3=45, Epic=4*3=12, Legendary=1*3=3
             // Then equipment boost: Uncommon=90*1.5=135, Rare=45*1.5=67.5, Epic=12*1.5=18, Legendary=3*1.5=4.5
@@ -368,8 +370,8 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(rod);
             await _context.SaveChangesAsync();
 
-            var rarityProbs = await _fishingService.CalculateRarityProbabilities(true, 5.0, new List<int> { rod.Id });
-            var fishProbs = await _fishingService.CalculateCatchProbabilities(true, 5.0, new List<int> { rod.Id });
+            var rarityProbs = await _analyticsService.CalculateRarityProbabilities(true, 5.0, new List<int> { rod.Id });
+            var fishProbs = await _analyticsService.CalculateCatchProbabilities(true, 5.0, new List<int> { rod.Id });
 
             Assert.NotNull(rarityProbs);
             Assert.NotNull(fishProbs);
@@ -409,7 +411,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateCatchProbabilities(false, 1.0, new List<int> { tackleBox.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { tackleBox.Id });
 
             Assert.NotNull(result);
             Assert.NotEmpty(result);
@@ -445,7 +447,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.Add(salmonBait);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id });
 
             var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
             Assert.NotNull(rareSalmon);
@@ -490,7 +492,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.AddRange(salmonBait, salmonLure);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id, salmonLure.Id });
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id, salmonLure.Id });
 
             var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
             Assert.NotNull(rareSalmon);
@@ -511,7 +513,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int>());
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int>());
 
             Assert.NotNull(result);
             Assert.Equal(50.0, result.Probabilities[FishRarity.Common], 2);
@@ -523,7 +525,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, new List<int> { 999, 1000 });
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, new List<int> { 999, 1000 });
 
             Assert.NotNull(result);
             Assert.Equal(50.0, result.Probabilities[FishRarity.Common], 2);
@@ -571,7 +573,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             var itemIds = items.Select(i => i.Id).ToList();
-            var result = await _fishingService.CalculateRarityProbabilities(false, 1.0, itemIds);
+            var result = await _analyticsService.CalculateRarityProbabilities(false, 1.0, itemIds);
 
             // Combined rarity multipliers: 1.35 * 1.15 * 1.3 * 1.1 = 2.22525
             // Uncommon=30*2.22525=66.76, Rare=15*2.22525=33.38, Epic=4*2.22525=8.90, Legendary=1*2.22525=2.23
@@ -619,7 +621,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishingShopItems.AddRange(rod, tackleBox);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateRarityProbabilities(true, 10.0, new List<int> { rod.Id, tackleBox.Id });
+            var result = await _analyticsService.CalculateRarityProbabilities(true, 10.0, new List<int> { rod.Id, tackleBox.Id });
 
             // Global boost: 10x
             // Equipment: 1.5 * 1.4 * 1.25 = 2.625
@@ -653,7 +655,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             _context.FishTypes.AddRange(duplicateNameFish);
             await _context.SaveChangesAsync();
 
-            var result = await _fishingService.CalculateCatchProbabilities(new List<int>());
+            var result = await _analyticsService.CalculateCatchProbabilities(new List<int>());
 
             // Verify that both fish are present in the result using fish ID as key (not name)
             Assert.True(result.ContainsKey(10), "Fish with ID 10 should be present in results");
@@ -707,21 +709,15 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call the private method using reflection to test specific fish selection
-                var method = typeof(FishingService).GetMethod("SelectRandomFish", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost> { userBoost };
+                var settings = await _fishingService.GetSettings();
 
-                if (method != null)
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 1) // Common Bass
                 {
-                    var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                    var boosts = new List<UserFishingBoost> { userBoost };
-                    var settings = await _fishingService.GetSettings();
-
-                    var selectedFish = (FishType)method.Invoke(_fishingService, new object[] { fishTypes, settings, boosts });
-                    if (selectedFish.Id == 1) // Common Bass
-                    {
-                        bassCount++;
-                    }
+                    bassCount++;
                 }
             }
 
@@ -775,21 +771,15 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call the private method using reflection to test specific fish selection
-                var method = typeof(FishingService).GetMethod("SelectRandomFish", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost> { userBoost };
+                var settings = await _fishingService.GetSettings();
 
-                if (method != null)
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 2) // Uncommon Trout
                 {
-                    var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                    var boosts = new List<UserFishingBoost> { userBoost };
-                    var settings = await _fishingService.GetSettings();
-
-                    var selectedFish = (FishType)method.Invoke(_fishingService, new object[] { fishTypes, settings, boosts });
-                    if (selectedFish.Id == 2) // Uncommon Trout
-                    {
-                        troutCount++;
-                    }
+                    troutCount++;
                 }
             }
 
@@ -823,7 +813,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
             await _context.SaveChangesAsync();
 
             // Get probability calculations
-            var probabilities = await _fishingService.CalculateCatchProbabilities(new List<int> { 1 });
+            var probabilities = await _analyticsService.CalculateCatchProbabilities(new List<int> { 1 });
 
             // Verify the result uses fish ID as key and includes all enabled fish
             var enabledFishIds = _context.FishTypes.Where(f => f.Enabled).Select(f => f.Id).ToList();

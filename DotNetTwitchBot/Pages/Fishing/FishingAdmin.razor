@@ -113,6 +113,13 @@
                             <text>Generate Default Items</text>
                         }
                     </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Warning" 
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.TrendingUp"
+                               OnClick="() => showPriceUpdateDialog = true">
+                        Update Item Prices
+                    </MudButton>
                 </MudStack>
                 <MudTable Items="@shopItems" Hover="true" Striped="true" Dense="true" Elevation="2">
                     <HeaderContent>
@@ -1141,6 +1148,9 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingShopService shopService { get; set; } = null!;
+    [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
+    [Inject] private IFishingAnalyticsService analyticsService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IWebHostEnvironment WebHostEnvironment { get; set; } = null!;
     [Inject] private DotNetTwitchBot.Services.ImageProcessingService ImageProcessor { get; set; } = null!;
@@ -1193,7 +1203,7 @@
     private async Task LoadData()
     {
         fishTypes = await fishingService.GetAllFishTypes();
-        shopItems = await fishingService.GetAllShopItems();
+        shopItems = await shopService.GetAllShopItems();
         allPlayers = await fishingService.GetAllPlayersWithGold();
         var loadedSettings = await fishingService.GetSettings();
         if (loadedSettings != null)
@@ -1419,12 +1429,12 @@
 
             if (editingShopItem.Id == 0)
             {
-                await fishingService.AddShopItem(editingShopItem);
+                await shopService.AddShopItem(editingShopItem);
                 Snackbar.Add("Shop item added successfully", Severity.Success);
             }
             else
             {
-                await fishingService.UpdateShopItem(editingShopItem);
+                await shopService.UpdateShopItem(editingShopItem);
                 Snackbar.Add("Shop item updated successfully", Severity.Success);
             }
 
@@ -1470,7 +1480,7 @@
     {
         try
         {
-            await fishingService.DeleteShopItem(item.Id);
+            await shopService.DeleteShopItem(item.Id);
             Snackbar.Add("Shop item deleted successfully", Severity.Success);
             await LoadData();
         }
@@ -1555,7 +1565,7 @@
         isGeneratingItems = true;
         try
         {
-            var itemCount = await fishingService.GenerateDefaultShopItems();
+            var itemCount = await shopService.GenerateDefaultShopItems();
 
             if (itemCount > 0)
             {
@@ -1587,7 +1597,7 @@
         try
         {
             var selectedItemIds = simSelectedItems.ToList();
-            simulationResult = await fishingService.SimulateFishing(
+            simulationResult = await analyticsService.SimulateFishing(
                 simIterations, 
                 simUseBoostMode, 
                 simBoostMultiplier, 
@@ -1704,7 +1714,7 @@
         isProcessing = true;
         try
         {
-            await fishingService.GiveItemToUser(selectedPlayer.UserId, selectedItemToGive.Value);
+            await inventoryService.GiveItemToUser(selectedPlayer.UserId, selectedItemToGive.Value);
             var item = shopItems.FirstOrDefault(i => i.Id == selectedItemToGive.Value);
             Snackbar.Add($"Gave {item?.Name ?? "item"} to {selectedPlayer.Username}", Severity.Success);
             selectedItemToGive = null;
@@ -1718,4 +1728,237 @@
             isProcessing = false;
         }
     }
+
+    // ===== PRICE UPDATE FUNCTIONALITY =====
+    private bool showPriceUpdateDialog = false;
+    private string priceUpdatePreset = "recommended";
+    private double customMultiplier = 2.0;
+    private bool updatePermanentOnly = true;
+    private EquipmentSlot? updateSpecificSlot = null;
+    private bool isUpdatingPrices = false;
+
+    private async Task ApplyPriceUpdates()
+    {
+        if (isUpdatingPrices) return;
+
+        isUpdatingPrices = true;
+        try
+        {
+            int updatedCount = 0;
+
+            if (priceUpdatePreset == "recommended")
+            {
+                // Apply recommended price adjustments based on production data analysis
+                var priceUpdates = GetRecommendedPriceUpdates();
+                updatedCount = await shopService.UpdateShopItemPrices(priceUpdates);
+            }
+            else if (priceUpdatePreset == "multiplier")
+            {
+                // Apply custom multiplier to selected items
+                updatedCount = await shopService.ApplyPriceMultiplier(
+                    customMultiplier, 
+                    updatePermanentOnly, 
+                    updateSpecificSlot
+                );
+            }
+
+            if (updatedCount > 0)
+            {
+                Snackbar.Add($"Successfully updated {updatedCount} item prices", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("No items were updated", Severity.Info);
+            }
+
+            showPriceUpdateDialog = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating prices: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUpdatingPrices = false;
+        }
+    }
+
+    private Dictionary<string, int> GetRecommendedPriceUpdates()
+    {
+        // Based on production data analysis showing all permanent equipment "Too Cheap"
+        // These recommendations create a 3-6 month progression timeline
+        return new Dictionary<string, int>
+        {
+            // ===== ENTRY TIER (2x increase) =====
+            // Rods
+            { "Bamboo Rod", 300 },
+            // Reels
+            { "Basic Reel", 400 },
+            // Lines
+            { "Monofilament Line", 350 },
+            // Hooks
+            { "Standard Hook", 300 },
+            // Tackle Boxes
+            { "Basic Tackle Box", 600 },
+            // Nets
+            { "Landing Net", 700 },
+
+            // ===== MID TIER (2-2.5x increase) =====
+            // Rods
+            { "Fiberglass Rod", 850 },
+            // Reels
+            { "Precision Reel", 1100 },
+            // Lines
+            { "Braided Line", 1000 },
+            // Hooks
+            { "Circle Hook", 850 },
+            // Tackle Boxes
+            { "Pro Tackle Box", 1600 },
+            // Nets
+            { "Knotless Net", 2000 },
+
+            // ===== HIGH TIER (2.2-2.5x increase) =====
+            // Rods
+            { "Carbon Fiber Rod", 2200 },
+            // Reels
+            { "Professional Reel", 2700 },
+            // Lines
+            { "Fluorocarbon Line", 2400 },
+            // Hooks
+            { "Treble Hook", 2200 },
+            // Tackle Boxes
+            { "Master Tackle Box", 4400 },
+            // Nets
+            { "Tournament Net", 4800 },
+
+            // ===== TOP TIER (2-2.2x increase) =====
+            // Rods
+            { "Legendary Rod", 5500 },
+            // Reels
+            { "Master Reel", 6500 },
+            // Lines
+            { "Titanium Wire", 6000 },
+            // Hooks
+            { "Diamond Hook", 5500 },
+        };
+    }
 }
+
+<MudDialog @bind-Visible="showPriceUpdateDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                <strong>Important:</strong> This will update shop item prices. Users who already own items will keep them at the original price - only future purchases will use new prices.
+            </MudAlert>
+
+            <MudText Typo="Typo.h6">Price Update Strategy</MudText>
+
+            <MudRadioGroup @bind-Value="priceUpdatePreset">
+                <MudRadio Value="@("recommended")" Color="Color.Primary">
+                    <MudStack Spacing="1">
+                        <MudText><strong>Recommended Balance Adjustments</strong></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Based on production data analysis (1118 catches, 44 users). Increases permanent equipment by 2-2.5x to achieve 3-6 month progression timeline.
+                        </MudText>
+                    </MudStack>
+                </MudRadio>
+                <MudRadio Value="@("multiplier")" Color="Color.Secondary">
+                    <MudStack Spacing="1">
+                        <MudText><strong>Custom Multiplier</strong></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Apply a custom multiplier to selected item categories.
+                        </MudText>
+                    </MudStack>
+                </MudRadio>
+            </MudRadioGroup>
+
+            @if (priceUpdatePreset == "recommended")
+            {
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2"><strong>Preview of Changes:</strong></MudText>
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2">• Entry Tier: 150-300 → 300-700 (2x)</MudText>
+                        <MudText Typo="Typo.body2">• Mid Tier: 400-1200 → 850-2000 (2-2.5x)</MudText>
+                        <MudText Typo="Typo.body2">• High Tier: 1000-2200 → 2200-4800 (2.2-2.5x)</MudText>
+                        <MudText Typo="Typo.body2">• Top Tier: 2500-3000 → 5500-6500 (2-2.2x)</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Success">• Consumables: No changes (already balanced)</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @if (priceUpdatePreset == "multiplier")
+            {
+                <MudNumericField @bind-Value="customMultiplier" 
+                                 Label="Price Multiplier" 
+                                 Min="0.1" 
+                                 Max="10" 
+                                 Step="0.1"
+                                 Adornment="Adornment.End"
+                                 AdornmentText="x"
+                                 Variant="Variant.Outlined" />
+
+                <MudSwitch @bind-Value="updatePermanentOnly" Color="Color.Primary" Label="Permanent Equipment Only (Don't update consumables)" />
+
+                @if (!updatePermanentOnly)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        <strong>Note:</strong> Consumables are already well-balanced according to production data. Consider updating permanent items only.
+                    </MudAlert>
+                }
+
+                <MudSelect T="EquipmentSlot?" @bind-Value="updateSpecificSlot" 
+                           Label="Equipment Slot (Optional)" 
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@((EquipmentSlot?)null)">All Slots</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Rod">Rods</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Reel">Reels</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Line">Lines</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Hook">Hooks</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.TackleBox">Tackle Boxes</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Net">Nets</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Bait">Bait</MudSelectItem>
+                    <MudSelectItem Value="@EquipmentSlot.Lure">Lures</MudSelectItem>
+                </MudSelect>
+
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2"><strong>Will Update:</strong></MudText>
+                    <MudText Typo="Typo.body2">
+                        @if (updatePermanentOnly)
+                        {
+                            <text>Permanent Equipment Only</text>
+                        }
+                        else
+                        {
+                            <text>All Items</text>
+                        }
+                        @if (updateSpecificSlot.HasValue)
+                        {
+                            <text> in @updateSpecificSlot.Value slot</text>
+                        }
+                        <text> by @customMultiplier.ToString("F1")x</text>
+                    </MudText>
+                </MudPaper>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => showPriceUpdateDialog = false" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="ApplyPriceUpdates" 
+                   Color="Color.Warning" 
+                   Variant="Variant.Filled"
+                   Disabled="@isUpdatingPrices">
+            @if (isUpdatingPrices)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <text>Updating...</text>
+            }
+            else
+            {
+                <text>Apply Price Updates</text>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
