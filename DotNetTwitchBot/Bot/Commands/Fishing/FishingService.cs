@@ -1227,18 +1227,24 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Get top players by total gold
-            var topPlayers = await context.FishingGolds
-                .OrderByDescending(g => g.TotalGold)
+            // Get top players by total gold earned from catches
+            var topPlayers = await context.FishCatches
+                .GroupBy(c => new { c.UserId, c.Username })
+                .Select(g => new 
+                { 
+                    g.Key.Username, 
+                    TotalGoldEarned = g.Sum(c => c.GoldEarned) 
+                })
+                .OrderByDescending(g => g.TotalGoldEarned)
                 .Take(count)
                 .ToListAsync();
 
             // Map to LeaderPosition with rank
-            var leaderboard = topPlayers.Select((gold, index) => new LeaderPosition
+            var leaderboard = topPlayers.Select((player, index) => new LeaderPosition
             {
                 Rank = index + 1,
-                Name = gold.Username,
-                Amount = gold.TotalGold
+                Name = player.Username,
+                Amount = player.TotalGoldEarned
             }).ToList();
 
             return leaderboard;
