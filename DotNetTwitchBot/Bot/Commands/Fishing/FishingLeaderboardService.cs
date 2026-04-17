@@ -18,6 +18,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<List<LeaderPosition>> GetTotalGoldLeaderboard(int count = 50)
         {
+            count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -47,6 +49,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50)
         {
+            count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -63,6 +67,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<List<FishCatch>> GetRecentCatches(int count = 50)
         {
+            count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -78,6 +84,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
         public async Task<List<FishCatch>> GetUserRecentCatches(string userId, int count = 50)
         {
+            count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 

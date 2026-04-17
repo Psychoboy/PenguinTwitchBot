@@ -66,14 +66,17 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+            var itemNames = priceUpdates.Keys.ToList();
+
+            // Single query to get all items at once (avoids N+1 problem)
+            var items = await context.FishingShopItems
+                .Where(i => itemNames.Contains(i.Name))
+                .ToListAsync();
+
             var updatedCount = 0;
-
-            foreach (var (itemName, newPrice) in priceUpdates)
+            foreach (var item in items)
             {
-                var item = await context.FishingShopItems
-                    .FirstOrDefaultAsync(i => i.Name == itemName);
-
-                if (item != null && item.Cost != newPrice)
+                if (priceUpdates.TryGetValue(item.Name, out var newPrice) && item.Cost != newPrice)
                 {
                     item.Cost = newPrice;
                     updatedCount++;

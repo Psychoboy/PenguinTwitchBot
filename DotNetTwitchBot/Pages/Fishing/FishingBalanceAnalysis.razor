@@ -464,7 +464,7 @@
                                         {
                                             var tier = GetTierFromCost(context.Cost);
                                             var (tierColor, tierIcon) = GetTierDisplay(tier);
-                                            <MudChip T="string" Color="tierColor" Size="Size.Small" Icon="tierIcon">@tier</MudChip>
+                                            <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
                                         }
                                     </MudStack>
                                     @if (!string.IsNullOrEmpty(context.EquipmentSlot) && context.EquipmentSlot != "None")
@@ -863,10 +863,10 @@
         // Tiers aligned with 6-month progression: Entry=2wk, Mid=6wk, High=12wk, Top=26wk
         return cost switch
         {
-            <= 105 => EquipmentTier.Entry,  // ~2 weeks for median player
-            <= 270 => EquipmentTier.Mid,    // ~6 weeks cumulative
-            <= 660 => EquipmentTier.High,   // ~12 weeks cumulative
-            _ => EquipmentTier.Top          // ~26 weeks cumulative
+            <= 200 => EquipmentTier.Entry,   // ~2 weeks for median player
+            <= 500 => EquipmentTier.Mid,     // ~6 weeks cumulative
+            <= 1500 => EquipmentTier.High,    // ~12 weeks cumulative
+            _ => EquipmentTier.Top           // ~26 weeks cumulative
         };
     }
 
@@ -939,26 +939,20 @@
                 return;
             }
 
-            // Calculate baseline expected gold
-            double baselineGoldPerCatch;
+            // Calculate baseline expected gold for pricing (avoids equipment inflation)
+            double goldPerCatch;
             if (useProgressiveBaseline)
             {
                 // Progressive baseline: assumes player gradually upgrades equipment over time
                 // More realistic - models actual progression path
-                baselineGoldPerCatch = await AnalyticsService.CalculateProgressiveBaselineGold(targetWeeks);
+                goldPerCatch = await AnalyticsService.CalculateProgressiveBaselineGold(targetWeeks);
             }
             else
             {
                 // Pure baseline: assumes NO equipment for entire duration
                 // More conservative - ensures prices are achievable even without gear
-                baselineGoldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
+                goldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
             }
-
-            // Get actual gold for comparison (includes equipment bonuses from actual catches)
-            var actualGoldPerCatch = useMedian ? report.MedianGoldPerCatch : report.AverageGoldPerCatch;
-
-            // Use baseline for pricing calculations to avoid equipment inflation
-            var goldPerCatch = baselineGoldPerCatch;
 
             var weeklyIncome = goldPerCatch * 9; // 3 catches × 3 sessions per week
             var currentTotal = permanentItems.Sum(i => i.Cost);

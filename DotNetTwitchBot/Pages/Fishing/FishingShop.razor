@@ -145,7 +145,7 @@
                                     {
                                         var tier = context.GetTier();
                                         var (tierColor, tierIcon) = GetTierDisplay(tier);
-                                        <MudChip T="string" Color="tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+                                        <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
                                     }
                                 </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
