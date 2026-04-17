@@ -11,6 +11,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
     {
         private readonly ILogger<FishingHandler> _logger;
         private readonly IFishingService _fishingService;
+        private readonly IFishingGameplayService _fishingGameplayService;
         private readonly IWebSocketMessenger _webSocketMessenger;
 
         public SubActionTypes SupportedType => SubActionTypes.Fishing;
@@ -18,10 +19,12 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
         public FishingHandler(
             ILogger<FishingHandler> logger,
             IFishingService fishingService,
+            IFishingGameplayService fishingGameplayService,
             IWebSocketMessenger webSocketMessenger)
         {
             _logger = logger;
             _fishingService = fishingService;
+            _fishingGameplayService = fishingGameplayService;
             _webSocketMessenger = webSocketMessenger;
         }
 
@@ -51,7 +54,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
 
             var attemptsText = VariableReplacer.ReplaceVariables(fishingAction.Text, variables);
             var attempts = fishingAction.Attempts;
-            
+
             if (!string.IsNullOrWhiteSpace(attemptsText) && int.TryParse(attemptsText, out var parsedAttempts))
             {
                 attempts = Math.Clamp(parsedAttempts, 1, 10);
@@ -61,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 try
                 {
-                    var fishCatch = await _fishingService.PerformFishingAttempt(userId, username);
+                    var fishCatch = await _fishingGameplayService.PerformFishingAttempt(userId, username);
 
                     var message = new
                     {

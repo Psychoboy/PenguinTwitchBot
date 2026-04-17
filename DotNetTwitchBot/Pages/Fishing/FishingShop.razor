@@ -139,7 +139,15 @@
                     <RowTemplate>
                         <MudTd DataLabel="Item">
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                                    @if (!context.IsConsumable)
+                                    {
+                                        var tier = context.GetTier();
+                                        var (tierColor, tierIcon) = GetTierDisplay(tier);
+                                        <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
                             </MudStack>
                         </MudTd>
@@ -382,6 +390,8 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingShopService shopService { get; set; } = null!;
+    [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
 
@@ -448,8 +458,8 @@
         try
         {
             fishTypes = await fishingService.GetAllFishTypes();
-            shopItems = await fishingService.GetAllShopItems();
-            userBoosts = await fishingService.GetUserBoosts(userId);
+            shopItems = await shopService.GetAllShopItems();
+            userBoosts = await inventoryService.GetUserBoosts(userId);
             var goldData = await fishingService.GetUserGold(userId);
             userGold = goldData?.TotalGold ?? 0;
 
@@ -483,7 +493,7 @@
         isPurchasing = true;
         try
         {
-            await fishingService.PurchaseBoost(userId, shopItemId);
+            await inventoryService.PurchaseBoost(userId, shopItemId);
             Snackbar.Add("Item purchased successfully!", Severity.Success);
             await LoadData();
         }
@@ -600,7 +610,7 @@
     {
         try
         {
-            await fishingService.EquipItem(userId, userBoostId);
+            await inventoryService.EquipItem(userId, userBoostId);
             Snackbar.Add("Item equipped successfully!", Severity.Success);
             await LoadData();
         }
@@ -618,7 +628,7 @@
     {
         try
         {
-            await fishingService.UnequipItem(userId, userBoostId);
+            await inventoryService.UnequipItem(userId, userBoostId);
             Snackbar.Add("Item unequipped successfully!", Severity.Success);
             await LoadData();
         }
@@ -630,5 +640,17 @@
         {
             Snackbar.Add("Failed to unequip item. Please try again.", Severity.Error);
         }
+    }
+
+    private (Color color, string icon) GetTierDisplay(EquipmentTier tier)
+    {
+        return tier switch
+        {
+            EquipmentTier.Entry => (Color.Default, Icons.Material.Filled.Star),
+            EquipmentTier.Mid => (Color.Info, Icons.Material.Filled.StarHalf),
+            EquipmentTier.High => (Color.Secondary, Icons.Material.Filled.Stars),
+            EquipmentTier.Top => (Color.Warning, Icons.Material.Filled.EmojiEvents),
+            _ => (Color.Default, Icons.Material.Filled.ShoppingCart)
+        };
     }
 }
