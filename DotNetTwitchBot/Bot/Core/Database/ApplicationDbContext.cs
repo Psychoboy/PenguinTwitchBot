@@ -139,6 +139,16 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<Models.Queues.QueueConfiguration>()
                 .HasIndex(q => q.Name)
                 .IsUnique();
+
+            // Configure FishCatch with proper column constraints and index
+            modelBuilder.Entity<FishCatch>()
+                .Property(e => e.UserId)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => new { e.UserId, e.CaughtAt })
+                .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
         }
     }
 }
