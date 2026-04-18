@@ -12,5 +12,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null);
         Task<double> CalculateBaselineExpectedGold();
         Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26);
+        Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26);
     }
 }

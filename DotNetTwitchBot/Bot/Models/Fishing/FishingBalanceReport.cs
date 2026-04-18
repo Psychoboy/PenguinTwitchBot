@@ -47,12 +47,17 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         
         // Most Common Equipment Used
         public Dictionary<string, int> MostCommonEquipment { get; set; } = new();
-        
+
+        // Engagement Metrics (calculated from actual player data)
+        public double CasualCatchesPerSession { get; set; }    // 25th percentile
+        public double ActiveCatchesPerSession { get; set; }     // 50th percentile (median)
+        public double HardcoreCatchesPerSession { get; set; }  // 75th percentile
+
         // Summary Statistics
         public string Summary { get; set; } = string.Empty;
         public List<string> BalanceRecommendations { get; set; } = new();
     }
-    
+
     public class ItemAffordability
     {
         public string ItemName { get; set; } = string.Empty;
@@ -66,10 +71,11 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public int UsersWhoCanAfford { get; set; }
         public double PercentageWhoCanAfford { get; set; }
 
-        // Long-term affordability (based on average catches)
+        // Long-term affordability (calculated from REAL player engagement percentiles)
         public double CatchesNeededToBuy { get; set; }
-        public double DaysToAfford3xWeek { get; set; } // Assuming 3 fishing sessions per week
-        public double DaysToAfford1xDay { get; set; }  // Assuming 1 session per day
+        public double SessionsToAffordCasual { get; set; }  // Based on 25th percentile player
+        public double SessionsToAffordActive { get; set; }  // Based on 50th percentile (median) player
+        public double SessionsToAffordHardcore { get; set; } // Based on 75th percentile player
 
         // Value analysis
         public double MedianUserGold { get; set; }
