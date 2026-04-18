@@ -1736,6 +1736,9 @@
     private bool updatePermanentOnly = true;
     private EquipmentSlot? updateSpecificSlot = null;
     private bool isUpdatingPrices = false;
+    private Dictionary<string, int> calculatedRecommendations = new();
+    private bool isCalculatingRecommendations = false;
+    private int targetWeeksForEndgame = 26;
 
     private async Task ApplyPriceUpdates()
     {
@@ -1748,8 +1751,8 @@
 
             if (priceUpdatePreset == "recommended")
             {
-                // Apply recommended price adjustments based on production data analysis
-                var priceUpdates = GetRecommendedPriceUpdates();
+                // Use calculated recommendations from real data
+                var priceUpdates = await GetRecommendedPriceUpdates();
                 updatedCount = await shopService.UpdateShopItemPrices(priceUpdates);
             }
             else if (priceUpdatePreset == "multiplier")
@@ -1784,64 +1787,30 @@
         }
     }
 
-    private Dictionary<string, int> GetRecommendedPriceUpdates()
+    private async Task<Dictionary<string, int>> GetRecommendedPriceUpdates()
     {
-        // Based on production data analysis showing all permanent equipment "Too Cheap"
-        // These recommendations create a 3-6 month progression timeline
-        return new Dictionary<string, int>
+        // Calculate pricing based on CURRENT real player engagement data
+        return await analyticsService.CalculateRecommendedPricing(targetWeeksForEndgame);
+    }
+
+    private async Task CalculateRecommendations()
+    {
+        isCalculatingRecommendations = true;
+        try
         {
-            // ===== ENTRY TIER (2x increase) =====
-            // Rods
-            { "Bamboo Rod", 300 },
-            // Reels
-            { "Basic Reel", 400 },
-            // Lines
-            { "Monofilament Line", 350 },
-            // Hooks
-            { "Standard Hook", 300 },
-            // Tackle Boxes
-            { "Basic Tackle Box", 600 },
-            // Nets
-            { "Landing Net", 700 },
+            calculatedRecommendations = await analyticsService.CalculateRecommendedPricing(targetWeeksForEndgame);
 
-            // ===== MID TIER (2-2.5x increase) =====
-            // Rods
-            { "Fiberglass Rod", 850 },
-            // Reels
-            { "Precision Reel", 1100 },
-            // Lines
-            { "Braided Line", 1000 },
-            // Hooks
-            { "Circle Hook", 850 },
-            // Tackle Boxes
-            { "Pro Tackle Box", 1600 },
-            // Nets
-            { "Knotless Net", 2000 },
-
-            // ===== HIGH TIER (2.2-2.5x increase) =====
-            // Rods
-            { "Carbon Fiber Rod", 2200 },
-            // Reels
-            { "Professional Reel", 2700 },
-            // Lines
-            { "Fluorocarbon Line", 2400 },
-            // Hooks
-            { "Treble Hook", 2200 },
-            // Tackle Boxes
-            { "Master Tackle Box", 4400 },
-            // Nets
-            { "Tournament Net", 4800 },
-
-            // ===== TOP TIER (2-2.2x increase) =====
-            // Rods
-            { "Legendary Rod", 5500 },
-            // Reels
-            { "Master Reel", 6500 },
-            // Lines
-            { "Titanium Wire", 6000 },
-            // Hooks
-            { "Diamond Hook", 5500 },
-        };
+            // Force UI refresh
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error calculating recommendations: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isCalculatingRecommendations = false;
+        }
     }
 }
 
@@ -1857,9 +1826,9 @@
             <MudRadioGroup @bind-Value="priceUpdatePreset">
                 <MudRadio Value="@("recommended")" Color="Color.Primary">
                     <MudStack Spacing="1">
-                        <MudText><strong>Recommended Balance Adjustments</strong></MudText>
+                        <MudText><strong>Data-Driven Balance Recommendations</strong></MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Based on production data analysis (1118 catches, 44 users). Increases permanent equipment by 2-2.5x to achieve 3-6 month progression timeline.
+                            Based on CURRENT player engagement data. Calculates pricing from real catch rates and gold earnings to achieve balanced progression timeline.
                         </MudText>
                     </MudStack>
                 </MudRadio>
@@ -1875,16 +1844,138 @@
 
             @if (priceUpdatePreset == "recommended")
             {
-                <MudPaper Class="pa-3" Elevation="2">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2"><strong>Preview of Changes:</strong></MudText>
-                    <MudStack Spacing="1">
-                        <MudText Typo="Typo.body2">• Entry Tier: 150-300 → 300-700 (2x)</MudText>
-                        <MudText Typo="Typo.body2">• Mid Tier: 400-1200 → 850-2000 (2-2.5x)</MudText>
-                        <MudText Typo="Typo.body2">• High Tier: 1000-2200 → 2200-4800 (2.2-2.5x)</MudText>
-                        <MudText Typo="Typo.body2">• Top Tier: 2500-3000 → 5500-6500 (2-2.2x)</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Success">• Consumables: No changes (already balanced)</MudText>
-                    </MudStack>
-                </MudPaper>
+                <MudNumericField @bind-Value="targetWeeksForEndgame" 
+                                 Label="Target Weeks for Endgame Gear" 
+                                 Min="4" 
+                                 Max="52" 
+                                 Step="1"
+                                 Variant="Variant.Outlined"
+                                 HelperText="How many weeks should it take an active player to afford top-tier equipment?" />
+
+                <MudButton OnClick="CalculateRecommendations"
+                           Color="Color.Info"
+                           Variant="Variant.Filled"
+                           Disabled="@isCalculatingRecommendations"
+                           FullWidth="true">
+                    @if (isCalculatingRecommendations)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <text>Calculating from real data...</text>
+                    }
+                    else
+                    {
+                        <text>Calculate Pricing from Current Data</text>
+                    }
+                </MudButton>
+
+                @if (calculatedRecommendations.Any())
+                {
+                    <MudPaper Class="pa-3" Elevation="1" Style="background-color: var(--mud-palette-info-lighten);">
+                        <MudText Typo="Typo.caption" Color="Color.Info">
+                            <strong>🔍 Debug Info:</strong> Pricing calculated from current player data. 
+                            If these prices seem wrong, check the Output window (View → Output → select ".NET App Modernization" or "Build") for detailed [PRICING] logs showing the calculation breakdown.
+                        </MudText>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-3" Elevation="2">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2"><strong>Calculated Recommendations (@calculatedRecommendations.Count items):</strong></MudText>
+                        <MudStack Spacing="1">
+                            @{
+                                var entryItems = calculatedRecommendations.Where(kvp => kvp.Key.Contains("Bamboo") || kvp.Key.Contains("Basic") || kvp.Key.Contains("Monofilament") || kvp.Key.Contains("Standard") || kvp.Key.Contains("Landing")).ToList();
+                                var midItems = calculatedRecommendations.Where(kvp => kvp.Key.Contains("Fiberglass") || kvp.Key.Contains("Precision") || kvp.Key.Contains("Braided") || kvp.Key.Contains("Circle") || kvp.Key.Contains("Pro") || kvp.Key.Contains("Knotless")).ToList();
+                                var highItems = calculatedRecommendations.Where(kvp => kvp.Key.Contains("Carbon") || kvp.Key.Contains("Professional") || kvp.Key.Contains("Fluorocarbon") || kvp.Key.Contains("Treble") || kvp.Key.Contains("Master") || kvp.Key.Contains("Tournament")).ToList();
+                                var topItems = calculatedRecommendations.Where(kvp => kvp.Key.Contains("Legendary") || kvp.Key.Contains("Titanium") || kvp.Key.Contains("Diamond")).ToList();
+                            }
+
+                            @if (entryItems.Any())
+                            {
+                                var minEntry = entryItems.Min(x => x.Value);
+                                var maxEntry = entryItems.Max(x => x.Value);
+                                var sampleEntry = entryItems.First();
+                                var currentEntry = shopItems.FirstOrDefault(i => i.Name == sampleEntry.Key);
+                                <MudText Typo="Typo.body2">
+                                    • <strong>Entry Tier (~2 weeks):</strong> @minEntry - @maxEntry gold
+                                    @if (currentEntry != null)
+                                    {
+                                        var change = sampleEntry.Value - currentEntry.Cost;
+                                        var changePercent = currentEntry.Cost > 0 ? (change / (double)currentEntry.Cost * 100) : 0;
+                                        <span style="color: @(change > 0 ? "green" : "red");">
+                                            (e.g., @sampleEntry.Key: @currentEntry.Cost → @sampleEntry.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                        </span>
+                                    }
+                                </MudText>
+                            }
+
+                            @if (midItems.Any())
+                            {
+                                var minMid = midItems.Min(x => x.Value);
+                                var maxMid = midItems.Max(x => x.Value);
+                                var sampleMid = midItems.First();
+                                var currentMid = shopItems.FirstOrDefault(i => i.Name == sampleMid.Key);
+                                <MudText Typo="Typo.body2">
+                                    • <strong>Mid Tier (~6 weeks):</strong> @minMid - @maxMid gold
+                                    @if (currentMid != null)
+                                    {
+                                        var change = sampleMid.Value - currentMid.Cost;
+                                        var changePercent = currentMid.Cost > 0 ? (change / (double)currentMid.Cost * 100) : 0;
+                                        <span style="color: @(change > 0 ? "green" : "red");">
+                                            (e.g., @sampleMid.Key: @currentMid.Cost → @sampleMid.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                        </span>
+                                    }
+                                </MudText>
+                            }
+
+                            @if (highItems.Any())
+                            {
+                                var minHigh = highItems.Min(x => x.Value);
+                                var maxHigh = highItems.Max(x => x.Value);
+                                var sampleHigh = highItems.First();
+                                var currentHigh = shopItems.FirstOrDefault(i => i.Name == sampleHigh.Key);
+                                <MudText Typo="Typo.body2">
+                                    • <strong>High Tier (~12 weeks):</strong> @minHigh - @maxHigh gold
+                                    @if (currentHigh != null)
+                                    {
+                                        var change = sampleHigh.Value - currentHigh.Cost;
+                                        var changePercent = currentHigh.Cost > 0 ? (change / (double)currentHigh.Cost * 100) : 0;
+                                        <span style="color: @(change > 0 ? "green" : "red");">
+                                            (e.g., @sampleHigh.Key: @currentHigh.Cost → @sampleHigh.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                        </span>
+                                    }
+                                </MudText>
+                            }
+
+                            @if (topItems.Any())
+                            {
+                                var minTop = topItems.Min(x => x.Value);
+                                var maxTop = topItems.Max(x => x.Value);
+                                var sampleTop = topItems.First();
+                                var currentTop = shopItems.FirstOrDefault(i => i.Name == sampleTop.Key);
+                                <MudText Typo="Typo.body2">
+                                    • <strong>Top Tier (~@targetWeeksForEndgame weeks):</strong> @minTop - @maxTop gold
+                                    @if (currentTop != null)
+                                    {
+                                        var change = sampleTop.Value - currentTop.Cost;
+                                        var changePercent = currentTop.Cost > 0 ? (change / (double)currentTop.Cost * 100) : 0;
+                                        <span style="color: @(change > 0 ? "green" : "red");">
+                                            (e.g., @sampleTop.Key: @currentTop.Cost → @sampleTop.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                        </span>
+                                    }
+                                </MudText>
+                            }
+
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.caption" Color="Color.Info">
+                                💡 Green = price increase (fixes "too cheap" items), Red = price decrease. Click "Apply Price Updates" to use these values.
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Click "Calculate Pricing" to generate recommendations based on current player data.
+                    </MudAlert>
+                }
             }
 
             @if (priceUpdatePreset == "multiplier")

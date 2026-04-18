@@ -139,5 +139,71 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var generator = new FishingShopItemGenerator();
             return await generator.GenerateDefaultItems(context);
         }
+
+        /// <summary>
+        /// Calculates dynamic tiers for all shop items based on price rankings within each equipment slot.
+        /// Returns a dictionary mapping item ID to its calculated tier.
+        /// </summary>
+        public async Task<Dictionary<int, EquipmentTier>> CalculateDynamicTiers()
+        {
+            var allItems = await GetAllShopItems();
+            var tierMap = new Dictionary<int, EquipmentTier>();
+
+            foreach (var item in allItems)
+            {
+                tierMap[item.Id] = GetDynamicTier(item, allItems);
+            }
+
+            return tierMap;
+        }
+
+        /// <summary>
+        /// Determines the equipment tier for an item based on its price rank within its slot category.
+        /// - Highest price in slot = Top Tier
+        /// - Then High Tier, Mid Tier, Entry Tier based on quartiles
+        /// - Works dynamically even if a slot has 1-4 items
+        /// </summary>
+        public EquipmentTier GetDynamicTier(FishingShopItem item, List<FishingShopItem> allItems)
+        {
+            // Consumables always get Consumable tier
+            if (item.IsConsumable) return EquipmentTier.Consumable;
+
+            // Items without equipment slot get Entry tier by default
+            if (!item.EquipmentSlot.HasValue) return EquipmentTier.Entry;
+
+            // Get all permanent items in the same equipment slot, ordered by price (descending)
+            var itemsInSlot = allItems
+                .Where(i => i.EquipmentSlot == item.EquipmentSlot && !i.IsConsumable && i.Enabled)
+                .OrderByDescending(i => i.Cost)
+                .ToList();
+
+            // If only one item in slot, it's Top Tier
+            if (itemsInSlot.Count == 1) return EquipmentTier.Top;
+
+            // Find the rank of current item (0-indexed, 0 = highest price)
+            var rank = itemsInSlot.FindIndex(i => i.Id == item.Id);
+            if (rank == -1) return EquipmentTier.Entry; // Not found, shouldn't happen
+
+            // Divide into quartiles for tier assignment
+            var totalItems = itemsInSlot.Count;
+
+            // Top 25% = Top Tier (at least 1 item)
+            // Next 25% = High Tier
+            // Next 25% = Mid Tier  
+            // Bottom 25% = Entry Tier
+
+            var topCutoff = Math.Max(1, (int)Math.Ceiling(totalItems * 0.25));
+            var highCutoff = Math.Max(2, (int)Math.Ceiling(totalItems * 0.50));
+            var midCutoff = Math.Max(3, (int)Math.Ceiling(totalItems * 0.75));
+
+            if (rank < topCutoff)
+                return EquipmentTier.Top;
+            else if (rank < highCutoff)
+                return EquipmentTier.High;
+            else if (rank < midCutoff)
+                return EquipmentTier.Mid;
+            else
+                return EquipmentTier.Entry;
+        }
     }
 }

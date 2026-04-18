@@ -31,6 +31,7 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public bool IsAdminOnly { get; set; } = false; // If true, item is not shown in shop and can only be given by admins
 
         // Helper method to determine equipment tier based on cost (for permanent items only)
+        // LEGACY: Static thresholds - consider using GetDynamicTier() from FishingShopService for price-based ranking
         // Tiers aligned with 6-month progression: Entry=2wk, Mid=6wk, High=12wk, Top=26wk
         public EquipmentTier GetTier()
         {

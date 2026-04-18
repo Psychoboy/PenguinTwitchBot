@@ -248,7 +248,7 @@
                                             <MudText><strong>@context.ShopItem!.Name</strong></MudText>
                                             @if (!context.ShopItem!.IsConsumable)
                                             {
-                                                var tier = context.ShopItem!.GetTier();
+                                                var tier = tierMap.ContainsKey(context.ShopItem!.Id) ? tierMap[context.ShopItem!.Id] : context.ShopItem!.GetTier();
                                                 var (tierColor, tierIcon) = GetTierDisplay(tier);
                                                 <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
                                             }
@@ -460,6 +460,7 @@
 
 @code {
     [Inject] private IFishingService fishingService { get; set; } = null!;
+    [Inject] private IFishingShopService shopService { get; set; } = null!;
     [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
@@ -496,6 +497,7 @@
     // Performance optimization: cached filter results and lookups
     private List<UserFishingBoost>? cachedFilteredItems = null;
     private Dictionary<int, string> fishTypeLookup = new();
+    private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
 
     private bool equipDialogVisible = false;
     private EquipmentSlot selectedSlot;
@@ -517,11 +519,11 @@
     {
         isLoading = true;
         try
-        {
-            userGold = await fishingService.GetUserGold(userId);
+        {            userGold = await fishingService.GetUserGold(userId);
             allItems = await inventoryService.GetUserBoosts(userId);
             equippedBySlot = await inventoryService.GetUserEquipmentBySlot(userId);
             fishTypes = await fishingService.GetAllFishTypes();
+            tierMap = await shopService.CalculateDynamicTiers(); // Calculate dynamic tiers based on prices
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);

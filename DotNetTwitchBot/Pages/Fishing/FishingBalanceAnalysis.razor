@@ -271,7 +271,7 @@
                                             @pricePreview.GoldPerCatch.ToString("F2")g
                                         </MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                            ~@pricePreview.WeeklyIncome.ToString("F0")g/week (no equipment)
+                                            ~@pricePreview.CatchesPerSession.ToString("F1") catches × @pricePreview.SessionsPerWeek.ToString("F1") sessions/wk = @pricePreview.WeeklyIncome.ToString("F0")g/week
                                         </MudText>
                                     </MudStack>
                                 </MudPaper>
@@ -430,19 +430,22 @@
                         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
                             <MudStack Spacing="1">
                                 <MudText Typo="Typo.body2">
-                                    <strong>Note:</strong> All time calculations are <strong>per-item</strong>, based on <strong>median player</strong> (41g/catch, 9 catches/week at 3x/week).
+                                    <strong>Note:</strong> All calculations are based on <strong>real player engagement data</strong>.
                                 </MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    <strong>Full tier progression times</strong> (cumulative): Entry ≈ 2 weeks | Mid ≈ 6 weeks | High ≈ 12 weeks | Top ≈ 26 weeks (6 months)
+                                    <strong>Calculated from actual players:</strong> 
+                                    Casual (~@report.CasualCatchesPerSession catches/session) | 
+                                    Active (~@report.ActiveCatchesPerSession catches/session) | 
+                                    Hardcore (~@report.HardcoreCatchesPerSession catches/session)
                                 </MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                    Designed for annual economy resets. Median provides more realistic times than average (skewed by top performers).
+                                    Player types based on 25th, 50th (median), and 75th percentiles. Progression balanced for 2-3 sessions/week.
                                 </MudText>
                             </MudStack>
                         </MudAlert>
 
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Calculations use median gold/catch for typical player experience. Top performers will progress faster.
+                            Calculations based on current average gold/catch (@report.AverageGoldPerCatch.ToString("F1")g). Active player progression shown.
                         </MudText>
                         <MudTable Items="@report.ItemAffordabilityAnalysis" Dense="false" Hover="true" Striped="true">
                             <HeaderContent>
@@ -451,8 +454,9 @@
                                 <MudTh>Cost</MudTh>
                                 <MudTh>Cost/Use</MudTh>
                                 <MudTh>Catches Needed</MudTh>
-                                <MudTh>Days @@3x/Week</MudTh>
-                                <MudTh>Days @@Daily</MudTh>
+                                <MudTh>Sessions (Casual)</MudTh>
+                                <MudTh>Sessions (Active)</MudTh>
+                                <MudTh>Sessions (Hardcore)</MudTh>
                                 <MudTh>Users Can Afford</MudTh>
                                 <MudTh>Rating</MudTh>
                             </HeaderContent>
@@ -501,12 +505,15 @@
                                 </MudTd>
                                 <MudTd>@context.CatchesNeededToBuy.ToString("F1")</MudTd>
                                 <MudTd>
-                                    @if (!context.IsConsumable && context.DaysToAfford3xWeek > 0)
+                                    @if (!context.IsConsumable && context.SessionsToAffordCasual > 0)
                                     {
-                                        <span>@context.DaysToAfford3xWeek.ToString("F1") days</span>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            (~@((context.DaysToAfford3xWeek / 7).ToString("F1")) weeks)
-                                        </MudText>
+                                        <span>@context.SessionsToAffordCasual.ToString("F1") sessions</span>
+                                        @if (context.SessionsToAffordCasual >= 2)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                (~@((context.SessionsToAffordCasual / 2).ToString("F1")) weeks)
+                                            </MudText>
+                                        }
                                     }
                                     else
                                     {
@@ -514,9 +521,31 @@
                                     }
                                 </MudTd>
                                 <MudTd>
-                                    @if (!context.IsConsumable && context.DaysToAfford1xDay > 0)
+                                    @if (!context.IsConsumable && context.SessionsToAffordActive > 0)
                                     {
-                                        <span>@context.DaysToAfford1xDay.ToString("F1") days</span>
+                                        <span>@context.SessionsToAffordActive.ToString("F1") sessions</span>
+                                        @if (context.SessionsToAffordActive >= 2)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                (~@((context.SessionsToAffordActive / 2).ToString("F1")) weeks)
+                                            </MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">-</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (!context.IsConsumable && context.SessionsToAffordHardcore > 0)
+                                    {
+                                        <span>@context.SessionsToAffordHardcore.ToString("F1") sessions</span>
+                                        @if (context.SessionsToAffordHardcore >= 2)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                (~@((context.SessionsToAffordHardcore / 2).ToString("F1")) weeks)
+                                            </MudText>
+                                        }
                                     }
                                     else
                                     {
@@ -710,9 +739,11 @@
         return rating switch
         {
             "Too Cheap" => Color.Warning,
-            "Balanced" => Color.Success,
-            "Expensive" => Color.Info,
-            "Too Expensive" => Color.Error,
+            "Starter Tier" => Color.Default,
+            "Low Tier" => Color.Success,
+            "Mid Tier" => Color.Info,
+            "High Tier" => Color.Secondary,
+            "Endgame Tier" => Color.Error,
             _ => Color.Default
         };
     }
@@ -894,6 +925,8 @@
     private class PricePreview
     {
         public double GoldPerCatch { get; set; }
+        public double CatchesPerSession { get; set; }
+        public double SessionsPerWeek { get; set; }
         public double WeeklyIncome { get; set; }
         public int CurrentTotal { get; set; }
         public int TargetTotal { get; set; }
@@ -954,7 +987,10 @@
                 goldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
             }
 
-            var weeklyIncome = goldPerCatch * 9; // 3 catches × 3 sessions per week
+            // Use REAL player engagement from balance report instead of hardcoded 3 catches/session
+            double catchesPerSession = report?.ActiveCatchesPerSession ?? 30.0; // Use median (active) player
+            double sessionsPerWeek = 2.5; // Average of 2-3 sessions per week
+            var weeklyIncome = goldPerCatch * catchesPerSession * sessionsPerWeek;
             var currentTotal = permanentItems.Sum(i => i.Cost);
 
             // Validate inputs to prevent division by zero / invalid calculations
@@ -978,6 +1014,8 @@
             pricePreview = new PricePreview
             {
                 GoldPerCatch = goldPerCatch,
+                CatchesPerSession = catchesPerSession,
+                SessionsPerWeek = sessionsPerWeek,
                 WeeklyIncome = weeklyIncome,
                 CurrentTotal = currentTotal,
                 TargetTotal = targetTotal,
@@ -1024,11 +1062,12 @@
         isApplying = true;
         try
         {
-            // Apply the multiplier to permanent items only
-            var updatedCount = await ShopService.ApplyPriceMultiplier(
-                pricePreview.Multiplier, 
-                permanentOnly: true
-            );
+            // Build dictionary of item-specific prices from the preview
+            var priceUpdates = pricePreview.ItemPreviews
+                .ToDictionary(p => p.ItemName, p => p.NewPrice);
+
+            // Apply individual prices (preserves tier-based precision)
+            var updatedCount = await ShopService.UpdateShopItemPrices(priceUpdates);
 
             Snackbar.Add($"Successfully updated {updatedCount} item prices!", Severity.Success);
 

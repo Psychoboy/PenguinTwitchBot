@@ -701,6 +701,36 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 report.RarityVariance[kvp.Key] = Math.Round(actualPercent - report.ExpectedRarityPercentages[kvp.Key], 2);
             }
 
+            // Calculate real engagement tiers from actual player behavior
+            var userCatchCounts = userGroups.Select(u => u.CatchCount).OrderBy(c => c).ToList();
+
+            // Use percentiles to define player engagement types
+            double casualCatchesPerSession = 15.0; // Default fallback
+            double activeCatchesPerSession = 30.0;
+            double hardcoreCatchesPerSession = 100.0;
+
+            if (userCatchCounts.Count > 0)
+            {
+                // 25th percentile = Casual player threshold
+                var p25Index = (int)Math.Ceiling(userCatchCounts.Count * 0.25) - 1;
+                casualCatchesPerSession = Math.Max(userCatchCounts[Math.Max(0, p25Index)], 1.0);
+
+                // 50th percentile (median) = Active player threshold
+                var p50Index = userCatchCounts.Count / 2;
+                activeCatchesPerSession = userCatchCounts.Count % 2 == 0
+                    ? (userCatchCounts[p50Index - 1] + userCatchCounts[p50Index]) / 2.0
+                    : userCatchCounts[p50Index];
+
+                // 75th percentile = Hardcore player threshold
+                var p75Index = (int)Math.Ceiling(userCatchCounts.Count * 0.75) - 1;
+                hardcoreCatchesPerSession = userCatchCounts[Math.Min(p75Index, userCatchCounts.Count - 1)];
+            }
+
+            // Store calculated engagement metrics in report for transparency
+            report.CasualCatchesPerSession = Math.Round(casualCatchesPerSession, 1);
+            report.ActiveCatchesPerSession = Math.Round(activeCatchesPerSession, 1);
+            report.HardcoreCatchesPerSession = Math.Round(hardcoreCatchesPerSession, 1);
+
             // Item affordability analysis
             var shopItems = await context.FishingShopItems.Where(i => i.Enabled).ToListAsync();
             var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
@@ -736,31 +766,39 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     ? Math.Round(item.Cost / report.AverageGoldPerCatch, 1)
                     : 0;
 
-                // Days to afford (assuming 3 catches per week = ~0.43 per day)
-                affordability.DaysToAfford3xWeek = affordability.CatchesNeededToBuy > 0
-                    ? Math.Round(affordability.CatchesNeededToBuy / 0.43, 1)
+                // Sessions to afford based on REAL player engagement data (percentiles)
+                // Casual = 25th percentile player, Active = 50th (median), Hardcore = 75th percentile
+                affordability.SessionsToAffordCasual = affordability.CatchesNeededToBuy > 0
+                    ? Math.Round(affordability.CatchesNeededToBuy / casualCatchesPerSession, 1)
                     : 0;
 
-                // Days to afford (assuming 1 catch per day)
-                affordability.DaysToAfford1xDay = affordability.CatchesNeededToBuy;
+                affordability.SessionsToAffordActive = affordability.CatchesNeededToBuy > 0
+                    ? Math.Round(affordability.CatchesNeededToBuy / activeCatchesPerSession, 1)
+                    : 0;
+
+                affordability.SessionsToAffordHardcore = affordability.CatchesNeededToBuy > 0
+                    ? Math.Round(affordability.CatchesNeededToBuy / hardcoreCatchesPerSession, 1)
+                    : 0;
 
                 // Affordability rating for permanent items
-                // Aligned with progressive baseline model (5 tiers over 26 weeks)
-                // Low=1-3wk, Mid=3-8wk, High=8-16wk, Top=16+ weeks
+                // Based on sessions needed for active players (median engagement, 2-3 sessions/week)
+                // Starter=<2 sessions, Low=2-5 sessions, Mid=5-10 sessions, High=10-20 sessions, Endgame=20+ sessions
                 if (!item.IsConsumable)
                 {
-                    var weeksToAfford = affordability.DaysToAfford3xWeek / 7.0;
+                    var sessionsNeeded = affordability.SessionsToAffordActive;
 
-                    if (weeksToAfford < 1)
+                    if (sessionsNeeded < 1)
                         affordability.AffordabilityRating = "Too Cheap";
-                    else if (weeksToAfford < 3)
+                    else if (sessionsNeeded < 2)
+                        affordability.AffordabilityRating = "Starter Tier";
+                    else if (sessionsNeeded < 5)
                         affordability.AffordabilityRating = "Low Tier";
-                    else if (weeksToAfford < 8)
+                    else if (sessionsNeeded < 10)
                         affordability.AffordabilityRating = "Mid Tier";
-                    else if (weeksToAfford < 16)
+                    else if (sessionsNeeded < 20)
                         affordability.AffordabilityRating = "High Tier";
                     else
-                        affordability.AffordabilityRating = "Top Tier";
+                        affordability.AffordabilityRating = "Endgame Tier";
                 }
 
                 // Value rating for consumables
@@ -808,13 +846,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             if (report.RarityPercentages[FishRarity.Legendary] < 0.1 && report.TotalCatches > 1000)
                 recommendations.Add("⚠️ Legendary fish are extremely rare (<0.1%). Consider slightly increasing drop rates for better player experience.");
 
-            // Gold economy check
+            // Gold economy check - items taking more than 20 sessions (10 weeks at 2 sessions/week)
             var expensiveItems = report.ItemAffordabilityAnalysis
-                .Where(i => !i.IsConsumable && i.DaysToAfford3xWeek > 60)
+                .Where(i => !i.IsConsumable && i.SessionsToAffordActive > 20)
                 .ToList();
 
             if (expensiveItems.Any())
-                recommendations.Add($"⚠️ {expensiveItems.Count} permanent items take over 2 months to afford. Consider reducing prices or increasing gold rewards.");
+                recommendations.Add($"⚠️ {expensiveItems.Count} permanent items take over 20 sessions (10+ weeks). Consider reducing prices or increasing gold rewards.");
+
+            // Check for progression that's TOO fast
+            var tooFastItems = report.ItemAffordabilityAnalysis
+                .Where(i => !i.IsConsumable && i.SessionsToAffordActive < 1 && i.Cost > 100)
+                .ToList();
+
+            if (tooFastItems.Any())
+                recommendations.Add($"💨 {tooFastItems.Count} permanent items can be bought in less than 1 session. Consider increasing prices to extend progression.");
 
             // Consumable value check
             var poorValueConsumables = report.ItemAffordabilityAnalysis
@@ -843,7 +889,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 $"Analyzed {report.TotalCatches:N0} catches from {report.UniqueUsers:N0} unique users.",
                 $"Total gold earned: {report.TotalGoldEarned:N0} (avg {report.AverageGoldPerCatch:F1} per catch).",
                 $"Most common rarity: {report.RarityDistribution.OrderByDescending(kvp => kvp.Value).First().Key} ({report.RarityPercentages[report.RarityDistribution.OrderByDescending(kvp => kvp.Value).First().Key]:F1}%).",
-                $"Most caught fish: {report.MostCaughtFish ?? "N/A"}."
+                $"Most caught fish: {report.MostCaughtFish ?? "N/A"}.",
+                $"Player engagement (real data): Casual={report.CasualCatchesPerSession:F1}, Active={report.ActiveCatchesPerSession:F1}, Hardcore={report.HardcoreCatchesPerSession:F1} catches/session."
             };
 
             if (report.BoostModeActive == true)
@@ -852,6 +899,155 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             report.Summary = string.Join(" ", summaryParts);
 
             return report;
+        }
+
+        public async Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26)
+        {
+            _logger.LogInformation("[PRICING] CalculateRecommendedPricing() CALLED - targetWeeksForEndgame: {Weeks}", targetWeeksForEndgame);
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Get actual player engagement data
+            var catches = await context.FishCatches
+                .Include(c => c.FishType)
+                .ToListAsync();
+
+            if (!catches.Any())
+            {
+                _logger.LogWarning("[PRICING] No catch data available, returning empty recommendations");
+                return new Dictionary<string, int>();
+            }
+
+            // Calculate real player engagement percentiles
+            var userGroups = catches.GroupBy(c => c.UserId)
+                .Select(g => new
+                {
+                    UserId = g.Key,
+                    CatchCount = g.Count(),
+                    TotalGold = g.Sum(c => c.GoldEarned)
+                })
+                .ToList();
+
+            if (!userGroups.Any())
+            {
+                _logger.LogWarning("[PRICING] No user data available, returning empty recommendations");
+                return new Dictionary<string, int>();
+            }
+
+            var userCatchCounts = userGroups.Select(u => u.CatchCount).OrderBy(c => c).ToList();
+
+            // Calculate engagement percentiles
+            double activeCatchesPerSession = 30.0; // Fallback
+            if (userCatchCounts.Count > 0)
+            {
+                var p50Index = userCatchCounts.Count / 2;
+                activeCatchesPerSession = userCatchCounts.Count % 2 == 0
+                    ? (userCatchCounts[p50Index - 1] + userCatchCounts[p50Index]) / 2.0
+                    : userCatchCounts[p50Index];
+            }
+
+            // Calculate progressive baseline gold (with equipment progression over time)
+            var expectedGoldPerCatch = await CalculateProgressiveBaselineGold(targetWeeksForEndgame);
+
+            _logger.LogInformation("[PRICING] Active player engagement: {Catches} catches/session", Math.Round(activeCatchesPerSession, 1));
+            _logger.LogInformation("[PRICING] Expected gold per catch: {Gold}g (with progression)", Math.Round(expectedGoldPerCatch, 2));
+
+            // Define progression tier targets (in weeks, assuming 2-3 sessions per week)
+            // Scale weeks based on targetWeeksForEndgame parameter
+            var sessionsPerWeek = 2.5; // Average of 2-3 sessions
+            var scaleFactor = targetWeeksForEndgame / 26.0; // Default is 26 weeks for endgame
+
+            var pricingTiers = new List<(string Name, int TargetWeeks)>
+            {
+                ("Entry", (int)Math.Round(2 * scaleFactor)),      // ~8% of progression (2/26)
+                ("Mid", (int)Math.Round(6 * scaleFactor)),         // ~23% of progression (6/26)
+                ("High", (int)Math.Round(12 * scaleFactor)),       // ~46% of progression (12/26)
+                ("Top", targetWeeksForEndgame)                      // 100% - endgame
+            };
+
+            var recommendations = new Dictionary<string, int>();
+
+            _logger.LogInformation("[PRICING] Tier targets: Entry={EntryWeeks}w, Mid={MidWeeks}w, High={HighWeeks}w, Top={TopWeeks}w",
+                pricingTiers[0].TargetWeeks, pricingTiers[1].TargetWeeks, pricingTiers[2].TargetWeeks, pricingTiers[3].TargetWeeks);
+
+            // Define item distribution across tiers
+            var itemTiers = new Dictionary<string, string>
+            {
+                // Entry Tier Rods
+                { "Bamboo Rod", "Entry" },
+                // Entry Tier Reels
+                { "Basic Reel", "Entry" },
+                // Entry Tier Lines
+                { "Monofilament Line", "Entry" },
+                // Entry Tier Hooks
+                { "Standard Hook", "Entry" },
+                // Entry Tier Tackle Boxes
+                { "Basic Tackle Box", "Entry" },
+                // Entry Tier Nets
+                { "Landing Net", "Entry" },
+
+                // Mid Tier Rods
+                { "Fiberglass Rod", "Mid" },
+                // Mid Tier Reels
+                { "Precision Reel", "Mid" },
+                // Mid Tier Lines
+                { "Braided Line", "Mid" },
+                // Mid Tier Hooks
+                { "Circle Hook", "Mid" },
+                // Mid Tier Tackle Boxes
+                { "Pro Tackle Box", "Mid" },
+                // Mid Tier Nets
+                { "Knotless Net", "Mid" },
+
+                // High Tier Rods
+                { "Carbon Fiber Rod", "High" },
+                // High Tier Reels
+                { "Professional Reel", "High" },
+                // High Tier Lines
+                { "Fluorocarbon Line", "High" },
+                // High Tier Hooks
+                { "Treble Hook", "High" },
+                // High Tier Tackle Boxes
+                { "Master Tackle Box", "High" },
+                // High Tier Nets
+                { "Tournament Net", "High" },
+
+                // Top Tier Rods
+                { "Legendary Rod", "Top" },
+                // Top Tier Reels
+                { "Master Reel", "Top" },
+                // Top Tier Lines
+                { "Titanium Wire", "Top" },
+                // Top Tier Hooks
+                { "Diamond Hook", "Top" }
+            };
+
+            // Calculate prices for each item based on tier's target weeks
+            foreach (var (itemName, tierName) in itemTiers)
+            {
+                var tier = pricingTiers.FirstOrDefault(t => t.Name == tierName);
+                if (tier == default)
+                {
+                    _logger.LogWarning("[PRICING] Unknown tier '{Tier}' for item '{Item}'", tierName, itemName);
+                    continue;
+                }
+
+                // Calculate price: sessions × catches/session × gold/catch
+                var sessionsNeeded = tier.TargetWeeks * sessionsPerWeek;
+                var catchesNeeded = sessionsNeeded * activeCatchesPerSession;
+                var targetPrice = (int)Math.Round(catchesNeeded * expectedGoldPerCatch);
+
+                recommendations[itemName] = targetPrice;
+
+                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w × {SessionsPerWeek} × {CatchesPerSession} × {GoldPerCatch}g",
+                    itemName, tierName, targetPrice, tier.TargetWeeks, sessionsPerWeek, Math.Round(activeCatchesPerSession, 1), Math.Round(expectedGoldPerCatch, 2));
+            }
+
+            _logger.LogInformation("[PRICING] Generated {Count} pricing recommendations based on real engagement data",
+                recommendations.Count);
+
+            return recommendations;
         }
     }
 }
