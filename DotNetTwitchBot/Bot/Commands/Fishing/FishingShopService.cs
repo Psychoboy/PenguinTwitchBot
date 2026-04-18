@@ -147,11 +147,53 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         public async Task<Dictionary<int, EquipmentTier>> CalculateDynamicTiers()
         {
             var allItems = await GetAllShopItems();
+            return CalculateDynamicTiers(allItems);
+        }
+
+        /// <summary>
+        /// Calculates dynamic tiers from pre-fetched shop items (avoids extra DB query).
+        /// Pre-groups by slot to avoid O(n²) complexity.
+        /// </summary>
+        public Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
+        {
             var tierMap = new Dictionary<int, EquipmentTier>();
 
-            foreach (var item in allItems)
+            // Pre-group by equipment slot to avoid O(n²) - each slot is sorted once
+            var itemsBySlot = allItems
+                .Where(i => !i.IsConsumable && i.Enabled && i.EquipmentSlot.HasValue)
+                .GroupBy(i => i.EquipmentSlot!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(i => i.Cost).ToList()
+                );
+
+            // Assign tiers within each slot group
+            foreach (var (slot, itemsInSlot) in itemsBySlot)
             {
-                tierMap[item.Id] = GetDynamicTier(item, allItems);
+                var totalItems = itemsInSlot.Count;
+                if (totalItems == 0) continue;
+
+                // Calculate quartile cutoffs
+                var topCutoff = Math.Max(1, (int)Math.Ceiling(totalItems * 0.25));
+                var highCutoff = Math.Max(2, (int)Math.Ceiling(totalItems * 0.50));
+                var midCutoff = Math.Max(3, (int)Math.Ceiling(totalItems * 0.75));
+
+                for (int rank = 0; rank < totalItems; rank++)
+                {
+                    var item = itemsInSlot[rank];
+                    var tier = rank < topCutoff ? EquipmentTier.Top
+                             : rank < highCutoff ? EquipmentTier.High
+                             : rank < midCutoff ? EquipmentTier.Mid
+                             : EquipmentTier.Entry;
+
+                    tierMap[item.Id] = tier;
+                }
+            }
+
+            // Handle consumables
+            foreach (var item in allItems.Where(i => i.IsConsumable))
+            {
+                tierMap[item.Id] = EquipmentTier.Consumable;
             }
 
             return tierMap;

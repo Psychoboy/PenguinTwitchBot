@@ -13,6 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates);
         Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null);
         Task<Dictionary<int, EquipmentTier>> CalculateDynamicTiers();
+        Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> shopItems);
         EquipmentTier GetDynamicTier(FishingShopItem item, List<FishingShopItem> allItems);
     }
 }

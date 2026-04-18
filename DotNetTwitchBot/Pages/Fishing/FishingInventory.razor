@@ -519,11 +519,15 @@
     {
         isLoading = true;
         try
-        {            userGold = await fishingService.GetUserGold(userId);
+        {            
+            userGold = await fishingService.GetUserGold(userId);
             allItems = await inventoryService.GetUserBoosts(userId);
             equippedBySlot = await inventoryService.GetUserEquipmentBySlot(userId);
             fishTypes = await fishingService.GetAllFishTypes();
-            tierMap = await shopService.CalculateDynamicTiers(); // Calculate dynamic tiers based on prices
+
+            // Calculate tiers from shop items (single query, optimized grouping)
+            var shopItems = await shopService.GetAllShopItems();
+            tierMap = shopService.CalculateDynamicTiers(shopItems);
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);

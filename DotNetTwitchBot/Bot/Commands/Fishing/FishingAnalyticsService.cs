@@ -908,36 +908,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Get actual player engagement data
-            var catches = await context.FishCatches
-                .Include(c => c.FishType)
+            // DB-side aggregation: only fetch per-user catch counts (not all catches)
+            var userCatchCounts = await context.FishCatches
+                .GroupBy(c => c.UserId)
+                .Select(g => g.Count())
                 .ToListAsync();
 
-            if (!catches.Any())
+            if (!userCatchCounts.Any())
             {
                 _logger.LogWarning("[PRICING] No catch data available, returning empty recommendations");
                 return new Dictionary<string, int>();
             }
 
-            // Calculate real player engagement percentiles
-            var userGroups = catches.GroupBy(c => c.UserId)
-                .Select(g => new
-                {
-                    UserId = g.Key,
-                    CatchCount = g.Count(),
-                    TotalGold = g.Sum(c => c.GoldEarned)
-                })
-                .ToList();
+            // Calculate engagement percentiles from aggregated counts
+            userCatchCounts = userCatchCounts.OrderBy(c => c).ToList();
 
-            if (!userGroups.Any())
-            {
-                _logger.LogWarning("[PRICING] No user data available, returning empty recommendations");
-                return new Dictionary<string, int>();
-            }
-
-            var userCatchCounts = userGroups.Select(u => u.CatchCount).OrderBy(c => c).ToList();
-
-            // Calculate engagement percentiles
             double activeCatchesPerSession = 30.0; // Fallback
             if (userCatchCounts.Count > 0)
             {

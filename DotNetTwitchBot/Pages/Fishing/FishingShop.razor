@@ -460,7 +460,7 @@
         {
             fishTypes = await fishingService.GetAllFishTypes();
             shopItems = await shopService.GetAllShopItems();
-            tierMap = await shopService.CalculateDynamicTiers(); // Calculate dynamic tiers based on prices
+            tierMap = shopService.CalculateDynamicTiers(shopItems); // Use overload to avoid extra DB query
             userBoosts = await inventoryService.GetUserBoosts(userId);
             var goldData = await fishingService.GetUserGold(userId);
             userGold = goldData?.TotalGold ?? 0;
