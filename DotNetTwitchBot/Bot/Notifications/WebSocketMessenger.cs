@@ -96,16 +96,25 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 try
                 {
+                    var idlePingInterval = TimeSpan.FromSeconds(5);
+                    var lastNonPingSendUtc = DateTime.UtcNow;
+
                     while (!_shutdownCts.Token.IsCancellationRequested)
                     {
+                        var sentMessage = false;
+
                         if (_queue.TryTake(out var result, 5000, _shutdownCts.Token))
                         {
                             if (!Paused)
                             {
                                 await SendMessageToSockets(result);
+                                sentMessage = true;
+                                lastNonPingSendUtc = DateTime.UtcNow;
                             }
                         }
-                        if (!_shutdownCts.Token.IsCancellationRequested)
+
+                        var shouldPing = !sentMessage && DateTime.UtcNow - lastNonPingSendUtc >= idlePingInterval;
+                        if (!_shutdownCts.Token.IsCancellationRequested && shouldPing)
                         {
                             await SendMessageToSockets("ping");
                         }
@@ -229,16 +238,36 @@ namespace DotNetTwitchBot.Bot.Notifications
             }
             finally { _semaphoreSlim.Release(); }
 
+            var failedSocketIds = new ConcurrentBag<Guid>();
             var tasks = toSentTo.Select(async websocketConnection =>
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    var bytes = Encoding.Default.GetBytes(message);
-                    var arraySegment = new ArraySegment<byte>(bytes);
-                    await websocketConnection.WebSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    try
+                    {
+                        var bytes = Encoding.UTF8.GetBytes(message);
+                        var arraySegment = new ArraySegment<byte>(bytes);
+                        await websocketConnection.WebSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        failedSocketIds.Add(websocketConnection.Id);
+                        _logger.LogDebug(ex, "Error sending websocket message to {id}", websocketConnection.Id);
+                    }
                 }
             });
             await Task.WhenAll(tasks);
+
+            if (!failedSocketIds.IsEmpty)
+            {
+                var failedIds = failedSocketIds.ToHashSet();
+                try
+                {
+                    await _semaphoreSlim.WaitAsync();
+                    websocketConnections = websocketConnections.Where(x => !failedIds.Contains(x.Id)).ToList();
+                }
+                finally { _semaphoreSlim.Release(); }
+            }
         }
 
         private void SetupCleanUpTask()
