@@ -563,9 +563,11 @@
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
 
-            // Cache equipped item lists to avoid repeated LINQ on every render
-            equippedItemIds = equippedBySlot.Values.Select(e => e.ShopItemId).ToList();
-            equippedShopItems = equippedBySlot.Values.Where(e => e.ShopItem != null).Select(e => e.ShopItem!).ToList();
+            // Cache equipped item lists to avoid repeated LINQ on every render.
+            // Use allItems (not equippedBySlot) to include items with null EquipmentSlot
+            // (e.g. permanent boosts) that GetUserEquipmentBySlot excludes.
+            equippedItemIds = allItems.Where(i => i.IsEquipped).Select(i => i.ShopItemId).ToList();
+            equippedShopItems = allItems.Where(i => i.IsEquipped && i.ShopItem != null).Select(i => i.ShopItem!).ToList();
 
             // Invalidate cached filter results
             cachedFilteredItems = null;

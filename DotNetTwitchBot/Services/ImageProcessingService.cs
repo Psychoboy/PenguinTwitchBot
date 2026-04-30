@@ -126,8 +126,11 @@ namespace DotNetTwitchBot.Services
             string outputDirectory, 
             string baseFileName)
         {
-            using var fileStream = File.OpenRead(sourceFilePath);
-            return await ProcessImageAsync(fileStream, outputDirectory, baseFileName);
+            // Read all bytes first so the file handle is released before any writes,
+            // preventing IO lock conflicts when source and output directories overlap.
+            var bytes = await File.ReadAllBytesAsync(sourceFilePath);
+            using var memoryStream = new MemoryStream(bytes);
+            return await ProcessImageAsync(memoryStream, outputDirectory, baseFileName);
         }
 
         /// <summary>
