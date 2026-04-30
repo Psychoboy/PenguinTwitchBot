@@ -7,6 +7,8 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
     public class FishingAnalyticsService : IFishingAnalyticsService
     {
+        private static readonly TimeSpan SessionGap = TimeSpan.FromMinutes(30);
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingAnalyticsService> _logger;
         private readonly IFishingService _fishingService;
@@ -228,9 +230,27 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 Probabilities = new Dictionary<FishRarity, double>()
             };
 
-            foreach (var kvp in rarityWeights)
+            var rarityOrder = Enum.GetValues<FishRarity>().OrderBy(r => (int)r).ToList();
+            double runningTotal = 0;
+
+            for (int i = 0; i < rarityOrder.Count; i++)
             {
-                result.Probabilities[kvp.Key] = Math.Round((kvp.Value / totalWeight) * 100, 4);
+                var rarity = rarityOrder[i];
+                var rawPercent = rarityWeights.TryGetValue(rarity, out var weight)
+                    ? (weight / totalWeight) * 100.0
+                    : 0.0;
+
+                if (i == rarityOrder.Count - 1)
+                {
+                    var remainder = Math.Round(100.0 - runningTotal, 4);
+                    result.Probabilities[rarity] = Math.Max(0, remainder);
+                }
+                else
+                {
+                    var rounded = Math.Round(rawPercent, 4);
+                    result.Probabilities[rarity] = rounded;
+                    runningTotal += rounded;
+                }
             }
 
             return result;
@@ -366,12 +386,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             };
 
             var totalRarityWeight = rarityWeights.Values.Sum();
-            var starProbabilities = new Dictionary<int, double>
-            {
-                { 1, 0.75 },  // 75% chance - NO BOOSTS
-                { 2, 0.20 },  // 20% chance - NO BOOSTS
-                { 3, 0.05 }   // 5% chance - NO BOOSTS
-            };
+            var starProbabilities = BuildStarProbabilities(0.0);
 
             double expectedGold = 0.0;
 
@@ -497,16 +512,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             var totalRarityWeight = rarityWeights.Values.Sum();
 
-            var threeStarChance = 5.0 + (starBoost * 100);
-            var twoStarChance = 20.0 + (starBoost * 100);
-            var oneStarChance = 100.0 - threeStarChance - twoStarChance;
-
-            var starProbabilities = new Dictionary<int, double>
-            {
-                { 1, oneStarChance / 100.0 },
-                { 2, twoStarChance / 100.0 },
-                { 3, threeStarChance / 100.0 }
-            };
+            var starProbabilities = BuildStarProbabilities(starBoost);
 
             var weightMultiplier = 1.0 + weightBoost;
             double expectedGold = 0.0;
@@ -553,6 +559,150 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return expectedGold;
         }
 
+        private static Dictionary<int, double> BuildStarProbabilities(double totalStarBoost)
+        {
+            // Match runtime behavior in FishingCalculations.CalculateStars() where thresholds
+            // can overlap and effectively clamp at 100% because rolls are 0-100.
+            var threeStarThreshold = 5.0 + (totalStarBoost * 100.0);
+            var twoStarThreshold = 20.0 + (totalStarBoost * 100.0);
+
+            var p3 = Math.Clamp(threeStarThreshold, 0.0, 100.0) / 100.0;
+            var p3OrP2 = Math.Clamp(threeStarThreshold + twoStarThreshold, 0.0, 100.0) / 100.0;
+            var p2 = Math.Max(0.0, p3OrP2 - p3);
+            var p1 = Math.Max(0.0, 1.0 - p3 - p2);
+
+            return new Dictionary<int, double>
+            {
+                { 1, p1 },
+                { 2, p2 },
+                { 3, p3 }
+            };
+        }
+
+        private Dictionary<int, FishProbability> BuildFishProbabilityMap(
+            List<FishType> fishTypes,
+            bool useBoostMode,
+            double boostModeMultiplier,
+            List<UserFishingBoost> boosts)
+        {
+            var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, boosts);
+            var totalRarityWeight = rarityWeights.Values.Sum();
+            var probabilities = new Dictionary<int, FishProbability>();
+
+            foreach (var fish in fishTypes)
+            {
+                var rarityChance = rarityWeights[fish.Rarity] / totalRarityWeight;
+                var fishOfRarity = fishTypes.Where(f => f.Rarity == fish.Rarity).ToList();
+                var withinRarityChance = CalculateWithinRarityChance(fish, fishOfRarity, boosts);
+                var overallChance = rarityChance * withinRarityChance;
+
+                probabilities[fish.Id] = new FishProbability
+                {
+                    FishId = fish.Id,
+                    FishName = fish.Name,
+                    Rarity = fish.Rarity,
+                    RarityChance = Math.Round(rarityChance * 100, 4),
+                    WithinRarityChance = Math.Round(withinRarityChance * 100, 4),
+                    OverallChance = Math.Round(overallChance * 100, 4),
+                    ExpectedAttemptsForOneCatch = overallChance > 0 ? (int)Math.Ceiling(1.0 / overallChance) : 0
+                };
+            }
+
+            return probabilities;
+        }
+
+        private void PopulateItemEffectPreview(
+            ItemAffordability affordability,
+            FishingShopItem item,
+            Dictionary<int, FishProbability> baselineProbabilities,
+            List<FishType> fishTypes,
+            bool useBoostMode,
+            double boostModeMultiplier)
+        {
+            var boostEntries = new List<(FishingBoostType? Type, double Amount)>
+            {
+                (item.BoostType, item.BoostAmount),
+                (item.BoostType2, item.BoostAmount2 ?? 0),
+                (item.BoostType3, item.BoostAmount3 ?? 0)
+            };
+
+            var specificBoost = boostEntries
+                .Where(b => b.Type == FishingBoostType.SpecificFishBoost)
+                .Sum(b => b.Amount);
+            var generalBoost = boostEntries
+                .Where(b => b.Type == FishingBoostType.GeneralRarityBoost)
+                .Sum(b => b.Amount);
+            var starBoost = boostEntries
+                .Where(b => b.Type == FishingBoostType.StarBoost)
+                .Sum(b => b.Amount);
+            var weightBoost = boostEntries
+                .Where(b => b.Type == FishingBoostType.WeightBoost)
+                .Sum(b => b.Amount);
+
+            var mockBoost = new UserFishingBoost
+            {
+                UserId = "analysis",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            };
+
+            var withItemProbabilities = BuildFishProbabilityMap(
+                fishTypes,
+                useBoostMode,
+                boostModeMultiplier,
+                new List<UserFishingBoost> { mockBoost });
+
+            if (specificBoost > 0 && item.TargetFishTypeId.HasValue &&
+                baselineProbabilities.TryGetValue(item.TargetFishTypeId.Value, out var baselineTarget) &&
+                withItemProbabilities.TryGetValue(item.TargetFishTypeId.Value, out var boostedTarget))
+            {
+                affordability.HasEffectPreview = true;
+                affordability.EffectMetric = $"{baselineTarget.FishName} catch chance";
+                affordability.EffectBaselineValue = baselineTarget.OverallChance;
+                affordability.EffectWithItemValue = boostedTarget.OverallChance;
+            }
+            else if (generalBoost > 0)
+            {
+                var baselineUncommonPlus = baselineProbabilities.Values
+                    .Where(p => p.Rarity != FishRarity.Common)
+                    .Sum(p => p.OverallChance);
+                var withItemUncommonPlus = withItemProbabilities.Values
+                    .Where(p => p.Rarity != FishRarity.Common)
+                    .Sum(p => p.OverallChance);
+
+                affordability.HasEffectPreview = true;
+                affordability.EffectMetric = "Uncommon+ catch chance";
+                affordability.EffectBaselineValue = Math.Round(baselineUncommonPlus, 4);
+                affordability.EffectWithItemValue = Math.Round(withItemUncommonPlus, 4);
+            }
+            else if (starBoost > 0)
+            {
+                var baselineThreeStar = BuildStarProbabilities(0.0)[3] * 100.0;
+                var boostedThreeStar = BuildStarProbabilities(starBoost)[3] * 100.0;
+
+                affordability.HasEffectPreview = true;
+                affordability.EffectMetric = "3-star catch chance";
+                affordability.EffectBaselineValue = Math.Round(baselineThreeStar, 2);
+                affordability.EffectWithItemValue = Math.Round(boostedThreeStar, 2);
+            }
+            else if (weightBoost > 0)
+            {
+                affordability.HasEffectPreview = true;
+                affordability.EffectMetric = "Average weight multiplier";
+                affordability.EffectBaselineValue = 100.0;
+                affordability.EffectWithItemValue = Math.Round((1.0 + weightBoost) * 100.0, 2);
+            }
+
+            if (affordability.HasEffectPreview && affordability.EffectBaselineValue > 0)
+            {
+                affordability.EffectRelativeChangePercent = Math.Round(
+                    ((affordability.EffectWithItemValue / affordability.EffectBaselineValue) - 1.0) * 100.0,
+                    2);
+            }
+        }
+
         private class ProgressionTier
         {
             public string Name { get; set; } = string.Empty;
@@ -560,6 +710,53 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             public double RarityBoost { get; set; }
             public double StarBoost { get; set; }
             public double WeightBoost { get; set; }
+        }
+
+        private static List<double> CalculateUserAverageCatchesPerSession(
+            IEnumerable<(string UserId, DateTime CaughtAt)> catches,
+            TimeSpan sessionGap,
+            int minTotalCatches = 1,
+            int minSessions = 1)
+        {
+            var perUserAverages = new List<double>();
+
+            foreach (var userCatches in catches.GroupBy(c => c.UserId))
+            {
+                var ordered = userCatches.OrderBy(c => c.CaughtAt).ToList();
+                if (!ordered.Any())
+                    continue;
+
+                var sessionCount = 1;
+                var currentSessionCatches = 1;
+                var totalSessionCatches = 0;
+                var lastCatchTime = ordered[0].CaughtAt;
+
+                for (var i = 1; i < ordered.Count; i++)
+                {
+                    var catchTime = ordered[i].CaughtAt;
+                    if (catchTime - lastCatchTime > sessionGap)
+                    {
+                        totalSessionCatches += currentSessionCatches;
+                        sessionCount++;
+                        currentSessionCatches = 1;
+                    }
+                    else
+                    {
+                        currentSessionCatches++;
+                    }
+
+                    lastCatchTime = catchTime;
+                }
+
+                totalSessionCatches += currentSessionCatches;
+
+                if (totalSessionCatches < minTotalCatches || sessionCount < minSessions)
+                    continue;
+
+                perUserAverages.Add(totalSessionCatches / (double)sessionCount);
+            }
+
+            return perUserAverages;
         }
 
         public async Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null)
@@ -701,29 +898,44 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 report.RarityVariance[kvp.Key] = Math.Round(actualPercent - report.ExpectedRarityPercentages[kvp.Key], 2);
             }
 
-            // Calculate real engagement tiers from actual player behavior
-            var userCatchCounts = userGroups.Select(u => u.CatchCount).OrderBy(c => c).ToList();
+            // Calculate real engagement tiers from timestamped catches-per-session
+            var userSessionAverages = CalculateUserAverageCatchesPerSession(
+                catches.Select(c => (c.UserId, c.CaughtAt)),
+                SessionGap,
+                minTotalCatches: 5,
+                minSessions: 2);
+
+            if (!userSessionAverages.Any())
+            {
+                userSessionAverages = CalculateUserAverageCatchesPerSession(
+                    catches.Select(c => (c.UserId, c.CaughtAt)),
+                    SessionGap);
+            }
+
+            userSessionAverages = userSessionAverages
+                .OrderBy(v => v)
+                .ToList();
 
             // Use percentiles to define player engagement types
             double casualCatchesPerSession = 15.0; // Default fallback
             double activeCatchesPerSession = 30.0;
             double hardcoreCatchesPerSession = 100.0;
 
-            if (userCatchCounts.Count > 0)
+            if (userSessionAverages.Count > 0)
             {
                 // 25th percentile = Casual player threshold
-                var p25Index = (int)Math.Ceiling(userCatchCounts.Count * 0.25) - 1;
-                casualCatchesPerSession = Math.Max(userCatchCounts[Math.Max(0, p25Index)], 1.0);
+                var p25Index = (int)Math.Ceiling(userSessionAverages.Count * 0.25) - 1;
+                casualCatchesPerSession = Math.Max(userSessionAverages[Math.Max(0, p25Index)], 1.0);
 
                 // 50th percentile (median) = Active player threshold
-                var p50Index = userCatchCounts.Count / 2;
-                activeCatchesPerSession = userCatchCounts.Count % 2 == 0
-                    ? (userCatchCounts[p50Index - 1] + userCatchCounts[p50Index]) / 2.0
-                    : userCatchCounts[p50Index];
+                var p50Index = userSessionAverages.Count / 2;
+                activeCatchesPerSession = userSessionAverages.Count % 2 == 0
+                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
+                    : userSessionAverages[p50Index];
 
                 // 75th percentile = Hardcore player threshold
-                var p75Index = (int)Math.Ceiling(userCatchCounts.Count * 0.75) - 1;
-                hardcoreCatchesPerSession = userCatchCounts[Math.Min(p75Index, userCatchCounts.Count - 1)];
+                var p75Index = (int)Math.Ceiling(userSessionAverages.Count * 0.75) - 1;
+                hardcoreCatchesPerSession = userSessionAverages[Math.Min(p75Index, userSessionAverages.Count - 1)];
             }
 
             // Store calculated engagement metrics in report for transparency
@@ -732,13 +944,25 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             report.HardcoreCatchesPerSession = Math.Round(hardcoreCatchesPerSession, 1);
 
             // Item affordability analysis
-            var shopItems = await context.FishingShopItems.Where(i => i.Enabled).ToListAsync();
+            var shopItems = await context.FishingShopItems
+                .Include(i => i.TargetFishType)
+                .Where(i => i.Enabled)
+                .ToListAsync();
+            var enabledFishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
             var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
             var medianUserGold = userGoldTotals.Count > 0
                 ? (userGoldTotals.Count % 2 == 0
                     ? (userGoldTotals[userGoldTotals.Count / 2 - 1] + userGoldTotals[userGoldTotals.Count / 2]) / 2.0
                     : userGoldTotals[userGoldTotals.Count / 2])
                 : 0;
+
+            var useBoostMode = settings?.BoostMode ?? false;
+            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
+            var baselineProbabilities = BuildFishProbabilityMap(
+                enabledFishTypes,
+                useBoostMode,
+                boostModeMultiplier,
+                new List<UserFishingBoost>());
 
             foreach (var item in shopItems)
             {
@@ -814,6 +1038,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                         _ => "Significant Gold Sink"
                     };
                 }
+
+                PopulateItemEffectPreview(
+                    affordability,
+                    item,
+                    baselineProbabilities,
+                    enabledFishTypes,
+                    useBoostMode,
+                    boostModeMultiplier);
 
                 report.ItemAffordabilityAnalysis.Add(affordability);
             }
@@ -908,28 +1140,41 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // DB-side aggregation: only fetch per-user catch counts (not all catches)
-            var userCatchCounts = await context.FishCatches
-                .GroupBy(c => c.UserId)
-                .Select(g => g.Count())
+            // Build engagement from timestamped catches so "catches/session" reflects real sessions.
+            var catchSamples = await context.FishCatches
+                .Select(c => new { c.UserId, c.CaughtAt })
                 .ToListAsync();
 
-            if (!userCatchCounts.Any())
+            if (!catchSamples.Any())
             {
                 _logger.LogWarning("[PRICING] No catch data available, returning empty recommendations");
                 return new Dictionary<string, int>();
             }
 
-            // Calculate engagement percentiles from aggregated counts
-            userCatchCounts = userCatchCounts.OrderBy(c => c).ToList();
+            var userSessionAverages = CalculateUserAverageCatchesPerSession(
+                catchSamples.Select(c => (c.UserId, c.CaughtAt)),
+                SessionGap,
+                minTotalCatches: 5,
+                minSessions: 2);
+
+            if (!userSessionAverages.Any())
+            {
+                userSessionAverages = CalculateUserAverageCatchesPerSession(
+                    catchSamples.Select(c => (c.UserId, c.CaughtAt)),
+                    SessionGap);
+            }
+
+            userSessionAverages = userSessionAverages
+                .OrderBy(v => v)
+                .ToList();
 
             double activeCatchesPerSession = 30.0; // Fallback
-            if (userCatchCounts.Count > 0)
+            if (userSessionAverages.Count > 0)
             {
-                var p50Index = userCatchCounts.Count / 2;
-                activeCatchesPerSession = userCatchCounts.Count % 2 == 0
-                    ? (userCatchCounts[p50Index - 1] + userCatchCounts[p50Index]) / 2.0
-                    : userCatchCounts[p50Index];
+                var p50Index = userSessionAverages.Count / 2;
+                activeCatchesPerSession = userSessionAverages.Count % 2 == 0
+                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
+                    : userSessionAverages[p50Index];
             }
 
             // Calculate progressive baseline gold (with equipment progression over time)

@@ -113,6 +113,11 @@
                             <text>Generate Default Items</text>
                         }
                     </MudButton>
+                    <MudSwitch T="bool"
+                               @bind-Value="updateExistingDefaultItems"
+                               Color="Color.Warning"
+                               Label="Update existing defaults"
+                               Disabled="@isGeneratingItems" />
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Warning" 
                                Size="Size.Large"
@@ -1151,6 +1156,7 @@
     [Inject] private IFishingShopService shopService { get; set; } = null!;
     [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
     [Inject] private IFishingAnalyticsService analyticsService { get; set; } = null!;
+    [Inject] private IFishingHelpDataService helpDataService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IWebHostEnvironment WebHostEnvironment { get; set; } = null!;
     [Inject] private DotNetTwitchBot.Services.ImageProcessingService ImageProcessor { get; set; } = null!;
@@ -1167,6 +1173,7 @@
     private bool isResetting = false;
     private bool isSyncing = false;
     private bool isGeneratingItems = false;
+    private bool updateExistingDefaultItems = false;
 
     private string uploadedImageFileName = string.Empty;
     private string uploadedSoundFileName = string.Empty;
@@ -1303,23 +1310,27 @@
             // Save uploaded image file
             if (pendingImageFile != null)
             {
-                // Delete old image variants if name changed
+                // Always delete old image variants when replacing to prevent stale files.
                 if (!string.IsNullOrEmpty(editingFish.ImageFileName))
                 {
                     var oldBaseFileName = FishImageHelper.GetBaseName(editingFish.ImageFileName);
-                    if (oldBaseFileName != baseFileName)
-                    {
-                        ImageProcessor.DeleteImageAndVariants(fishesPath, oldBaseFileName);
-                    }
+                    ImageProcessor.DeleteImageAndVariants(fishesPath, oldBaseFileName);
                 }
+
+                // Rebuild all variants using the stable fish base filename.
+                ImageProcessor.DeleteImageAndVariants(fishesPath, baseFileName);
 
                 // Process and save the new image with optimized variants
                 using (var stream = pendingImageFile.OpenReadStream(maxAllowedSize: 10485760))
                 {
                     var result = await ImageProcessor.ProcessImageAsync(stream, fishesPath, baseFileName);
 
-                    // Store the medium size as the default image file name
-                    if (result.ProcessedFiles.TryGetValue("medium", out var mediumFileName))
+                    // Store the full-resolution base image as the canonical filename.
+                    if (result.ProcessedFiles.TryGetValue("original", out var originalFileName))
+                    {
+                        editingFish.ImageFileName = originalFileName;
+                    }
+                    else if (result.ProcessedFiles.TryGetValue("medium", out var mediumFileName))
                     {
                         editingFish.ImageFileName = mediumFileName;
                     }
@@ -1334,6 +1345,17 @@
                 var soundExtension = Path.GetExtension(pendingSoundFile.Name);
                 var soundFileName = $"{baseFileName}{soundExtension}";
                 var soundPath = Path.Combine(fishesPath, soundFileName);
+
+                // Keep only one audio file per fish base name regardless of extension.
+                var audioExtensions = new[] { ".mp3", ".wav", ".ogg", ".webm" };
+                foreach (var ext in audioExtensions)
+                {
+                    var existingSoundPath = Path.Combine(fishesPath, $"{baseFileName}{ext}");
+                    if (File.Exists(existingSoundPath))
+                    {
+                        File.Delete(existingSoundPath);
+                    }
+                }
 
                 using (var stream = new FileStream(soundPath, FileMode.Create))
                 {
@@ -1353,6 +1375,7 @@
             }
 
             await LoadData();
+            helpDataService.InvalidateCache(); // Invalidate help data on fish changes
             fishDialogVisible = false;
         }
         catch (Exception ex)
@@ -1381,6 +1404,7 @@
             await fishingService.DeleteFishType(fish.Id);
             Snackbar.Add("Fish type deleted successfully", Severity.Success);
             await LoadData();
+            helpDataService.InvalidateCache(); // Invalidate help data on fish deletion
         }
         catch (Exception ex)
         {
@@ -1439,6 +1463,7 @@
             }
 
             await LoadData();
+            helpDataService.InvalidateCache(); // Invalidate help data on shop item changes
             shopItemDialogVisible = false;
         }
         catch (Exception ex)
@@ -1483,6 +1508,7 @@
             await shopService.DeleteShopItem(item.Id);
             Snackbar.Add("Shop item deleted successfully", Severity.Success);
             await LoadData();
+            helpDataService.InvalidateCache(); // Invalidate help data on shop item deletion
         }
         catch (Exception ex)
         {
@@ -1495,6 +1521,7 @@
         try
         {
             await fishingService.UpdateSettings(settings);
+            helpDataService.InvalidateCache(); // Invalidate help data on settings changes
             Snackbar.Add("Settings saved successfully", Severity.Success);
         }
         catch (Exception ex)
@@ -1565,16 +1592,24 @@
         isGeneratingItems = true;
         try
         {
-            var itemCount = await shopService.GenerateDefaultShopItems();
+            var itemCount = await shopService.GenerateDefaultShopItems(updateExistingDefaultItems);
 
             if (itemCount > 0)
             {
-                Snackbar.Add($"Successfully generated {itemCount} shop item(s)", Severity.Success);
+                Snackbar.Add(
+                    updateExistingDefaultItems
+                        ? $"Successfully added/updated {itemCount} default shop item(s)"
+                        : $"Successfully generated {itemCount} shop item(s)",
+                    Severity.Success);
                 await LoadData(); // Reload to show new items
             }
             else
             {
-                Snackbar.Add("All default shop items already exist", Severity.Info);
+                Snackbar.Add(
+                    updateExistingDefaultItems
+                        ? "Default items are already up to date"
+                        : "All default shop items already exist",
+                    Severity.Info);
             }
         }
         catch (Exception ex)

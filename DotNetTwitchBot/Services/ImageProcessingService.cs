@@ -58,6 +58,19 @@ namespace DotNetTwitchBot.Services
                     OriginalHeight = image.Height
                 };
 
+                // Save full-resolution base image (used as canonical filename).
+                var originalFileName = $"{baseFileName}.webp";
+                var originalFilePath = Path.Combine(outputDirectory, originalFileName);
+                var originalEncoder = new WebpEncoder
+                {
+                    Quality = 100,
+                    Method = WebpEncodingMethod.BestQuality
+                };
+                await image.SaveAsync(originalFilePath, originalEncoder);
+                result.ProcessedFiles["original"] = originalFileName;
+
+                _logger.LogInformation($"Created original image: {originalFileName} ({image.Width}x{image.Height})");
+
                 // Define size configurations
                 var sizes = new Dictionary<string, ImageSizeConfig>
                 {

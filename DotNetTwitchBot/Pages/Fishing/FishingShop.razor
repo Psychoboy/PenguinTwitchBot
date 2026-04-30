@@ -380,7 +380,9 @@
     <DialogContent>
         @if (selectedPreviewItem != null)
         {
-            <ItemPurchasePreview ShopItem="@selectedPreviewItem" CurrentEquippedItemIds="@userBoosts.Where(b => b.IsEquipped).Select(b => b.ShopItemId).ToList()" />
+            <ItemPurchasePreview ShopItem="@selectedPreviewItem"
+                                 CurrentEquippedItemIds="@equippedItemIds"
+                                 CurrentEquippedItems="@equippedItems" />
         }
     </DialogContent>
     <DialogActions>
@@ -441,6 +443,8 @@
     private List<FishingShopItem>? cachedFilteredShopItems = null;
     private Dictionary<int, string> fishTypeLookup = new();
     private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
+    private List<int> equippedItemIds = new();
+    private List<FishingShopItem> equippedItems = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -467,6 +471,10 @@
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+
+            // Cache equipped item lists to avoid repeated LINQ on every render
+            equippedItemIds = userBoosts.Where(b => b.IsEquipped).Select(b => b.ShopItemId).ToList();
+            equippedItems = userBoosts.Where(b => b.IsEquipped && b.ShopItem != null).Select(b => b.ShopItem!).ToList();
 
             // Invalidate cached filter results
             cachedFilteredShopItems = null;

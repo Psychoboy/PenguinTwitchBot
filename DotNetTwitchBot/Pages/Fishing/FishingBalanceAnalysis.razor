@@ -152,15 +152,7 @@
 
                     <MudAlert Severity="Severity.Success" Dense="true">
                         <MudText Typo="Typo.body2">
-                            <strong>✓ Baseline Calculation:</strong> Pricing uses <strong>@(useProgressiveBaseline ? "progressive baseline" : "pure baseline")</strong> expected gold.
-                            @if (useProgressiveBaseline)
-                            {
-                                <text>Assumes gradual equipment upgrades over time (realistic progression).</text>
-                            }
-                            else
-                            {
-                                <text>Assumes no equipment for entire duration (conservative estimate).</text>
-                            }
+                            <strong>✓ Pricing Calculation:</strong> Using <strong>@GetPricingGoldSourceDisplay(pricingGoldSource)</strong> with <strong>@GetPricingScopeDisplay(pricingScope)</strong> scope.
                         </MudText>
                     </MudAlert>
 
@@ -174,19 +166,23 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
-                            <MudStack Spacing="2">
-                                <MudSwitch T="bool" @bind-Checked="@useProgressiveBaseline" Label="Progressive Baseline" Color="Color.Primary" />
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @if (useProgressiveBaseline)
-                                    {
-                                        <text>✓ Models gradual equipment upgrades</text>
-                                    }
-                                    else
-                                    {
-                                        <text>Pure baseline (no equipment)</text>
-                                    }
-                                </MudText>
-                            </MudStack>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+                                Gold source controls whether pricing follows actual report values or theoretical baselines.
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect Label="Gold Source" @bind-Value="pricingGoldSource" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@PricingGoldSource.ReportAverage">Report Average (matches table)</MudSelectItem>
+                                <MudSelectItem Value="@PricingGoldSource.ReportMedian">Report Median (conservative)</MudSelectItem>
+                                <MudSelectItem Value="@PricingGoldSource.ProgressiveBaseline">Progressive Baseline</MudSelectItem>
+                                <MudSelectItem Value="@PricingGoldSource.PureBaseline">Pure Baseline</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect Label="Pricing Scope" @bind-Value="pricingScope" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@PricingScope.TopBySlot">Top Gear By Slot</MudSelectItem>
+                                <MudSelectItem Value="@PricingScope.AllPermanent">All Permanent Items</MudSelectItem>
+                            </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
                             <MudPaper Elevation="2" Class="pa-3">
@@ -200,6 +196,9 @@
                                     </MudText>
                                     <MudText Typo="Typo.caption" Color="Color.Tertiary">
                                         Mean (Actual): @report.AverageGoldPerCatch.ToString("F2")g/catch
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        Using: @GetPricingGoldSourceDisplay(pricingGoldSource)
                                     </MudText>
                                 </MudStack>
                             </MudPaper>
@@ -249,15 +248,28 @@
 
                         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
                             <MudText Typo="Typo.caption">
-                                <strong>@(useProgressiveBaseline ? "Progressive Baseline" : "Pure Baseline"):</strong>
-                                @if (useProgressiveBaseline)
+                                <strong>@GetPricingGoldSourceDisplay(pricingGoldSource):</strong>
+                                @if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
                                 {
                                     <text>Assumes player upgrades from no equipment → Entry tier → Mid tier → High tier → Top tier over @targetWeeks weeks.</text>
                                 }
-                                else
+                                else if (pricingGoldSource == PricingGoldSource.PureBaseline)
                                 {
                                     <text>Assumes player has NO equipment for all @targetWeeks weeks (conservative estimate).</text>
                                 }
+                                else if (pricingGoldSource == PricingGoldSource.ReportMedian)
+                                {
+                                    <text>Uses median gold/catch from the selected analysis range.</text>
+                                }
+                                else
+                                {
+                                    <text>Uses average gold/catch from the selected analysis range (matches item affordability table).</text>
+                                }
+                            </MudText>
+                        </MudAlert>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                            <MudText Typo="Typo.caption">
+                                <strong>Pricing Scope:</strong> @GetPricingScopeDisplay(pricingScope) based on @pricePreview.ReferenceItemCount item(s).
                             </MudText>
                         </MudAlert>
 
@@ -285,7 +297,7 @@
                                             @pricePreview.CurrentTotal.ToString("N0")g
                                         </MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                            ~@pricePreview.CurrentWeeks.ToString("F1") weeks
+                                                ~@pricePreview.CurrentWeeks.ToString("F1") weeks (@GetPricingScopeDisplay(pricePreview.Scope))
                                         </MudText>
                                     </MudStack>
                                 </MudPaper>
@@ -447,12 +459,21 @@
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
                             Calculations based on current average gold/catch (@report.AverageGoldPerCatch.ToString("F1")g). Active player progression shown.
                         </MudText>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                            <MudText Typo="Typo.caption">
+                                Effect columns show each item's single-item impact against the current global fishing settings, so you can compare baseline vs boosted outcomes directly.
+                            </MudText>
+                        </MudAlert>
                         <MudTable Items="@report.ItemAffordabilityAnalysis" Dense="false" Hover="true" Striped="true">
                             <HeaderContent>
                                 <MudTh>Item Name</MudTh>
                                 <MudTh>Type</MudTh>
                                 <MudTh>Cost</MudTh>
                                 <MudTh>Cost/Use</MudTh>
+                                <MudTh>Effect Metric</MudTh>
+                                <MudTh>Base</MudTh>
+                                <MudTh>With Item</MudTh>
+                                <MudTh>Delta</MudTh>
                                 <MudTh>Catches Needed</MudTh>
                                 <MudTh>Sessions (Casual)</MudTh>
                                 <MudTh>Sessions (Active)</MudTh>
@@ -501,6 +522,48 @@
                                     else
                                     {
                                         <MudText Color="Color.Secondary">N/A</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.HasEffectPreview)
+                                    {
+                                        <MudText Typo="Typo.caption">@context.EffectMetric</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">-</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.HasEffectPreview)
+                                    {
+                                        <MudText Typo="Typo.caption">@context.EffectBaselineValue.ToString("F2")%</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">-</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.HasEffectPreview)
+                                    {
+                                        <MudText Typo="Typo.caption">@context.EffectWithItemValue.ToString("F2")%</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">-</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.HasEffectPreview)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                            @(context.EffectRelativeChangePercent >= 0 ? "+" : "")@context.EffectRelativeChangePercent.ToString("F1")%
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">-</MudText>
                                     }
                                 </MudTd>
                                 <MudTd>@context.CatchesNeededToBuy.ToString("F1")</MudTd>
@@ -753,9 +816,10 @@
         return rating switch
         {
             "Excellent Value" => Color.Success,
+            "Good Value" => Color.Success,
             "Fair Trade" => Color.Info,
-            "Gold Sink" => Color.Warning,
-            "Premium Sink" => Color.Error,
+            "Moderate Sink" => Color.Warning,
+            "Significant Gold Sink" => Color.Error,
             _ => Color.Default
         };
     }
@@ -915,8 +979,22 @@
 
     // Dynamic Pricing State
     private int targetWeeks = 26; // Default to 6 months
-    private bool useMedian = true; // Default to median (recommended)
-    private bool useProgressiveBaseline = true; // Use progressive baseline by default (more realistic)
+    private enum PricingGoldSource
+    {
+        ReportAverage,
+        ReportMedian,
+        ProgressiveBaseline,
+        PureBaseline
+    }
+
+    private enum PricingScope
+    {
+        TopBySlot,
+        AllPermanent
+    }
+
+    private PricingGoldSource pricingGoldSource = PricingGoldSource.ReportAverage;
+    private PricingScope pricingScope = PricingScope.TopBySlot;
 
     private bool isCalculating = false;
     private bool isApplying = false;
@@ -932,7 +1010,31 @@
         public int TargetTotal { get; set; }
         public double CurrentWeeks { get; set; }
         public double Multiplier { get; set; }
+        public PricingScope Scope { get; set; }
+        public int ReferenceItemCount { get; set; }
         public List<ItemPricePreview> ItemPreviews { get; set; } = new();
+    }
+
+    private static string GetPricingGoldSourceDisplay(PricingGoldSource source)
+    {
+        return source switch
+        {
+            PricingGoldSource.ReportAverage => "Report Average",
+            PricingGoldSource.ReportMedian => "Report Median",
+            PricingGoldSource.ProgressiveBaseline => "Progressive Baseline",
+            PricingGoldSource.PureBaseline => "Pure Baseline",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetPricingScopeDisplay(PricingScope scope)
+    {
+        return scope switch
+        {
+            PricingScope.TopBySlot => "Top Gear By Slot",
+            PricingScope.AllPermanent => "All Permanent Items",
+            _ => "Unknown"
+        };
     }
 
     private class ItemPricePreview
@@ -972,18 +1074,22 @@
                 return;
             }
 
-            // Calculate baseline expected gold for pricing (avoids equipment inflation)
+            // Gold-per-catch source for pricing calculations.
             double goldPerCatch;
-            if (useProgressiveBaseline)
+            if (pricingGoldSource == PricingGoldSource.ReportAverage)
             {
-                // Progressive baseline: assumes player gradually upgrades equipment over time
-                // More realistic - models actual progression path
+                goldPerCatch = report.AverageGoldPerCatch;
+            }
+            else if (pricingGoldSource == PricingGoldSource.ReportMedian)
+            {
+                goldPerCatch = report.MedianGoldPerCatch;
+            }
+            else if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
+            {
                 goldPerCatch = await AnalyticsService.CalculateProgressiveBaselineGold(targetWeeks);
             }
             else
             {
-                // Pure baseline: assumes NO equipment for entire duration
-                // More conservative - ensures prices are achievable even without gear
                 goldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
             }
 
@@ -991,7 +1097,16 @@
             double catchesPerSession = report?.ActiveCatchesPerSession ?? 30.0; // Use median (active) player
             double sessionsPerWeek = 2.5; // Average of 2-3 sessions per week
             var weeklyIncome = goldPerCatch * catchesPerSession * sessionsPerWeek;
-            var currentTotal = permanentItems.Sum(i => i.Cost);
+
+            var referenceItems = pricingScope == PricingScope.TopBySlot
+                ? permanentItems
+                    .Where(i => i.EquipmentSlot.HasValue)
+                    .GroupBy(i => i.EquipmentSlot!.Value)
+                    .Select(g => g.OrderByDescending(i => i.Cost).First())
+                    .ToList()
+                : permanentItems;
+
+            var currentTotal = referenceItems.Sum(i => i.Cost);
 
             // Validate inputs to prevent division by zero / invalid calculations
             if (weeklyIncome <= 0)
@@ -1020,7 +1135,9 @@
                 CurrentTotal = currentTotal,
                 TargetTotal = targetTotal,
                 CurrentWeeks = currentWeeks,
-                Multiplier = multiplier
+                Multiplier = multiplier,
+                Scope = pricingScope,
+                ReferenceItemCount = referenceItems.Count
             };
 
             // Calculate new prices for each item
