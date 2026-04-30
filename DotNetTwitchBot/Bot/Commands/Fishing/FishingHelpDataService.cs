@@ -15,7 +15,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
     public class FishingHelpDataService : IFishingHelpDataService
     {
         private const string CacheKey = "FishingHelpData";
-        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IMemoryCache _cache;
         private readonly ILogger<FishingHelpDataService> _logger;
         private readonly IFishingService _fishingService;
@@ -28,7 +27,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             IFishingService fishingService,
             IFishingShopService shopService)
         {
-            _scopeFactory = scopeFactory;
             _cache = cache;
             _logger = logger;
             _fishingService = fishingService;
@@ -108,7 +106,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 : "Boost Mode is <strong>disabled</strong>. ";
 
             section.EffectsNoteHtml = boostText + 
-                "Equipment and consumables stack additively with the baseline and boost mode multipliers. " +
+                "Rarity and weight equipment boosts stack multiplicatively (each compounds the last). Star boosts stack additively. " +
                 "Specific-fish boosts work independently and can exceed the shop item cap.";
 
             return section;
