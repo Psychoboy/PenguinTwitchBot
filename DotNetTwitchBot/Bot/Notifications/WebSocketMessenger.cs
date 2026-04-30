@@ -18,11 +18,14 @@ namespace DotNetTwitchBot.Bot.Notifications
         //static readonly SemaphoreSlim _semaphoreSlim = new(1)  ;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly CancellationTokenSource _shutdownCts = new();
+        private Task? _broadcastTask;
+        private Task? _cleanupTask;
 
         public WebSocketMessenger(ILogger<WebSocketMessenger> logger, Application.Notifications.IPenguinDispatcher dispatcher)
         {
             _logger = logger;
             SetupCleanUpTask();
+            SetupBroadcastTask();
             _dispatcher = dispatcher;
         }
 
@@ -64,7 +67,6 @@ namespace DotNetTwitchBot.Bot.Notifications
             }
             finally { _semaphoreSlim.Release(); }
 
-            var pushTask = Task.Run(() => PushMessages(webSocket, _shutdownCts.Token));
             try
             {
                 await ReceiveMessage(webSocket, _shutdownCts.Token);
@@ -77,7 +79,6 @@ namespace DotNetTwitchBot.Bot.Notifications
             {
                 _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
-            await pushTask;
             try
             {
                 await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
@@ -89,30 +90,38 @@ namespace DotNetTwitchBot.Bot.Notifications
             _logger.LogInformation("Websocket closed: {id}", id.ToString());
         }
 
-        private async Task PushMessages(WebSocket webSocket, CancellationToken cancellationToken)
+        private void SetupBroadcastTask()
         {
-            try
+            _broadcastTask = Task.Run(async () =>
             {
-                while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                try
                 {
-                    if (_queue.TryTake(out var result, 5000, cancellationToken))
+                    while (!_shutdownCts.Token.IsCancellationRequested)
                     {
-                        if (Paused == false)
+                        if (_queue.TryTake(out var result, 5000, _shutdownCts.Token))
                         {
-                            await SendMessageToSockets(result);
+                            if (!Paused)
+                            {
+                                await SendMessageToSockets(result);
+                            }
+                        }
+                        if (!_shutdownCts.Token.IsCancellationRequested)
+                        {
+                            await SendMessageToSockets("ping");
                         }
                     }
-                    if (!cancellationToken.IsCancellationRequested)
-                    {
-                        await SendMessageToSockets("ping");
-                    }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogDebug("PushMessages cancelled for shutdown.");
-            }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("BroadcastTask cancelled for shutdown.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "BroadcastTask failed unexpectedly.");
+                }
+            });
         }
+
 
         private async Task ReceiveMessage(WebSocket webSocket, CancellationToken cancellationToken)
         {
@@ -192,6 +201,20 @@ namespace DotNetTwitchBot.Bot.Notifications
             });
 
             await Task.WhenAll(closeTasks);
+
+            var shutdownTimeout = TimeSpan.FromSeconds(5);
+            try
+            {
+                if (_broadcastTask != null)
+                    await _broadcastTask.WaitAsync(shutdownTimeout);
+                if (_cleanupTask != null)
+                    await _cleanupTask.WaitAsync(shutdownTimeout);
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("Background tasks did not complete within timeout during shutdown.");
+            }
+
             _logger.LogDebug("Closed all sockets");
         }
 
@@ -220,31 +243,62 @@ namespace DotNetTwitchBot.Bot.Notifications
 
         private void SetupCleanUpTask()
         {
-            Task.Run(async () =>
+            _cleanupTask = Task.Run(async () =>
             {
-                while (true)
+                try
                 {
-                    IEnumerable<SocketConnection> openSockets;
-                    IEnumerable<SocketConnection> closedSockets;
-
-                    try
+                    while (!_shutdownCts.Token.IsCancellationRequested)
                     {
-                        _semaphoreSlim.Wait();
-                        openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
-                        closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
+                        IEnumerable<SocketConnection> openSockets;
+                        IEnumerable<SocketConnection> closedSockets;
+                        bool acquiredSemaphore = false;
 
-                        websocketConnections = openSockets.ToList();
+                        try
+                        {
+                            await _semaphoreSlim.WaitAsync(_shutdownCts.Token);
+                            acquiredSemaphore = true;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
+                            closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
+
+                            websocketConnections = openSockets.ToList();
+                        }
+                        finally
+                        {
+                            if (acquiredSemaphore)
+                                _semaphoreSlim.Release();
+                        }
+
+                        foreach (var closedWebsocketConnection in closedSockets)
+                        {
+                            _logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
+                        }
+
+                        try
+                        {
+                            await Task.Delay(5000, _shutdownCts.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
                     }
-                    finally { _semaphoreSlim.Release(); }
-
-                    foreach (var closedWebsocketConnection in closedSockets)
-                    {
-                        _logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
-                    }
-
-                    await Task.Delay(5000);
                 }
-
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "CleanupTask failed unexpectedly.");
+                }
+                finally
+                {
+                    _logger.LogDebug("CleanupTask exiting.");
+                }
             });
         }
 
