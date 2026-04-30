@@ -57,99 +57,43 @@
                 }
             </MudStack>
 
-            @* Show detailed boost effect explanations *@
-            @if (HasWeightBoost() || HasStarBoost())
+            @if (comparisonRows.Any())
             {
                 <MudPaper Elevation="2" Class="pa-3 mt-2">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
-                        How This Item Helps:
-                    </MudText>
                     <MudStack Spacing="2">
-                        @if (HasWeightBoost())
-                        {
-                            var totalWeightBoost = GetTotalWeightBoost();
-                            <MudText Typo="Typo.body2">
-                                <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Success" />
-                                <strong>Weight Bonus:</strong> Fish will be +@((totalWeightBoost * 100).ToString("F0"))% heavier on average
-                            </MudText>
-                            <MudText Typo="Typo.body2">
-                                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
-                                <strong>Gold Impact:</strong> Heavier fish earn up to +6.5% more gold (weight-based bonus)
-                            </MudText>
-                        }
-                        @if (HasStarBoost())
-                        {
-                            var totalStarBoost = GetTotalStarBoost();
-                            <MudText Typo="Typo.body2">
-                                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
-                                <strong>Star Quality:</strong> +@((totalStarBoost * 100).ToString("F0"))% better chance for high-quality catches
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="ml-4">
-                                ⭐⭐⭐ 3-Star: +25% to +41% gold bonus, 50% heavier fish
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="ml-4">
-                                ⭐⭐ 2-Star: 0% to +25% gold bonus, 20% heavier fish
-                            </MudText>
-                        }
-                    </MudStack>
-                </MudPaper>
-            }
-
-            @* Show detailed probability preview for SpecificFishBoost *@
-            @if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishType != null)
-            {
-                @if (probabilityPreview != null && ShopItem.TargetFishTypeId.HasValue && probabilityPreview.ContainsKey(ShopItem.TargetFishTypeId.Value))
-                {
-                    var fishProb = probabilityPreview[ShopItem.TargetFishTypeId.Value];
-                    <MudPaper Elevation="2" Class="pa-3 mt-2">
-                        <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle2">Target Fish Probability:</MudText>
-                            <MudGrid>
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.caption" Color="Color.Default">Catch Chance</MudText>
-                                    <MudText Typo="Typo.h6" Color="Color.Primary">
-                                        @fishProb.OverallChance.ToString("F3")%
-                                    </MudText>
-                                </MudItem>
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.caption" Color="Color.Default">Expected Casts</MudText>
-                                    <MudText Typo="Typo.h6" Color="Color.Success">
-                                        ~@fishProb.ExpectedAttemptsForOneCatch
-                                    </MudText>
-                                </MudItem>
-                            </MudGrid>
-                        </MudStack>
-                    </MudPaper>
-                }
-            }
-            else if (HasGeneralRarityBoost() && rarityPreview != null)
-            {
-                <MudPaper Elevation="2" Class="pa-3 mt-2">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Rarity Changes With This Item:</MudText>
-                    <MudSimpleTable Dense="true">
-                        <thead>
-                            <tr>
-                                <th>Rarity</th>
-                                <th>Chance</th>
-                                <th>Frequency</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var rarity in rarityPreview.Probabilities.OrderByDescending(kvp => (int)kvp.Key))
-                            {
+                        <MudText Typo="Typo.subtitle2">
+                            <MudIcon Icon="@Icons.Material.Filled.CompareArrows" Size="Size.Small" />
+                            Current vs If Equipped
+                        </MudText>
+                        <MudSimpleTable Dense="true">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <MudChip T="string" Size="Size.Small" Color="GetRarityColor(rarity.Key)">
-                                            @rarity.Key
-                                        </MudChip>
-                                    </td>
-                                    <td><strong>@rarity.Value.ToString("F2")%</strong></td>
-                                    <td>~1 in @Math.Round(100.0 / rarity.Value, 0)</td>
+                                    <th>Metric</th>
+                                    <th>Current</th>
+                                    <th>New</th>
+                                    <th>Diff</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </MudSimpleTable>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in comparisonRows)
+                                {
+                                    <tr>
+                                        <td><strong>@row.Metric</strong></td>
+                                        <td>@row.CurrentDisplay</td>
+                                        <td>@row.NewDisplay</td>
+                                        <td>
+                                            <MudChip T="string" Size="Size.Small" Color="@GetDiffColor(row.DiffValue)">
+                                                @(row.DiffValue >= 0 ? "+" : "")@row.DiffDisplay
+                                            </MudChip>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Preview replaces your currently equipped item in the same slot (if any), so numbers match real equip behavior.
+                        </MudText>
+                    </MudStack>
                 </MudPaper>
             }
 
@@ -164,10 +108,26 @@
 @code {
     [Parameter] public FishingShopItem? ShopItem { get; set; }
     [Parameter] public List<int> CurrentEquippedItemIds { get; set; } = new();
+    [Parameter] public List<FishingShopItem> CurrentEquippedItems { get; set; } = new();
 
-    private RarityProbability? rarityPreview;
-    private Dictionary<int, FishProbability>? probabilityPreview;
+    private RarityProbability? currentRarityPreview;
+    private RarityProbability? newRarityPreview;
+    private Dictionary<int, FishProbability>? currentFishPreview;
+    private Dictionary<int, FishProbability>? newFishPreview;
     private bool isLoading = false;
+
+    private readonly List<MetricComparisonRow> comparisonRows = new();
+    private readonly List<FishingShopItem> currentEquippedResolved = new();
+    private readonly List<FishingShopItem> projectedEquippedResolved = new();
+
+    private class MetricComparisonRow
+    {
+        public string Metric { get; set; } = string.Empty;
+        public string CurrentDisplay { get; set; } = string.Empty;
+        public string NewDisplay { get; set; } = string.Empty;
+        public string DiffDisplay { get; set; } = string.Empty;
+        public double DiffValue { get; set; }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -185,32 +145,183 @@
         try
         {
             var settings = await FishingService.GetSettings();
-            // Build itemIds and deduplicate to avoid double-applying if already equipped
-            var itemIds = new List<int>(CurrentEquippedItemIds);
-            if (!itemIds.Contains(ShopItem.Id))
-            {
-                itemIds.Add(ShopItem.Id);
-            }
 
-            rarityPreview = await AnalyticsService.CalculateRarityProbabilities(
+            ResolveCurrentItems();
+            ResolveProjectedItems();
+
+            var currentItemIds = currentEquippedResolved.Select(i => i.Id).Distinct().ToList();
+            var projectedItemIds = projectedEquippedResolved.Select(i => i.Id).Distinct().ToList();
+
+            currentRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
                 settings?.BoostMode ?? false,
                 settings?.BoostModeRarityMultiplier ?? 1.0,
-                itemIds
+                currentItemIds
             );
 
-            if (ShopItem.BoostType == FishingBoostType.SpecificFishBoost && ShopItem.TargetFishTypeId.HasValue)
-            {
-                probabilityPreview = await AnalyticsService.CalculateCatchProbabilities(
-                    settings?.BoostMode ?? false,
-                    settings?.BoostModeRarityMultiplier ?? 1.0,
-                    itemIds
-                );
-            }
+            newRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                projectedItemIds
+            );
+
+            currentFishPreview = await AnalyticsService.CalculateCatchProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                currentItemIds
+            );
+
+            newFishPreview = await AnalyticsService.CalculateCatchProbabilities(
+                settings?.BoostMode ?? false,
+                settings?.BoostModeRarityMultiplier ?? 1.0,
+                projectedItemIds
+            );
+
+            BuildComparisonRows();
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private void ResolveCurrentItems()
+    {
+        currentEquippedResolved.Clear();
+
+        if (CurrentEquippedItems.Any())
+        {
+            currentEquippedResolved.AddRange(CurrentEquippedItems);
+            return;
+        }
+
+        if (ShopItem == null)
+            return;
+
+        if (CurrentEquippedItemIds.Contains(ShopItem.Id))
+        {
+            currentEquippedResolved.Add(ShopItem);
+        }
+    }
+
+    private void ResolveProjectedItems()
+    {
+        projectedEquippedResolved.Clear();
+        projectedEquippedResolved.AddRange(currentEquippedResolved);
+
+        if (ShopItem == null)
+            return;
+
+        if (ShopItem.EquipmentSlot.HasValue)
+        {
+            projectedEquippedResolved.RemoveAll(i => i.EquipmentSlot == ShopItem.EquipmentSlot);
+        }
+
+        if (!projectedEquippedResolved.Any(i => i.Id == ShopItem.Id))
+        {
+            projectedEquippedResolved.Add(ShopItem);
+        }
+    }
+
+    private void BuildComparisonRows()
+    {
+        comparisonRows.Clear();
+        if (ShopItem == null)
+            return;
+
+        if (HasGeneralRarityBoost() || HasSpecificFishBoost())
+        {
+            foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
+            {
+                var currentChance = currentRarityPreview?.Probabilities.GetValueOrDefault(rarity, 0) ?? 0;
+                var newChance = newRarityPreview?.Probabilities.GetValueOrDefault(rarity, 0) ?? 0;
+                AddPercentRow($"{rarity} catch chance", currentChance, newChance);
+            }
+        }
+
+        if (HasStarBoost())
+        {
+            var currentStarBoost = GetTotalBoost(currentEquippedResolved, FishingBoostType.StarBoost);
+            var newStarBoost = GetTotalBoost(projectedEquippedResolved, FishingBoostType.StarBoost);
+
+            var (currentOneStar, currentTwoStar, currentThreeStar) = CalculateStarChances(currentStarBoost);
+            var (newOneStar, newTwoStar, newThreeStar) = CalculateStarChances(newStarBoost);
+
+            AddPercentRow("1-star catch chance", currentOneStar, newOneStar);
+            AddPercentRow("2-star catch chance", currentTwoStar, newTwoStar);
+            AddPercentRow("3-star catch chance", currentThreeStar, newThreeStar);
+        }
+
+        if (HasWeightBoost())
+        {
+            var currentWeightBoost = GetTotalBoost(currentEquippedResolved, FishingBoostType.WeightBoost);
+            var newWeightBoost = GetTotalBoost(projectedEquippedResolved, FishingBoostType.WeightBoost);
+            AddPercentRow("Avg weight multiplier", (1.0 + currentWeightBoost) * 100.0, (1.0 + newWeightBoost) * 100.0);
+        }
+
+        if (HasSpecificFishBoost() && ShopItem.TargetFishTypeId.HasValue)
+        {
+            var targetId = ShopItem.TargetFishTypeId.Value;
+            if (currentFishPreview != null && newFishPreview != null &&
+                currentFishPreview.TryGetValue(targetId, out var currentTarget) &&
+                newFishPreview.TryGetValue(targetId, out var newTarget))
+            {
+                AddPercentRow($"{currentTarget.FishName} catch chance", currentTarget.OverallChance, newTarget.OverallChance);
+            }
+        }
+    }
+
+    private void AddPercentRow(string metric, double currentValue, double newValue)
+    {
+        var diff = newValue - currentValue;
+        comparisonRows.Add(new MetricComparisonRow
+        {
+            Metric = metric,
+            CurrentDisplay = $"{currentValue:F3}%",
+            NewDisplay = $"{newValue:F3}%",
+            DiffDisplay = $"{Math.Abs(diff):F3}%",
+            DiffValue = diff
+        });
+    }
+
+    private static (double OneStar, double TwoStar, double ThreeStar) CalculateStarChances(double totalStarBoost)
+    {
+        var threeStarThreshold = 5.0 + (totalStarBoost * 100.0);
+        var twoStarThreshold = 20.0 + (totalStarBoost * 100.0);
+
+        var p3 = Math.Clamp(threeStarThreshold, 0.0, 100.0);
+        var p3OrP2 = Math.Clamp(threeStarThreshold + twoStarThreshold, 0.0, 100.0);
+        var p2 = Math.Max(0.0, p3OrP2 - p3);
+        var p1 = Math.Max(0.0, 100.0 - p3 - p2);
+
+        return (p1, p2, p3);
+    }
+
+    private static double GetTotalBoost(IEnumerable<FishingShopItem> items, FishingBoostType type)
+    {
+        double total = 0;
+        foreach (var item in items)
+        {
+            if (item.BoostType == type) total += item.BoostAmount;
+            if (item.BoostType2 == type) total += item.BoostAmount2 ?? 0;
+            if (item.BoostType3 == type) total += item.BoostAmount3 ?? 0;
+        }
+
+        return total;
+    }
+
+    private bool HasSpecificFishBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
+               ShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
+               ShopItem.BoostType3 == FishingBoostType.SpecificFishBoost;
+    }
+
+    private Color GetDiffColor(double diff)
+    {
+        if (diff > 0) return Color.Success;
+        if (diff < 0) return Color.Error;
+        return Color.Default;
     }
 
     private string GetBoostDescription(FishingBoostType boostType, double boostAmount)
@@ -256,26 +367,6 @@
                ShopItem.BoostType3 == FishingBoostType.GeneralRarityBoost;
     }
 
-    private double GetTotalWeightBoost()
-    {
-        if (ShopItem == null) return 0;
-        double total = 0;
-        if (ShopItem.BoostType == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount;
-        if (ShopItem.BoostType2 == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount2 ?? 0;
-        if (ShopItem.BoostType3 == FishingBoostType.WeightBoost) total += ShopItem.BoostAmount3 ?? 0;
-        return total;
-    }
-
-    private double GetTotalStarBoost()
-    {
-        if (ShopItem == null) return 0;
-        double total = 0;
-        if (ShopItem.BoostType == FishingBoostType.StarBoost) total += ShopItem.BoostAmount;
-        if (ShopItem.BoostType2 == FishingBoostType.StarBoost) total += ShopItem.BoostAmount2 ?? 0;
-        if (ShopItem.BoostType3 == FishingBoostType.StarBoost) total += ShopItem.BoostAmount3 ?? 0;
-        return total;
-    }
-
     private Color GetRarityColor(FishRarity rarity) => rarity switch
     {
         FishRarity.Common => Color.Default,
@@ -287,7 +378,6 @@
     };
 }
 
-@* Helper method to render boost alerts *@
 @code {
     private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish) => builder =>
     {

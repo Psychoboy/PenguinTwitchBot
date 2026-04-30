@@ -81,5 +81,12 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public double MedianUserGold { get; set; }
         public string AffordabilityRating { get; set; } = string.Empty; // For permanent items
         public string ValueRating { get; set; } = string.Empty; // For consumables: "Gold Sink", "Fair Trade", "Great Value"
+
+        // Effect preview (single-item impact reference for admin balancing)
+        public bool HasEffectPreview { get; set; }
+        public string EffectMetric { get; set; } = string.Empty;
+        public double EffectBaselineValue { get; set; }
+        public double EffectWithItemValue { get; set; }
+        public double EffectRelativeChangePercent { get; set; }
     }
 }

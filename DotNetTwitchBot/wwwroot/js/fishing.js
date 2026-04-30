@@ -115,8 +115,10 @@ async function handleFishingAlert(fishingData) {
         fishImage.attr('src', imagePath);
         fishImage.show();
 
-        // Try to find matching audio file
-        const baseFileName = imageFileName.substring(0, imageFileName.lastIndexOf('.'));
+        // Try to find matching audio file using the fish base filename.
+        const dotIndex = imageFileName.lastIndexOf('.');
+        const fileNameNoExt = dotIndex > 0 ? imageFileName.substring(0, dotIndex) : imageFileName;
+        const baseFileName = fileNameNoExt.replace(/_(thumbnail|small|medium|large)$/i, '');
         audioFile = await findAudioFile(baseFileName);
     } else {
         fishImage.hide();

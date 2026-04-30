@@ -113,6 +113,7 @@ namespace DotNetTwitchBot.CustomMiddleware
             services.AddSingleton<IFishingGameplayService, FishingGameplayService>();
             services.AddSingleton<IFishingAnalyticsService, FishingAnalyticsService>();
             services.AddSingleton<IFishingLeaderboardService, FishingLeaderboardService>();
+            services.AddSingleton<IFishingHelpDataService, FishingHelpDataService>();
 
             services.AddHostedApiService<ScAi>();
 

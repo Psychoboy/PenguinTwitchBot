@@ -333,6 +333,13 @@
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
+                                    <MudButton Variant="Variant.Text"
+                                              Color="Color.Info"
+                                              Size="Size.Small"
+                                              StartIcon="@Icons.Material.Filled.Preview"
+                                              OnClick="@(() => ShowItemPreview(context.ShopItem!))">
+                                        Preview
+                                    </MudButton>
                                     @if(!context.IsEquipped && !context.ShopItem!.IsConsumable && context.RemainingUses == -1)
                                     {
                                         <MudTooltip Text="Sell for 15% of original cost">
@@ -447,7 +454,7 @@
     <DialogContent>
         @if (catchRatesDialogVisible)
         {
-            <CurrentProbabilitiesDisplay EquippedItemIds="@equippedBySlot.Values.Select(e => e.ShopItemId).ToList()" />
+            <CurrentProbabilitiesDisplay EquippedItemIds="@equippedItemIds" />
         }
     </DialogContent>
     <DialogActions>
@@ -455,6 +462,26 @@
                    StartIcon="@Icons.Material.Filled.Close">
             Close
         </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="previewDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-1" />
+            Item Preview
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (selectedPreviewItem != null)
+        {
+            <ItemPurchasePreview ShopItem="@selectedPreviewItem"
+                                 CurrentEquippedItemIds="@equippedItemIds"
+                                 CurrentEquippedItems="@equippedShopItems" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => previewDialogVisible = false)" Color="Color.Primary">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -498,11 +525,15 @@
     private List<UserFishingBoost>? cachedFilteredItems = null;
     private Dictionary<int, string> fishTypeLookup = new();
     private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
+    private List<int> equippedItemIds = new();
+    private List<FishingShopItem> equippedShopItems = new();
 
     private bool equipDialogVisible = false;
     private EquipmentSlot selectedSlot;
     private List<UserFishingBoost> availableItemsForSlot = new();
     private bool catchRatesDialogVisible = false;
+    private bool previewDialogVisible = false;
+    private FishingShopItem? selectedPreviewItem;
 
     protected override async Task OnInitializedAsync()
     {
@@ -531,6 +562,12 @@
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+
+            // Cache equipped item lists to avoid repeated LINQ on every render.
+            // Use allItems (not equippedBySlot) to include items with null EquipmentSlot
+            // (e.g. permanent boosts) that GetUserEquipmentBySlot excludes.
+            equippedItemIds = allItems.Where(i => i.IsEquipped).Select(i => i.ShopItemId).ToList();
+            equippedShopItems = allItems.Where(i => i.IsEquipped && i.ShopItem != null).Select(i => i.ShopItem!).ToList();
 
             // Invalidate cached filter results
             cachedFilteredItems = null;
@@ -668,6 +705,12 @@
     {
         equipDialogVisible = false;
         await EquipItem(userBoostId);
+    }
+
+    private void ShowItemPreview(FishingShopItem item)
+    {
+        selectedPreviewItem = item;
+        previewDialogVisible = true;
     }
 
     private string GetSlotIcon(EquipmentSlot slot) => slot switch
