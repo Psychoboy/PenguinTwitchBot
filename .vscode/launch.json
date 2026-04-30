@@ -11,6 +11,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/DotNetTwitchBot/bin/Debug/net10.0/DotNetTwitchBot.dll",
+            "console": "integratedTerminal",
             "args": [],
             "cwd": "${workspaceFolder}/DotNetTwitchBot",
             "stopAtEntry": false,
