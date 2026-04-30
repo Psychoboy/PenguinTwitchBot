@@ -503,12 +503,32 @@
                         }
                         else if (fishTypes.Any())
                         {
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4 flex-wrap">
+                                <MudSelect T="DexSortField"
+                                           @bind-Value="dexSortField"
+                                           Label="Sort Dex By"
+                                           Variant="Variant.Outlined"
+                                           Style="min-width: 220px;">
+                                    <MudSelectItem Value="@DexSortField.Rarity">Rarity</MudSelectItem>
+                                    <MudSelectItem Value="@DexSortField.CaughtStatus">Caught Status</MudSelectItem>
+                                    <MudSelectItem Value="@DexSortField.Stars">Stars</MudSelectItem>
+                                    <MudSelectItem Value="@DexSortField.Weight">Weight</MudSelectItem>
+                                </MudSelect>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@(isDexSortDescending ? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
+                                           OnClick="ToggleDexSortDirection">
+                                    @(isDexSortDescending ? "Descending" : "Ascending")
+                                </MudButton>
+                            </MudStack>
+
                             <MudGrid>
-                                @foreach (var fish in fishTypes.OrderBy(f => (int)f.Rarity).ThenBy(f => f.Name))
+                                @foreach (var dexEntry in SortedDexEntries)
                                 {
-                                    var userBest = userDexCatches.FirstOrDefault(c => c.FishTypeId == fish.Id);
-                                    var hasCaught = userBest != null;
-                                    var catchCount = userDexCatchCounts.GetValueOrDefault(fish.Id, 0);
+                                    var fish = dexEntry.Fish;
+                                    var userBest = dexEntry.UserBest;
+                                    var hasCaught = dexEntry.HasCaught;
+                                    var catchCount = dexEntry.CatchCount;
 
                                     <MudItem xs="12" sm="6" md="4" lg="3">
                                         <MudCard Elevation="4" Class="@(hasCaught ? "" : "opacity-50")">
@@ -672,6 +692,14 @@
     private List<FishCatch> valuableCatchesLeaderboard = new();
     private List<FishCatch> recentCatches = new();
     private bool showPersonalCatches = false;
+    private DexSortField dexSortField = DexSortField.Rarity;
+    private bool isDexSortDescending = false;
+    private List<DexEntry> cachedSortedDexEntries = new();
+    private List<FishType>? dexCacheFishTypesReference;
+    private List<FishCatch>? dexCacheUserDexCatchesReference;
+    private Dictionary<int, int>? dexCacheUserDexCatchCountsReference;
+    private DexSortField? dexCacheSortField;
+    private bool? dexCacheIsSortDescending;
 
     // Loading states
     private bool isLoadingFishLeaderboard = false;
@@ -854,6 +882,63 @@
         return (int)Math.Round((double)userDexCatches.Count / fishTypes.Count * 100);
     }
 
+    private IEnumerable<DexEntry> SortedDexEntries
+    {
+        get
+        {
+            if (!ShouldRebuildDexEntries())
+            {
+                return cachedSortedDexEntries;
+            }
+
+            var bestCatchesByFishTypeId = userDexCatches.ToDictionary(catchItem => catchItem.FishTypeId);
+            var dexEntries = fishTypes.Select(fish =>
+            {
+                bestCatchesByFishTypeId.TryGetValue(fish.Id, out var userBest);
+                return new DexEntry(fish, userBest, userDexCatchCounts.GetValueOrDefault(fish.Id, 0));
+            });
+
+            cachedSortedDexEntries = dexSortField switch
+            {
+                DexSortField.Rarity => isDexSortDescending
+                    ? dexEntries.OrderByDescending(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name).ToList(),
+                DexSortField.CaughtStatus => isDexSortDescending
+                    ? dexEntries.OrderByDescending(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name).ToList(),
+                DexSortField.Stars => isDexSortDescending
+                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name).ToList(),
+                DexSortField.Weight => isDexSortDescending
+                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name).ToList(),
+                _ => dexEntries.OrderBy(entry => entry.Fish.Name).ToList()
+            };
+
+            dexCacheFishTypesReference = fishTypes;
+            dexCacheUserDexCatchesReference = userDexCatches;
+            dexCacheUserDexCatchCountsReference = userDexCatchCounts;
+            dexCacheSortField = dexSortField;
+            dexCacheIsSortDescending = isDexSortDescending;
+
+            return cachedSortedDexEntries;
+        }
+    }
+
+    private bool ShouldRebuildDexEntries()
+    {
+        return dexCacheFishTypesReference != fishTypes
+               || dexCacheUserDexCatchesReference != userDexCatches
+               || dexCacheUserDexCatchCountsReference != userDexCatchCounts
+               || dexCacheSortField != dexSortField
+               || dexCacheIsSortDescending != isDexSortDescending;
+    }
+
+    private void ToggleDexSortDirection()
+    {
+        isDexSortDescending = !isDexSortDescending;
+    }
+
     private Color GetRarityColor(FishRarity rarity) => rarity switch
     {
         FishRarity.Common => Color.Default,
@@ -1019,5 +1104,18 @@
     private void Signin()
     {
         Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+    }
+
+    private enum DexSortField
+    {
+        Rarity,
+        CaughtStatus,
+        Stars,
+        Weight
+    }
+
+    private sealed record DexEntry(FishType Fish, FishCatch? UserBest, int CatchCount)
+    {
+        public bool HasCaught => UserBest is not null;
     }
 }
