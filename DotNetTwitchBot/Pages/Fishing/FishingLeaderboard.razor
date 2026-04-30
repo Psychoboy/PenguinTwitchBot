@@ -694,6 +694,12 @@
     private bool showPersonalCatches = false;
     private DexSortField dexSortField = DexSortField.Rarity;
     private bool isDexSortDescending = false;
+    private List<DexEntry> cachedSortedDexEntries = new();
+    private List<FishType>? dexCacheFishTypesReference;
+    private List<FishCatch>? dexCacheUserDexCatchesReference;
+    private Dictionary<int, int>? dexCacheUserDexCatchCountsReference;
+    private DexSortField? dexCacheSortField;
+    private bool? dexCacheIsSortDescending;
 
     // Loading states
     private bool isLoadingFishLeaderboard = false;
@@ -880,6 +886,11 @@
     {
         get
         {
+            if (!ShouldRebuildDexEntries())
+            {
+                return cachedSortedDexEntries;
+            }
+
             var bestCatchesByFishTypeId = userDexCatches.ToDictionary(catchItem => catchItem.FishTypeId);
             var dexEntries = fishTypes.Select(fish =>
             {
@@ -887,23 +898,40 @@
                 return new DexEntry(fish, userBest, userDexCatchCounts.GetValueOrDefault(fish.Id, 0));
             });
 
-            return dexSortField switch
+            cachedSortedDexEntries = dexSortField switch
             {
                 DexSortField.Rarity => isDexSortDescending
-                    ? dexEntries.OrderByDescending(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name)
-                    : dexEntries.OrderBy(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name),
+                    ? dexEntries.OrderByDescending(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => (int)entry.Fish.Rarity).ThenBy(entry => entry.Fish.Name).ToList(),
                 DexSortField.CaughtStatus => isDexSortDescending
-                    ? dexEntries.OrderByDescending(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name)
-                    : dexEntries.OrderBy(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name),
+                    ? dexEntries.OrderByDescending(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.HasCaught).ThenBy(entry => entry.Fish.Name).ToList(),
                 DexSortField.Stars => isDexSortDescending
-                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name)
-                    : dexEntries.OrderBy(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name),
+                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.UserBest?.Stars ?? 0).ThenBy(entry => entry.Fish.Name).ToList(),
                 DexSortField.Weight => isDexSortDescending
-                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name)
-                    : dexEntries.OrderBy(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name),
-                _ => dexEntries.OrderBy(entry => entry.Fish.Name)
+                    ? dexEntries.OrderByDescending(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name).ToList()
+                    : dexEntries.OrderBy(entry => entry.UserBest?.Weight ?? 0).ThenBy(entry => entry.Fish.Name).ToList(),
+                _ => dexEntries.OrderBy(entry => entry.Fish.Name).ToList()
             };
+
+            dexCacheFishTypesReference = fishTypes;
+            dexCacheUserDexCatchesReference = userDexCatches;
+            dexCacheUserDexCatchCountsReference = userDexCatchCounts;
+            dexCacheSortField = dexSortField;
+            dexCacheIsSortDescending = isDexSortDescending;
+
+            return cachedSortedDexEntries;
         }
+    }
+
+    private bool ShouldRebuildDexEntries()
+    {
+        return dexCacheFishTypesReference != fishTypes
+               || dexCacheUserDexCatchesReference != userDexCatches
+               || dexCacheUserDexCatchCountsReference != userDexCatchCounts
+               || dexCacheSortField != dexSortField
+               || dexCacheIsSortDescending != isDexSortDescending;
     }
 
     private void ToggleDexSortDirection()
