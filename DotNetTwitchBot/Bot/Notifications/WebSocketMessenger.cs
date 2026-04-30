@@ -20,6 +20,9 @@ namespace DotNetTwitchBot.Bot.Notifications
         private readonly CancellationTokenSource _shutdownCts = new();
         private Task? _broadcastTask;
         private Task? _cleanupTask;
+        private static readonly TimeSpan _idlePingInterval = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan _cleanupInterval = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(5);
 
         public WebSocketMessenger(ILogger<WebSocketMessenger> logger, Application.Notifications.IPenguinDispatcher dispatcher)
         {
@@ -92,43 +95,44 @@ namespace DotNetTwitchBot.Bot.Notifications
 
         private void SetupBroadcastTask()
         {
-            _broadcastTask = Task.Run(async () =>
+            _broadcastTask = Task.Run(() => RunBroadcastLoopAsync(_shutdownCts.Token));
+        }
+
+        private async Task RunBroadcastLoopAsync(CancellationToken cancellationToken)
+        {
+            try
             {
-                try
+                var lastNonPingSendUtc = DateTime.UtcNow;
+
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    var idlePingInterval = TimeSpan.FromSeconds(5);
-                    var lastNonPingSendUtc = DateTime.UtcNow;
+                    var sentMessage = false;
 
-                    while (!_shutdownCts.Token.IsCancellationRequested)
+                    if (_queue.TryTake(out var result, 5000, cancellationToken))
                     {
-                        var sentMessage = false;
-
-                        if (_queue.TryTake(out var result, 5000, _shutdownCts.Token))
+                        if (!Paused)
                         {
-                            if (!Paused)
-                            {
-                                await SendMessageToSockets(result);
-                                sentMessage = true;
-                                lastNonPingSendUtc = DateTime.UtcNow;
-                            }
-                        }
-
-                        var shouldPing = !sentMessage && DateTime.UtcNow - lastNonPingSendUtc >= idlePingInterval;
-                        if (!_shutdownCts.Token.IsCancellationRequested && shouldPing)
-                        {
-                            await SendMessageToSockets("ping");
+                            await SendMessageToSockets(result, cancellationToken);
+                            sentMessage = true;
+                            lastNonPingSendUtc = DateTime.UtcNow;
                         }
                     }
+
+                    var shouldPing = !sentMessage && DateTime.UtcNow - lastNonPingSendUtc >= _idlePingInterval;
+                    if (!cancellationToken.IsCancellationRequested && shouldPing)
+                    {
+                        await SendMessageToSockets("ping", cancellationToken);
+                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogDebug("BroadcastTask cancelled for shutdown.");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "BroadcastTask failed unexpectedly.");
-                }
-            });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug("BroadcastTask cancelled for shutdown.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BroadcastTask failed unexpectedly.");
+            }
         }
 
 
@@ -188,14 +192,7 @@ namespace DotNetTwitchBot.Bot.Notifications
             // Signal shutdown to all operations
             _shutdownCts.Cancel();
 
-            IEnumerable<SocketConnection> sockets;
-
-            try
-            {
-                await _semaphoreSlim.WaitAsync();
-                sockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
-            }
-            finally { _semaphoreSlim.Release(); }
+            var sockets = await GetSocketSnapshot(_shutdownCts.Token,x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
 
             var closeTasks = sockets.Select(async socket =>
             {
@@ -211,13 +208,12 @@ namespace DotNetTwitchBot.Bot.Notifications
 
             await Task.WhenAll(closeTasks);
 
-            var shutdownTimeout = TimeSpan.FromSeconds(5);
             try
             {
                 if (_broadcastTask != null)
-                    await _broadcastTask.WaitAsync(shutdownTimeout);
+                    await _broadcastTask.WaitAsync(_shutdownTimeout);
                 if (_cleanupTask != null)
-                    await _cleanupTask.WaitAsync(shutdownTimeout);
+                    await _cleanupTask.WaitAsync(_shutdownTimeout);
             }
             catch (TimeoutException)
             {
@@ -227,16 +223,9 @@ namespace DotNetTwitchBot.Bot.Notifications
             _logger.LogDebug("Closed all sockets");
         }
 
-        private async Task SendMessageToSockets(string message)
+        private async Task SendMessageToSockets(string message, CancellationToken cancellationToken)
         {
-            IEnumerable<SocketConnection> toSentTo;
-
-            try
-            {
-                await _semaphoreSlim.WaitAsync();
-                toSentTo = websocketConnections.ToList();
-            }
-            finally { _semaphoreSlim.Release(); }
+            var toSentTo = await GetSocketSnapshot(cancellationToken);
 
             var failedSocketIds = new ConcurrentBag<Guid>();
             var tasks = toSentTo.Select(async websocketConnection =>
@@ -260,75 +249,92 @@ namespace DotNetTwitchBot.Bot.Notifications
 
             if (!failedSocketIds.IsEmpty)
             {
-                var failedIds = failedSocketIds.ToHashSet();
-                try
-                {
-                    await _semaphoreSlim.WaitAsync();
-                    websocketConnections = websocketConnections.Where(x => !failedIds.Contains(x.Id)).ToList();
-                }
-                finally { _semaphoreSlim.Release(); }
+                await RemoveSocketsById(failedSocketIds.ToHashSet());
             }
         }
 
         private void SetupCleanUpTask()
         {
-            _cleanupTask = Task.Run(async () =>
+            _cleanupTask = Task.Run(() => RunCleanupLoopAsync(_shutdownCts.Token));
+        }
+
+        private async Task RunCleanupLoopAsync(CancellationToken cancellationToken)
+        {
+            try
             {
-                try
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    while (!_shutdownCts.Token.IsCancellationRequested)
+                    var closedSockets = await PruneClosedSockets(cancellationToken);
+
+                    foreach (var closedWebsocketConnection in closedSockets)
                     {
-                        IEnumerable<SocketConnection> openSockets;
-                        IEnumerable<SocketConnection> closedSockets;
-                        bool acquiredSemaphore = false;
+                        _logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
+                    }
 
-                        try
-                        {
-                            await _semaphoreSlim.WaitAsync(_shutdownCts.Token);
-                            acquiredSemaphore = true;
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            break;
-                        }
-
-                        try
-                        {
-                            openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting);
-                            closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
-
-                            websocketConnections = openSockets.ToList();
-                        }
-                        finally
-                        {
-                            if (acquiredSemaphore)
-                                _semaphoreSlim.Release();
-                        }
-
-                        foreach (var closedWebsocketConnection in closedSockets)
-                        {
-                            _logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
-                        }
-
-                        try
-                        {
-                            await Task.Delay(5000, _shutdownCts.Token);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            break;
-                        }
+                    try
+                    {
+                        await Task.Delay(_cleanupInterval, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "CleanupTask failed unexpectedly.");
-                }
-                finally
-                {
-                    _logger.LogDebug("CleanupTask exiting.");
-                }
-            });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug("CleanupTask cancelled for shutdown.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CleanupTask failed unexpectedly.");
+            }
+            finally
+            {
+                _logger.LogDebug("CleanupTask exiting.");
+            }
+        }
+
+        private async Task<List<SocketConnection>> GetSocketSnapshot(CancellationToken cancellationToken, Func<SocketConnection, bool>? predicate = null)
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                var query = predicate == null ? websocketConnections : websocketConnections.Where(predicate);
+                return query.ToList();
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        private async Task RemoveSocketsById(HashSet<Guid> socketIds)
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                websocketConnections = websocketConnections.Where(x => !socketIds.Contains(x.Id)).ToList();
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        private async Task<List<SocketConnection>> PruneClosedSockets(CancellationToken cancellationToken)
+        {
+            var acquiredSemaphore = false;
+            try
+            {
+                await _semaphoreSlim.WaitAsync(cancellationToken);
+                acquiredSemaphore = true;
+
+                var openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting).ToList();
+                var closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting).ToList();
+
+                websocketConnections = openSockets;
+                return closedSockets;
+            }
+            finally
+            {
+                if (acquiredSemaphore)
+                    _semaphoreSlim.Release();
+            }
         }
 
         public void Pause()
