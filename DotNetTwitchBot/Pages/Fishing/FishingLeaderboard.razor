@@ -3,6 +3,7 @@
 @using DotNetTwitchBot.Bot.Models.Fishing
 @using DotNetTwitchBot.Helpers
 @using DotNetTwitchBot.Models
+@using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -29,7 +30,7 @@
             </MudPaper>
         }
         else
-        {        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
+        {        <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4" ActivePanelIndex="@activeTabIndex" ActivePanelIndexChanged="OnTabChanged">
                 <MudTabPanel Text="Valuable Catches" Icon="@Icons.Material.Filled.Diamond">
                     <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mb-3">
                         <MudButton Variant="Variant.Filled"
@@ -708,6 +709,11 @@
     private bool isLoadingDex = false;
     private bool isLoadingRecentCatches = false;
     private bool isInitialLoading = true;
+    private bool isUserAuthenticated = false;
+
+    // Tab URL persistence
+    private const string TabQueryParameter = "tab";
+    private int activeTabIndex = 0;
 
     // SignalR connection
     private IJSObjectReference? signalRModule;
@@ -734,6 +740,8 @@
             await LoadRecentCatches();
 
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            isUserAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+
             if (authState.User.Identity?.IsAuthenticated == true)
             {
                 currentUserId = authState.User.FindFirst("sub")?.Value 
@@ -745,6 +753,8 @@
                     await LoadUserData();
                 }
             }
+
+            InitializeTabFromQuery();
         }
         finally
         {
@@ -1004,6 +1014,73 @@
     {
         showPersonalCatches = value;
         await LoadRecentCatches();
+    }
+
+    private void OnTabChanged(int index)
+    {
+        activeTabIndex = index;
+        UpdateTabQuery();
+    }
+
+    private void InitializeTabFromQuery()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (!query.TryGetValue(TabQueryParameter, out var tabValue))
+        {
+            return;
+        }
+
+        var requestedTab = tabValue.ToString();
+        if (string.IsNullOrWhiteSpace(requestedTab))
+        {
+            return;
+        }
+
+        var availableTabs = GetAvailableTabKeys();
+        var tabIndex = availableTabs.FindIndex(tab => tab.Equals(requestedTab, StringComparison.OrdinalIgnoreCase));
+        if (tabIndex >= 0)
+        {
+            activeTabIndex = tabIndex;
+        }
+    }
+
+    private void UpdateTabQuery()
+    {
+        var availableTabs = GetAvailableTabKeys();
+        if (activeTabIndex < 0 || activeTabIndex >= availableTabs.Count)
+        {
+            return;
+        }
+
+        var selectedTab = availableTabs[activeTabIndex];
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.FirstOrDefault(), StringComparer.OrdinalIgnoreCase);
+
+        if (query.TryGetValue(TabQueryParameter, out var currentTab)
+            && string.Equals(currentTab, selectedTab, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        query[TabQueryParameter] = selectedTab;
+
+        var basePath = uri.GetLeftPart(UriPartial.Path);
+        var newUri = QueryHelpers.AddQueryString(basePath, query);
+        Navigation.NavigateTo(newUri, replace: true);
+    }
+
+    private List<string> GetAvailableTabKeys()
+    {
+        var tabs = new List<string> { "valuable", "fish", "gold", "recent" };
+        if (isUserAuthenticated)
+        {
+            tabs.Add("dex");
+        }
+
+        return tabs;
     }
 
     private async Task SetupSignalR()

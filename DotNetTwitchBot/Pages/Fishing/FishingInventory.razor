@@ -340,9 +340,9 @@
                                               OnClick="@(() => ShowItemPreview(context.ShopItem!))">
                                         Preview
                                     </MudButton>
-                                    @if(!context.IsEquipped && !context.ShopItem!.IsConsumable && context.RemainingUses == -1)
+                                    @if(FishingInventorySellRules.CanSell(context, context.ShopItem))
                                     {
-                                        <MudTooltip Text="Sell for 15% of original cost">
+                                        <MudTooltip Text="@($"Sell for {FishingInventorySellRules.GetSellPrice(context.ShopItem)} gold")">
                                             <MudButton Variant="Variant.Text" 
                                                         Color="Color.Primary" 
                                                         Size="Size.Small"
@@ -643,9 +643,17 @@
                 Snackbar.Add("Item not found", Severity.Error);
                 return;
             }
+
+            var sellEligibility = FishingInventorySellRules.GetSellEligibility(item, item.ShopItem);
+            if (sellEligibility != SellEligibilityReason.Eligible)
+            {
+                Snackbar.Add(FishingInventorySellRules.GetSellFailureMessage(sellEligibility), Severity.Error);
+                return;
+            }
+
             bool? result = await DialogService.ShowMessageBoxAsync(
            "Confirm Sale",
-           $"Are you sure you want to sell this item for {(int)(item.ShopItem.Cost * 0.15)} gold? This action cannot be undone.",
+           $"Are you sure you want to sell this item for {FishingInventorySellRules.GetSellPrice(item.ShopItem)} gold? This action cannot be undone.",
            yesText: "Sell",
            noText: "Cancel",
                    options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });

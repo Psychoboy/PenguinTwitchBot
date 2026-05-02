@@ -114,6 +114,7 @@
                                       Variant="Variant.Outlined"
                                       dense="true"
                                       Immediate="true"
+                                      DebounceInterval="300"
                                       Clearable="true"
                                       Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Search" />
@@ -124,10 +125,10 @@
             <MudStack Spacing="1">
                 <MudText Typo="Typo.h6">
                     <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Size="Size.Medium" Class="mr-1" />
-                    Available Items (@GetFilteredShopItems().Count())
+                    Available Items (@filteredShopItems.Count)
                 </MudText>
 
-                <MudTable Items="@GetFilteredShopItems()" dense="true" Hover="true" Striped="true" Elevation="1">
+                <MudTable Items="@filteredShopItems" dense="true" Hover="true" Striped="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Type/Target</MudTh>
@@ -146,6 +147,13 @@
                                         var tier = tierMap.ContainsKey(context.Id) ? tierMap[context.Id] : context.GetTier();
                                         var (tierColor, tierIcon) = GetTierDisplay(tier);
                                         <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+
+                                        var tierComparison = GetTierComparisonIndicator(context);
+                                        if (tierComparison.HasValue)
+                                        {
+                                            var (indicatorColor, indicatorIcon, indicatorText) = tierComparison.Value;
+                                            <MudChip T="string" Color="@indicatorColor" Size="Size.Small" Icon="@indicatorIcon">@indicatorText</MudChip>
+                                        }
                                     }
                                 </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
@@ -164,10 +172,9 @@
                                 }
                                 @if (context.TargetFishTypeId.HasValue)
                                 {
-                                    var fishType = fishTypes.FirstOrDefault(f => f.Id == context.TargetFishTypeId.Value);
-                                    if (fishType != null)
+                                    if (fishTypeLookup.TryGetValue(context.TargetFishTypeId.Value, out var fishName))
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishName</MudText>
                                     }
                                 }
                             </MudStack>
@@ -222,9 +229,9 @@
                                      Color="Color.Primary" 
                                      Size="Size.Small"
                                      StartIcon="@Icons.Material.Filled.ShoppingCart"
-                                     Disabled="@(userGold < context.Cost || isPurchasing)"
+                                     Disabled="@IsPurchaseButtonDisabled(context)"
                                      OnClick="@(() => PurchaseItem(context.Id))">
-                                @(userGold < context.Cost ? "No Gold" : "Buy")
+                                @GetPurchaseButtonText(context)
                             </MudButton>
                             </MudStack>
                         </MudTd>
@@ -260,8 +267,12 @@
                     </HeaderContent>
                     <RowTemplate Context="boost">
                         @{
-                            var shopItem = shopItems.FirstOrDefault(i => i.Id == boost.ShopItemId);
-                            var fishType = fishTypes.FirstOrDefault(f => f.Id == shopItem?.TargetFishTypeId);
+                            shopItemsById.TryGetValue(boost.ShopItemId, out var shopItem);
+                            FishType? fishType = null;
+                            if (shopItem?.TargetFishTypeId.HasValue == true)
+                            {
+                                fishTypesById.TryGetValue(shopItem.TargetFishTypeId.Value, out fishType);
+                            }
                         }
                         <MudTd DataLabel="Item">
                             <MudStack Spacing="0">
@@ -338,6 +349,7 @@
                             <MudText Typo="Typo.caption">@boost.PurchasedAt.ToString("MM/dd")</MudText>
                         </MudTd>
                         <MudTd DataLabel="Actions">
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                             @if (shopItem?.IsConsumable == true && boost.RemainingUses == 0)
                             {
                                 <MudText Typo="Typo.caption" Color="Color.Error">Depleted</MudText>
@@ -354,6 +366,20 @@
                             }
                             else
                             {
+                                @if (FishingInventorySellRules.CanSell(boost, shopItem))
+                                {
+                                    <MudTooltip Text="@($"Sell for {FishingInventorySellRules.GetSellPrice(shopItem)} gold")">
+                                        <MudButton Variant="Variant.Text"
+                                                  Color="Color.Info"
+                                                  Size="Size.Small"
+                                                  StartIcon="@Icons.Material.Filled.Sell"
+                                                  Disabled="@(sellingBoostId == boost.Id)"
+                                                  OnClick="@(() => SellItem(boost.Id))">
+                                            @(sellingBoostId == boost.Id ? "Selling..." : "Sell")
+                                        </MudButton>
+                                    </MudTooltip>
+                                }
+
                                 <MudButton Variant="Variant.Text" 
                                           Color="Color.Success" 
                                           Size="Size.Small"
@@ -362,6 +388,7 @@
                                     Equip
                                 </MudButton>
                             }
+                            </MudStack>
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -395,6 +422,7 @@
     [Inject] private IFishingShopService shopService { get; set; } = null!;
     [Inject] private IFishingInventoryService inventoryService { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private IDialogService DialogService { get; set; } = null!;
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
 
     private string userId = string.Empty;
@@ -403,6 +431,8 @@
     private List<UserFishingBoost> userBoosts = new();
     private int userGold = 0;
     private bool isPurchasing = false;
+    private int? confirmingPurchaseItemId = null;
+    private int? sellingBoostId = null;
     private bool isLoading = false;
 
     // Preview dialog
@@ -415,33 +445,72 @@
     private EquipmentSlot? filterSlot
     {
         get => _filterSlot;
-        set { _filterSlot = value; cachedFilteredShopItems = null; }
+        set
+        {
+            if (_filterSlot == value)
+            {
+                return;
+            }
+
+            _filterSlot = value;
+            ApplyFilters();
+        }
     }
 
     private FishingBoostType? _filterBoostType = null;
     private FishingBoostType? filterBoostType
     {
         get => _filterBoostType;
-        set { _filterBoostType = value; cachedFilteredShopItems = null; }
+        set
+        {
+            if (_filterBoostType == value)
+            {
+                return;
+            }
+
+            _filterBoostType = value;
+            ApplyFilters();
+        }
     }
 
     private bool? _filterConsumable = null;
     private bool? filterConsumable
     {
         get => _filterConsumable;
-        set { _filterConsumable = value; cachedFilteredShopItems = null; }
+        set
+        {
+            if (_filterConsumable == value)
+            {
+                return;
+            }
+
+            _filterConsumable = value;
+            ApplyFilters();
+        }
     }
 
     private string _filterSearch = string.Empty;
     private string filterSearch
     {
         get => _filterSearch;
-        set { _filterSearch = value; cachedFilteredShopItems = null; }
+        set
+        {
+            if (string.Equals(_filterSearch, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _filterSearch = value;
+            ApplyFilters();
+        }
     }
 
     // Performance optimization: cached filter results and lookups
-    private List<FishingShopItem>? cachedFilteredShopItems = null;
+    private List<FishingShopItem> filteredShopItems = new();
     private Dictionary<int, string> fishTypeLookup = new();
+    private Dictionary<int, FishType> fishTypesById = new();
+    private Dictionary<int, FishingShopItem> shopItemsById = new();
+    private Dictionary<EquipmentSlot, FishingShopItem> equippedShopItemBySlot = new();
     private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
     private List<int> equippedItemIds = new();
     private List<FishingShopItem> equippedItems = new();
@@ -469,15 +538,21 @@
             var goldData = await fishingService.GetUserGold(userId);
             userGold = goldData?.TotalGold ?? 0;
 
-            // Build fish type lookup for O(1) access
+            // Build lookups for O(1) access in render paths
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);
+            fishTypesById = fishTypes.ToDictionary(f => f.Id, f => f);
+            shopItemsById = shopItems.ToDictionary(i => i.Id, i => i);
 
             // Cache equipped item lists to avoid repeated LINQ on every render
             equippedItemIds = userBoosts.Where(b => b.IsEquipped).Select(b => b.ShopItemId).ToList();
             equippedItems = userBoosts.Where(b => b.IsEquipped && b.ShopItem != null).Select(b => b.ShopItem!).ToList();
+            equippedShopItemBySlot = userBoosts
+                .Where(b => b.IsEquipped && b.ShopItem?.EquipmentSlot.HasValue == true)
+                .Select(b => b.ShopItem!)
+                .GroupBy(i => i.EquipmentSlot!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
 
-            // Invalidate cached filter results
-            cachedFilteredShopItems = null;
+            ApplyFilters();
         }
         finally
         {
@@ -498,11 +573,30 @@
 
     private async Task PurchaseItem(int shopItemId)
     {
-        if (isPurchasing) return;
+        if (isPurchasing || confirmingPurchaseItemId == shopItemId) return;
 
-        isPurchasing = true;
+        if (!shopItemsById.TryGetValue(shopItemId, out var itemToBuy))
+        {
+            Snackbar.Add("Item not found.", Severity.Error);
+            return;
+        }
+
         try
         {
+            confirmingPurchaseItemId = shopItemId;
+
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Purchase",
+                $"Buy {itemToBuy.Name} for {itemToBuy.Cost} gold?",
+                yesText: "Buy",
+                cancelText: "Cancel");
+
+            if (result != true)
+            {
+                return;
+            }
+
+            isPurchasing = true;
             await inventoryService.PurchaseBoost(userId, shopItemId);
             Snackbar.Add("Item purchased successfully!", Severity.Success);
             await LoadData();
@@ -518,17 +612,37 @@
         finally
         {
             isPurchasing = false;
+            confirmingPurchaseItemId = null;
         }
     }
 
-    private List<FishingShopItem> GetFilteredShopItems()
+    private bool IsPurchaseButtonDisabled(FishingShopItem item)
     {
-        // Return cached results if available
-        if (cachedFilteredShopItems != null)
+        return userGold < item.Cost || confirmingPurchaseItemId == item.Id;
+    }
+
+    private string GetPurchaseButtonText(FishingShopItem item)
+    {
+        if (userGold < item.Cost)
         {
-            return cachedFilteredShopItems;
+            return "No Gold";
         }
 
+        if (isPurchasing && confirmingPurchaseItemId == item.Id)
+        {
+            return "Buying...";
+        }
+
+        if (confirmingPurchaseItemId == item.Id)
+        {
+            return "Confirming...";
+        }
+
+        return "Buy";
+    }
+
+    private void ApplyFilters()
+    {
         // Start with enabled items that are not admin-only
         var filtered = shopItems.Where(i => i.Enabled && !i.IsAdminOnly);
 
@@ -575,9 +689,7 @@
             });
         }
 
-        // Materialize to list and cache
-        cachedFilteredShopItems = filtered.OrderBy(i => i.Cost).ToList();
-        return cachedFilteredShopItems;
+        filteredShopItems = filtered.OrderBy(i => i.Cost).ToList();
     }
 
     private string GetSlotIcon(EquipmentSlot slot) => slot switch
@@ -606,13 +718,82 @@
     private Color GetUsesColor(UserFishingBoost item)
     {
         if (item.RemainingUses < 0) return Color.Success;
-        var maxUses = shopItems.FirstOrDefault(s => s.Id == item.ShopItemId)?.MaxUses ?? 1;
+        var maxUses = shopItemsById.TryGetValue(item.ShopItemId, out var shopItem) ? shopItem.MaxUses ?? 1 : 1;
         var percentage = (double)item.RemainingUses / maxUses;
         return percentage switch
         {
             > 0.5 => Color.Success,
             > 0.25 => Color.Warning,
             _ => Color.Error
+        };
+    }
+
+    private async Task SellItem(int userBoostId)
+    {
+        if (sellingBoostId.HasValue)
+        {
+            return;
+        }
+
+        var boost = userBoosts.FirstOrDefault(b => b.Id == userBoostId);
+        if (boost == null)
+        {
+            Snackbar.Add("Item not found", Severity.Error);
+            return;
+        }
+
+        var shopItem = boost.ShopItem ?? (shopItemsById.TryGetValue(boost.ShopItemId, out var lookupItem) ? lookupItem : null);
+        var sellEligibility = FishingInventorySellRules.GetSellEligibility(boost, shopItem);
+        if (sellEligibility != SellEligibilityReason.Eligible)
+        {
+            Snackbar.Add(FishingInventorySellRules.GetSellFailureMessage(sellEligibility), Severity.Error);
+            return;
+        }
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Confirm Sale",
+            $"Are you sure you want to sell this item for {FishingInventorySellRules.GetSellPrice(shopItem)} gold? This action cannot be undone.",
+            yesText: "Sell",
+            noText: "Cancel",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+
+        if (result != true)
+        {
+            return;
+        }
+
+        sellingBoostId = userBoostId;
+        try
+        {
+            await inventoryService.SellItem(userId, userBoostId);
+            Snackbar.Add("Item sold successfully", Severity.Success);
+            await LoadData();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to sell item. Please try again.", Severity.Error);
+        }
+        finally
+        {
+            sellingBoostId = null;
+        }
+    }
+
+    private (Color color, string icon, string text)? GetTierComparisonIndicator(FishingShopItem item)
+    {
+        var comparison = FishingTierComparisonRules.CompareToEquipped(item, equippedShopItemBySlot, tierMap);
+        return comparison switch
+        {
+            TierComparisonResult.New => (Color.Info, Icons.Material.Filled.NewReleases, "New"),
+            TierComparisonResult.Equipped => (Color.Success, Icons.Material.Filled.CheckCircle, "Equipped"),
+            TierComparisonResult.Upgrade => (Color.Success, Icons.Material.Filled.ArrowUpward, "Upgrade"),
+            TierComparisonResult.Downgrade => (Color.Error, Icons.Material.Filled.ArrowDownward, "Downgrade"),
+            TierComparisonResult.Sidegrade => (Color.Default, Icons.Material.Filled.SwapHoriz, "Sidegrade"),
+            _ => null
         };
     }
 
