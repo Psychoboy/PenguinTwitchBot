@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Wheel;
@@ -14,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
     public class WheelService(
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService,
         IServiceScopeFactory scopeFactory,
         IWebSocketMessenger webSocketMessenger,
         Application.Notifications.IPenguinDispatcher dispatcher,
@@ -158,11 +160,36 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         {
             if (WinningIndex == index)
             {
-                var winningMessage = CurrentWheel?.WinningMessage.Replace("{label}", CurrentWheel.Properties[index].Label, StringComparison.OrdinalIgnoreCase);
-                if (winningMessage != null)
+                var winningLabel = CurrentWheel?.Properties[index].Label;
+                if (!string.IsNullOrWhiteSpace(winningLabel))
                 {
-                    Thread.Sleep(4000);
-                    await ServiceBackbone.SendChatMessage(winningMessage);
+                    var winningMessage = CurrentWheel?.WinningMessage
+                        .Replace("{label}", winningLabel, StringComparison.OrdinalIgnoreCase) ?? string.Empty;
+
+                    var eventArgs = new CommandEventArgs
+                    {
+                        Command = "spinwheel",
+                        Arg = winningLabel,
+                        Args = [winningLabel],
+                        DisplayName = "System",
+                        Name = "system",
+                        IsBroadcaster = true,
+                        FromOwnChannel = true
+                    };
+
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "spinwheel",
+                        DefaultCommandEventTypes.WheelSpinResult,
+                        eventArgs,
+                        new Dictionary<string, string>
+                        {
+                            { "WheelSpinResult", winningLabel },
+                            { "WinningLabel", winningLabel },
+                            { "WinningMessage", winningMessage },
+                            { "WheelName", CurrentWheel?.Name ?? string.Empty },
+                            { "WinningIndex", index.ToString() },
+                            {"IsNameWheel", (nameWheelActive && nameWheelShown).ToString() }
+                        });
                 }
             }
         }

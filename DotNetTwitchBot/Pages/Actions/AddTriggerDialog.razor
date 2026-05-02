@@ -350,7 +350,7 @@
         // Filter to only supported commands with configured events
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death"
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel"
         };
 
         var supportedCommands = _defaultCommands
@@ -438,6 +438,10 @@
                 DefaultCommandEventTypes.DeathReset,
                 DefaultCommandEventTypes.DeathSet
             },
+            "spinwheel" => new List<string>
+            {
+                DefaultCommandEventTypes.WheelSpinResult
+            },
             _ => new List<string>()
         };
     }
@@ -469,6 +473,7 @@
             DefaultCommandEventTypes.DeathDecremented => "Death Removed (-)",
             DefaultCommandEventTypes.DeathReset => "Death Reset",
             DefaultCommandEventTypes.DeathSet => "Death Set",
+            DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
             _ => eventType
         };
     }
