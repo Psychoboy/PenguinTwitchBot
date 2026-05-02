@@ -84,6 +84,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             var json = JsonSerializer.Serialize(hideWheel, jsonOptions);
             var task = webSocketMessenger.AddToQueue(json);
             task.Wait(500);
+            nameWheel = null;
         }
 
         public void SpinWheel()
@@ -188,7 +189,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                             { "WinningMessage", winningMessage },
                             { "WheelName", CurrentWheel?.Name ?? string.Empty },
                             { "WinningIndex", index.ToString() },
-                            {"IsNameWheel", (nameWheelActive && nameWheelShown).ToString() }
+                            {"IsNameWheel", nameWheel != null ? "true" : "false" }
                         });
                 }
             }
