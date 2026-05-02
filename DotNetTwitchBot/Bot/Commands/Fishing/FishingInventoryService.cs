@@ -112,27 +112,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var userBoost = await context.UserFishingBoosts
                 .Include(b => b.ShopItem)
                 .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
-            if (userBoost == null || userBoost.ShopItem == null)
+
+            var sellEligibility = FishingInventorySellRules.GetSellEligibility(userBoost);
+            if (sellEligibility != SellEligibilityReason.Eligible)
             {
-                throw new InvalidOperationException("Item not found");
+                throw new InvalidOperationException(FishingInventorySellRules.GetSellFailureMessage(sellEligibility));
             }
 
-            if(userBoost.IsEquipped)
-            {
-                throw new InvalidOperationException("Cannot sell an equipped item");
-            }
-
-            if(userBoost.RemainingUses >= 0)
-            {
-                throw new InvalidOperationException("Can not sell items with limited usage");
-            }
-
-            if(userBoost.ShopItem?.IsConsumable == true )
-            {
-                throw new InvalidOperationException("Cannot sell consumable items");
-            }
-
-            var sellPrice =  (int)(userBoost.ShopItem?.Cost * 0.15 ?? 0); // 15% of price back
+            var sellPrice = FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem);
             var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
             if (gold == null)
             {
