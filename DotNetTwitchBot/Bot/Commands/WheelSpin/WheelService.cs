@@ -187,7 +187,8 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                             { "WinningLabel", winningLabel },
                             { "WinningMessage", winningMessage },
                             { "WheelName", CurrentWheel?.Name ?? string.Empty },
-                            { "WinningIndex", index.ToString() }
+                            { "WinningIndex", index.ToString() },
+                            {"IsNameWheel", (nameWheelActive && nameWheelShown).ToString() }
                         });
                 }
             }
