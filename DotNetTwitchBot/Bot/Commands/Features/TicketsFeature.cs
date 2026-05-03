@@ -165,7 +165,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            await _distributionLock.WaitAsync();
+            // Non-blocking acquire: skip this tick if a distribution is already running.
+            // Using WaitAsync would queue up callbacks indefinitely if distribution runs long.
+            if (!_distributionLock.Wait(0))
+            {
+                _logger.LogWarning("Ticket distribution already in progress; skipping tick.");
+                return;
+            }
 
             try
             {

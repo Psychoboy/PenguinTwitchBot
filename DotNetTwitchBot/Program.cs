@@ -85,7 +85,7 @@ internal class Program
         Log.Logger = serilogLogger;
 
         builder.Logging.ClearProviders();
-        builder.Logging.AddSerilog(serilogLogger, dispose: true);
+        builder.Logging.AddSerilog(serilogLogger, dispose: false);
 
         RegisterGlobalExceptionHandlers();
 
@@ -329,10 +329,15 @@ internal class Program
             logger?.LogInformation("Application trying to stop.");
             try
             {
-                Task.WhenAll(
+                var closeTask = Task.WhenAll(
                     websocketMessenger.CloseAllSockets(),
                     wsEventHandler.CloseAllSockets()
-                ).GetAwaiter().GetResult();
+                );
+                // Guard against a stalled close hanging shutdown indefinitely.
+                if (!closeTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                }
             }
             catch (Exception ex)
             {
@@ -386,7 +391,7 @@ internal class Program
             {
                 Log.Information("Process exit signal received");
             }
-            Log.CloseAndFlush();
+            // CloseAndFlush is handled in the finally block after RunAsync.
         };
 
         Console.CancelKeyPress += (_, eventArgs) =>
@@ -395,7 +400,7 @@ internal class Program
             {
                 Log.Warning("Console cancel signal received ({SpecialKey})", eventArgs.SpecialKey);
             }
-            Log.CloseAndFlush();
+            // CloseAndFlush is handled in the finally block after RunAsync.
         };
     }
 

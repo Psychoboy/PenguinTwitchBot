@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private static readonly TimeSpan ActionWarningTimeout = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan PressureDeferralInterval = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan MaxPressureDeferral = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan EnqueueTimeout = TimeSpan.FromSeconds(30);
         private const int LowWorkerThreadThreshold = 20;
         private readonly Channel<QueuedAction> _channel;
         private readonly ILogger<ActionQueue> _logger;
@@ -121,8 +122,28 @@ namespace DotNetTwitchBot.Bot.Queues
                 }
             }
 
-            await _channel.Writer.WriteAsync(queuedAction);
+            // Increment before WriteAsync: the consumer can dequeue and decrement _pendingCount
+            // before the post-WriteAsync continuation runs, which would make the count go negative.
             Interlocked.Increment(ref _pendingCount);
+            try
+            {
+                // Use a timeout so producers can't block indefinitely when the channel is saturated.
+                using var cts = new CancellationTokenSource(EnqueueTimeout);
+                await _channel.Writer.WriteAsync(queuedAction, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Interlocked.Decrement(ref _pendingCount);
+                _logger.LogError(
+                    "Queue {QueueName} is saturated — action {ActionName} dropped after {TimeoutMs}ms wait.",
+                    Name, action.Name, EnqueueTimeout.TotalMilliseconds);
+                return;
+            }
+            catch
+            {
+                Interlocked.Decrement(ref _pendingCount);
+                throw;
+            }
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
 
             SendEventToWs(queuedAction);
