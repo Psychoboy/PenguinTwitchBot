@@ -20,6 +20,10 @@ namespace DotNetTwitchBot.Bot.Queues
 
         public const string DefaultQueueName = "Default";
 
+        // I/O-bound bot work: allow 2x cores, with a sensible floor of 8 and ceiling of 32
+        private static readonly int DefaultMaxConcurrentActions =
+            Math.Clamp(Environment.ProcessorCount * 2, 8, 32);
+
         public IActionExecutionLogger ExecutionLogger => _executionLogger;
 
         public QueueManager(
@@ -46,7 +50,7 @@ namespace DotNetTwitchBot.Bot.Queues
             var defaultQueue = new ActionQueue(
                 DefaultQueueName,
                 isBlocking: false,
-                maxConcurrentActions: 50,
+                maxConcurrentActions: DefaultMaxConcurrentActions,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
@@ -87,7 +91,7 @@ namespace DotNetTwitchBot.Bot.Queues
             var fallbackQueue = new ActionQueue(
                 DefaultQueueName,
                 isBlocking: false,
-                maxConcurrentActions: 50,
+                maxConcurrentActions: DefaultMaxConcurrentActions,
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
