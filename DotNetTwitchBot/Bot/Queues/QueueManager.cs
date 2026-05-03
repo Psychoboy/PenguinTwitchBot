@@ -16,6 +16,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IActionExecutionLogger _executionLogger;
         private readonly IHubContext<MainHub> _hubContext;
         private readonly IWsEventHandler _wsEventHandler;
+        private readonly GlobalConcurrencyLimiter _globalLimiter;
         private CancellationTokenSource? _cancellationTokenSource;
 
         public const string DefaultQueueName = "Default";
@@ -32,7 +33,8 @@ namespace DotNetTwitchBot.Bot.Queues
             ILoggerFactory loggerFactory,
             IActionExecutionLogger executionLogger,
             IWsEventHandler wsEventHandler,
-            IHubContext<MainHub> hubContext)
+            IHubContext<MainHub> hubContext,
+            GlobalConcurrencyLimiter globalLimiter)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
@@ -40,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Queues
             _executionLogger = executionLogger;
             _hubContext = hubContext;
             _wsEventHandler = wsEventHandler;
+            _globalLimiter = globalLimiter;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -55,7 +58,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _scopeFactory,
                 _executionLogger,
                 _wsEventHandler,
-                _hubContext);
+                _hubContext,
+                _globalLimiter);
 
             _queues.TryAdd(DefaultQueueName, defaultQueue);
             await defaultQueue.StartAsync(_cancellationTokenSource.Token);
@@ -96,7 +100,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _scopeFactory,
                 _executionLogger,
                 _wsEventHandler,
-                _hubContext);
+                _hubContext,
+                _globalLimiter);
 
             if (_queues.TryAdd(DefaultQueueName, fallbackQueue))
             {
@@ -148,7 +153,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _scopeFactory,
                 _executionLogger,
                 _wsEventHandler,
-                _hubContext)
+                _hubContext,
+                _globalLimiter)
             {
                 IsEnabled = config.Enabled
             };
@@ -205,7 +211,8 @@ namespace DotNetTwitchBot.Bot.Queues
                 _scopeFactory,
                 _executionLogger,
                 _wsEventHandler,
-                _hubContext)
+                _hubContext,
+                _globalLimiter)
             {
                 IsEnabled = existing.Enabled
             };
@@ -379,7 +386,8 @@ namespace DotNetTwitchBot.Bot.Queues
                         _scopeFactory,
                         _executionLogger,
                         _wsEventHandler,
-                        _hubContext)
+                        _hubContext,
+                        _globalLimiter)
                     {
                         IsEnabled = config.Enabled
                     };

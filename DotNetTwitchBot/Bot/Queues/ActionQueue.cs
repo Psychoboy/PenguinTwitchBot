@@ -24,6 +24,7 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IHubContext<MainHub>? _hubContext;
         private readonly IWsEventHandler _wsEventHandler;
         private readonly SemaphoreSlim _semaphore;
+        private readonly GlobalConcurrencyLimiter? _globalLimiter;
         private readonly int _maxPendingActions;
         private readonly int _pendingWarningThreshold;
         private DateTime _lastPendingWarningUtc = DateTime.MinValue;
@@ -55,8 +56,10 @@ namespace DotNetTwitchBot.Bot.Queues
             IServiceScopeFactory scopeFactory,
             IActionExecutionLogger executionLogger,
             IWsEventHandler wsEventHandler,
-            IHubContext<MainHub>? hubContext = null)
+            IHubContext<MainHub>? hubContext = null,
+            GlobalConcurrencyLimiter? globalLimiter = null)
         {
+            _globalLimiter = globalLimiter;
             Name = name;
             IsBlocking = isBlocking;
             MaxConcurrentActions = maxConcurrentActions;
@@ -279,6 +282,10 @@ namespace DotNetTwitchBot.Bot.Queues
                     }
 
                     await _semaphore.WaitAsync(cancellationToken);
+                    if (_globalLimiter != null)
+                    {
+                        await _globalLimiter.WaitAsync(cancellationToken);
+                    }
 
                     var task = Task.Run(async () =>
                     {
@@ -294,6 +301,7 @@ namespace DotNetTwitchBot.Bot.Queues
                         finally
                         {
                             _semaphore.Release();
+                            _globalLimiter?.Release();
                         }
                     });
 
