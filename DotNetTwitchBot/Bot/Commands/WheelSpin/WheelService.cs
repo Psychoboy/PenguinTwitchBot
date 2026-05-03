@@ -74,16 +74,14 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
             showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "show wheel");
         }
 
         public void HideWheel()
         {
             var hideWheel = new HideWheel();
             var json = JsonSerializer.Serialize(hideWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "hide wheel");
             nameWheel = null;
         }
 
@@ -102,8 +100,19 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
             var spinWheel = new SpinWheel(WinningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "spin wheel");
+        }
+
+        private async Task QueueWheelMessageAsync(string json, string action)
+        {
+            try
+            {
+                await webSocketMessenger.AddToQueue(json);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to {action} websocket message", action);
+            }
         }
 
         public async Task<List<Wheel>> GetWheels()

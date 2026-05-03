@@ -13,6 +13,7 @@ using DotNetTwitchBot.Bot.Commands.TicketGames;
 using DotNetTwitchBot.Bot.Commands.TTS;
 using DotNetTwitchBot.Bot.Commands.WheelSpin;
 using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Core.Diagnostics;
 using DotNetTwitchBot.Bot.ServiceTools;
 using DotNetTwitchBot.Bot.StreamSchedule;
 using DotNetTwitchBot.Bot.TwitchServices;
@@ -141,8 +142,12 @@ namespace DotNetTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
+            // Global concurrency limiter — shared SemaphoreSlim across all non-blocking queues
+            services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
+
             // Register Queue Manager
             services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
+            services.AddHostedApiService<RuntimeHealthSnapshotService>();
 
             // Register Validation Service (Singleton for cross-scope result caching)
             services.AddSingleton<Bot.Validation.IValidationService, Bot.Validation.ValidationService>();
