@@ -39,6 +39,7 @@ internal class Program
 {
     private static ILogger<Program>? logger;
     private static int _fatalSignalCount;
+
     private static async Task Main(string[] args)
     {
         Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
@@ -391,7 +392,8 @@ internal class Program
         {
             if (IsExpectedBackgroundConnectionRefusal(eventArgs.Exception))
             {
-                Log.Warning(eventArgs.Exception, "Unobserved background connection exception detected (expected when target endpoint is offline)");
+                eventArgs.SetObserved();
+                return;
             }
             else
             {
