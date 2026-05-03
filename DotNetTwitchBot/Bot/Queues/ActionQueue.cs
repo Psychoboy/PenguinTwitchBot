@@ -137,6 +137,7 @@ namespace DotNetTwitchBot.Bot.Queues
                 _logger.LogError(
                     "Queue {QueueName} is saturated — action {ActionName} dropped after {TimeoutMs}ms wait.",
                     Name, action.Name, EnqueueTimeout.TotalMilliseconds);
+                _executionLogger.UpdateActionFailed(logId, "Enqueue timed out: queue is saturated.", variables);
                 return;
             }
             catch
@@ -305,7 +306,16 @@ namespace DotNetTwitchBot.Bot.Queues
                     await _semaphore.WaitAsync(cancellationToken);
                     if (_globalLimiter != null)
                     {
-                        await _globalLimiter.WaitAsync(cancellationToken);
+                        try
+                        {
+                            await _globalLimiter.WaitAsync(cancellationToken);
+                        }
+                        catch
+                        {
+                            // Release the per-queue permit if we can't acquire the global one.
+                            _semaphore.Release();
+                            throw;
+                        }
                     }
 
                     var task = Task.Run(async () =>
@@ -389,10 +399,12 @@ namespace DotNetTwitchBot.Bot.Queues
 
                 // Pass the context explicitly to RunAction
                 var actionTask = actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
-                var warningTask = Task.Delay(ActionWarningTimeout, cancellationToken);
+                // Use CancellationToken.None so a shutdown cancellation doesn't complete the
+                // delay early and trigger a misleading long-running-action warning.
+                var warningTask = Task.Delay(ActionWarningTimeout, CancellationToken.None);
                 var firstCompleted = await Task.WhenAny(actionTask, warningTask);
 
-                if (firstCompleted == warningTask)
+                if (firstCompleted == warningTask && !cancellationToken.IsCancellationRequested)
                 {
                     ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
                     ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);

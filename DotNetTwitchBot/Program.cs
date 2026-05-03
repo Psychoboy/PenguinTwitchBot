@@ -327,22 +327,30 @@ internal class Program
         lifetime.ApplicationStopping.Register(() =>
         {
             logger?.LogInformation("Application trying to stop.");
-            try
+            // Fire-and-forget: don't block the shutdown thread. A blocked synchronous wait
+            // ties up a thread-pool thread and can itself cause starvation during shutdown.
+            _ = Task.Run(async () =>
             {
-                var closeTask = Task.WhenAll(
-                    websocketMessenger.CloseAllSockets(),
-                    wsEventHandler.CloseAllSockets()
-                );
-                // Guard against a stalled close hanging shutdown indefinitely.
-                if (!closeTask.Wait(TimeSpan.FromSeconds(5)))
+                try
                 {
-                    logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                    var closeTask = Task.WhenAll(
+                        websocketMessenger.CloseAllSockets(),
+                        wsEventHandler.CloseAllSockets()
+                    );
+                    if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
+                    {
+                        logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                    }
+                    else
+                    {
+                        await closeTask; // propagate any exceptions from the close tasks
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
-            }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
+                }
+            });
         });
 
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");

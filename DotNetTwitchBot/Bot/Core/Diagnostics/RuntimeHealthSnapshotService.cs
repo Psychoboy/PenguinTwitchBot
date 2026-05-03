@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Core.Diagnostics
 
                 try
                 {
-                    await LogSnapshotAsync(stoppingToken);
+                    await LogSnapshotAsync();
                 }
                 catch (Exception ex)
                 {
@@ -37,7 +37,7 @@ namespace DotNetTwitchBot.Bot.Core.Diagnostics
             }
         }
 
-        private async Task LogSnapshotAsync(CancellationToken cancellationToken)
+        private async Task LogSnapshotAsync()
         {
             ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
             ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);

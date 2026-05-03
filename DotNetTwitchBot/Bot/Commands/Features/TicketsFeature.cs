@@ -183,7 +183,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                         var pointsForActiveUsers = await GetPointsForActiveUsers();
                         var pointsForSubs = await GetPointsForSubs();
 
-                        _logger.LogInformation("Starting to give  out tickets");
+                        _logger.LogInformation("Starting to give out tickets");
                         await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
                         await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
                     }
