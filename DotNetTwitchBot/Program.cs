@@ -389,7 +389,14 @@ internal class Program
     {
         TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
         {
-            Log.Fatal(eventArgs.Exception, "Unobserved task exception detected");
+            if (IsExpectedBackgroundConnectionRefusal(eventArgs.Exception))
+            {
+                Log.Warning(eventArgs.Exception, "Unobserved background connection exception detected (expected when target endpoint is offline)");
+            }
+            else
+            {
+                Log.Fatal(eventArgs.Exception, "Unobserved task exception detected");
+            }
             eventArgs.SetObserved();
         };
 
@@ -410,6 +417,30 @@ internal class Program
             }
             // CloseAndFlush is handled in the finally block after RunAsync.
         };
+    }
+
+    private static bool IsExpectedBackgroundConnectionRefusal(Exception exception)
+    {
+        var aggregate = exception as AggregateException;
+        var all = aggregate?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var inner in all)
+        {
+            var message = inner.ToString();
+            if (message.Contains("Failed to start Websocket client", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("Unable to connect to the remote server", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (message.Contains("actively refused", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("4455", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

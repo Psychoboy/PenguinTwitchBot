@@ -71,26 +71,6 @@ namespace DotNetTwitchBot.Bot.Core.Diagnostics
                 logger.LogDebug(ex, "Queue statistics not available for health snapshot.");
             }
 
-            logger.LogInformation(
-                "[HEALTH] TP workers {BusyWorkers}/{MaxWorkers} (avail {AvailableWorkers}, min {MinWorkers}); TP IOCP {BusyIocp}/{MaxIocp} (avail {AvailableIocp}, min {MinIocp}); mem managed {ManagedMemoryBytes} bytes, ws {WorkingSetMb} MB, private {PrivateMemoryMb} MB; gc {GcGen0}/{GcGen1}/{GcGen2}; threads {ThreadCount}; queues {QueueSummary}",
-                busyWorkers,
-                maxWorkers,
-                availableWorkers,
-                minWorkers,
-                busyIocp,
-                maxIocp,
-                availableIocp,
-                minIocp,
-                managedMemoryBytes,
-                workingSetMb,
-                privateMemoryMb,
-                gcGen0,
-                gcGen1,
-                gcGen2,
-                threadCount,
-                queueSummary
-            );
-
             if (availableWorkers <= LowAvailableWorkerThreadThreshold ||
                 totalPendingActions >= HighPendingQueueActionsThreshold)
             {
