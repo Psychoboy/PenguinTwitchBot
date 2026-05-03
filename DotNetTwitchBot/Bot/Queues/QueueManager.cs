@@ -78,7 +78,39 @@ namespace DotNetTwitchBot.Bot.Queues
 
             // If queue doesn't exist, return default queue
             _logger.LogWarning("Queue {QueueName} not found, using default queue", queueName);
-            return _queues[DefaultQueueName];
+            if (_queues.TryGetValue(DefaultQueueName, out var defaultQueue))
+            {
+                return defaultQueue;
+            }
+
+            _logger.LogError("Default queue is missing. Recreating fallback default queue.");
+            var fallbackQueue = new ActionQueue(
+                DefaultQueueName,
+                isBlocking: false,
+                maxConcurrentActions: 50,
+                _loggerFactory.CreateLogger<ActionQueue>(),
+                _scopeFactory,
+                _executionLogger,
+                _wsEventHandler,
+                _hubContext);
+
+            if (_queues.TryAdd(DefaultQueueName, fallbackQueue))
+            {
+                if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+                {
+                    await fallbackQueue.StartAsync(_cancellationTokenSource.Token);
+                }
+
+                _logger.LogInformation("Fallback default queue recreated successfully.");
+                return fallbackQueue;
+            }
+
+            if (_queues.TryGetValue(DefaultQueueName, out var restoredDefaultQueue))
+            {
+                return restoredDefaultQueue;
+            }
+
+            throw new InvalidOperationException("Unable to resolve or recreate the default action queue.");
         }
 
         public async Task<QueueConfiguration> CreateQueueAsync(QueueConfiguration config)

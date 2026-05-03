@@ -38,6 +38,7 @@ using TwitchLib.EventSub.Websockets.Extensions;
 internal class Program
 {
     private static ILogger<Program>? logger;
+    private static int _fatalSignalCount;
     private static async Task Main(string[] args)
     {
         Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
@@ -80,9 +81,13 @@ internal class Program
                };
            });
 
-        builder.Logging.ClearProviders();
+        var serilogLogger = loggerConfiguration.CreateLogger();
+        Log.Logger = serilogLogger;
 
-        builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSerilog(serilogLogger, dispose: true);
+
+        RegisterGlobalExceptionHandlers();
 
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()
@@ -319,13 +324,20 @@ internal class Program
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         var wsEventHandler = app.Services.GetRequiredService<DotNetTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
-        lifetime.ApplicationStopping.Register(async () =>
+        lifetime.ApplicationStopping.Register(() =>
         {
             logger?.LogInformation("Application trying to stop.");
-            await Task.WhenAll(
-                websocketMessenger.CloseAllSockets(),
-                wsEventHandler.CloseAllSockets()
-            );
+            try
+            {
+                Task.WhenAll(
+                    websocketMessenger.CloseAllSockets(),
+                    wsEventHandler.CloseAllSockets()
+                ).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
+            }
         });
 
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
@@ -344,19 +356,60 @@ internal class Program
 
         LinqToDBForEFTools.Initialize();
 
-        await app.RunAsync(); //Start in future to read input
+        try
+        {
+            await app.RunAsync(); //Start in future to read input
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Host terminated unexpectedly");
+            throw;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
 
+    }
+
+    private static void RegisterGlobalExceptionHandlers()
+    {
+        TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+        {
+            Log.Fatal(eventArgs.Exception, "Unobserved task exception detected");
+            eventArgs.SetObserved();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            if (Interlocked.Increment(ref _fatalSignalCount) == 1)
+            {
+                Log.Information("Process exit signal received");
+            }
+            Log.CloseAndFlush();
+        };
+
+        Console.CancelKeyPress += (_, eventArgs) =>
+        {
+            if (Interlocked.Increment(ref _fatalSignalCount) == 1)
+            {
+                Log.Warning("Console cancel signal received ({SpecialKey})", eventArgs.SpecialKey);
+            }
+            Log.CloseAndFlush();
+        };
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
-            Log.Fatal("Unhandled exception:", ex);
+            Log.Fatal(ex, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
         }
         else
         {
-            Log.Fatal("Unhandled non-exception object:", e.ExceptionObject);
+            Log.Fatal("Unhandled non-exception object (IsTerminating: {IsTerminating}): {ExceptionObject}", e.IsTerminating, e.ExceptionObject);
         }
+
+        Log.CloseAndFlush();
     }
 }

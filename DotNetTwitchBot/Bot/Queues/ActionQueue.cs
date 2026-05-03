@@ -6,11 +6,17 @@ using DotNetTwitchBot.Bot.WebSocketEvents;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using System.Diagnostics;
 
 namespace DotNetTwitchBot.Bot.Queues
 {
     public class ActionQueue : IActionQueue
     {
+        private static readonly TimeSpan SlowActionThreshold = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan ActionWarningTimeout = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan PressureDeferralInterval = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan MaxPressureDeferral = TimeSpan.FromSeconds(20);
+        private const int LowWorkerThreadThreshold = 20;
         private readonly Channel<QueuedAction> _channel;
         private readonly ILogger<ActionQueue> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -18,6 +24,10 @@ namespace DotNetTwitchBot.Bot.Queues
         private readonly IHubContext<MainHub>? _hubContext;
         private readonly IWsEventHandler _wsEventHandler;
         private readonly SemaphoreSlim _semaphore;
+        private readonly int _maxPendingActions;
+        private readonly int _pendingWarningThreshold;
+        private DateTime _lastPendingWarningUtc = DateTime.MinValue;
+        private DateTime _lastPressureWarningUtc = DateTime.MinValue;
         private long _completedCount;
         private int _currentlyExecuting;
         private int _pendingCount;
@@ -57,12 +67,17 @@ namespace DotNetTwitchBot.Bot.Queues
             _hubContext = hubContext;
             _wsEventHandler = wsEventHandler;
 
-            var channelOptions = new UnboundedChannelOptions
+            // Keep queue growth bounded to avoid unbounded memory growth and runaway latency.
+            _maxPendingActions = Math.Max(maxConcurrentActions * 200, 1000);
+            _pendingWarningThreshold = (int)Math.Ceiling(_maxPendingActions * 0.8);
+
+            var channelOptions = new BoundedChannelOptions(_maxPendingActions)
             {
                 SingleReader = isBlocking,
-                SingleWriter = false
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.Wait
             };
-            _channel = Channel.CreateUnbounded<QueuedAction>(channelOptions);
+            _channel = Channel.CreateBounded<QueuedAction>(channelOptions);
             _semaphore = new SemaphoreSlim(isBlocking ? 1 : maxConcurrentActions);
 
             // Initialize timer for throttled SignalR updates (max 4 updates per second)
@@ -79,6 +94,30 @@ namespace DotNetTwitchBot.Bot.Queues
 
             var logId = _executionLogger.LogActionEnqueued(action.Name, Name, variables);
             var queuedAction = new QueuedAction(action, variables, logId, parentLogId, parentSubActionIndex);
+
+            // Treat non-blocking queues as lower priority under pool pressure and defer enqueue briefly.
+            if (!IsBlocking)
+            {
+                await DeferForThreadPressureAsync(action.Name);
+            }
+
+            var pendingBeforeEnqueue = Volatile.Read(ref _pendingCount);
+            if (pendingBeforeEnqueue >= _pendingWarningThreshold)
+            {
+                var now = DateTime.UtcNow;
+                if (now - _lastPendingWarningUtc >= TimeSpan.FromSeconds(30))
+                {
+                    _lastPendingWarningUtc = now;
+                    _logger.LogWarning(
+                        "Queue {QueueName} is under pressure. Pending actions: {PendingCount}/{MaxPendingActions} (executing: {CurrentlyExecuting}, maxConcurrent: {MaxConcurrentActions})",
+                        Name,
+                        pendingBeforeEnqueue,
+                        _maxPendingActions,
+                        _currentlyExecuting,
+                        MaxConcurrentActions);
+                }
+            }
+
             await _channel.Writer.WriteAsync(queuedAction);
             Interlocked.Increment(ref _pendingCount);
             _logger.LogDebug("Action {ActionName} enqueued to {QueueName}", action.Name, Name);
@@ -87,6 +126,47 @@ namespace DotNetTwitchBot.Bot.Queues
 
             // Notify clients about queue statistics change
             await SendQueueStatsUpdateAsync();
+        }
+
+        private async Task DeferForThreadPressureAsync(string actionName)
+        {
+            var deferStart = DateTime.UtcNow;
+            while (IsThreadPoolUnderPressure())
+            {
+                var now = DateTime.UtcNow;
+                if (now - _lastPressureWarningUtc >= TimeSpan.FromSeconds(30))
+                {
+                    _lastPressureWarningUtc = now;
+                    ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
+                    ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);
+                    _logger.LogWarning(
+                        "Deferring low-priority queue enqueue for {QueueName}/{ActionName} due to thread pressure. WorkerThreads={AvailableWorkers}/{MaxWorkers}, IOCP={AvailableIocp}/{MaxIocp}",
+                        Name,
+                        actionName,
+                        availableWorkers,
+                        maxWorkers,
+                        availableIocp,
+                        maxIocp);
+                }
+
+                if (DateTime.UtcNow - deferStart >= MaxPressureDeferral)
+                {
+                    _logger.LogWarning(
+                        "Proceeding with enqueue for {QueueName}/{ActionName} after max deferral window {DeferralMs}ms.",
+                        Name,
+                        actionName,
+                        MaxPressureDeferral.TotalMilliseconds);
+                    break;
+                }
+
+                await Task.Delay(PressureDeferralInterval);
+            }
+        }
+
+        private static bool IsThreadPoolUnderPressure()
+        {
+            ThreadPool.GetAvailableThreads(out var availableWorkers, out _);
+            return availableWorkers <= LowWorkerThreadThreshold;
         }
 
         private void SendEventToWs(QueuedAction queuedAction)
@@ -247,6 +327,7 @@ namespace DotNetTwitchBot.Bot.Queues
 
         private async Task ExecuteActionAsync(QueuedAction queuedAction, CancellationToken cancellationToken)
         {
+            var stopwatch = Stopwatch.StartNew();
             Interlocked.Increment(ref _currentlyExecuting);
             Interlocked.Decrement(ref _pendingCount);
 
@@ -278,7 +359,45 @@ namespace DotNetTwitchBot.Bot.Queues
                     queuedAction.Action.Name, queuedAction.LogId);
 
                 // Pass the context explicitly to RunAction
-                await actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
+                var actionTask = actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
+                var warningTask = Task.Delay(ActionWarningTimeout, cancellationToken);
+                var firstCompleted = await Task.WhenAny(actionTask, warningTask);
+
+                if (firstCompleted == warningTask)
+                {
+                    ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
+                    ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);
+                    _logger.LogWarning(
+                        "Long-running action detected in queue {QueueName}: {ActionName} exceeded warning timeout {TimeoutMs}ms. WorkerThreads={AvailableWorkers}/{MaxWorkers}, IOCP={AvailableIocp}/{MaxIocp}, pending={PendingCount}, executing={CurrentlyExecuting}",
+                        Name,
+                        queuedAction.Action.Name,
+                        ActionWarningTimeout.TotalMilliseconds,
+                        availableWorkers,
+                        maxWorkers,
+                        availableIocp,
+                        maxIocp,
+                        _pendingCount,
+                        _currentlyExecuting);
+
+                    // Wait for completion to preserve current action semantics.
+                    await actionTask;
+                }
+                else
+                {
+                    await actionTask;
+                }
+
+                stopwatch.Stop();
+                if (stopwatch.Elapsed >= SlowActionThreshold)
+                {
+                    _logger.LogWarning(
+                        "Slow action detected in queue {QueueName}: {ActionName} took {ElapsedMs}ms (pending: {PendingCount}, executing: {CurrentlyExecuting})",
+                        Name,
+                        queuedAction.Action.Name,
+                        stopwatch.ElapsedMilliseconds,
+                        _pendingCount,
+                        _currentlyExecuting);
+                }
 
                 Interlocked.Increment(ref _completedCount);
 

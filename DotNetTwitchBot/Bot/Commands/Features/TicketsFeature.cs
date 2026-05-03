@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<TicketsFeature> _logger;
 
         readonly Timer _autoPointsTimer;
+        private readonly SemaphoreSlim _distributionLock = new(1, 1);
 
         private readonly IViewerFeature _viewerFeature;
         private readonly IPointsSystem _pointsSystem;
@@ -164,15 +165,31 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            if (ServiceBackbone.IsOnline)
-            {
-                var pointsForEveryone = await GetPointsForEveryone();
-                var pointsForActiveUsers = await GetPointsForActiveUsers();
-                var pointsForSubs = await GetPointsForSubs();
+            await _distributionLock.WaitAsync();
 
-                _logger.LogInformation("Starting to give  out tickets");
-                await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
-                await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
+            try
+            {
+                if (ServiceBackbone.IsOnline)
+                {
+                    try
+                    {
+                        var pointsForEveryone = await GetPointsForEveryone();
+                        var pointsForActiveUsers = await GetPointsForActiveUsers();
+                        var pointsForSubs = await GetPointsForSubs();
+
+                        _logger.LogInformation("Starting to give  out tickets");
+                        await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
+                        await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unhandled exception while distributing tickets.");
+                    }
+                }
+            }
+            finally
+            {
+                _distributionLock.Release();
             }
         }
 
