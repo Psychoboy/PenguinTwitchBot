@@ -25,6 +25,20 @@ namespace DotNetTwitchBot.Bot.Models.Fishing
         public double MedianGoldPerCatch { get; set; }
         public int MinGoldEarned { get; set; }
         public int MaxGoldEarned { get; set; }
+
+        // Snap-adjusted economics (estimates derived from configured snap rates)
+        public double ConfiguredLineSnapChance { get; set; }
+        public double ConfiguredRodSnapChance { get; set; }
+        public double EstimatedSuccessfulAttemptRatePercent { get; set; }
+        public int EstimatedTotalAttempts { get; set; }
+        public int EstimatedFailedAttempts { get; set; }
+        public int EstimatedLineSnaps { get; set; }
+        public int EstimatedRodSnaps { get; set; }
+        public double EstimatedSnapReplacementCostPerAttempt { get; set; }
+        public double EstimatedSnapReplacementCostTotal { get; set; }
+        public double SnapAdjustedAverageGoldPerAttempt { get; set; }
+        public double SnapAdjustedMedianGoldPerAttempt { get; set; }
+        public double SnapAdjustedTotalNetGold { get; set; }
         
         // Per-User Statistics
         public double AverageCatchesPerUser { get; set; }

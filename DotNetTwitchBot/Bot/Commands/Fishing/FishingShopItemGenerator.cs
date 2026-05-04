@@ -36,9 +36,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             AddBaits(itemsToAdd, ItemExists);
             AddLures(itemsToAdd, ItemExists);
 
-            // Add fish-specific items
-            await AddFishSpecificItems(context, itemsToAdd, ItemExists);
-
             var changedCount = 0;
 
             if (updateExisting && itemsToAdd.Any())
@@ -220,97 +217,5 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 items.Add(new FishingShopItem { Name = "Swimbait", Description = "Realistic swimming lure (+45% rarity, 5 uses)", Cost = 400, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
         }
 
-        private async Task AddFishSpecificItems(ApplicationDbContext context, List<FishingShopItem> items, Func<string, bool> itemExists)
-        {
-            var allFish = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
-            var targetFish = allFish.Where(f => f.Rarity >= FishRarity.Rare).ToList();
-
-            foreach (var fish in targetFish)
-            {
-                // Fish-Specific Bait
-                var baitName = $"{fish.Name} Bait";
-                if (!itemExists(baitName))
-                {
-                    var baitCost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 800,
-                        FishRarity.Epic => 450,
-                        FishRarity.Rare => 250,
-                        _ => 150
-                    };
-
-                    var baitBoost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 3.5,   // 350% boost
-                        FishRarity.Epic => 2.5,        // 250% boost
-                        FishRarity.Rare => 1.8,        // 180% boost
-                        _ => 1.0
-                    };
-
-                    var baitUses = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 8,
-                        FishRarity.Epic => 10,
-                        _ => 12
-                    };
-
-                    items.Add(new FishingShopItem
-                    {
-                        Name = baitName,
-                        Description = $"Specialized bait for {fish.Name} ({baitUses} uses)",
-                        Cost = baitCost,
-                        BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = baitBoost,
-                        TargetFishTypeId = fish.Id,
-                        IsConsumable = true,
-                        MaxUses = baitUses,
-                        Enabled = true,
-                        EquipmentSlot = EquipmentSlot.Bait
-                    });
-                }
-
-                // Fish-Specific Lure
-                var lureName = $"{fish.Name} Lure";
-                if (!itemExists(lureName))
-                {
-                    var lureCost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 1000,
-                        FishRarity.Epic => 600,
-                        FishRarity.Rare => 350,
-                        _ => 200
-                    };
-
-                    var lureBoost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 4.5,   // 450% boost  
-                        FishRarity.Epic => 3.0,        // 300% boost
-                        FishRarity.Rare => 2.2,        // 220% boost
-                        _ => 1.2
-                    };
-
-                    var lureUses = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 10,
-                        FishRarity.Epic => 12,
-                        _ => 15
-                    };
-
-                    items.Add(new FishingShopItem
-                    {
-                        Name = lureName,
-                        Description = $"Premium lure designed for {fish.Name} ({lureUses} uses)",
-                        Cost = lureCost,
-                        BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = lureBoost,
-                        TargetFishTypeId = fish.Id,
-                        IsConsumable = true,
-                        MaxUses = lureUses,
-                        Enabled = true,
-                        EquipmentSlot = EquipmentSlot.Lure
-                    });
-                }
-            }
-        }
     }
 }

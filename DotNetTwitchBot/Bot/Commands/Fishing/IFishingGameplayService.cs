@@ -4,6 +4,6 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
     public interface IFishingGameplayService
     {
-        Task<FishCatch> PerformFishingAttempt(string userId, string username);
+        Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username);
     }
 }
