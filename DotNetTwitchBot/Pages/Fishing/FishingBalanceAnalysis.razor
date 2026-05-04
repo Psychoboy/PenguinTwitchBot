@@ -1095,19 +1095,15 @@
                 return;
             }
 
-            // Gold-per-catch source for pricing calculations.
+            // Gold source for pricing calculations. Report sources are snap-adjusted net gold/attempt.
             double goldPerCatch;
             if (pricingGoldSource == PricingGoldSource.ReportAverage)
             {
-                goldPerCatch = report.SnapAdjustedAverageGoldPerAttempt > 0
-                    ? report.SnapAdjustedAverageGoldPerAttempt
-                    : report.AverageGoldPerCatch;
+                goldPerCatch = Math.Max(0, report.SnapAdjustedAverageGoldPerAttempt);
             }
             else if (pricingGoldSource == PricingGoldSource.ReportMedian)
             {
-                goldPerCatch = report.SnapAdjustedMedianGoldPerAttempt > 0
-                    ? report.SnapAdjustedMedianGoldPerAttempt
-                    : report.MedianGoldPerCatch;
+                goldPerCatch = Math.Max(0, report.SnapAdjustedMedianGoldPerAttempt);
             }
             else if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
             {

@@ -155,7 +155,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             // Calculate statistics
-            result.AverageWeight = Math.Round(totalWeight / iterations, 2);
+            result.AverageWeight = result.SuccessfulCatches > 0
+                ? Math.Round(totalWeight / result.SuccessfulCatches, 2)
+                : 0;
             result.AverageGold = Math.Round((double)totalGold / iterations, 2);
             result.TotalGold = totalGold;
             result.MinWeight = result.SuccessfulCatches > 0 ? Math.Round(minWeight, 2) : 0;
@@ -532,7 +534,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             var result = Math.Round(weightedGold, 2);
-            _logger.LogInformation("[PROGRESSIVE] Progressive baseline result: {Result}g/catch (WITH equipment progression)", result);
+            _logger.LogInformation("[PROGRESSIVE] Progressive baseline result: {Result}g/attempt (WITH equipment progression)", result);
             return result;
         }
 
@@ -1019,7 +1021,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             report.MaxGoldEarned = goldValues.Max();
             report.SnapAdjustedAverageGoldPerAttempt = Math.Round((report.AverageGoldPerCatch * successfulAttemptChance) - weightedSnapCostPerAttempt, 2);
             report.SnapAdjustedMedianGoldPerAttempt = Math.Round((report.MedianGoldPerCatch * successfulAttemptChance) - weightedSnapCostPerAttempt, 2);
-            report.SnapAdjustedTotalNetGold = Math.Round((report.TotalGoldEarned * successfulAttemptChance) - report.EstimatedSnapReplacementCostTotal, 2);
+            report.SnapAdjustedTotalNetGold = Math.Round(report.TotalGoldEarned - report.EstimatedSnapReplacementCostTotal, 2);
 
             // Per-user statistics
             var userGroups = catches.GroupBy(c => c.UserId)
@@ -1150,9 +1152,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 boostModeMultiplier,
                 new List<UserFishingBoost>());
 
-            var effectiveGoldPerAttempt = report.SnapAdjustedAverageGoldPerAttempt > 0
-                ? report.SnapAdjustedAverageGoldPerAttempt
-                : report.AverageGoldPerCatch;
+            var effectiveGoldPerAttempt = Math.Max(0, report.SnapAdjustedAverageGoldPerAttempt);
 
             foreach (var item in shopItems)
             {
