@@ -1278,6 +1278,8 @@
         if (loadedSettings != null)
         {
             settings = loadedSettings;
+            settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
+            settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
         }
     }
 
@@ -1582,15 +1584,8 @@
     {
         try
         {
-            if (settings.LineSnapChance <= 0 || settings.LineSnapChance > 1)
-            {
-                settings.LineSnapChance = FishingSettings.DefaultLineSnapChance;
-            }
-
-            if (settings.RodSnapChance <= 0 || settings.RodSnapChance > 1)
-            {
-                settings.RodSnapChance = FishingSettings.DefaultRodSnapChance;
-            }
+            settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
+            settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
 
             await fishingService.UpdateSettings(settings);
             helpDataService.InvalidateCache(); // Invalidate help data on settings changes
@@ -1600,6 +1595,16 @@
         {
             Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
         }
+    }
+
+    private static double NormalizeProbability(double value, double fallback)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+        {
+            return fallback;
+        }
+
+        return Math.Clamp(value, 0.0, 1.0);
     }
 
     private void ShowResetConfirmation()

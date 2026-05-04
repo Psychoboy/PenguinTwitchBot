@@ -43,10 +43,18 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             // Only get equipped items, not all boosts
             var userBoosts = await _inventoryService.GetUserEquippedItems(userId);
 
-            var lineSnapChance = settings?.LineSnapChance > 0
+            var lineSnapChance = settings != null &&
+                !double.IsNaN(settings.LineSnapChance) &&
+                !double.IsInfinity(settings.LineSnapChance) &&
+                settings.LineSnapChance >= 0 &&
+                settings.LineSnapChance <= 1
                 ? settings.LineSnapChance
                 : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = settings?.RodSnapChance > 0
+            var rodSnapChance = settings != null &&
+                !double.IsNaN(settings.RodSnapChance) &&
+                !double.IsInfinity(settings.RodSnapChance) &&
+                settings.RodSnapChance >= 0 &&
+                settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
 

@@ -85,10 +85,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 RarityLegendaryThreshold = settings.RarityLegendaryThreshold
             };
 
-            var lineSnapChance = settings.LineSnapChance > 0 && settings.LineSnapChance <= 1
+            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
+                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
                 ? settings.LineSnapChance
                 : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = settings.RodSnapChance > 0 && settings.RodSnapChance <= 1
+            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
+                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
 
@@ -485,10 +487,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             var settings = await _fishingService.GetSettings() ?? new FishingSettings();
-            var lineSnapChance = settings.LineSnapChance > 0 && settings.LineSnapChance <= 1
+            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
+                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
                 ? settings.LineSnapChance
                 : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = settings.RodSnapChance > 0 && settings.RodSnapChance <= 1
+            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
+                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
             var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance);
@@ -913,10 +917,12 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             };
 
             var settings = await _fishingService.GetSettings() ?? new FishingSettings();
-            var lineSnapChance = settings.LineSnapChance > 0 && settings.LineSnapChance <= 1
+            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
+                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
                 ? settings.LineSnapChance
                 : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = settings.RodSnapChance > 0 && settings.RodSnapChance <= 1
+            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
+                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
             var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance);
