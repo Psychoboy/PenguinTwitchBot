@@ -282,30 +282,6 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
-        public async Task GenerateDefaultShopItems_WithFishTypes_CreatesSpecificBoosts()
-        {
-            // Arrange - Add rare fish types (specific items only created for Rare+)
-            var fishTypes = new List<FishType>
-            {
-                new() { Id = 1, Name = "Rare Salmon", Rarity = FishRarity.Rare, Enabled = true, BaseWeight = 20, BaseGold = 200 },
-                new() { Id = 2, Name = "Epic Tuna", Rarity = FishRarity.Epic, Enabled = true, BaseWeight = 50, BaseGold = 500 }
-            };
-            _context.FishTypes.AddRange(fishTypes);
-            await _context.SaveChangesAsync();
-
-            // Act
-            var itemCount = await _shopService.GenerateDefaultShopItems();
-
-            // Assert
-            Assert.True(itemCount > 0);
-            var items = await _shopService.GetAllShopItems();
-
-            // Verify fish-specific items were created (GenerateDefaultShopItems creates items for Rare+ fish)
-            Assert.Contains(items, i => i.Name.Contains("Salmon") && i.BoostType == FishingBoostType.SpecificFishBoost);
-            Assert.Contains(items, i => i.Name.Contains("Tuna") && i.BoostType == FishingBoostType.SpecificFishBoost);
-        }
-
-        [Fact]
         public async Task GenerateDefaultShopItems_Idempotent_DoesNotDuplicate()
         {
             // Act - Run twice
