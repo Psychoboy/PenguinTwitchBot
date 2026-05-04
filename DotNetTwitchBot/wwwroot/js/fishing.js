@@ -104,10 +104,12 @@ async function handleFishingAlert(fishingData) {
         duration = 5000
     } = fishingData ?? {};
 
-    const safeRarity = typeof rarity === 'string' && rarity.length > 0 ? rarity : 'Common';
-    const safeStars = Number.isFinite(stars) ? Math.max(0, Math.floor(stars)) : 0;
-    const safeWeight = Number.isFinite(weight) ? weight : 0;
-    const safeGold = Number.isFinite(gold) ? gold : 0;
+    const normalizedRarity = normalizeRarity(rarity);
+    const safeRarity = normalizedRarity.label;
+    const safeRarityClass = normalizedRarity.cssClass;
+    const safeStars = Math.max(0, Math.floor(toFiniteNumber(stars, 0)));
+    const safeWeight = toFiniteNumber(weight, 0);
+    const safeGold = toFiniteNumber(gold, 0);
 
     $('#username').text(`${username} caught:`);
     $('#fish-name').text(fishName);
@@ -131,7 +133,7 @@ async function handleFishingAlert(fishingData) {
     }
 
     const rarityElement = $('#rarity');
-    rarityElement.removeClass().addClass('rarity').addClass(safeRarity.toLowerCase());
+    rarityElement.removeClass().addClass('rarity').addClass(safeRarityClass);
     rarityElement.text(safeRarity);
 
     let starHtml = '';
@@ -193,4 +195,36 @@ async function findAudioFile(baseFileName) {
     }
 
     return null;
+}
+
+function toFiniteNumber(value, fallback) {
+    const parsed = typeof value === 'string'
+        ? Number.parseFloat(value.trim())
+        : Number(value);
+
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeRarity(rarity) {
+    const normalized = typeof rarity === 'string' ? rarity.trim().toLowerCase() : '';
+    const allowedRarities = {
+        common: 'Common',
+        uncommon: 'Uncommon',
+        rare: 'Rare',
+        epic: 'Epic',
+        legendary: 'Legendary',
+        accident: 'Accident'
+    };
+
+    if (allowedRarities[normalized]) {
+        return {
+            label: allowedRarities[normalized],
+            cssClass: normalized
+        };
+    }
+
+    return {
+        label: 'Common',
+        cssClass: 'common'
+    };
 }
