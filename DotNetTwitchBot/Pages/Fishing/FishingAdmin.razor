@@ -252,6 +252,34 @@
                                  Adornment="Adornment.End"
                                  AdornmentText="x" />
 
+                <MudDivider />
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2">Snap Chances</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Set per-attempt probabilities. Values use decimal format (0.02 = 2%).</MudText>
+                </MudStack>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="settings.LineSnapChance"
+                                         Label="Line Snap Chance"
+                                         HelperText="Default: 0.02 (2%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="settings.RodSnapChance"
+                                         Label="Rod Snap Chance"
+                                         HelperText="Default: 0.0005 (0.05%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.0001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                </MudGrid>
+
                 <MudDivider Class="my-4" />
 
                 <MudStack Spacing="2">
@@ -375,24 +403,11 @@
                                                  Adornment="Adornment.Start"
                                                  AdornmentIcon="@Icons.Material.Filled.Replay" />
 
-                                <MudStack Spacing="2">
-                                    <MudSwitch @bind-Value="simUseBoostMode" 
-                                               Label="Use Boost Mode" 
-                                               Color="Color.Warning"
-                                               ThumbIcon="@(simUseBoostMode ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingFlat)" />
-
-                                    @if (simUseBoostMode)
-                                    {
-                                        <MudNumericField @bind-Value="simBoostMultiplier" 
-                                                         Label="Boost Mode Multiplier" 
-                                                         Min="1.0" 
-                                                         Max="10.0" 
-                                                         Step="0.1"
-                                                         Variant="Variant.Outlined"
-                                                         Adornment="Adornment.End"
-                                                         AdornmentText="x" />
-                                    }
-                                </MudStack>
+                                <MudAlert Severity="Severity.Info" Dense="true">
+                                    <MudText Typo="Typo.body2">
+                                        Simulator uses your current saved fishing settings (boost mode, boost multiplier, line snap chance, rod snap chance).
+                                    </MudText>
+                                </MudAlert>
 
                                 <MudStack Spacing="2">
                                     <MudText Typo="Typo.subtitle2">Equipped Items (Optional)</MudText>
@@ -440,7 +455,16 @@
 
                                     <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.CheckCircle">
                                         <MudText Typo="Typo.body1"><strong>Simulation Complete!</strong></MudText>
-                                        <MudText Typo="Typo.body2">@simulationResult.TotalIterations catches simulated</MudText>
+                                        <MudText Typo="Typo.body2">@simulationResult.TotalIterations attempts simulated (@simulationResult.SuccessfulCatches catches, @simulationResult.FailedAttempts failed)</MudText>
+                                    </MudAlert>
+
+                                    <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.CrisisAlert">
+                                        <MudText Typo="Typo.body2">
+                                            Snap results: @simulationResult.LineSnapCount line snaps, @simulationResult.RodSnapCount rod snaps (@simulationResult.SnapFailureRatePercent% failure rate)
+                                        </MudText>
+                                        <MudText Typo="Typo.caption">
+                                            Applied chances: line @((simulationResult.AppliedLineSnapChance * 100).ToString("F2"))%, rod @((simulationResult.AppliedRodSnapChance * 100).ToString("F2"))%
+                                        </MudText>
                                     </MudAlert>
 
                                     <MudExpansionPanels>
@@ -457,7 +481,8 @@
                                                 <tbody>
                                                     @foreach (var kvp in simulationResult.RarityCounts.OrderBy(k => (int)k.Key))
                                                     {
-                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        var denominator = Math.Max(1, simulationResult.SuccessfulCatches);
+                                                        var percentage = Math.Round((double)kvp.Value / denominator * 100, 2);
                                                         <tr>
                                                             <td>
                                                                 <MudChip T="string" Color="GetRarityColor(kvp.Key)" Size="Size.Small">@kvp.Key</MudChip>
@@ -486,7 +511,8 @@
                                                 <tbody>
                                                     @foreach (var kvp in simulationResult.StarCounts.OrderByDescending(k => k.Key))
                                                     {
-                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        var denominator = Math.Max(1, simulationResult.SuccessfulCatches);
+                                                        var percentage = Math.Round((double)kvp.Value / denominator * 100, 2);
                                                         <tr>
                                                             <td>
                                                                 <MudStack Row="true" AlignItems="AlignItems.Center">
@@ -519,7 +545,8 @@
                                                 <tbody>
                                                     @foreach (var kvp in simulationResult.FishCounts.OrderByDescending(k => k.Value).Take(10))
                                                     {
-                                                        var percentage = Math.Round((double)kvp.Value / simulationResult.TotalIterations * 100, 2);
+                                                        var denominator = Math.Max(1, simulationResult.SuccessfulCatches);
+                                                        var percentage = Math.Round((double)kvp.Value / denominator * 100, 2);
                                                         <tr>
                                                             <td><strong>@kvp.Key</strong></td>
                                                             <td>@kvp.Value</td>
@@ -532,16 +559,52 @@
 
                                         <MudExpansionPanel Text="Statistics Summary">
                                             <MudGrid>
-                                                <MudItem xs="6" sm="4">
+                                                <MudItem xs="12" sm="4" md="4">
                                                     <MudPaper Elevation="2" Class="pa-3">
                                                         <MudStack Spacing="1" AlignItems="AlignItems.Center">
-                                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Large" />
-                                                            <MudText Typo="Typo.caption">Avg Gold</MudText>
-                                                            <MudText Typo="Typo.h6">@simulationResult.AverageGold</MudText>
+                                                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Total Gold (Gross)</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.TotalGold</MudText>
                                                         </MudStack>
                                                     </MudPaper>
                                                 </MudItem>
-                                                <MudItem xs="6" sm="4">
+                                                <MudItem xs="12" sm="4" md="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.PriceCheck" Color="Color.Warning" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Snap Cost</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.SnapReplacementCostTotal.ToString("F2") g</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="12" sm="4" md="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Savings" Color="Color.Success" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Total Gold (Net)</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.NetGoldAfterSnapCosts.ToString("F2")</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4" md="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Avg Gold (Gross)</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.AverageGold.ToString("F2")</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4" md="4">
+                                                    <MudPaper Elevation="2" Class="pa-3">
+                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                                            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Success" Size="Size.Large" />
+                                                            <MudText Typo="Typo.caption">Avg Gold (Net)</MudText>
+                                                            <MudText Typo="Typo.h6">@simulationResult.NetAverageGoldPerAttempt.ToString("F2")</MudText>
+                                                        </MudStack>
+                                                    </MudPaper>
+                                                </MudItem>
+                                                <MudItem xs="6" sm="4" md="4">
                                                     <MudPaper Elevation="2" Class="pa-3">
                                                         <MudStack Spacing="1" AlignItems="AlignItems.Center">
                                                             <MudIcon Icon="@Icons.Material.Filled.Scale" Color="Color.Info" Size="Size.Large" />
@@ -550,16 +613,7 @@
                                                         </MudStack>
                                                     </MudPaper>
                                                 </MudItem>
-                                                <MudItem xs="6" sm="4">
-                                                    <MudPaper Elevation="2" Class="pa-3">
-                                                        <MudStack Spacing="1" AlignItems="AlignItems.Center">
-                                                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
-                                                            <MudText Typo="Typo.caption">Total Gold</MudText>
-                                                            <MudText Typo="Typo.h6">@simulationResult.TotalGold</MudText>
-                                                        </MudStack>
-                                                    </MudPaper>
-                                                </MudItem>
-                                                <MudItem xs="6" sm="4">
+                                                <MudItem xs="6" sm="4" md="4">
                                                     <MudPaper Elevation="2" Class="pa-3">
                                                         <MudStack Spacing="1" AlignItems="AlignItems.Center">
                                                             <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Color="Color.Default" Size="Size.Large" />
@@ -568,7 +622,7 @@
                                                         </MudStack>
                                                     </MudPaper>
                                                 </MudItem>
-                                                <MudItem xs="6" sm="4">
+                                                <MudItem xs="6" sm="4" md="4">
                                                     <MudPaper Elevation="2" Class="pa-3">
                                                         <MudStack Spacing="1" AlignItems="AlignItems.Center">
                                                             <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Error" Size="Size.Large" />
@@ -577,7 +631,7 @@
                                                         </MudStack>
                                                     </MudPaper>
                                                 </MudItem>
-                                                <MudItem xs="12" sm="4">
+                                                <MudItem xs="12" sm="4" md="4">
                                                     <MudPaper Elevation="2" Class="pa-3">
                                                         <MudStack Spacing="1" AlignItems="AlignItems.Center">
                                                             <MudIcon Icon="@Icons.Material.Filled.Phishing" Color="Color.Primary" Size="Size.Large" />
@@ -609,6 +663,16 @@
                                                     </MudText>
                                                 </MudAlert>
                                             }
+
+                                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                                                <MudText Typo="Typo.body2">
+                                                    <strong>Economy Impact:</strong>
+                                                    Gross @simulationResult.TotalGold g,
+                                                    Snap Cost @simulationResult.SnapReplacementCostTotal.ToString("F2") g,
+                                                    Net @simulationResult.NetGoldAfterSnapCosts.ToString("F2") g
+                                                    (@simulationResult.NetAverageGoldPerAttempt.ToString("F2") g/attempt)
+                                                </MudText>
+                                            </MudAlert>
                                         </MudExpansionPanel>
                                     </MudExpansionPanels>
                                 }
@@ -1183,8 +1247,6 @@
     // Simulator state
     private bool isSimulating = false;
     private int simIterations = 100;
-    private bool simUseBoostMode = false;
-    private double simBoostMultiplier = 2.0;
     private IReadOnlyCollection<int> simSelectedItems = new HashSet<int>();
     private FishingSimulationResult? simulationResult;
 
@@ -1520,6 +1582,16 @@
     {
         try
         {
+            if (settings.LineSnapChance <= 0 || settings.LineSnapChance > 1)
+            {
+                settings.LineSnapChance = FishingSettings.DefaultLineSnapChance;
+            }
+
+            if (settings.RodSnapChance <= 0 || settings.RodSnapChance > 1)
+            {
+                settings.RodSnapChance = FishingSettings.DefaultRodSnapChance;
+            }
+
             await fishingService.UpdateSettings(settings);
             helpDataService.InvalidateCache(); // Invalidate help data on settings changes
             Snackbar.Add("Settings saved successfully", Severity.Success);
@@ -1634,12 +1706,10 @@
             var selectedItemIds = simSelectedItems.ToList();
             simulationResult = await analyticsService.SimulateFishing(
                 simIterations, 
-                simUseBoostMode, 
-                simBoostMultiplier, 
                 selectedItemIds
             );
 
-            Snackbar.Add($"Simulation complete! {simIterations} catches analyzed.", Severity.Success);
+            Snackbar.Add($"Simulation complete! {simIterations} attempts analyzed using current settings.", Severity.Success);
         }
         catch (Exception ex)
         {

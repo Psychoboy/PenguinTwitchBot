@@ -234,5 +234,83 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             await context.SaveChangesAsync();
         }
+
+        public async Task ConsumeItemsOnLineSnap(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await ApplySnapLosses(context, userId, includeRodLoss: false);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task ConsumeItemsOnRodSnap(string userId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await ApplySnapLosses(context, userId, includeRodLoss: true);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task ApplySnapLosses(ApplicationDbContext context, string userId, bool includeRodLoss)
+        {
+            var equippedItems = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .Where(b => b.UserId == userId && b.IsEquipped)
+                .ToListAsync();
+
+            if (includeRodLoss)
+            {
+                foreach (var rodItem in equippedItems.Where(i => i.ShopItem?.EquipmentSlot == EquipmentSlot.Rod))
+                {
+                    context.UserFishingBoosts.Remove(rodItem);
+                }
+            }
+
+            foreach (var item in equippedItems)
+            {
+                var slot = item.ShopItem?.EquipmentSlot;
+
+                if (includeRodLoss && slot == EquipmentSlot.Rod)
+                {
+                    continue;
+                }
+
+                // Line/hook are always lost on a snapped line.
+                if (slot == EquipmentSlot.Line || slot == EquipmentSlot.Hook)
+                {
+                    context.UserFishingBoosts.Remove(item);
+                    continue;
+                }
+
+                if (slot != EquipmentSlot.Bait && slot != EquipmentSlot.Lure)
+                {
+                    continue;
+                }
+
+                if (item.RemainingUses == -1)
+                {
+                    // Unlimited bait/lure are fully lost on snap.
+                    context.UserFishingBoosts.Remove(item);
+                    continue;
+                }
+
+                if (item.RemainingUses > 0)
+                {
+                    item.RemainingUses--;
+                }
+
+                item.LastUsedAt = DateTime.UtcNow;
+
+                if (item.ShopItem?.IsConsumable == true && item.RemainingUses <= 0)
+                {
+                    item.IsEquipped = false;
+                    context.UserFishingBoosts.Remove(item);
+                }
+                else if (item.RemainingUses <= 0)
+                {
+                    item.IsEquipped = false;
+                }
+            }
+        }
     }
 }

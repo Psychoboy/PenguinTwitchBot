@@ -28,7 +28,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             _inventoryService = inventoryService;
         }
 
-        public async Task<FishCatch> PerformFishingAttempt(string userId, string username)
+        public async Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username)
         {
             // Only get enabled fish types
             var allFishTypes = await _fishingService.GetAllFishTypes();
@@ -42,6 +42,87 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var settings = await _fishingService.GetSettings();
             // Only get equipped items, not all boosts
             var userBoosts = await _inventoryService.GetUserEquippedItems(userId);
+
+            var lineSnapChance = settings?.LineSnapChance > 0
+                ? settings.LineSnapChance
+                : FishingSettings.DefaultLineSnapChance;
+            var rodSnapChance = settings?.RodSnapChance > 0
+                ? settings.RodSnapChance
+                : FishingSettings.DefaultRodSnapChance;
+
+            if (Random.Shared.NextDouble() < rodSnapChance)
+            {
+                await _inventoryService.ConsumeItemsOnRodSnap(userId);
+
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                    {
+                        Id = 0,
+                        UserId = userId,
+                        Username = username,
+                        FishTypeId = 0,
+                        FishName = "ROD SNAPPED",
+                        FishRarity = "Accident",
+                        FishImageFileName = "",
+                        Stars = 0,
+                        Weight = 0.0,
+                        GoldEarned = 0,
+                        CaughtAt = DateTime.UtcNow,
+                        IsLineSnapped = true,
+                        IsRodSnapped = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to broadcast snapped rod event via SignalR");
+                }
+
+                return new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.RodSnapped,
+                    LostEquipmentSlots = new List<EquipmentSlot>
+                    {
+                        EquipmentSlot.Rod,
+                        EquipmentSlot.Line,
+                        EquipmentSlot.Hook
+                    }
+                };
+            }
+
+            if (Random.Shared.NextDouble() < lineSnapChance)
+            {
+                await _inventoryService.ConsumeItemsOnLineSnap(userId);
+
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                    {
+                        Id = 0,
+                        UserId = userId,
+                        Username = username,
+                        FishTypeId = 0,
+                        FishName = "LINE SNAPPED",
+                        FishRarity = "Accident",
+                        FishImageFileName = "",
+                        Stars = 0,
+                        Weight = 0.0,
+                        GoldEarned = 0,
+                        CaughtAt = DateTime.UtcNow,
+                        IsLineSnapped = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to broadcast snapped line event via SignalR");
+                }
+
+                return new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.LineSnapped,
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Line, EquipmentSlot.Hook }
+                };
+            }
 
             var fishType = FishingCalculations.SelectRandomFish(fishTypes, settings, userBoosts);
             var stars = FishingCalculations.CalculateStars(fishType, userBoosts);
@@ -99,7 +180,11 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 _logger.LogError(ex, "Failed to broadcast fish catch via SignalR");
             }
 
-            return fishCatch;
+            return new FishingAttemptResult
+            {
+                Outcome = FishingAttemptOutcome.CaughtFish,
+                FishCatch = fishCatch
+            };
         }
     }
 }

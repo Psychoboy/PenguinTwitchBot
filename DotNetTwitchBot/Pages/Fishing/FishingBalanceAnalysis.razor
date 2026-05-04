@@ -114,7 +114,22 @@
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Elevation="2" Class="pa-3">
+                                <MudStack Spacing="1">
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Net Gold/Attempt</MudText>
+                                    <MudText Typo="Typo.h4">@report.SnapAdjustedAverageGoldPerAttempt.ToString("N2")</MudText>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
                     </MudGrid>
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        <MudText Typo="Typo.body2">
+                            Snap model: line @((report.ConfiguredLineSnapChance * 100).ToString("F2"))%, rod @((report.ConfiguredRodSnapChance * 100).ToString("F2"))%,
+                            estimated failures @report.EstimatedFailedAttempts of @report.EstimatedTotalAttempts attempts,
+                            replacement sink @report.EstimatedSnapReplacementCostTotal.ToString("F2")g total.
+                        </MudText>
+                    </MudAlert>
                 </MudStack>
             </MudPaper>
 
@@ -196,6 +211,12 @@
                                     </MudText>
                                     <MudText Typo="Typo.caption" Color="Color.Tertiary">
                                         Mean (Actual): @report.AverageGoldPerCatch.ToString("F2")g/catch
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        Median (Net w/ snaps): @report.SnapAdjustedMedianGoldPerAttempt.ToString("F2")g/attempt
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        Mean (Net w/ snaps): @report.SnapAdjustedAverageGoldPerAttempt.ToString("F2")g/attempt
                                     </MudText>
                                     <MudText Typo="Typo.caption" Color="Color.Tertiary">
                                         Using: @GetPricingGoldSourceDisplay(pricingGoldSource)
@@ -457,7 +478,7 @@
                         </MudAlert>
 
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Calculations based on current average gold/catch (@report.AverageGoldPerCatch.ToString("F1")g). Active player progression shown.
+                            Calculations based on effective net gold/attempt with snaps (@report.SnapAdjustedAverageGoldPerAttempt.ToString("F1")g). Active player progression shown.
                         </MudText>
                         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
                             <MudText Typo="Typo.caption">
@@ -1078,11 +1099,15 @@
             double goldPerCatch;
             if (pricingGoldSource == PricingGoldSource.ReportAverage)
             {
-                goldPerCatch = report.AverageGoldPerCatch;
+                goldPerCatch = report.SnapAdjustedAverageGoldPerAttempt > 0
+                    ? report.SnapAdjustedAverageGoldPerAttempt
+                    : report.AverageGoldPerCatch;
             }
             else if (pricingGoldSource == PricingGoldSource.ReportMedian)
             {
-                goldPerCatch = report.MedianGoldPerCatch;
+                goldPerCatch = report.SnapAdjustedMedianGoldPerAttempt > 0
+                    ? report.SnapAdjustedMedianGoldPerAttempt
+                    : report.MedianGoldPerCatch;
             }
             else if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
             {
