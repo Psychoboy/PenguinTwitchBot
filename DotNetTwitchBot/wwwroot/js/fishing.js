@@ -94,15 +94,20 @@ async function handleQueue() {
 
 async function handleFishingAlert(fishingData) {
     const {
-        username,
-        fishName,
-        rarity,
-        stars,
-        weight,
-        gold,
-        imageFileName,
+        username = 'Unknown',
+        fishName = 'Unknown Catch',
+        rarity = 'Common',
+        stars = 0,
+        weight = 0,
+        gold = 0,
+        imageFileName = '',
         duration = 5000
-    } = fishingData;
+    } = fishingData ?? {};
+
+    const safeRarity = typeof rarity === 'string' && rarity.length > 0 ? rarity : 'Common';
+    const safeStars = Number.isFinite(stars) ? Math.max(0, Math.floor(stars)) : 0;
+    const safeWeight = Number.isFinite(weight) ? weight : 0;
+    const safeGold = Number.isFinite(gold) ? gold : 0;
 
     $('#username').text(`${username} caught:`);
     $('#fish-name').text(fishName);
@@ -121,21 +126,22 @@ async function handleFishingAlert(fishingData) {
         const baseFileName = fileNameNoExt.replace(/_(thumbnail|small|medium|large)$/i, '');
         audioFile = await findAudioFile(baseFileName);
     } else {
+        fishImage.attr('src', '');
         fishImage.hide();
     }
 
     const rarityElement = $('#rarity');
-    rarityElement.removeClass().addClass('rarity').addClass(rarity.toLowerCase());
-    rarityElement.text(rarity);
+    rarityElement.removeClass().addClass('rarity').addClass(safeRarity.toLowerCase());
+    rarityElement.text(safeRarity);
 
     let starHtml = '';
-    for (let i = 0; i < stars; i++) {
+    for (let i = 0; i < safeStars; i++) {
         starHtml += '<span class="star">★</span>';
     }
     $('#stars').html(starHtml);
 
-    $('#weight').text(`${weight} kg`);
-    $('#gold').text(`${gold} gold`);
+    $('#weight').text(`${safeWeight} kg`);
+    $('#gold').text(`${safeGold} gold`);
 
     await sleep(100);
 
