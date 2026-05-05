@@ -267,6 +267,9 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             // Remove all user boosts (purchased items)
             await context.UserFishingBoosts.ExecuteDeleteAsync();
 
+            // Remove all user snap history records
+            await context.FishingSnapEvents.ExecuteDeleteAsync();
+
             await context.SaveChangesAsync();
         }
 

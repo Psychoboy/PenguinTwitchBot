@@ -77,6 +77,10 @@ namespace DotNetTwitchBot.Repository.Repositories
             // Delete in reverse order: children before parents
             // This avoids foreign key constraint violations
 
+            // 0. Delete FishingSnapEvents (independent historical table)
+            logger?.LogDebug("Deleting FishingSnapEvents...");
+            await context.Set<FishingSnapEvent>().ExecuteDeleteAsync();
+
             // 1. Delete UserFishingBoosts (depends on FishingShopItems)
             logger?.LogDebug("Deleting UserFishingBoosts...");
             await context.Set<UserFishingBoost>().ExecuteDeleteAsync();
@@ -373,6 +377,56 @@ namespace DotNetTwitchBot.Repository.Repositories
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Failed to restore {Name}", typeof(FishingSettings).Name);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// FishingSnapEvent repository - Depends on no foreign keys.
+    /// NOTE: Deletion happens in FishingRepository to maintain proper order.
+    /// </summary>
+    public class FishingSnapEventRepository : GenericRepository<FishingSnapEvent>, IFishingSnapEventRepository
+    {
+        public FishingSnapEventRepository(ApplicationDbContext context) : base(context)
+        {
+        }
+
+        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            try
+            {
+                var fileName = $"{backupDirectory}/{typeof(FishingSnapEvent).Name}.json";
+                if (!File.Exists(fileName))
+                {
+                    logger?.LogDebug("No backup file found for {Name}", typeof(FishingSnapEvent).Name);
+                    return;
+                }
+
+                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
+
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                };
+
+                var records = JsonSerializer.Deserialize<List<FishingSnapEvent>>(json, options);
+                if (records == null) throw new Exception($"{typeof(FishingSnapEvent).Name}.json was null");
+
+                foreach (var record in records)
+                {
+                    var entry = context.Entry(record);
+                    entry.State = EntityState.Added;
+                }
+
+                await context.SaveChangesAsync();
+                context.ChangeTracker.Clear();
+
+                logger?.LogDebug("Restored {Count} FishingSnapEvent records", records.Count);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to restore {Name}", typeof(FishingSnapEvent).Name);
                 throw;
             }
         }
