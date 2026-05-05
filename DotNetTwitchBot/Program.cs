@@ -390,14 +390,16 @@ internal class Program
     {
         TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
         {
-            if (IsExpectedBackgroundConnectionRefusal(eventArgs.Exception))
+            if (IsExpectedBackgroundConnectionRefusal(eventArgs.Exception) ||
+                IsExpectedBlazorInteropRegistrationRace(eventArgs.Exception))
             {
+                Log.Debug(eventArgs.Exception, "Observed expected unobserved task exception during transient shutdown/reconnect flow");
                 eventArgs.SetObserved();
                 return;
             }
             else
             {
-                Log.Fatal(eventArgs.Exception, "Unobserved task exception detected");
+                Log.Error(eventArgs.Exception, "Unobserved task exception detected");
             }
             eventArgs.SetObserved();
         };
@@ -437,6 +439,24 @@ internal class Program
 
             if (message.Contains("actively refused", StringComparison.OrdinalIgnoreCase) &&
                 message.Contains("4455", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsExpectedBlazorInteropRegistrationRace(Exception exception)
+    {
+        var aggregate = exception as AggregateException;
+        var all = aggregate?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var inner in all)
+        {
+            var message = inner.ToString();
+            if (message.Contains("Interop methods are already registered for renderer", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("attachWebRendererInterop", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
