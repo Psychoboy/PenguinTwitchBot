@@ -68,6 +68,7 @@ namespace DotNetTwitchBot.Repository
             FishingShopItems = new FishingShopItemRepository(_context);
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
+            FishingSnapEvents = new FishingSnapEventRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -129,6 +130,7 @@ namespace DotNetTwitchBot.Repository
         public IFishingShopItemRepository FishingShopItems { get; private set; }
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
+        public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
 
         public void Dispose()
         {

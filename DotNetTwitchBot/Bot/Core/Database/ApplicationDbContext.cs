@@ -63,6 +63,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         // Fishing tables
         public DbSet<FishType> FishTypes { get; set; } = null!;
         public DbSet<FishCatch> FishCatches { get; set; } = null!;
+        public DbSet<FishingSnapEvent> FishingSnapEvents { get; set; } = null!;
         public DbSet<FishingGold> FishingGolds { get; set; } = null!;
         public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
@@ -149,6 +150,28 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<FishCatch>()
                 .HasIndex(e => new { e.UserId, e.CaughtAt })
                 .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
+
+            modelBuilder.Entity<FishingSnapEvent>()
+                .Property(e => e.UserId)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            modelBuilder.Entity<FishingSnapEvent>()
+                .Property(e => e.SnapType)
+                .HasMaxLength(16)
+                .IsRequired();
+
+            modelBuilder.Entity<FishingSnapEvent>()
+                .Property(e => e.TotalGoldLost)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<FishingSnapEvent>()
+                .HasIndex(e => new { e.UserId, e.SnappedAt })
+                .HasDatabaseName("IX_FishingSnapEvents_UserId_SnappedAt");
+
+            modelBuilder.Entity<FishingSnapEvent>()
+                .HasIndex(e => new { e.SnapType, e.SnappedAt })
+                .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
         }
     }
 }

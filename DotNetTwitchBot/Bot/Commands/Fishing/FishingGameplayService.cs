@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             if (Random.Shared.NextDouble() < rodSnapChance)
             {
-                await _inventoryService.ConsumeItemsOnRodSnap(userId);
+                await _inventoryService.ConsumeItemsOnRodSnap(userId, username);
 
                 try
                 {
@@ -100,7 +100,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             if (Random.Shared.NextDouble() < lineSnapChance)
             {
-                await _inventoryService.ConsumeItemsOnLineSnap(userId);
+                await _inventoryService.ConsumeItemsOnLineSnap(userId, username);
 
                 try
                 {

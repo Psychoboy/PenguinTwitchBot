@@ -127,7 +127,8 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
                 { "FishCatchRepository", 12 },     // FishCatch (depends on FishType)
                 { "UserFishingBoostRepository", 13 }, // UserFishingBoost (depends on FishingShopItem)
                 { "FishingGoldRepository", 14 },   // FishingGold (no dependencies)
-                { "FishingSettingsRepository", 15 } // FishingSettings (no dependencies)
+                { "FishingSettingsRepository", 15 }, // FishingSettings (no dependencies)
+                { "FishingSnapEventRepository", 16 } // FishingSnapEvent (historical, no dependencies)
             };
 
             // Sort handlers by priority

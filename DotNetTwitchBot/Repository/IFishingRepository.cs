@@ -25,4 +25,8 @@ namespace DotNetTwitchBot.Repository
     public interface IFishingSettingsRepository : IGenericRepository<FishingSettings>
     {
     }
+
+    public interface IFishingSnapEventRepository : IGenericRepository<FishingSnapEvent>
+    {
+    }
 }

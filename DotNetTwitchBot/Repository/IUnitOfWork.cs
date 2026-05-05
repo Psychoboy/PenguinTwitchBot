@@ -65,5 +65,6 @@
         IFishingShopItemRepository FishingShopItems { get; }
         IUserFishingBoostRepository UserFishingBoosts { get; }
         IFishingSettingsRepository FishingSettings { get; }
+        IFishingSnapEventRepository FishingSnapEvents { get; }
     }
 }
