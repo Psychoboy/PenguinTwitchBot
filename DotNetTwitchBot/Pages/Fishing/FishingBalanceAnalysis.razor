@@ -2,7 +2,6 @@
 @using DotNetTwitchBot.Bot.Commands.Fishing
 @using DotNetTwitchBot.Bot.Models.Fishing
 @using System.Text.Json
-@inject IFishingService FishingService
 @inject IFishingShopService ShopService
 @inject IFishingAnalyticsService AnalyticsService
 @inject ISnackbar Snackbar
@@ -127,11 +126,63 @@
                         <MudText Typo="Typo.body2">
                             Snap model: line @((report.ConfiguredLineSnapChance * 100).ToString("F2"))%, rod @((report.ConfiguredRodSnapChance * 100).ToString("F2"))%,
                             estimated failures @report.EstimatedFailedAttempts of @report.EstimatedTotalAttempts attempts,
-                            replacement sink @report.EstimatedSnapReplacementCostTotal.ToString("F2")g total.
+                            replacement sink @report.EstimatedSnapReplacementCostTotal.ToString("F2")g total,
+                            attempt source: @report.AttemptDataSource.
                         </MudText>
                     </MudAlert>
                 </MudStack>
             </MudPaper>
+
+            @if (report.ProjectionWindows.Any())
+            {
+                <MudPaper Elevation="3" Class="pa-4">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h5">
+                            <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" />
+                            Real-Data Progression Projection
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Projections use observed attempt cadence (@report.AttemptsPerWeek.ToString("F1") attempts/week) and observed stream frequency (@report.StreamsPerWeekFromAttempts.ToString("F2") streams/week).
+                        </MudText>
+
+                        @foreach (var window in report.ProjectionWindows)
+                        {
+                            <MudPaper Elevation="1" Class="pa-3">
+                                <MudText Typo="Typo.h6" Class="mb-2">@window.Label (@window.Weeks weeks)</MudText>
+                                <MudTable Items="@window.Tiers" Dense="true" Hover="true" Striped="true">
+                                    <HeaderContent>
+                                        <MudTh>Tier</MudTh>
+                                        <MudTh>Attempts/Week</MudTh>
+                                        <MudTh>Projected Attempts</MudTh>
+                                        <MudTh>Projected Catches</MudTh>
+                                        <MudTh>Projected Net Gold</MudTh>
+                                        <MudTh>Max Gear Progress</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.TierName</MudTd>
+                                        <MudTd>@context.AttemptsPerWeek.ToString("F1")</MudTd>
+                                        <MudTd>@context.ProjectedAttempts.ToString("F0")</MudTd>
+                                        <MudTd>@context.ProjectedCatches.ToString("F0")</MudTd>
+                                        <MudTd>@context.ProjectedNetGold.ToString("F0")g</MudTd>
+                                        <MudTd>
+                                            @if (report.TopGearTotalCost > 0)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="@(context.MaxGearProgressPercent >= 100 ? Color.Success : Color.Info)">
+                                                    @context.MaxGearProgressPercent.ToString("F1")%
+                                                </MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudText Color="Color.Secondary">N/A</MudText>
+                                            }
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudPaper>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
 
             <!-- Balance Recommendations -->
             @if (report.BalanceRecommendations.Any())
@@ -182,15 +233,13 @@
                         </MudItem>
                         <MudItem xs="12" md="3">
                             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
-                                Gold source controls whether pricing follows actual report values or theoretical baselines.
+                                Pricing uses real analysis data only (selected date range and current settings behavior).
                             </MudText>
                         </MudItem>
                         <MudItem xs="12" md="3">
                             <MudSelect Label="Gold Source" @bind-Value="pricingGoldSource" Variant="Variant.Outlined">
-                                <MudSelectItem Value="@PricingGoldSource.ReportAverage">Report Average (matches table)</MudSelectItem>
-                                <MudSelectItem Value="@PricingGoldSource.ReportMedian">Report Median (conservative)</MudSelectItem>
-                                <MudSelectItem Value="@PricingGoldSource.ProgressiveBaseline">Progressive Baseline</MudSelectItem>
-                                <MudSelectItem Value="@PricingGoldSource.PureBaseline">Pure Baseline</MudSelectItem>
+                                <MudSelectItem Value="@PricingGoldSource.ReportAverage">Report Average Net (g/attempt)</MudSelectItem>
+                                <MudSelectItem Value="@PricingGoldSource.ReportMedian">Report Median Net (g/attempt)</MudSelectItem>
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" md="3">
@@ -270,21 +319,13 @@
                         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
                             <MudText Typo="Typo.caption">
                                 <strong>@GetPricingGoldSourceDisplay(pricingGoldSource):</strong>
-                                @if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
+                                @if (pricingGoldSource == PricingGoldSource.ReportMedian)
                                 {
-                                    <text>Assumes player upgrades from no equipment → Entry tier → Mid tier → High tier → Top tier over @targetWeeks weeks.</text>
-                                }
-                                else if (pricingGoldSource == PricingGoldSource.PureBaseline)
-                                {
-                                    <text>Assumes player has NO equipment for all @targetWeeks weeks (conservative estimate).</text>
-                                }
-                                else if (pricingGoldSource == PricingGoldSource.ReportMedian)
-                                {
-                                    <text>Uses median gold/catch from the selected analysis range.</text>
+                                    <text>Uses median net gold/attempt from the selected analysis range.</text>
                                 }
                                 else
                                 {
-                                    <text>Uses average gold/catch from the selected analysis range (matches item affordability table).</text>
+                                    <text>Uses average net gold/attempt from the selected analysis range (matches affordability calculations).</text>
                                 }
                             </MudText>
                         </MudAlert>
@@ -304,7 +345,7 @@
                                             @pricePreview.GoldPerCatch.ToString("F2")g
                                         </MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                            ~@pricePreview.CatchesPerSession.ToString("F1") catches × @pricePreview.SessionsPerWeek.ToString("F1") sessions/wk = @pricePreview.WeeklyIncome.ToString("F0")g/week
+                                            ~@pricePreview.AttemptsPerSession.ToString("F1") attempts/session × @pricePreview.StreamsPerWeek.ToString("F2") streams/wk = @pricePreview.WeeklyIncome.ToString("F0")g/week
                                         </MudText>
                                     </MudStack>
                                 </MudPaper>
@@ -399,357 +440,109 @@
                 </MudStack>
             </MudPaper>
 
-            <MudTabs Elevation="2" Rounded="true" Color="Color.Primary">
-                <!-- Rarity Distribution Tab -->
-                <MudTabPanel Text="Rarity Distribution" Icon="@Icons.Material.Filled.BarChart">
-                    <MudPaper Elevation="1" Class="pa-4 ma-2">
-                        <MudText Typo="Typo.h6" Class="mb-3">Actual vs Expected Rarity Distribution</MudText>
-                        <MudTable Items="@GetRarityData()" Dense="true" Hover="true" Striped="true">
-                            <HeaderContent>
-                                <MudTh>Rarity</MudTh>
-                                <MudTh>Count</MudTh>
-                                <MudTh>Actual %</MudTh>
-                                <MudTh>Expected %</MudTh>
-                                <MudTh>Variance</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>
-                                    <MudChip T="string" Color="GetRarityColor(context.Rarity)" Size="Size.Small">
-                                        @context.Rarity
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd>@context.Count.ToString("N0")</MudTd>
-                                <MudTd>@context.ActualPercent.ToString("F2")%</MudTd>
-                                <MudTd>@context.ExpectedPercent.ToString("F2")%</MudTd>
-                                <MudTd>
-                                    <MudText Color="@(Math.Abs(context.Variance) > 5 ? Color.Error : Color.Success)">
-                                        @(context.Variance >= 0 ? "+" : "")@context.Variance.ToString("F2")%
-                                    </MudText>
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudTabPanel>
+            <MudPaper Elevation="1" Class="pa-4 ma-2">
+                <MudText Typo="Typo.h6" Class="mb-3">Shop Item Affordability Analysis</MudText>
 
-                <!-- Star Distribution Tab -->
-                <MudTabPanel Text="Star Distribution" Icon="@Icons.Material.Filled.Star">
-                    <MudPaper Elevation="1" Class="pa-4 ma-2">
-                        <MudText Typo="Typo.h6" Class="mb-3">Star Quality Distribution</MudText>
-                        <MudTable Items="@GetStarData()" Dense="true" Hover="true" Striped="true">
-                            <HeaderContent>
-                                <MudTh>Stars</MudTh>
-                                <MudTh>Count</MudTh>
-                                <MudTh>Percentage</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>
-                                    @for (int i = 0; i < context.Stars; i++)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
-                                    }
-                                </MudTd>
-                                <MudTd>@context.Count.ToString("N0")</MudTd>
-                                <MudTd>@context.Percent.ToString("F2")%</MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudTabPanel>
-
-                <!-- Item Affordability Tab -->
-                <MudTabPanel Text="Item Affordability" Icon="@Icons.Material.Filled.ShoppingCart">
-                    <MudPaper Elevation="1" Class="pa-4 ma-2">
-                        <MudText Typo="Typo.h6" Class="mb-3">Shop Item Affordability Analysis</MudText>
-
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                            <MudStack Spacing="1">
-                                <MudText Typo="Typo.body2">
-                                    <strong>Note:</strong> All calculations are based on <strong>real player engagement data</strong>.
-                                </MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    <strong>Calculated from actual players:</strong> 
-                                    Casual (~@report.CasualCatchesPerSession catches/session) | 
-                                    Active (~@report.ActiveCatchesPerSession catches/session) | 
-                                    Hardcore (~@report.HardcoreCatchesPerSession catches/session)
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                    Player types based on 25th, 50th (median), and 75th percentiles. Progression balanced for 2-3 sessions/week.
-                                </MudText>
-                            </MudStack>
-                        </MudAlert>
-
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                            Calculations based on effective net gold/attempt with snaps (@report.SnapAdjustedAverageGoldPerAttempt.ToString("F1")g). Active player progression shown.
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2">
+                            <strong>Note:</strong> All calculations are based on <strong>real player engagement data</strong>.
                         </MudText>
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                            <MudText Typo="Typo.caption">
-                                Effect columns show each item's single-item impact against the current global fishing settings, so you can compare baseline vs boosted outcomes directly.
-                            </MudText>
-                        </MudAlert>
-                        <MudTable Items="@report.ItemAffordabilityAnalysis" Dense="false" Hover="true" Striped="true">
-                            <HeaderContent>
-                                <MudTh>Item Name</MudTh>
-                                <MudTh>Type</MudTh>
-                                <MudTh>Cost</MudTh>
-                                <MudTh>Cost/Use</MudTh>
-                                <MudTh>Effect Metric</MudTh>
-                                <MudTh>Base</MudTh>
-                                <MudTh>With Item</MudTh>
-                                <MudTh>Delta</MudTh>
-                                <MudTh>Catches Needed</MudTh>
-                                <MudTh>Sessions (Casual)</MudTh>
-                                <MudTh>Sessions (Active)</MudTh>
-                                <MudTh>Sessions (Hardcore)</MudTh>
-                                <MudTh>Users Can Afford</MudTh>
-                                <MudTh>Rating</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudText>@context.ItemName</MudText>
-                                        @if (!context.IsConsumable)
-                                        {
-                                            var tier = GetTierFromCost(context.Cost);
-                                            var (tierColor, tierIcon) = GetTierDisplay(tier);
-                                            <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
-                                        }
-                                    </MudStack>
-                                    @if (!string.IsNullOrEmpty(context.EquipmentSlot) && context.EquipmentSlot != "None")
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.EquipmentSlot</MudChip>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.IsConsumable)
-                                    {
-                                        <MudChip T="string" Color="Color.Info" Size="Size.Small">
-                                            Consumable (@(context.MaxUses?.ToString() ?? "∞") uses)
-                                        </MudChip>
-                                    }
-                                    else
-                                    {
-                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Permanent</MudChip>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
-                                    @context.Cost
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.IsConsumable)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
-                                        <span>@context.CostPerUse.ToString("F2")</span>
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">N/A</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.HasEffectPreview)
-                                    {
-                                        <MudText Typo="Typo.caption">@context.EffectMetric</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.HasEffectPreview)
-                                    {
-                                        <MudText Typo="Typo.caption">@context.EffectBaselineValue.ToString("F2")%</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.HasEffectPreview)
-                                    {
-                                        <MudText Typo="Typo.caption">@context.EffectWithItemValue.ToString("F2")%</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (context.HasEffectPreview)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
-                                            @(context.EffectRelativeChangePercent >= 0 ? "+" : "")@context.EffectRelativeChangePercent.ToString("F1")%
-                                        </MudChip>
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>@context.CatchesNeededToBuy.ToString("F1")</MudTd>
-                                <MudTd>
-                                    @if (!context.IsConsumable && context.SessionsToAffordCasual > 0)
-                                    {
-                                        <span>@context.SessionsToAffordCasual.ToString("F1") sessions</span>
-                                        @if (context.SessionsToAffordCasual >= 2)
-                                        {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                (~@((context.SessionsToAffordCasual / 2).ToString("F1")) weeks)
-                                            </MudText>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (!context.IsConsumable && context.SessionsToAffordActive > 0)
-                                    {
-                                        <span>@context.SessionsToAffordActive.ToString("F1") sessions</span>
-                                        @if (context.SessionsToAffordActive >= 2)
-                                        {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                (~@((context.SessionsToAffordActive / 2).ToString("F1")) weeks)
-                                            </MudText>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>
-                                    @if (!context.IsConsumable && context.SessionsToAffordHardcore > 0)
-                                    {
-                                        <span>@context.SessionsToAffordHardcore.ToString("F1") sessions</span>
-                                        @if (context.SessionsToAffordHardcore >= 2)
-                                        {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                (~@((context.SessionsToAffordHardcore / 2).ToString("F1")) weeks)
-                                            </MudText>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <MudText Color="Color.Secondary">-</MudText>
-                                    }
-                                </MudTd>
-                                <MudTd>@context.PercentageWhoCanAfford.ToString("F1")% (@context.UsersWhoCanAfford users)</MudTd>
-                                <MudTd>
-                                    @if (!context.IsConsumable && !string.IsNullOrEmpty(context.AffordabilityRating))
-                                    {
-                                        <MudChip T="string" Color="GetAffordabilityColor(context.AffordabilityRating)" Size="Size.Small">
-                                            @context.AffordabilityRating
-                                        </MudChip>
-                                    }
-                                    @if (context.IsConsumable && !string.IsNullOrEmpty(context.ValueRating))
-                                    {
-                                        <MudChip T="string" Color="GetValueRatingColor(context.ValueRating)" Size="Size.Small">
-                                            @context.ValueRating
-                                        </MudChip>
-                                    }
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudTabPanel>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            <strong>Calculated from actual players:</strong>
+                            Casual (~@report.CasualAttemptsPerSession attempts/session) |
+                            Active (~@report.ActiveAttemptsPerSession attempts/session) |
+                            Hardcore (~@report.HardcoreAttemptsPerSession attempts/session)
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                            Weekly activity from timestamps: @report.AttemptsPerWeek.ToString("F1") attempts/week, @report.CatchesPerWeek.ToString("F1") catches/week, @report.StreamsPerWeekFromAttempts.ToString("F2") streams/week.
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
 
-                <!-- Fish Distribution Tab -->
-                <MudTabPanel Text="Fish Distribution" Icon="@Icons.Material.Filled.Phishing">
-                    <MudPaper Elevation="1" Class="pa-4 ma-2">
-                        <MudText Typo="Typo.h6" Class="mb-3">Most Caught Fish</MudText>
-                        <MudTable Items="@GetTopFish()" Dense="true" Hover="true" Striped="true">
-                            <HeaderContent>
-                                <MudTh>Rank</MudTh>
-                                <MudTh>Fish Name</MudTh>
-                                <MudTh>Count</MudTh>
-                                <MudTh>Percentage</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>
-                                    @if (context.Rank <= 3)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" 
-                                                 Color="@(context.Rank == 1 ? Color.Warning : context.Rank == 2 ? Color.Default : Color.Tertiary)" />
-                                    }
-                                    else
-                                    {
-                                        <span>@context.Rank</span>
-                                    }
-                                </MudTd>
-                                <MudTd>@context.Name</MudTd>
-                                <MudTd>@context.Count.ToString("N0")</MudTd>
-                                <MudTd>@context.Percent.ToString("F2")%</MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudTabPanel>
-
-                <!-- Equipment Usage Tab -->
-                @if (report.MostCommonEquipment.Any())
-                {
-                    <MudTabPanel Text="Equipment Usage" Icon="@Icons.Material.Filled.Inventory">
-                        <MudPaper Elevation="1" Class="pa-4 ma-2">
-                            <MudText Typo="Typo.h6" Class="mb-3">Most Commonly Owned Equipment</MudText>
-                            <MudTable Items="@GetEquipmentData()" Dense="true" Hover="true" Striped="true">
-                                <HeaderContent>
-                                    <MudTh>Item Name</MudTh>
-                                    <MudTh>Users Owning</MudTh>
-                                    <MudTh>Ownership %</MudTh>
-                                </HeaderContent>
-                                <RowTemplate>
-                                    <MudTd>@context.Name</MudTd>
-                                    <MudTd>@context.Count</MudTd>
-                                    <MudTd>@context.Percent.ToString("F1")%</MudTd>
-                                </RowTemplate>
-                            </MudTable>
-                        </MudPaper>
-                    </MudTabPanel>
-                }
-
-                <!-- Top Users Tab -->
-                <MudTabPanel Text="Top Users" Icon="@Icons.Material.Filled.Leaderboard">
-                    <MudPaper Elevation="1" Class="pa-4 ma-2">
-                        <MudStack Spacing="3">
-                            <div>
-                                <MudText Typo="Typo.h6" Class="mb-3">Top Users by Catches</MudText>
-                                <MudTable Items="@GetTopUsersByCatches()" Dense="true" Hover="true" Striped="true">
-                                    <HeaderContent>
-                                        <MudTh>Rank</MudTh>
-                                        <MudTh>Username</MudTh>
-                                        <MudTh>Catches</MudTh>
-                                    </HeaderContent>
-                                    <RowTemplate>
-                                        <MudTd>@context.Rank</MudTd>
-                                        <MudTd>@context.Name</MudTd>
-                                        <MudTd>@context.Count.ToString("N0")</MudTd>
-                                    </RowTemplate>
-                                </MudTable>
-                            </div>
-                            <div>
-                                <MudText Typo="Typo.h6" Class="mb-3">Top Users by Gold Earned</MudText>
-                                <MudTable Items="@GetTopUsersByGold()" Dense="true" Hover="true" Striped="true">
-                                    <HeaderContent>
-                                        <MudTh>Rank</MudTh>
-                                        <MudTh>Username</MudTh>
-                                        <MudTh>Gold Earned</MudTh>
-                                    </HeaderContent>
-                                    <RowTemplate>
-                                        <MudTd>@context.Rank</MudTd>
-                                        <MudTd>@context.Name</MudTd>
-                                        <MudTd>
-                                            <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
-                                            @context.Amount.ToString("N0")
-                                        </MudTd>
-                                    </RowTemplate>
-                                </MudTable>
-                            </div>
-                        </MudStack>
-                    </MudPaper>
-                </MudTabPanel>
-            </MudTabs>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Calculations based on effective net gold/attempt with snaps (@report.SnapAdjustedAverageGoldPerAttempt.ToString("F1")g). Active player progression shown.
+                </MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    <MudText Typo="Typo.caption">
+                        Effect columns show each item's single-item impact against the current global fishing settings, so you can compare baseline vs boosted outcomes directly.
+                    </MudText>
+                </MudAlert>
+                <MudTable Items="@report.ItemAffordabilityAnalysis" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Item</MudTh>
+                        <MudTh>Cost</MudTh>
+                        <MudTh>Effect</MudTh>
+                        <MudTh>Attempts to Afford</MudTh>
+                        <MudTh>Sessions (Active)</MudTh>
+                        <MudTh>Can Afford</MudTh>
+                        <MudTh>Rating</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudText>@context.ItemName</MudText>
+                            <MudStack Row="true" Spacing="1">
+                                @if (context.IsConsumable)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@(context.MaxUses.HasValue ? $"{context.MaxUses} uses" : "consumable")</MudChip>
+                                }
+                                else if (!string.IsNullOrEmpty(context.EquipmentSlot) && context.EquipmentSlot != "None")
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.EquipmentSlot</MudChip>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd>
+                            <MudText>@context.Cost g</MudText>
+                            @if (context.IsConsumable && context.MaxUses.HasValue && context.MaxUses > 0)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CostPerUse.ToString("F1") g/use</MudText>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (context.HasEffectPreview)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="@(context.EffectRelativeChangePercent >= 0 ? Color.Success : Color.Error)">
+                                    @(context.EffectRelativeChangePercent >= 0 ? "+" : "")@context.EffectRelativeChangePercent.ToString("F1")%
+                                </MudChip>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.EffectMetric</MudText>
+                            }
+                            else
+                            {
+                                <MudText Color="Color.Secondary">-</MudText>
+                            }
+                        </MudTd>
+                        <MudTd>@(context.AttemptsNeededToBuy > 0 ? context.AttemptsNeededToBuy.ToString("F0") : "-")</MudTd>
+                        <MudTd>
+                            @if (context.SessionsToAffordActive > 0)
+                            {
+                                <MudText>@context.SessionsToAffordActive.ToString("F1")</MudText>
+                                @if (report.StreamsPerWeekFromAttempts > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        ~@((context.SessionsToAffordActive / report.StreamsPerWeekFromAttempts).ToString("F1")) weeks
+                                    </MudText>
+                                }
+                            }
+                            else
+                            {
+                                <MudText Color="Color.Secondary">-</MudText>
+                            }
+                        </MudTd>
+                        <MudTd>@context.PercentageWhoCanAfford.ToString("F1")% (@context.UsersWhoCanAfford)</MudTd>
+                        <MudTd>
+                            @{
+                                var rating = context.IsConsumable ? context.ValueRating : context.AffordabilityRating;
+                                var ratingColor = context.IsConsumable ? GetValueRatingColor(rating) : GetAffordabilityColor(rating);
+                            }
+                            @if (!string.IsNullOrEmpty(rating))
+                            {
+                                <MudChip T="string" Color="@ratingColor" Size="Size.Small">@rating</MudChip>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
         }
         else if (!isLoading)
         {
@@ -805,19 +598,6 @@
         Snackbar.Add($"Report exported as {fileName}", Severity.Success);
     }
 
-    private Color GetRarityColor(FishRarity rarity)
-    {
-        return rarity switch
-        {
-            FishRarity.Common => Color.Default,
-            FishRarity.Uncommon => Color.Success,
-            FishRarity.Rare => Color.Info,
-            FishRarity.Epic => Color.Secondary,
-            FishRarity.Legendary => Color.Warning,
-            _ => Color.Default
-        };
-    }
-
     private Color GetAffordabilityColor(string rating)
     {
         return rating switch
@@ -845,167 +625,13 @@
         };
     }
 
-    private class RarityRow
-    {
-        public FishRarity Rarity { get; set; }
-        public int Count { get; set; }
-        public double ActualPercent { get; set; }
-        public double ExpectedPercent { get; set; }
-        public double Variance { get; set; }
-    }
-
-    private class StarRow
-    {
-        public int Stars { get; set; }
-        public int Count { get; set; }
-        public double Percent { get; set; }
-    }
-
-    private class FishRow
-    {
-        public int Rank { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public int Count { get; set; }
-        public double Percent { get; set; }
-    }
-
-    private class EquipmentRow
-    {
-        public string Name { get; set; } = string.Empty;
-        public int Count { get; set; }
-        public double Percent { get; set; }
-    }
-
-    private class UserRow
-    {
-        public int Rank { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public int Count { get; set; }
-        public int Amount { get; set; }
-    }
-
-    private List<RarityRow> GetRarityData()
-    {
-        if (report == null) return new List<RarityRow>();
-
-        return report.RarityDistribution.Select(kvp => new RarityRow
-        {
-            Rarity = kvp.Key,
-            Count = kvp.Value,
-            ActualPercent = report.RarityPercentages.GetValueOrDefault(kvp.Key, 0),
-            ExpectedPercent = report.ExpectedRarityPercentages.GetValueOrDefault(kvp.Key, 0),
-            Variance = report.RarityVariance.GetValueOrDefault(kvp.Key, 0)
-        })
-        .OrderBy(r => (int)r.Rarity)
-        .ToList();
-    }
-
-    private List<StarRow> GetStarData()
-    {
-        if (report == null) return new List<StarRow>();
-
-        return report.StarDistribution.Select(kvp => new StarRow
-        {
-            Stars = kvp.Key,
-            Count = kvp.Value,
-            Percent = report.StarPercentages.GetValueOrDefault(kvp.Key, 0)
-        })
-        .OrderBy(s => s.Stars)
-        .ToList();
-    }
-
-    private List<FishRow> GetTopFish()
-    {
-        if (report == null) return new List<FishRow>();
-
-        return report.FishCatchCounts
-            .OrderByDescending(f => f.Value)
-            .Take(20)
-            .Select((f, index) => new FishRow
-            {
-                Rank = index + 1,
-                Name = f.Key,
-                Count = f.Value,
-                Percent = report.FishCatchPercentages.GetValueOrDefault(f.Key, 0)
-            })
-            .ToList();
-    }
-
-    private List<EquipmentRow> GetEquipmentData()
-    {
-        if (report == null) return new List<EquipmentRow>();
-
-        return report.MostCommonEquipment.Select(e => new EquipmentRow
-        {
-            Name = e.Key,
-            Count = e.Value,
-            Percent = report.UniqueUsers > 0 ? (e.Value / (double)report.UniqueUsers) * 100 : 0
-        })
-        .ToList();
-    }
-
-    private List<UserRow> GetTopUsersByCatches()
-    {
-        if (report == null) return new List<UserRow>();
-
-        return report.TopUsersByCatches
-            .Select((u, index) => new UserRow
-            {
-                Rank = index + 1,
-                Name = u.Key,
-                Count = u.Value,
-                Amount = 0
-            })
-            .ToList();
-    }
-
-    private List<UserRow> GetTopUsersByGold()
-    {
-        if (report == null) return new List<UserRow>();
-
-        return report.TopUsersByGold
-            .Select((u, index) => new UserRow
-            {
-                Rank = index + 1,
-                Name = u.Key,
-                Count = 0,
-                Amount = u.Value
-            })
-            .ToList();
-    }
-
-    private EquipmentTier GetTierFromCost(int cost)
-    {
-        // Tiers aligned with 6-month progression: Entry=2wk, Mid=6wk, High=12wk, Top=26wk
-        return cost switch
-        {
-            <= 200 => EquipmentTier.Entry,   // ~2 weeks for median player
-            <= 500 => EquipmentTier.Mid,     // ~6 weeks cumulative
-            <= 1500 => EquipmentTier.High,    // ~12 weeks cumulative
-            _ => EquipmentTier.Top           // ~26 weeks cumulative
-        };
-    }
-
-    private (Color color, string icon) GetTierDisplay(EquipmentTier tier)
-    {
-        return tier switch
-        {
-            EquipmentTier.Entry => (Color.Default, Icons.Material.Filled.Star),
-            EquipmentTier.Mid => (Color.Info, Icons.Material.Filled.StarHalf),
-            EquipmentTier.High => (Color.Secondary, Icons.Material.Filled.Stars),
-            EquipmentTier.Top => (Color.Warning, Icons.Material.Filled.EmojiEvents),
-            _ => (Color.Default, Icons.Material.Filled.ShoppingCart)
-        };
-    }
 
     // Dynamic Pricing State
     private int targetWeeks = 26; // Default to 6 months
     private enum PricingGoldSource
     {
         ReportAverage,
-        ReportMedian,
-        ProgressiveBaseline,
-        PureBaseline
+        ReportMedian
     }
 
     private enum PricingScope
@@ -1024,8 +650,8 @@
     private class PricePreview
     {
         public double GoldPerCatch { get; set; }
-        public double CatchesPerSession { get; set; }
-        public double SessionsPerWeek { get; set; }
+        public double AttemptsPerSession { get; set; }
+        public double StreamsPerWeek { get; set; }
         public double WeeklyIncome { get; set; }
         public int CurrentTotal { get; set; }
         public int TargetTotal { get; set; }
@@ -1042,8 +668,6 @@
         {
             PricingGoldSource.ReportAverage => "Report Average",
             PricingGoldSource.ReportMedian => "Report Median",
-            PricingGoldSource.ProgressiveBaseline => "Progressive Baseline",
-            PricingGoldSource.PureBaseline => "Pure Baseline",
             _ => "Unknown"
         };
     }
@@ -1095,29 +719,21 @@
                 return;
             }
 
-            // Gold source for pricing calculations. Report sources are snap-adjusted net gold/attempt.
+            // Gold source for pricing calculations. Both options are report-derived net gold/attempt.
             double goldPerCatch;
             if (pricingGoldSource == PricingGoldSource.ReportAverage)
             {
                 goldPerCatch = Math.Max(0, report.SnapAdjustedAverageGoldPerAttempt);
             }
-            else if (pricingGoldSource == PricingGoldSource.ReportMedian)
+            else
             {
                 goldPerCatch = Math.Max(0, report.SnapAdjustedMedianGoldPerAttempt);
             }
-            else if (pricingGoldSource == PricingGoldSource.ProgressiveBaseline)
-            {
-                goldPerCatch = await AnalyticsService.CalculateProgressiveBaselineGold(targetWeeks);
-            }
-            else
-            {
-                goldPerCatch = await AnalyticsService.CalculateBaselineExpectedGold();
-            }
 
-            // Use REAL player engagement from balance report instead of hardcoded 3 catches/session
-            double catchesPerSession = report?.ActiveCatchesPerSession ?? 30.0; // Use median (active) player
-            double sessionsPerWeek = 2.5; // Average of 2-3 sessions per week
-            var weeklyIncome = goldPerCatch * catchesPerSession * sessionsPerWeek;
+            // Use real attempt/session and observed streams/week from analysis report.
+            double attemptsPerSession = report?.ActiveAttemptsPerSession ?? 30.0;
+            double streamsPerWeek = Math.Max(0.1, report?.StreamsPerWeekFromAttempts ?? 1.0);
+            var weeklyIncome = goldPerCatch * attemptsPerSession * streamsPerWeek;
 
             var referenceItems = pricingScope == PricingScope.TopBySlot
                 ? permanentItems
@@ -1150,8 +766,8 @@
             pricePreview = new PricePreview
             {
                 GoldPerCatch = goldPerCatch,
-                CatchesPerSession = catchesPerSession,
-                SessionsPerWeek = sessionsPerWeek,
+                AttemptsPerSession = attemptsPerSession,
+                StreamsPerWeek = streamsPerWeek,
                 WeeklyIncome = weeklyIncome,
                 CurrentTotal = currentTotal,
                 TargetTotal = targetTotal,

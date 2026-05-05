@@ -907,6 +907,44 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return perUserAverages;
         }
 
+        private static (double StreamsPerWeek, int ActiveDays, int AnalysisWindowDays) CalculateStreamsPerWeekFromAttempts(
+            IEnumerable<DateTime> attemptTimestamps,
+            DateTime? startDate,
+            DateTime? endDate)
+        {
+            var attempts = attemptTimestamps
+                .OrderBy(t => t)
+                .ToList();
+
+            if (!attempts.Any())
+            {
+                return (0, 0, 0);
+            }
+
+            var windowStart = startDate?.Date ?? attempts.First().Date;
+            var windowEnd = endDate?.Date ?? attempts.Last().Date;
+
+            if (windowEnd < windowStart)
+            {
+                (windowStart, windowEnd) = (windowEnd, windowStart);
+            }
+
+            var analysisWindowDays = Math.Max(1, (windowEnd - windowStart).Days + 1);
+            var activeDays = attempts
+                .Select(t => t.Date)
+                .Distinct()
+                .Count();
+
+            var windowWeeks = analysisWindowDays / 7.0;
+            if (windowWeeks <= 0)
+            {
+                return (0, activeDays, analysisWindowDays);
+            }
+
+            var streamsPerWeek = Math.Min(7.0, activeDays / windowWeeks);
+            return (Math.Round(streamsPerWeek, 2), activeDays, analysisWindowDays);
+        }
+
         public async Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -945,16 +983,67 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 
             var catches = await catchesQuery.ToListAsync();
 
+            // Build query for snap events within date range
+            var snapEventsQuery = context.FishingSnapEvents.AsQueryable();
+            if (startDate.HasValue)
+                snapEventsQuery = snapEventsQuery.Where(s => s.SnappedAt >= startDate.Value);
+            if (endDate.HasValue)
+                snapEventsQuery = snapEventsQuery.Where(s => s.SnappedAt <= endDate.Value);
+
+            var snapEvents = await snapEventsQuery.ToListAsync();
+
+            var attemptSamples = catches
+                .Select(c => new { c.UserId, Timestamp = c.CaughtAt, IsCatch = true })
+                .Concat(snapEvents.Select(s => new { s.UserId, Timestamp = s.SnappedAt, IsCatch = false }))
+                .OrderBy(a => a.Timestamp)
+                .ToList();
+
             // Basic statistics
             report.TotalCatches = catches.Count;
-            report.UniqueUsers = catches.Select(c => c.UserId).Distinct().Count();
+            report.UniqueUsers = attemptSamples.Any()
+                ? attemptSamples.Select(a => a.UserId).Distinct().Count()
+                : catches.Select(c => c.UserId).Distinct().Count();
 
-            report.EstimatedTotalAttempts = successfulAttemptChance > 0
-                ? (int)Math.Round(report.TotalCatches / successfulAttemptChance)
-                : report.TotalCatches;
+            var observedAttempts = attemptSamples.Count;
+            var hasObservedAttemptData = observedAttempts > 0;
+            var hasObservedSnapData = snapEvents.Count > 0;
+
+            report.AttemptDataSource = hasObservedSnapData
+                ? "Observed attempts (catches + recorded snaps)"
+                : "Estimated attempts from catch success model (no snap telemetry in range)";
+
+            report.EstimatedTotalAttempts = hasObservedSnapData
+                ? observedAttempts
+                : (successfulAttemptChance > 0
+                    ? (int)Math.Round(report.TotalCatches / successfulAttemptChance)
+                    : report.TotalCatches);
             report.EstimatedFailedAttempts = Math.Max(0, report.EstimatedTotalAttempts - report.TotalCatches);
-            report.EstimatedLineSnaps = (int)Math.Round(report.EstimatedTotalAttempts * (1.0 - rodSnapChance) * lineSnapChance);
-            report.EstimatedRodSnaps = (int)Math.Round(report.EstimatedTotalAttempts * rodSnapChance);
+
+            if (hasObservedSnapData)
+            {
+                report.EstimatedLineSnaps = snapEvents.Count(s => string.Equals(s.SnapType, "Line", StringComparison.OrdinalIgnoreCase));
+                report.EstimatedRodSnaps = snapEvents.Count(s => string.Equals(s.SnapType, "Rod", StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                report.EstimatedLineSnaps = (int)Math.Round(report.EstimatedTotalAttempts * (1.0 - rodSnapChance) * lineSnapChance);
+                report.EstimatedRodSnaps = (int)Math.Round(report.EstimatedTotalAttempts * rodSnapChance);
+            }
+
+            var observedSuccessChance = report.EstimatedTotalAttempts > 0
+                ? report.TotalCatches / (double)report.EstimatedTotalAttempts
+                : successfulAttemptChance;
+            report.EstimatedSuccessfulAttemptRatePercent = Math.Round(observedSuccessChance * 100.0, 2);
+
+            var (streamsPerWeekFromAttempts, _, analysisWindowDays) = CalculateStreamsPerWeekFromAttempts(
+                attemptSamples.Select(a => a.Timestamp),
+                startDate,
+                endDate);
+            var analysisWindowWeeks = Math.Max(analysisWindowDays / 7.0, 1.0 / 7.0);
+
+            report.StreamsPerWeekFromAttempts = streamsPerWeekFromAttempts;
+            report.AttemptsPerWeek = Math.Round(report.EstimatedTotalAttempts / analysisWindowWeeks, 2);
+            report.CatchesPerWeek = Math.Round(report.TotalCatches / analysisWindowWeeks, 2);
 
             var shopItemCosts = await context.FishingShopItems
                 .AsNoTracking()
@@ -966,48 +1055,24 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 lineSnapChance,
                 rodSnapChance);
 
-            report.EstimatedSnapReplacementCostPerAttempt = Math.Round(weightedSnapCostPerAttempt, 2);
-            report.EstimatedSnapReplacementCostTotal = Math.Round(weightedSnapCostPerAttempt * report.EstimatedTotalAttempts, 2);
+            var observedSnapCostTotal = snapEvents.Sum(s => (double)s.TotalGoldLost);
+            var observedSnapCostPerAttempt = report.EstimatedTotalAttempts > 0
+                ? observedSnapCostTotal / report.EstimatedTotalAttempts
+                : 0;
+            var selectedSnapCostPerAttempt = hasObservedSnapData
+                ? observedSnapCostPerAttempt
+                : weightedSnapCostPerAttempt;
+
+            report.EstimatedSnapReplacementCostPerAttempt = Math.Round(selectedSnapCostPerAttempt, 2);
+            report.EstimatedSnapReplacementCostTotal = Math.Round(selectedSnapCostPerAttempt * report.EstimatedTotalAttempts, 2);
 
             if (report.TotalCatches == 0)
             {
-                report.SnapAdjustedAverageGoldPerAttempt = Math.Round(0.0 - weightedSnapCostPerAttempt, 2);
-                report.SnapAdjustedMedianGoldPerAttempt = Math.Round(0.0 - weightedSnapCostPerAttempt, 2);
+                report.SnapAdjustedAverageGoldPerAttempt = Math.Round(0.0 - selectedSnapCostPerAttempt, 2);
+                report.SnapAdjustedMedianGoldPerAttempt = Math.Round(0.0 - selectedSnapCostPerAttempt, 2);
                 report.SnapAdjustedTotalNetGold = Math.Round(0.0 - report.EstimatedSnapReplacementCostTotal, 2);
-                report.Summary = "No catches found in the specified date range.";
+                report.BalanceRecommendations = ["No catches found in the specified date range."];
                 return report;
-            }
-
-            // Rarity distribution
-            var rarityGroups = catches.GroupBy(c => c.FishType.Rarity)
-                .Select(g => new { Rarity = g.Key, Count = g.Count() })
-                .ToList();
-
-            foreach (var group in rarityGroups)
-            {
-                report.RarityDistribution[group.Rarity] = group.Count;
-                report.RarityPercentages[group.Rarity] = Math.Round((double)group.Count / report.TotalCatches * 100, 2);
-            }
-
-            // Ensure all rarities are represented
-            foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
-            {
-                if (!report.RarityDistribution.ContainsKey(rarity))
-                {
-                    report.RarityDistribution[rarity] = 0;
-                    report.RarityPercentages[rarity] = 0;
-                }
-            }
-
-            // Star distribution
-            var starGroups = catches.GroupBy(c => c.Stars)
-                .Select(g => new { Stars = g.Key, Count = g.Count() })
-                .ToList();
-
-            foreach (var group in starGroups)
-            {
-                report.StarDistribution[group.Stars] = group.Count;
-                report.StarPercentages[group.Stars] = Math.Round((double)group.Count / report.TotalCatches * 100, 2);
             }
 
             // Gold economics
@@ -1017,119 +1082,59 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             report.MedianGoldPerCatch = goldValues.Count % 2 == 0
                 ? (goldValues[goldValues.Count / 2 - 1] + goldValues[goldValues.Count / 2]) / 2.0
                 : goldValues[goldValues.Count / 2];
-            report.MinGoldEarned = goldValues.Min();
-            report.MaxGoldEarned = goldValues.Max();
-            report.SnapAdjustedAverageGoldPerAttempt = Math.Round((report.AverageGoldPerCatch * successfulAttemptChance) - weightedSnapCostPerAttempt, 2);
-            report.SnapAdjustedMedianGoldPerAttempt = Math.Round((report.MedianGoldPerCatch * successfulAttemptChance) - weightedSnapCostPerAttempt, 2);
+            report.SnapAdjustedAverageGoldPerAttempt = Math.Round((report.AverageGoldPerCatch * observedSuccessChance) - selectedSnapCostPerAttempt, 2);
+            report.SnapAdjustedMedianGoldPerAttempt = Math.Round((report.MedianGoldPerCatch * observedSuccessChance) - selectedSnapCostPerAttempt, 2);
             report.SnapAdjustedTotalNetGold = Math.Round(report.TotalGoldEarned - report.EstimatedSnapReplacementCostTotal, 2);
 
-            // Per-user statistics
             var userGroups = catches.GroupBy(c => c.UserId)
                 .Select(g => new
                 {
                     UserId = g.Key,
-                    Username = g.First().Username,
                     CatchCount = g.Count(),
                     TotalGold = g.Sum(c => c.GoldEarned)
                 })
                 .ToList();
 
-            report.AverageCatchesPerUser = Math.Round((double)report.TotalCatches / report.UniqueUsers, 2);
-            report.AverageGoldPerUser = Math.Round((double)report.TotalGoldEarned / report.UniqueUsers, 2);
-
-            report.TopUsersByCatches = userGroups
-                .OrderByDescending(u => u.CatchCount)
-                .Take(10)
-                .ToDictionary(u => u.Username, u => u.CatchCount);
-
-            report.TopUsersByGold = userGroups
-                .OrderByDescending(u => u.TotalGold)
-                .Take(10)
-                .ToDictionary(u => u.Username, u => u.TotalGold);
-
-            // Fish distribution
-            var fishGroups = catches.GroupBy(c => c.FishType.Name)
-                .Select(g => new { FishName = g.Key, Count = g.Count() })
-                .ToList();
-
-            foreach (var group in fishGroups)
-            {
-                report.FishCatchCounts[group.FishName] = group.Count;
-                report.FishCatchPercentages[group.FishName] = Math.Round((double)group.Count / report.TotalCatches * 100, 2);
-            }
-
-            if (fishGroups.Any())
-            {
-                report.MostCaughtFish = fishGroups.OrderByDescending(g => g.Count).First().FishName;
-                report.LeastCaughtFish = fishGroups.OrderBy(g => g.Count).First().FishName;
-            }
-
-            // Get boost mode settings
-            report.BoostModeActive = settings?.BoostMode;
-            report.BoostModeMultiplier = settings?.BoostModeRarityMultiplier;
-
-            // Expected rarity percentages (theoretical baseline without boosts)
-            var baselineRarities = new Dictionary<FishRarity, double>
-            {
-                { FishRarity.Common, 50.0 },
-                { FishRarity.Uncommon, 30.0 },
-                { FishRarity.Rare, 15.0 },
-                { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 1.0 }
-            };
-
-            var totalWeight = baselineRarities.Values.Sum();
-            foreach (var kvp in baselineRarities)
-            {
-                report.ExpectedRarityPercentages[kvp.Key] = Math.Round((kvp.Value / totalWeight) * 100, 2);
-                var actualPercent = report.RarityPercentages.ContainsKey(kvp.Key) ? report.RarityPercentages[kvp.Key] : 0;
-                report.RarityVariance[kvp.Key] = Math.Round(actualPercent - report.ExpectedRarityPercentages[kvp.Key], 2);
-            }
-
-            // Calculate real engagement tiers from timestamped catches-per-session
-            var userSessionAverages = CalculateUserAverageCatchesPerSession(
-                catches.Select(c => (c.UserId, c.CaughtAt)),
+            // Calculate real engagement tiers from timestamped ATTEMPTS per session (catches + snaps)
+            var userAttemptSessionAverages = CalculateUserAverageCatchesPerSession(
+                attemptSamples.Select(a => (a.UserId, a.Timestamp)),
                 SessionGap,
                 minTotalCatches: 5,
                 minSessions: 2);
 
-            if (!userSessionAverages.Any())
+            if (!userAttemptSessionAverages.Any())
             {
-                userSessionAverages = CalculateUserAverageCatchesPerSession(
-                    catches.Select(c => (c.UserId, c.CaughtAt)),
+                userAttemptSessionAverages = CalculateUserAverageCatchesPerSession(
+                    attemptSamples.Select(a => (a.UserId, a.Timestamp)),
                     SessionGap);
             }
 
-            userSessionAverages = userSessionAverages
+            userAttemptSessionAverages = userAttemptSessionAverages
                 .OrderBy(v => v)
                 .ToList();
 
-            // Use percentiles to define player engagement types
-            double casualCatchesPerSession = 15.0; // Default fallback
-            double activeCatchesPerSession = 30.0;
-            double hardcoreCatchesPerSession = 100.0;
+            // Use percentiles to define player engagement types.
+            double casualAttemptsPerSession = 15.0;
+            double activeAttemptsPerSession = 30.0;
+            double hardcoreAttemptsPerSession = 100.0;
 
-            if (userSessionAverages.Count > 0)
+            if (userAttemptSessionAverages.Count > 0)
             {
-                // 25th percentile = Casual player threshold
-                var p25Index = (int)Math.Ceiling(userSessionAverages.Count * 0.25) - 1;
-                casualCatchesPerSession = Math.Max(userSessionAverages[Math.Max(0, p25Index)], 1.0);
+                var p25Index = (int)Math.Ceiling(userAttemptSessionAverages.Count * 0.25) - 1;
+                casualAttemptsPerSession = Math.Max(userAttemptSessionAverages[Math.Max(0, p25Index)], 1.0);
 
-                // 50th percentile (median) = Active player threshold
-                var p50Index = userSessionAverages.Count / 2;
-                activeCatchesPerSession = userSessionAverages.Count % 2 == 0
-                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
-                    : userSessionAverages[p50Index];
+                var p50Index = userAttemptSessionAverages.Count / 2;
+                activeAttemptsPerSession = userAttemptSessionAverages.Count % 2 == 0
+                    ? (userAttemptSessionAverages[p50Index - 1] + userAttemptSessionAverages[p50Index]) / 2.0
+                    : userAttemptSessionAverages[p50Index];
 
-                // 75th percentile = Hardcore player threshold
-                var p75Index = (int)Math.Ceiling(userSessionAverages.Count * 0.75) - 1;
-                hardcoreCatchesPerSession = userSessionAverages[Math.Min(p75Index, userSessionAverages.Count - 1)];
+                var p75Index = (int)Math.Ceiling(userAttemptSessionAverages.Count * 0.75) - 1;
+                hardcoreAttemptsPerSession = userAttemptSessionAverages[Math.Min(p75Index, userAttemptSessionAverages.Count - 1)];
             }
 
-            // Store calculated engagement metrics in report for transparency
-            report.CasualCatchesPerSession = Math.Round(casualCatchesPerSession, 1);
-            report.ActiveCatchesPerSession = Math.Round(activeCatchesPerSession, 1);
-            report.HardcoreCatchesPerSession = Math.Round(hardcoreCatchesPerSession, 1);
+            report.CasualAttemptsPerSession = Math.Round(casualAttemptsPerSession, 1);
+            report.ActiveAttemptsPerSession = Math.Round(activeAttemptsPerSession, 1);
+            report.HardcoreAttemptsPerSession = Math.Round(hardcoreAttemptsPerSession, 1);
 
             // Item affordability analysis
             var shopItems = await context.FishingShopItems
@@ -1162,7 +1167,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     Cost = item.Cost,
                     IsConsumable = item.IsConsumable,
                     MaxUses = item.MaxUses,
-                    EquipmentSlot = item.EquipmentSlot.ToString(),
+                    EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
                     CostPerUse = item.IsConsumable && item.MaxUses.HasValue && item.MaxUses > 0
                         ? Math.Round((double)item.Cost / item.MaxUses.Value, 2)
                         : item.Cost,
@@ -1176,22 +1181,21 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     : 0;
 
                 // How many catches needed to afford
-                affordability.CatchesNeededToBuy = effectiveGoldPerAttempt > 0
+                affordability.AttemptsNeededToBuy = effectiveGoldPerAttempt > 0
                     ? Math.Round(item.Cost / effectiveGoldPerAttempt, 1)
                     : 0;
 
-                // Sessions to afford based on REAL player engagement data (percentiles)
-                // Casual = 25th percentile player, Active = 50th (median), Hardcore = 75th percentile
-                affordability.SessionsToAffordCasual = affordability.CatchesNeededToBuy > 0
-                    ? Math.Round(affordability.CatchesNeededToBuy / casualCatchesPerSession, 1)
+                // Sessions to afford based on REAL attempt/session engagement percentiles.
+                affordability.SessionsToAffordCasual = affordability.AttemptsNeededToBuy > 0
+                    ? Math.Round(affordability.AttemptsNeededToBuy / casualAttemptsPerSession, 1)
                     : 0;
 
-                affordability.SessionsToAffordActive = affordability.CatchesNeededToBuy > 0
-                    ? Math.Round(affordability.CatchesNeededToBuy / activeCatchesPerSession, 1)
+                affordability.SessionsToAffordActive = affordability.AttemptsNeededToBuy > 0
+                    ? Math.Round(affordability.AttemptsNeededToBuy / activeAttemptsPerSession, 1)
                     : 0;
 
-                affordability.SessionsToAffordHardcore = affordability.CatchesNeededToBuy > 0
-                    ? Math.Round(affordability.CatchesNeededToBuy / hardcoreCatchesPerSession, 1)
+                affordability.SessionsToAffordHardcore = affordability.AttemptsNeededToBuy > 0
+                    ? Math.Round(affordability.AttemptsNeededToBuy / hardcoreAttemptsPerSession, 1)
                     : 0;
 
                 // Affordability rating for permanent items
@@ -1240,33 +1244,71 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 report.ItemAffordabilityAnalysis.Add(affordability);
             }
 
-            // Most common equipment used (from catches with boosts)
-            var equipmentUsage = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .Where(b => b.IsEquipped)
-                .GroupBy(b => b.ShopItem.Name)
-                .Select(g => new { ItemName = g.Key, Count = g.Count() })
-                .OrderByDescending(x => x.Count)
-                .Take(10)
-                .ToListAsync();
+            var topGearItems = shopItems
+                .Where(i => i.Enabled && !i.IsConsumable && i.EquipmentSlot.HasValue &&
+                            i.EquipmentSlot != EquipmentSlot.Bait && i.EquipmentSlot != EquipmentSlot.Lure)
+                .GroupBy(i => i.EquipmentSlot!.Value)
+                .Select(g => g.OrderByDescending(i => i.Cost).First())
+                .ToList();
 
-            foreach (var equipment in equipmentUsage)
+            report.TopGearTotalCost = topGearItems.Sum(i => i.Cost);
+
+            var projectedSuccessRate = report.EstimatedTotalAttempts > 0
+                ? report.TotalCatches / (double)report.EstimatedTotalAttempts
+                : 0;
+
+            var projectionWindows = new[]
             {
-                report.MostCommonEquipment[equipment.ItemName] = equipment.Count;
+                (Weeks: 12, Label: "3 Months"),
+                (Weeks: 26, Label: "6 Months"),
+                (Weeks: 52, Label: "12 Months")
+            };
+
+            foreach (var window in projectionWindows)
+            {
+                var projection = new BalanceProjectionWindow
+                {
+                    Weeks = window.Weeks,
+                    Label = window.Label
+                };
+
+                foreach (var tier in new[]
+                {
+                    (Name: "Casual", AttemptsPerSession: report.CasualAttemptsPerSession),
+                    (Name: "Active", AttemptsPerSession: report.ActiveAttemptsPerSession),
+                    (Name: "Hardcore", AttemptsPerSession: report.HardcoreAttemptsPerSession)
+                })
+                {
+                    var attemptsPerWeek = tier.AttemptsPerSession * report.StreamsPerWeekFromAttempts;
+                    var projectedAttempts = attemptsPerWeek * window.Weeks;
+                    var projectedCatches = projectedAttempts * projectedSuccessRate;
+                    var projectedGrossGold = projectedCatches * report.AverageGoldPerCatch;
+                    var projectedSnapSink = projectedAttempts * report.EstimatedSnapReplacementCostPerAttempt;
+                    var projectedNetGold = Math.Max(0, projectedGrossGold - projectedSnapSink);
+                    var maxGearProgress = report.TopGearTotalCost > 0
+                        ? Math.Min(999.0, (projectedNetGold / report.TopGearTotalCost) * 100.0)
+                        : 0;
+
+                    projection.Tiers.Add(new BalanceProjectionTier
+                    {
+                        TierName = tier.Name,
+                        AttemptsPerSession = Math.Round(tier.AttemptsPerSession, 2),
+                        StreamsPerWeek = report.StreamsPerWeekFromAttempts,
+                        AttemptsPerWeek = Math.Round(attemptsPerWeek, 2),
+                        ProjectedAttempts = Math.Round(projectedAttempts, 1),
+                        ProjectedCatches = Math.Round(projectedCatches, 1),
+                        ProjectedGrossGold = Math.Round(projectedGrossGold, 1),
+                        ProjectedSnapSink = Math.Round(projectedSnapSink, 1),
+                        ProjectedNetGold = Math.Round(projectedNetGold, 1),
+                        MaxGearProgressPercent = Math.Round(maxGearProgress, 1)
+                    });
+                }
+
+                report.ProjectionWindows.Add(projection);
             }
 
             // Generate balance recommendations
             var recommendations = new List<string>();
-
-            // Rarity balance check
-            if (report.RarityPercentages[FishRarity.Common] > 60)
-                recommendations.Add("⚠️ Common fish are too prevalent (>60%). Consider increasing rare fish drop rates or boosting equipment effectiveness.");
-
-            if (report.RarityPercentages[FishRarity.Legendary] > 5)
-                recommendations.Add("⚠️ Legendary fish may be too common (>5%). Consider reducing legendary drop rates.");
-
-            if (report.RarityPercentages[FishRarity.Legendary] < 0.1 && report.TotalCatches > 1000)
-                recommendations.Add("⚠️ Legendary fish are extremely rare (<0.1%). Consider slightly increasing drop rates for better player experience.");
 
             if (report.SnapAdjustedAverageGoldPerAttempt <= 0)
                 recommendations.Add("⚠️ Snap-adjusted net gold/attempt is non-positive. Lower snap rates or reduce rod/line/hook prices.");
@@ -1280,13 +1322,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            // Gold economy check - items taking more than 20 sessions (10 weeks at 2 sessions/week)
+            // Gold economy check - items taking more than 20 sessions for active players.
             var expensiveItems = report.ItemAffordabilityAnalysis
                 .Where(i => !i.IsConsumable && i.SessionsToAffordActive > 20)
                 .ToList();
 
             if (expensiveItems.Any())
-                recommendations.Add($"⚠️ {expensiveItems.Count} permanent items take over 20 sessions (10+ weeks). Consider reducing prices or increasing gold rewards.");
+                recommendations.Add($"⚠️ {expensiveItems.Count} permanent items take over 20 active sessions. At {report.StreamsPerWeekFromAttempts:F2} streams/week this can be very slow progression.");
 
             // Check for progression that's TOO fast
             var tooFastItems = report.ItemAffordabilityAnalysis
@@ -1304,35 +1346,10 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             if (poorValueConsumables.Any())
                 recommendations.Add($"💰 {poorValueConsumables.Count} consumables are expensive relative to rewards. Review pricing or boost effectiveness.");
 
-            // Activity check
-            if (report.AverageCatchesPerUser < 5 && report.TotalCatches > 50)
-                recommendations.Add("📊 Low average catches per user (<5). Consider engagement campaigns or better rewards.");
-
-            // Star distribution check
-            if (report.StarPercentages.ContainsKey(3) && report.StarPercentages[3] > 50)
-                recommendations.Add("⭐ 3-star catches are very common (>50%). Consider adjusting star calculation or equipment boosts.");
-
             if (!recommendations.Any())
                 recommendations.Add("✅ Game balance looks healthy! No major issues detected.");
 
             report.BalanceRecommendations = recommendations;
-
-            // Generate summary
-            var summaryParts = new List<string>
-            {
-                $"Analyzed {report.TotalCatches:N0} catches from {report.UniqueUsers:N0} unique users.",
-                $"Total gold earned: {report.TotalGoldEarned:N0} (avg {report.AverageGoldPerCatch:F1} per catch).",
-                $"Most common rarity: {report.RarityDistribution.OrderByDescending(kvp => kvp.Value).First().Key} ({report.RarityPercentages[report.RarityDistribution.OrderByDescending(kvp => kvp.Value).First().Key]:F1}%).",
-                $"Most caught fish: {report.MostCaughtFish ?? "N/A"}.",
-                $"Player engagement (real data): Casual={report.CasualCatchesPerSession:F1}, Active={report.ActiveCatchesPerSession:F1}, Hardcore={report.HardcoreCatchesPerSession:F1} catches/session.",
-                $"Snap impact estimate: {report.EstimatedFailedAttempts:N0} failed attempts ({Math.Round((double)report.EstimatedFailedAttempts / Math.Max(1, report.EstimatedTotalAttempts) * 100.0, 2):F2}%), net {report.SnapAdjustedAverageGoldPerAttempt:F2}g/attempt after replacement costs."
-            };
-
-            if (report.BoostModeActive == true)
-                summaryParts.Add($"Boost mode is ACTIVE with {report.BoostModeMultiplier:F1}x multiplier.");
-
-            report.Summary = string.Join(" ", summaryParts);
-
             return report;
         }
 
@@ -1343,19 +1360,28 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Build engagement from timestamped catches so "catches/session" reflects real sessions.
             var catchSamples = await context.FishCatches
-                .Select(c => new { c.UserId, c.CaughtAt })
+                .Select(c => new { c.UserId, Timestamp = c.CaughtAt })
                 .ToListAsync();
 
-            if (!catchSamples.Any())
+            var snapSamples = await context.FishingSnapEvents
+                .Select(s => new { s.UserId, Timestamp = s.SnappedAt })
+                .ToListAsync();
+
+            var attemptSamples = catchSamples
+                .Select(c => new { c.UserId, c.Timestamp })
+                .Concat(snapSamples.Select(s => new { s.UserId, s.Timestamp }))
+                .OrderBy(a => a.Timestamp)
+                .ToList();
+
+            if (!attemptSamples.Any())
             {
-                _logger.LogWarning("[PRICING] No catch data available, returning empty recommendations");
+                _logger.LogWarning("[PRICING] No attempt data available, returning empty recommendations");
                 return new Dictionary<string, int>();
             }
 
             var userSessionAverages = CalculateUserAverageCatchesPerSession(
-                catchSamples.Select(c => (c.UserId, c.CaughtAt)),
+                attemptSamples.Select(c => (c.UserId, c.Timestamp)),
                 SessionGap,
                 minTotalCatches: 5,
                 minSessions: 2);
@@ -1363,7 +1389,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             if (!userSessionAverages.Any())
             {
                 userSessionAverages = CalculateUserAverageCatchesPerSession(
-                    catchSamples.Select(c => (c.UserId, c.CaughtAt)),
+                    attemptSamples.Select(c => (c.UserId, c.Timestamp)),
                     SessionGap);
             }
 
@@ -1371,24 +1397,34 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 .OrderBy(v => v)
                 .ToList();
 
-            double activeCatchesPerSession = 30.0; // Fallback
+            double activeAttemptsPerSession = 30.0; // Fallback
             if (userSessionAverages.Count > 0)
             {
                 var p50Index = userSessionAverages.Count / 2;
-                activeCatchesPerSession = userSessionAverages.Count % 2 == 0
+                activeAttemptsPerSession = userSessionAverages.Count % 2 == 0
                     ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
                     : userSessionAverages[p50Index];
+            }
+
+            var (streamsPerWeek, _, _) = CalculateStreamsPerWeekFromAttempts(
+                attemptSamples.Select(a => a.Timestamp),
+                null,
+                null);
+
+            if (streamsPerWeek <= 0)
+            {
+                streamsPerWeek = 1.0;
             }
 
             // Calculate progressive baseline gold (with equipment progression over time)
             var expectedGoldPerCatch = await CalculateProgressiveBaselineGold(targetWeeksForEndgame);
 
-            _logger.LogInformation("[PRICING] Active player engagement: {Catches} catches/session", Math.Round(activeCatchesPerSession, 1));
+            _logger.LogInformation("[PRICING] Active player engagement: {Attempts} attempts/session", Math.Round(activeAttemptsPerSession, 1));
+            _logger.LogInformation("[PRICING] Observed streams/week from attempts: {StreamsPerWeek}", Math.Round(streamsPerWeek, 2));
             _logger.LogInformation("[PRICING] Expected gold per catch: {Gold}g (with progression)", Math.Round(expectedGoldPerCatch, 2));
 
-            // Define progression tier targets (in weeks, assuming 2-3 sessions per week)
+            // Define progression tier targets (in weeks, scaled to endgame horizon)
             // Scale weeks based on targetWeeksForEndgame parameter
-            var sessionsPerWeek = 2.5; // Average of 2-3 sessions
             var scaleFactor = targetWeeksForEndgame / 26.0; // Default is 26 weeks for endgame
 
             var pricingTiers = new List<(string Name, int TargetWeeks)>
@@ -1467,14 +1503,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 }
 
                 // Calculate price: sessions × catches/session × gold/catch
-                var sessionsNeeded = tier.TargetWeeks * sessionsPerWeek;
-                var catchesNeeded = sessionsNeeded * activeCatchesPerSession;
+                var sessionsNeeded = tier.TargetWeeks * streamsPerWeek;
+                var catchesNeeded = sessionsNeeded * activeAttemptsPerSession;
                 var targetPrice = (int)Math.Round(catchesNeeded * expectedGoldPerCatch);
 
                 recommendations[itemName] = targetPrice;
 
                 _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w × {SessionsPerWeek} × {CatchesPerSession} × {GoldPerCatch}g",
-                    itemName, tierName, targetPrice, tier.TargetWeeks, sessionsPerWeek, Math.Round(activeCatchesPerSession, 1), Math.Round(expectedGoldPerCatch, 2));
+                    itemName, tierName, targetPrice, tier.TargetWeeks, streamsPerWeek, Math.Round(activeAttemptsPerSession, 1), Math.Round(expectedGoldPerCatch, 2));
             }
 
             _logger.LogInformation("[PRICING] Generated {Count} pricing recommendations based on real engagement data",
