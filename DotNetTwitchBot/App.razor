@@ -1,5 +1,6 @@
 ﻿@using DotNetTwitchBot.Shared
 @using DotNetTwitchBot.CustomMiddleware
+@using DotNetTwitchBot.Helpers
 @using Microsoft.AspNetCore.Authorization
 
 <CascadingAuthenticationState>  
@@ -107,6 +108,6 @@
 
     private void Signin()
     {
-        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+        Navigation.NavigateToSigninWithReturnUrl();
     }
 }
