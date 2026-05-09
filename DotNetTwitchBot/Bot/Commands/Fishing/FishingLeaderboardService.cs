@@ -47,6 +47,41 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return leaderboard;
         }
 
+        public async Task<List<SnapLossLeaderboardPosition>> GetSnapLossLeaderboard(int count = 50)
+        {
+            count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var topPlayers = await context.FishingSnapEvents
+                .AsNoTracking()
+                .GroupBy(e => e.UserId)
+                .Select(g => new
+                {
+                    UserId = g.Key,
+                    g.OrderByDescending(e => e.SnappedAt).First().Username,
+                    TotalGoldLost = g.Sum(e => e.TotalGoldLost),
+                    TotalItemsLost = g.Sum(e => e.LostItemCount),
+                    SnapCount = g.Count()
+                })
+                .OrderByDescending(g => g.TotalGoldLost)
+                .ThenByDescending(g => g.TotalItemsLost)
+                .Take(count)
+                .ToListAsync();
+
+            var leaderboard = topPlayers.Select((player, index) => new SnapLossLeaderboardPosition
+            {
+                Rank = index + 1,
+                Name = player.Username,
+                TotalGoldLost = player.TotalGoldLost,
+                TotalItemsLost = player.TotalItemsLost,
+                SnapCount = player.SnapCount
+            }).ToList();
+
+            return leaderboard;
+        }
+
         public async Task<List<FishCatch>> GetMostValuableCatchesLeaderboard(int count = 50)
         {
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000

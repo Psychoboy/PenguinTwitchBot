@@ -351,6 +351,83 @@
                         }
                     </MudTabPanel>
 
+                    <MudTabPanel Text="Wall of Shame" Icon="@Icons.Material.Filled.WarningAmber">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mb-3">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Error"
+                                       StartIcon="@Icons.Material.Filled.Refresh"
+                                       OnClick="RefreshSnapLossLeaderboard"
+                                       Disabled="@isLoadingSnapLossLeaderboard"
+                                       Size="Size.Small">
+                                @if (isLoadingSnapLossLeaderboard)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <text>Loading...</text>
+                                }
+                                else
+                                {
+                                    <text>Refresh</text>
+                                }
+                            </MudButton>
+                        </MudStack>
+                        @if (isLoadingSnapLossLeaderboard)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
+                                <MudProgressCircular Color="Color.Error" Size="Size.Large" Indeterminate="true" />
+                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading wall of shame...</MudText>
+                            </MudStack>
+                        }
+                        else if (snapLossLeaderboard.Any())
+                        {
+                            <MudTable Items="@snapLossLeaderboard" Hover="true" Striped="true" Dense="true" Elevation="4">
+                                <ToolBarContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Error" Class="mr-2" />
+                                    <MudText Typo="Typo.h6">Top 50 - Most Gold Lost to Snaps</MudText>
+                                </ToolBarContent>
+                                <HeaderContent>
+                                    <MudTh>Rank</MudTh>
+                                    <MudTh>Player</MudTh>
+                                    <MudTh>Total Gold Lost</MudTh>
+                                    <MudTh>Items Lost</MudTh>
+                                    <MudTh>Snaps</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="position">
+                                    <MudTd DataLabel="Rank">
+                                        @RenderRankBadge(position.Rank)
+                                    </MudTd>
+                                    <MudTd DataLabel="Player">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                            <MudText><strong>@position.Name</strong></MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Total Gold Lost">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.MoneyOff" Size="Size.Small" Color="Color.Error" />
+                                            <MudText>@position.TotalGoldLost.ToString("n0")</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Items Lost">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Small" Color="Color.Error" />
+                                            <MudText>@position.TotalItemsLost.ToString("n0")</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Snaps">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Small" Color="Color.Warning" />
+                                            <MudText>@position.SnapCount.ToString("n0")</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">No snap losses recorded yet.</MudAlert>
+                        }
+                    </MudTabPanel>
+
                    
 
                     <MudTabPanel Text="Recent Catches" Icon="@Icons.Material.Filled.History">
@@ -690,6 +767,7 @@
 
     // New leaderboards
     private List<LeaderPosition> goldLeaderboard = new();
+    private List<SnapLossLeaderboardPosition> snapLossLeaderboard = new();
     private List<FishCatch> valuableCatchesLeaderboard = new();
     private List<FishCatch> recentCatches = new();
     private bool showPersonalCatches = false;
@@ -705,6 +783,7 @@
     // Loading states
     private bool isLoadingFishLeaderboard = false;
     private bool isLoadingGoldLeaderboard = false;
+    private bool isLoadingSnapLossLeaderboard = false;
     private bool isLoadingValuableCatches = false;
     private bool isLoadingDex = false;
     private bool isLoadingRecentCatches = false;
@@ -736,6 +815,7 @@
 
             // Load new leaderboards
             await LoadGoldLeaderboard();
+            await LoadSnapLossLeaderboard();
             await LoadValuableCatchesLeaderboard();
             await LoadRecentCatches();
 
@@ -835,6 +915,11 @@
         await RefreshAllData();
     }
 
+    private async Task RefreshSnapLossLeaderboard()
+    {
+        await RefreshAllData();
+    }
+
     private async Task RefreshValuableCatchesLeaderboard()
     {
         await RefreshAllData();
@@ -845,6 +930,7 @@
         // Set all loading states
         isLoadingFishLeaderboard = true;
         isLoadingGoldLeaderboard = true;
+        isLoadingSnapLossLeaderboard = true;
         isLoadingValuableCatches = true;
         isLoadingRecentCatches = true;
         if (!string.IsNullOrEmpty(currentUserId))
@@ -863,6 +949,7 @@
             {
                 LoadLeaderboard(),
                 LoadGoldLeaderboard(),
+                LoadSnapLossLeaderboard(),
                 LoadValuableCatchesLeaderboard(),
                 LoadRecentCatches()
             };
@@ -879,6 +966,7 @@
             // Reset all loading states on error
             isLoadingFishLeaderboard = false;
             isLoadingGoldLeaderboard = false;
+            isLoadingSnapLossLeaderboard = false;
             isLoadingValuableCatches = false;
             isLoadingDex = false;
             isLoadingRecentCatches = false;
@@ -985,6 +1073,19 @@
         }
     }
 
+    private async Task LoadSnapLossLeaderboard()
+    {
+        isLoadingSnapLossLeaderboard = true;
+        try
+        {
+            snapLossLeaderboard = await leaderboardService.GetSnapLossLeaderboard(50);
+        }
+        finally
+        {
+            isLoadingSnapLossLeaderboard = false;
+        }
+    }
+
     private async Task LoadRecentCatches()
     {
         isLoadingRecentCatches = true;
@@ -1074,7 +1175,7 @@
 
     private List<string> GetAvailableTabKeys()
     {
-        var tabs = new List<string> { "valuable", "fish", "gold", "recent" };
+        var tabs = new List<string> { "valuable", "fish", "gold", "shame", "recent" };
         if (isUserAuthenticated)
         {
             tabs.Add("dex");
