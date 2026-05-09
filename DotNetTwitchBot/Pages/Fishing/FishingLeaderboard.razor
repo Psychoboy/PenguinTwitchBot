@@ -1281,7 +1281,7 @@
 
     private void Signin()
     {
-        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+        Navigation.NavigateToSigninWithReturnUrl();
     }
 
     private enum DexSortField
