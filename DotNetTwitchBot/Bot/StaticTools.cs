@@ -27,7 +27,8 @@ namespace DotNetTwitchBot.Bot
             Span<byte> bytes = stackalloc byte[8];
             RandomNumberGenerator.Fill(bytes);
             ulong value = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(bytes);
-            return value / (double)ulong.MaxValue;
+            ulong mantissa = value >> 11;
+            return mantissa / 9007199254740992d;
         }
 
         public static void Shuffle<T>(this IList<T> list)
