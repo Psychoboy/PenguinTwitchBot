@@ -22,6 +22,14 @@ namespace DotNetTwitchBot.Bot
             return RandomNumberGenerator.GetInt32(min, max + 1);
         }
 
+        public static double NextDouble()
+        {
+            Span<byte> bytes = stackalloc byte[8];
+            RandomNumberGenerator.Fill(bytes);
+            ulong value = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(bytes);
+            return value / (double)ulong.MaxValue;
+        }
+
         public static void Shuffle<T>(this IList<T> list)
         {
             int n = list.Count;
