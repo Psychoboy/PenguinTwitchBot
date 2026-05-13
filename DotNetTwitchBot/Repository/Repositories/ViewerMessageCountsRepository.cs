@@ -33,7 +33,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             var result = _context.ViewerMessageCounts
                 .Where(x => x.banned == false)
-                .OrderByDescending(x => x.MessageCount)
                 .ToLinqToDB()
                 .Select((x, i) => new ViewerMessageCountWithRank
                 {

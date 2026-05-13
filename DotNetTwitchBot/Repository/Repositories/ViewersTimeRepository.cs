@@ -33,7 +33,6 @@ namespace DotNetTwitchBot.Repository.Repositories
         {
             var result = _context.ViewersTime
                 .Where(x => x.banned == false)
-                .OrderByDescending(x => x.Time)
                 .ToLinqToDB()
                 .Select((x, i) => new ViewerTimeWithRank
                 {

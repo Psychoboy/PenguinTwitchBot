@@ -2065,28 +2065,6 @@ namespace DotNetTwitchBot.Migrations
                     b.ToTable("ViewerMessageCounts");
                 });
 
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCountWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<long>("MessageCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewerMessageCountWithRanks", (string)null);
-                });
-
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTime", b =>
                 {
                     b.Property<int>("Id")
@@ -2119,28 +2097,6 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("Username");
 
                     b.ToTable("ViewersTime");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTimeWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<long>("Time")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewersTimeWithRank", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.Wheel", b =>

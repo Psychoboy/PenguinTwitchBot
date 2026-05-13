@@ -26,7 +26,9 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, int pointType)
         {
-            var allPoints = _context.UserPoints.ToLinqToDB();
+            var allPoints = _context.UserPoints
+                .Where(x => x.PointTypeId == pointType && x.Banned == false)
+                .ToLinqToDB();
             return _context.UserPoints
                 .Include(x => x.PointType)
                 .Where(x => x.UserId == userId && x.PointTypeId == pointType && x.Banned == false)
@@ -40,7 +42,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Username = x.Username,
                     Points = x.Points,
                     Banned = x.Banned,
-                    Ranking = allPoints.Count(u => u.PointTypeId == pointType && u.Banned == false && u.Points > x.Points) + 1
+                    Ranking = allPoints.Count(u => u.Points > x.Points) + 1
                 })
                 .FirstOrDefaultAsyncLinqToDB();
         }
@@ -52,7 +54,6 @@ namespace DotNetTwitchBot.Repository.Repositories
             var result = _context.UserPoints
             .Include(x => x.PointType)
                 .Where(x => x.PointTypeId == pointType && x.Banned == false)
-                .OrderByDescending(x => x.Points)
                 .ToLinqToDB()
                 .Select((x, i) => new UserPointsWithRank
                 {
