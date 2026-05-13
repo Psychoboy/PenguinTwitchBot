@@ -18,9 +18,7 @@
         ITimerGroupsRepository TimerGroups { get; }
         IDeathCountersRepository DeathCounters { get; }
         IViewerMessageCountsRepository ViewerMessageCounts { get; }
-        IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; }
         IViewersTimeRepository ViewersTime { get; }
-        IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
         IActionCommandsRepository ActionCommands { get; }
         IActionKeywordsRepository ActionKeywords { get; }

@@ -448,11 +448,16 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 "LoyaltyMessage",
                 "{NameWithTitle} Watch Time: [{WatchTime}] - {PointsName}: [#{PointsRank}, {Points} - Messages: [#{MessagesRank}, {Messages}]");
             var loyaltyPointType = await GetPointTypeForGame("loyalty");
-            var points = await GetPointsWithRankByUserId(e.UserId, loyaltyPointType.GetId());
-            var time = await GetUserTimeAndRank(e.Name);
-            var messages = await GetUserMessagesAndRank(e.Name);
+            var pointsTask = GetPointsWithRankByUserId(e.UserId, loyaltyPointType.GetId());
+            var timeTask = GetUserTimeAndRank(e.Name);
+            var messagesTask = GetUserMessagesAndRank(e.Name);
+            var titleTask = viewerFeature.GetNameWithTitle(e.Name);
+            await Task.WhenAll(pointsTask, timeTask, messagesTask, titleTask);
+            var points = pointsTask.Result;
+            var time = timeTask.Result;
+            var messages = messagesTask.Result;
             loyaltyMessage = loyaltyMessage
-                .Replace("{NameWithTitle}", await viewerFeature.GetNameWithTitle(e.Name), StringComparison.OrdinalIgnoreCase)
+                .Replace("{NameWithTitle}", titleTask.Result, StringComparison.OrdinalIgnoreCase)
                 .Replace("{WatchTime}", StaticTools.ConvertToCompoundDuration(time.Time), StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsName}", loyaltyPointType.Name, StringComparison.OrdinalIgnoreCase)
                 .Replace("{PointsRank}", points.Ranking.ToString(), StringComparison.OrdinalIgnoreCase)
@@ -468,7 +473,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                viewerTime = await db.ViewersTime.GetUserTimeWithRankByUsername(name);
             }
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
         }
@@ -479,7 +484,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerMessage = await db.ViewerMessageCountsWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                viewerMessage = await db.ViewerMessageCounts.GetUserMessageCountWithRankByUsername(name);
             }
 
             return viewerMessage ?? new ViewerMessageCountWithRank { Ranking = int.MaxValue };
@@ -685,8 +690,9 @@ namespace DotNetTwitchBot.Bot.Core.Points
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var userPoints = await db.UserPoints.UserPointsByUserIdWithRank(userId, pointType);
+            if (userPoints != null) return userPoints;
             var userPointType = await db.PointTypes.GetByIdAsync(pointType);
-            return userPoints ?? new UserPointsWithRank
+            return new UserPointsWithRank
             {
                 UserId = userId,
                 Points = 0,

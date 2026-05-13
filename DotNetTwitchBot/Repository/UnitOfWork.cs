@@ -22,9 +22,7 @@ namespace DotNetTwitchBot.Repository
             TimerGroups = new TimerGroupsRepository(_context);
             DeathCounters = new DeathCountersRepository(_context);
             ViewerMessageCounts = new ViewerMessageCountsRepository(_context);
-            ViewerMessageCountsWithRank = new ViewerMessageCountsWithRankRepository(_context);
             ViewersTime = new ViewersTimeRepository(_context);
-            ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
             ActionCommands = new ActionCommandsRepository(_context);
             ActionKeywords = new ActionKeywordsRepository(_context);
             Keywords = new KeywordsRepository(_context);
@@ -87,9 +85,7 @@ namespace DotNetTwitchBot.Repository
         public ITimerGroupsRepository TimerGroups { get; private set; }
         public IDeathCountersRepository DeathCounters { get; private set; }
         public IViewerMessageCountsRepository ViewerMessageCounts { get; private set; }
-        public IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; private set; }
         public IViewersTimeRepository ViewersTime { get; private set; }
-        public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
         public IViewerChatHistoriesRepository ViewerChatHistories { get; private set; }
         public IActionCommandsRepository ActionCommands { get; private set; }
         public IActionKeywordsRepository ActionKeywords { get; private set; }
