@@ -13,9 +13,11 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<ViewerMessageCountWithRank?> GetUserMessageCountWithRankByUsername(string username)
         {
-            var allMessageCounts = _context.ViewerMessageCounts.ToLinqToDB();
+            var allMessageCounts = _context.ViewerMessageCounts
+                .Where(x => x.banned == false)
+                .ToLinqToDB();
             return _context.ViewerMessageCounts
-                .Where(x => x.Username == username)
+                .Where(x => x.Username == username && x.banned == false)
                 .ToLinqToDB()
                 .Select(x => new ViewerMessageCountWithRank
                 {
@@ -30,6 +32,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         public IQueryable<ViewerMessageCountWithRank> GetRankedMessageCounts(Expression<Func<ViewerMessageCountWithRank, bool>>? filter = null, int? limit = null, int? offset = null)
         {
             var result = _context.ViewerMessageCounts
+                .Where(x => x.banned == false)
                 .OrderByDescending(x => x.MessageCount)
                 .ToLinqToDB()
                 .Select((x, i) => new ViewerMessageCountWithRank
