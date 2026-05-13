@@ -3,6 +3,7 @@ using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Repository;
+using LinqToDB.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Commands.Misc
 {
@@ -85,7 +86,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var broadcasterName = ServiceBackbone.BroadcasterName;
             var botName = ServiceBackbone.BotName ?? "";
-            var top = await db.ViewersTimeWithRank.GetAsync(filter: x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), orderBy: y => y.OrderBy(z => z.Ranking), limit: topN);
+            var top = await db.ViewersTime.GetRankedTime(filter: x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), limit: topN).ToListAsyncLinqToDB();
             var rank = 1;
             var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + StaticTools.ConvertToCompoundDuration(x.Time)));
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in Time: {1}", topN, names));

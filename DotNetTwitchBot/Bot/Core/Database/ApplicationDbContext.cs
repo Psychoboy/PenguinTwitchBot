@@ -70,8 +70,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
 
         //Virtual tables
-        public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;
-        public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
         public DbSet<FilteredQuoteType> FilteredQuotes { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
         public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
@@ -84,14 +82,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-
-            modelBuilder.Entity<ViewerTimeWithRank>()
-            .ToView(nameof(ViewersTimeWithRank))
-            .HasKey(t => t.Id);
-
-            modelBuilder.Entity<ViewerMessageCountWithRank>()
-            .ToView(nameof(ViewerMessageCountWithRanks))
-            .HasKey(t => t.Id);
 
             modelBuilder.Entity<FilteredQuoteType>()
             .ToView(nameof(FilteredQuotes))

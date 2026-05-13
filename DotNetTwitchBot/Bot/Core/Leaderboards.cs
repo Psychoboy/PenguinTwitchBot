@@ -1,6 +1,7 @@
 ﻿using DotNetTwitchBot.Repository;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Bot.Models.Points;
+using LinqToDB.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core
 {
@@ -64,12 +65,11 @@ namespace DotNetTwitchBot.Bot.Core
             await using var scope = _scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var validFilter = new PaginationFilter(filter.Page, filter.Count);
-            var pagedData = await unitOfWork.ViewerMessageCountsWithRank.GetAsync(
+            var pagedData = await unitOfWork.ViewerMessageCounts.GetRankedMessageCounts(
                 filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
-                orderBy: a => a.OrderBy(b => b.Ranking),
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
-                );
+                ).ToListAsyncLinqToDB();
 
             var totalRecords = 0;
             if (string.IsNullOrWhiteSpace(filter.Filter))
@@ -93,12 +93,11 @@ namespace DotNetTwitchBot.Bot.Core
             await using var scope = _scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var validFilter = new PaginationFilter(filter.Page, filter.Count);
-            var pagedData = await unitOfWork.ViewersTimeWithRank.GetAsync(
+            var pagedData = await unitOfWork.ViewersTime.GetRankedTime(
                 filter: string.IsNullOrWhiteSpace(filter.Filter) ? null : x => x.Username.Contains(filter.Filter),
-                orderBy: a => a.OrderBy(b => b.Ranking),
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
-                );
+                ).ToListAsyncLinqToDB();
             var totalRecords = 0;
             if (string.IsNullOrWhiteSpace(filter.Filter))
             {
