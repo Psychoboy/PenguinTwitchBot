@@ -682,7 +682,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     Username = ""
                 };
             }
-            return await GetPointsWithRankByUserId(name, pointType);
+            return await GetPointsWithRankByUserId(viewer.UserId, pointType);
         }
 
         public async Task<UserPointsWithRank> GetPointsWithRankByUserId(string userId, int pointType)

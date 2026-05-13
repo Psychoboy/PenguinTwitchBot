@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<ViewerMessageCountWithRank?> GetUserMessageCountWithRankByUsername(string username)
         {
-            var all = _context.ViewerMessageCounts.ToLinqToDB();
+            var allMessageCounts = _context.ViewerMessageCounts.ToLinqToDB();
             return _context.ViewerMessageCounts
                 .Where(x => x.Username == username)
                 .ToLinqToDB()
@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Id = x.Id,
                     Username = x.Username,
                     MessageCount = x.MessageCount,
-                    Ranking = all.Count(u => u.MessageCount > x.MessageCount) + 1
+                    Ranking = allMessageCounts.Count(u => u.MessageCount > x.MessageCount) + 1
                 })
                 .FirstOrDefaultAsyncLinqToDB();
         }
@@ -42,6 +42,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             var query = result.AsCte();
             if (filter != null)
                 query = query.Where(filter);
+            query = query.OrderBy(x => x.Ranking);
             if (offset.HasValue)
                 query = query.Skip(offset.Value);
             if (limit.HasValue)

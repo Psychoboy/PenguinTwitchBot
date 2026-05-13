@@ -46,8 +46,7 @@ namespace DotNetTwitchBot.Repository.Repositories
         }
 
         public IQueryable<UserPointsWithRank> GetRankedPoints(int pointType,
-            Expression<Func<UserPointsWithRank, bool>>? filter = null, 
-            Func<IQueryable<UserPointsWithRank>, IOrderedQueryable<UserPointsWithRank>>? orderBy = null, 
+            Expression<Func<UserPointsWithRank, bool>>? filter = null,
             int? limit = null, int? offset = null)
         {
             var result = _context.UserPoints
@@ -72,10 +71,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 query = query.Where(filter);
             }
 
-            if (orderBy != null)
-            {
-                query = orderBy(query);
-            }
+            query = query.OrderBy(x => x.Ranking);
 
             if (offset != null)
             {

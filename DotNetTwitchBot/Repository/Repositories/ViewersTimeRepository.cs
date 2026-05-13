@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<ViewerTimeWithRank?> GetUserTimeWithRankByUsername(string username)
         {
-            var all = _context.ViewersTime.ToLinqToDB();
+            var allViewerTimes = _context.ViewersTime.ToLinqToDB();
             return _context.ViewersTime
                 .Where(x => x.Username == username)
                 .ToLinqToDB()
@@ -22,7 +22,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Id = x.Id,
                     Username = x.Username,
                     Time = x.Time,
-                    Ranking = all.Count(u => u.Time > x.Time) + 1
+                    Ranking = allViewerTimes.Count(u => u.Time > x.Time) + 1
                 })
                 .FirstOrDefaultAsyncLinqToDB();
         }
@@ -42,6 +42,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             var query = result.AsCte();
             if (filter != null)
                 query = query.Where(filter);
+            query = query.OrderBy(x => x.Ranking);
             if (offset.HasValue)
                 query = query.Skip(offset.Value);
             if (limit.HasValue)
