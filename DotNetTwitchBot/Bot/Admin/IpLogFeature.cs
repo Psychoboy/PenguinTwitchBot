@@ -25,11 +25,11 @@ namespace DotNetTwitchBot.Bot.Admin
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var query = unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
+            var data = await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
             return new PagedDataResponse<IpLogUsersWithSameIp>
             {
-                TotalItems = await query.CountAsync(),
-                Data = await query.ToListAsync(),
+                TotalItems = data.Count,
+                Data = data,
             };
         }
     }
