@@ -27,7 +27,7 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
                 variables["followage"] = string.Format("{0} has been following since {1} ({2} days ago).",
                     follower.DisplayName,
                     follower.FollowDate.ToLongDateString(),
-                    Convert.ToInt32((DateTime.Now - follower.FollowDate).TotalDays));
+                    Convert.ToInt32((DateTime.UtcNow - follower.FollowDate).TotalDays));
                 variables["followage_date"] = follower.FollowDate.ToLongDateString();
             }
         }

@@ -1,0 +1,4 @@
+# Mark EF Core migration Designer files and snapshots as generated
+# GitHub collapses these in PR diffs and Copilot skips them during code review
+**/Migrations/*.Designer.cs linguist-generated=true
+**/Migrations/*Snapshot.cs linguist-generated=true

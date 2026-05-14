@@ -206,17 +206,15 @@ internal class Program
 
         //builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        var databaseProvider = GetDatabaseProvider(builder.Configuration);
+        var connectionString = GetConnectionString(builder.Configuration, databaseProvider);
+        var migrationsAssembly = GetMigrationsAssembly(databaseProvider);
+        Log.Information("Using database provider {Provider}", databaseProvider);
+
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: System.TimeSpan.FromSeconds(15),
-                    errorNumbersToAdd: null
-                )
-                .TranslateParameterizedCollectionsToConstants()
-                .EnablePrimitiveCollectionsSupport());
-            });
+        {
+            ConfigureDbContextOptions(options, databaseProvider, connectionString, migrationsAssembly);
+        });
 
         builder.Services.AddSignalR();
 
@@ -477,5 +475,103 @@ internal class Program
         }
 
         Log.CloseAndFlush();
+    }
+
+    private static string GetDatabaseProvider(IConfiguration configuration)
+    {
+        // Check environment variable first (for debug profile selection)
+        var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(envProvider))
+        {
+            Console.WriteLine($"📁 Using database provider from environment variable: {envProvider}");
+            return envProvider switch
+            {
+                "mariadb" or "mysql" => "mariadb",
+                "postgres" or "postgresql" => "postgres",
+                "sqlite" => "sqlite",
+                _ => "mariadb"
+            };
+        }
+
+        // Fall back to configuration file
+        var provider = configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant();
+        return provider switch
+        {
+            null or "" => "mariadb",
+            "mariadb" => "mariadb",
+            "mysql" => "mariadb",
+            "postgres" => "postgres",
+            "postgresql" => "postgres",
+            "sqlite" => "sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, postgres, sqlite.")
+        };
+    }
+
+    private static string GetMigrationsAssembly(string provider)
+    {
+        return provider switch
+        {
+            "mariadb" => "DotNetTwitchBot.Migrations.MariaDb",
+            "postgres" => "DotNetTwitchBot.Migrations.Postgres",
+            "sqlite" => "DotNetTwitchBot.Migrations.Sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'.")
+        };
+    }
+
+    private static string GetConnectionString(IConfiguration configuration, string provider)
+    {
+        var configured = provider switch
+        {
+            "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
+            "postgres" => configuration.GetConnectionString("PostgresConnection") ?? configuration.GetConnectionString("DefaultConnection"),
+            "sqlite" => configuration.GetConnectionString("SqliteConnection") ?? "Data Source=Data/dotnettwitchbot.sqlite",
+            _ => null
+        };
+
+        return string.IsNullOrWhiteSpace(configured)
+            ? throw new InvalidOperationException($"Connection string is missing for provider '{provider}'.")
+            : configured;
+    }
+
+    private static void ConfigureDbContextOptions(DbContextOptionsBuilder options, string provider, string connectionString, string migrationsAssembly)
+    {
+        switch (provider)
+        {
+            case "mariadb":
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
+                {
+                    mysqlOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorNumbersToAdd: null
+                        )
+                        .TranslateParameterizedCollectionsToConstants()
+                        .EnablePrimitiveCollectionsSupport();
+                });
+                break;
+
+            case "postgres":
+                options.UseNpgsql(connectionString, postgresOptions =>
+                {
+                    postgresOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorCodesToAdd: null
+                        );
+                });
+                break;
+
+            case "sqlite":
+                options.UseSqlite(connectionString, sqliteOptions =>
+                {
+                    sqliteOptions.MigrationsAssembly(migrationsAssembly);
+                });
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unsupported database provider '{provider}'.");
+        }
     }
 }

@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public abstract class BaseRaffle : BaseCommandService, IHostedService
     {
-        DateTime _startTime = DateTime.Now;
+        DateTime _startTime = DateTime.UtcNow;
         readonly Timer _intervalTimer;
         protected readonly ILogger _logger;
         readonly int _runTime = 90;
@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
             CurrentState = State.Running;
             WinAmount = StaticTools.Next(Convert.ToInt32(amountToWin * 0.66), amountToWin + 1);
-            _startTime = DateTime.Now;
+            _startTime = DateTime.UtcNow;
             _entered.Clear();
             _joinedSinceLastAnnounce = false;
             await ServiceBackbone.SendChatMessage(string.Format(raffleStarting, _emote, WinAmount, _command));
@@ -73,7 +73,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public async Task UpdateOrStopRaffle()
         {
-            var elapsedTime = DateTime.Now - _startTime;
+            var elapsedTime = DateTime.UtcNow - _startTime;
             if (elapsedTime.TotalSeconds > _runTime)
             {
                 _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);

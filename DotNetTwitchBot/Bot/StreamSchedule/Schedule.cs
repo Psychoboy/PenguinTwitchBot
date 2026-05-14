@@ -123,14 +123,14 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
                 logger.LogError("Last posted schedule not found.");
                 return;
             }
-            var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
+            var nextStreams = (await GetNextStreams()).FindAll(x => x.End < DateTime.UtcNow.AddDays(7));
             var lastScheduleId = ulong.Parse(lastSchedule.StringSetting);
             await discordService.UpdatePostedSchedule(lastScheduleId, nextStreams);
         }
 
         public async Task PostSchedule()
         {
-            var streams = (await GetNextStreams()).FindAll(x => x.End < DateTime.Now.AddDays(7));
+            var streams = (await GetNextStreams()).FindAll(x => x.End < DateTime.UtcNow.AddDays(7));
             var id = await discordService.PostSchedule(streams);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -142,13 +142,13 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
                     await discordService.DeletePostedScheduled(lastId);
                 }
                 lastSchedule.StringSetting = id.ToString();
-                lastSchedule.LongSetting = DateTime.Now.AddDays(7).Ticks;
+                lastSchedule.LongSetting = DateTime.UtcNow.AddDays(7).Ticks;
                 db.Settings.Update(lastSchedule);
                 await db.SaveChangesAsync();
             }
             else
             {
-                lastSchedule = new Setting { Name = "LastPostedSchedule", DataType = Setting.DataTypeEnum.String, StringSetting = id.ToString(), LongSetting = DateTime.Now.AddDays(7).Ticks };
+                lastSchedule = new Setting { Name = "LastPostedSchedule", DataType = Setting.DataTypeEnum.String, StringSetting = id.ToString(), LongSetting = DateTime.UtcNow.AddDays(7).Ticks };
                 await db.Settings.AddAsync(lastSchedule);
                 await db.SaveChangesAsync();
             }

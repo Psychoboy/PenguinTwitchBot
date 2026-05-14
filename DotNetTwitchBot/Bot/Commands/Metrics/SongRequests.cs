@@ -51,8 +51,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var songRequestMetric = await db.SongRequestHistoryWithRank.Find(x => x.SongId == song.SongId).FirstOrDefaultAsync();
-            return songRequestMetric == null ? 0 : songRequestMetric.RequestedCount;
+            return await db.SongRequestHistory.GetRequestedCountForSong(song.SongId);
         }
 
         private async Task<Models.Metrics.SongRequestHistory?> GetLastRequestForSong(Song song)
@@ -66,7 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Metrics
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.SongRequestHistoryWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
+            return await db.SongRequestHistory.GetTopRequestedSongs(topN);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

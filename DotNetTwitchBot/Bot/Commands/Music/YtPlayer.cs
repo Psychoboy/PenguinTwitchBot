@@ -45,7 +45,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
         private class TimeLeft
         {
             public TimeSpan SongTime { get; set; } = new();
-            public DateTime StartTime { get; set; } = DateTime.Now;
+            public DateTime StartTime { get; set; } = DateTime.UtcNow;
         }
 
         public YtPlayer(
@@ -226,8 +226,8 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 if (timeLeft.SongTime.Ticks > 0)
                 {
-                    timeLeft.SongTime -= DateTime.Now - timeLeft.StartTime;
-                    timeLeft.StartTime = DateTime.Now;
+                    timeLeft.SongTime -= DateTime.UtcNow - timeLeft.StartTime;
+                    timeLeft.StartTime = DateTime.UtcNow;
                     timeLeft.SongTime = timeLeft.SongTime.Ticks < 0 ? new() : timeLeft.SongTime;
                 }
             }
@@ -235,7 +235,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 if (timeLeft.SongTime.Ticks > 0)
                 {
-                    timeLeft.StartTime = DateTime.Now;
+                    timeLeft.StartTime = DateTime.UtcNow;
                 }
             }
 
@@ -247,12 +247,12 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             if (CurrentSong != null)
             {
                 timeLeft.SongTime = CurrentSong.Duration;
-                timeLeft.StartTime = DateTime.Now;
+                timeLeft.StartTime = DateTime.UtcNow;
             }
             else
             {
                 timeLeft.SongTime = new();
-                timeLeft.StartTime = DateTime.Now;
+                timeLeft.StartTime = DateTime.UtcNow;
             }
         }
 
@@ -275,7 +275,7 @@ namespace DotNetTwitchBot.Bot.Commands.Music
             {
                 return timeLeft.SongTime;
             }
-            return timeLeft.SongTime - (DateTime.Now - timeLeft.StartTime);
+            return timeLeft.SongTime - (DateTime.UtcNow - timeLeft.StartTime);
         }
 
         public async Task SongError(object errorCode)

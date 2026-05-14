@@ -59,7 +59,7 @@ namespace DotNetTwitchBot.Bot.Commands.PastyGames
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    viewers = await db.Viewers.Find(x => x.LastSeen < DateTime.Now.AddDays(-1)).ToListAsync();
+                    viewers = await db.Viewers.Find(x => x.LastSeen < DateTime.UtcNow.AddDays(-1)).ToListAsync();
                 }
                 if (viewers == null)
                 {
