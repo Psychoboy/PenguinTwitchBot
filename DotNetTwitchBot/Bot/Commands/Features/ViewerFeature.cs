@@ -95,8 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.Viewers.Find(x =>
-                x.Username.Contains(normalizedName) ||
-                x.DisplayName.ToLower().Contains(normalizedName)).ToListAsync();
+                x.Username.Contains(normalizedName)).ToListAsync();
         }
 
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
