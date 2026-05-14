@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure DateTime properties for database provider compatibility
-            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : null;
+            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : Database.IsMySql() ? "mariadb" : null;
             modelBuilder.ConfigureDateTimes(provider);
 
             modelBuilder.Entity<SongRequestViewItem>()
@@ -142,6 +142,13 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
             modelBuilder.Entity<Models.Games.GameSetting>()
                 .Property(g => g.SettingName)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<QuoteType>()
+                .Property(q => q.CreatedBy)
                 .HasMaxLength(255)
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),

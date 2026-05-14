@@ -74,10 +74,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var bannedUsernames = db.BannedViewers
                 .Find(_ => true)
-                .Select(x => x.Username.ToLower());
+                .Select(x =>  x.Username);
             return db.Quotes
                 .Find(_ => true)
-                .Where(x => !bannedUsernames.Contains(x.CreatedBy.ToLower()));
+                .Where(x => !bannedUsernames.Contains(x.CreatedBy));
         }
 
         private async Task DeleteQuote(CommandEventArgs e)
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             QuoteType quote = new()
             {
                 CreatedOn = DateTime.UtcNow,
-                CreatedBy = e.DisplayName,
+                CreatedBy = UsernameNormalizer.Normalize(e.DisplayName),
                 Game = await twitchService.GetCurrentGame(),
                 Quote = e.Arg
             };

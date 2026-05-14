@@ -566,15 +566,48 @@ internal class Program
                 break;
 
             case "sqlite":
-                options.UseSqlite(connectionString, sqliteOptions =>
+                // Append shared-cache, foreign keys, and pooling defaults if not already specified
+                var sqliteConnStr = connectionString!.Contains("Cache=", StringComparison.OrdinalIgnoreCase)
+                    ? connectionString
+                    : connectionString + ";Cache=Shared;Foreign Keys=True";
+                options.UseSqlite(sqliteConnStr, sqliteOptions =>
                 {
                     sqliteOptions.MigrationsAssembly(migrationsAssembly)
                         .CommandTimeout(30);
                 });
+                options.AddInterceptors(new SqliteWalInterceptor());
                 break;
 
             default:
                 throw new InvalidOperationException($"Unsupported database provider '{provider}'.");
         }
+    }
+}
+
+/// <summary>
+/// Applies WAL journal mode and busy timeout PRAGMAs to every SQLite connection opened by EF Core.
+/// Required for multi-threaded ASP.NET Core workloads to avoid "database is locked" errors.
+/// </summary>
+file sealed class SqliteWalInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.DbConnectionInterceptor
+{
+    private const string Pragmas = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+
+    public override void ConnectionOpened(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        cmd.ExecuteNonQuery();
+    }
+
+    public override async Task ConnectionOpenedAsync(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

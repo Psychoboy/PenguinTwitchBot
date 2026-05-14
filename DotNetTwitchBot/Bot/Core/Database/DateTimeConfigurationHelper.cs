@@ -17,6 +17,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
 		{
 			// Apply datetime configuration for all providers that don't store timezone info natively.
 			// MariaDB stores datetime without Kind; Postgres/SQLite also need Kind tagging on reads.
+			// Note: "mariadb" is passed from ApplicationDbContext when Database.IsMySql() is true.
 			if (provider != "postgres" && provider != "sqlite" && provider != "mariadb")
 				return;
 
