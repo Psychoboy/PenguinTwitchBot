@@ -18,7 +18,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public async Task Backup()
         {
-            var provider = _configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant() ?? "mariadb";
+            var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
+            var provider = !string.IsNullOrEmpty(envProvider)
+                ? envProvider
+                : _configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant() ?? "mariadb";
             var isMariaDb = provider is "mariadb" or "mysql";
 
             if (isMariaDb)
@@ -35,6 +38,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
                     }
                     cmd.Connection = conn;
                     await conn.OpenAsync();
+                    // Intentionally local time for operator-friendly backup file names.
                     mb.ExportToFile(string.Format("Data/backup/dbBackup-{0}.sql", DateTime.Now.ToString("yyyy-MM-dd--HH-mm-ss")));
                     await conn.CloseAsync();
                 }
@@ -44,6 +48,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
                 foreach (var file in files)
                 {
                     FileInfo fi = new(file);
+                    // Intentionally local time because file system CreationTime is local-clock based.
                     if (fi.CreationTime < DateTime.Now.AddDays(-30))
                     {
                         _logger.LogInformation("Deleting RAW backup: {0}", fi.Name);

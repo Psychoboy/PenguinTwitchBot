@@ -5,9 +5,7 @@
         IAudioCommandsRepository AudioCommands { get; }
         IDefaultCommandRepository DefaultCommands { get; }
         ISongRequestMetricsRepository SongRequestMetrics { get; }
-        ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; }
         ISongRequestHistoryRepository SongRequestHistory { get; }
-        ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; }
         IRaidHistoryRepository RaidHistory { get; }
         IViewersRepository Viewers { get; }
         IAliasRepository Aliases { get; }
@@ -34,7 +32,6 @@
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }
-        IFilteredQuotesRepository FilteredQuotes { get; }
         IRegisteredVoiceRepository RegisteredVoices { get; }
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }

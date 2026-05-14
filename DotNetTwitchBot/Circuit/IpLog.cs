@@ -10,9 +10,10 @@ namespace DotNetTwitchBot.Circuit
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
+            var normalizedUsername = Bot.Core.UsernameNormalizer.Normalize(username);
             await Task.WhenAll(
-                AddOrUpdateIpEntry(username, userId, ipAddress),
-                CheckForIPv6AndUpdateEntries(username, userId, ipAddress)
+                AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
+                CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)
             );
         }
 

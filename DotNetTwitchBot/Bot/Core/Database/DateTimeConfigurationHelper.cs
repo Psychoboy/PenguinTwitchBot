@@ -15,8 +15,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 		/// </summary>
 		public static void ConfigureDateTimes(this ModelBuilder modelBuilder, string? provider)
 		{
-			// Only apply custom configuration for PostgreSQL
-			if (provider != "postgres")
+			// Apply datetime configuration for all providers that don't store timezone info natively.
+			// MariaDB stores datetime without Kind; Postgres/SQLite also need Kind tagging on reads.
+			// Note: "mariadb" is passed from ApplicationDbContext when Database.IsMySql() is true.
+			if (provider != "postgres" && provider != "sqlite" && provider != "mariadb")
 				return;
 
 			foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -26,8 +28,11 @@ namespace DotNetTwitchBot.Bot.Core.Database
 					// Only configure properties of type DateTime or DateTime?
 					if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
 					{
-						// For PostgreSQL, use timestamp with time zone and convert to UTC
-						property.SetColumnType("timestamp with time zone");
+						// For PostgreSQL, use timestamp with time zone and convert to UTC.
+						if (provider == "postgres")
+						{
+							property.SetColumnType("timestamp with time zone");
+						}
 
 						// Add a value converter to handle Local -> UTC conversion
 						var clrType = property.ClrType;
@@ -40,7 +45,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
 										: (v.Kind == DateTimeKind.Unspecified
 											? DateTime.SpecifyKind(v, DateTimeKind.Utc)
 											: v),
-									v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+									v => v.Kind == DateTimeKind.Unspecified
+										? DateTime.SpecifyKind(v, DateTimeKind.Utc)
+										: v
 								));
 						}
 						else if (clrType == typeof(DateTime?))
@@ -54,7 +61,11 @@ namespace DotNetTwitchBot.Bot.Core.Database
 												? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)
 												: v.Value))
 										: null,
-									v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : null
+									v => v.HasValue
+										? (v.Value.Kind == DateTimeKind.Unspecified
+											? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)
+											: v.Value)
+										: null
 								));
 						}
 					}

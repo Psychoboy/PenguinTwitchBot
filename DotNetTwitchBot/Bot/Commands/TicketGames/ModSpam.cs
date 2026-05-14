@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             await ServiceBackbone.SendChatMessage(message);
             var minTime = await gameSettingsService.GetIntSetting(GAMENAME, MIN_TIME, 15);
             var maxTime = await gameSettingsService.GetIntSetting(GAMENAME, MAX_TIME, 20);
-            _runTime = new TimeSpan(0, 0, tools.RandomRange(minTime, minTime));
+            _runTime = new TimeSpan(0, 0, tools.RandomRange(minTime, maxTime));
             _startTime = DateTime.UtcNow;
             _intervalTimer = timeProvider.CreateTimer(TimerCallBack, this, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }

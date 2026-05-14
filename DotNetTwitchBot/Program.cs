@@ -483,13 +483,13 @@ internal class Program
         var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
         if (!string.IsNullOrEmpty(envProvider))
         {
-            Console.WriteLine($"📁 Using database provider from environment variable: {envProvider}");
+            Log.Information("Using database provider {Provider} from environment variable", envProvider);
             return envProvider switch
             {
                 "mariadb" or "mysql" => "mariadb",
                 "postgres" or "postgresql" => "postgres",
                 "sqlite" => "sqlite",
-                _ => "mariadb"
+                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
             };
         }
 
@@ -503,7 +503,7 @@ internal class Program
             "postgres" => "postgres",
             "postgresql" => "postgres",
             "sqlite" => "sqlite",
-            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, postgres, sqlite.")
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
         };
     }
 
@@ -523,8 +523,10 @@ internal class Program
         var configured = provider switch
         {
             "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
-            "postgres" => configuration.GetConnectionString("PostgresConnection") ?? configuration.GetConnectionString("DefaultConnection"),
-            "sqlite" => configuration.GetConnectionString("SqliteConnection") ?? "Data Source=Data/dotnettwitchbot.sqlite",
+            "postgres" => configuration.GetConnectionString("PostgresConnection"),
+            "sqlite" => string.IsNullOrEmpty(configuration.GetConnectionString("SqliteConnection"))
+                ? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "dotnettwitchbot.sqlite")}"
+                : configuration.GetConnectionString("SqliteConnection"),
             _ => null
         };
 
@@ -564,14 +566,48 @@ internal class Program
                 break;
 
             case "sqlite":
-                options.UseSqlite(connectionString, sqliteOptions =>
+                // Append shared-cache, foreign keys, and pooling defaults if not already specified
+                var sqliteConnStr = connectionString!.Contains("Cache=", StringComparison.OrdinalIgnoreCase)
+                    ? connectionString
+                    : connectionString + ";Cache=Shared;Foreign Keys=True";
+                options.UseSqlite(sqliteConnStr, sqliteOptions =>
                 {
-                    sqliteOptions.MigrationsAssembly(migrationsAssembly);
+                    sqliteOptions.MigrationsAssembly(migrationsAssembly)
+                        .CommandTimeout(30);
                 });
+                options.AddInterceptors(new SqliteWalInterceptor());
                 break;
 
             default:
                 throw new InvalidOperationException($"Unsupported database provider '{provider}'.");
         }
+    }
+}
+
+/// <summary>
+/// Applies WAL journal mode and busy timeout PRAGMAs to every SQLite connection opened by EF Core.
+/// Required for multi-threaded ASP.NET Core workloads to avoid "database is locked" errors.
+/// </summary>
+file sealed class SqliteWalInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.DbConnectionInterceptor
+{
+    private const string Pragmas = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+
+    public override void ConnectionOpened(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        cmd.ExecuteNonQuery();
+    }
+
+    public override async Task ConnectionOpenedAsync(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

@@ -94,7 +94,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var normalizedName = UsernameNormalizer.Normalize(name);
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Viewers.Find(x => x.Username.Contains(normalizedName) || x.DisplayName.Contains(name)).ToListAsync();
+            return await db.Viewers.Find(x =>
+                x.Username.Contains(normalizedName)).ToListAsync();
         }
 
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)

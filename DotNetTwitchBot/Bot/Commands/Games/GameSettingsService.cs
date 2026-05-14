@@ -12,14 +12,19 @@ namespace DotNetTwitchBot.Bot.Commands.Games
         IMemoryCache cache
         ) : IGameSettingsService
     {
+        private static string NormalizeKey(string value)
+        {
+            return Core.UsernameNormalizer.Normalize(value);
+        }
+
         private static string NormalizeGameName(string gameName)
         {
-            return Core.UsernameNormalizer.Normalize(gameName);
+            return NormalizeKey(gameName);
         }
 
         private static string NormalizeSettingName(string settingName)
         {
-            return Core.UsernameNormalizer.Normalize(settingName);
+            return NormalizeKey(settingName);
         }
 
         private static string BuildSettingCacheKey(string gameName, string settingName)
@@ -245,8 +250,9 @@ namespace DotNetTwitchBot.Bot.Commands.Games
 
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(normalizedGameName) && x.SettingName.Equals(normalizedSettingName))).FirstOrDefault();
-            cache.Remove(cacheKey);
+            setting = (await dbContext.GameSettings.GetAsync(x =>
+                x.GameName == normalizedGameName &&
+                x.SettingName == normalizedSettingName)).FirstOrDefault();
             cache.Set(cacheKey, setting);
             return setting;
         }
@@ -261,7 +267,6 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
             var cacheKey = BuildSettingCacheKey(setting.GameName, setting.SettingName);
-            cache.Remove(cacheKey);
             cache.Set(cacheKey, await GetSetting(setting.GameName, setting.SettingName));
         }
 
@@ -284,7 +289,9 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             }
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(PointTypeId))).FirstOrDefault();
+            var setting = (await dbContext.GameSettings.GetAsync(x =>
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if(setting != null)
             {
                 pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
@@ -332,7 +339,9 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             gameName = NormalizeGameName(gameName);
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(PointTypeId))).FirstOrDefault();
+            var setting = (await dbContext.GameSettings.GetAsync(x =>
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting == null)
             {
                 await SetPointTypeForGame(gameName, 1);
@@ -344,7 +353,9 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             gameName = NormalizeGameName(gameName);
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var setting = (await dbContext.GameSettings.GetAsync(x => x.GameName.Equals(gameName) && x.SettingName.Equals(PointTypeId))).FirstOrDefault();
+            var setting = (await dbContext.GameSettings.GetAsync(x =>
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting != null)
             {
                 setting.SettingIntValue = pointTypeId;
@@ -361,7 +372,6 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
             var pointTypeCacheKey = BuildPointTypeCacheKey(gameName);
-            cache.Remove(pointTypeCacheKey);
             cache.Set(pointTypeCacheKey, await GetPointTypeForGame(gameName));
         }
     }

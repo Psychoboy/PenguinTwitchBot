@@ -35,16 +35,13 @@ namespace DotNetTwitchBot.Repository
             SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
             Songs = new SongsRepository(_context);
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
-            SongRequestMetricsWithRank = new SongRequestMetricsWithRankRepository(_context);
             ExternalCommands = new ExternalCommandsRepository(_context);
             BannedViewers = new BannedViewersRepository(_context);
-            FilteredQuotes = new FilteredQuotesRepository(_context);
             ViewerChatHistories = new ViewerChatHistoriesRepository(_context);
             RegisteredVoices = new RegisteredVoiceRepository(_context);
             UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
             DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
             SongRequestHistory = new SongRequestHistoryRepository(_context);
-            SongRequestHistoryWithRank = new SongRequestHistoryWithRankRepository(_context);
             IpLogs = new IpLogRepository(_context);
             Wheels = new WheelRepository(_context);
             WheelProperties = new WheelPropertiesRepository(_context);
@@ -73,8 +70,6 @@ namespace DotNetTwitchBot.Repository
         public IDefaultCommandRepository DefaultCommands { get; private set; }
         public ISongRequestMetricsRepository SongRequestMetrics { get; private set; }
         public ISongRequestHistoryRepository SongRequestHistory { get; private set; }
-        public ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; private set; }
-        public ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public IViewersRepository Viewers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
@@ -101,7 +96,6 @@ namespace DotNetTwitchBot.Repository
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
-        public IFilteredQuotesRepository FilteredQuotes { get; private set; }
         public IRegisteredVoiceRepository RegisteredVoices { get; private set; }
         public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
         public IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; private set; }

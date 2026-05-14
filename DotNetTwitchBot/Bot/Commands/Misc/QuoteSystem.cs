@@ -59,26 +59,25 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await QueryVisibleQuotes(db)
-                .Select(q => ToFilteredQuoteType(q))
+                .Select(q => new FilteredQuoteType
+                {
+                    Id = q.Id,
+                    CreatedOn = q.CreatedOn,
+                    CreatedBy = q.CreatedBy,
+                    Game = q.Game,
+                    Quote = q.Quote,
+                })
                 .ToListAsync();
         }
 
         private IQueryable<QuoteType> QueryVisibleQuotes(IUnitOfWork db)
         {
-            var bannedUsernames = db.BannedViewers.Find(_ => true).Select(x => x.Username);
-            return db.Quotes.Find(_ => true).Where(x => !bannedUsernames.Contains(x.CreatedBy));
-        }
-
-        private static FilteredQuoteType ToFilteredQuoteType(QuoteType quote)
-        {
-            return new FilteredQuoteType
-            {
-                Id = quote.Id,
-                CreatedOn = quote.CreatedOn,
-                CreatedBy = quote.CreatedBy,
-                Game = quote.Game,
-                Quote = quote.Quote,
-            };
+            var bannedUsernames = db.BannedViewers
+                .Find(_ => true)
+                .Select(x =>  x.Username);
+            return db.Quotes
+                .Find(_ => true)
+                .Where(x => !bannedUsernames.Contains(x.CreatedBy));
         }
 
         private async Task DeleteQuote(CommandEventArgs e)
@@ -121,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             QuoteType quote = new()
             {
                 CreatedOn = DateTime.UtcNow,
-                CreatedBy = e.DisplayName,
+                CreatedBy = UsernameNormalizer.Normalize(e.DisplayName),
                 Game = await twitchService.GetCurrentGame(),
                 Quote = e.Arg
             };
@@ -150,7 +149,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     quote = await QueryVisibleQuotes(db)
                         .Where(x => x.Id == quoteId)
-                        .Select(x => ToFilteredQuoteType(x))
+                        .Select(x => new FilteredQuoteType
+                        {
+                            Id = x.Id,
+                            CreatedOn = x.CreatedOn,
+                            CreatedBy = x.CreatedBy,
+                            Game = x.Game,
+                            Quote = x.Quote,
+                        })
                         .FirstOrDefaultAsync();
                 }
                 else
@@ -166,7 +172,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 quote = (await QueryVisibleQuotes(db)
                     .Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam))
-                    .Select(x => ToFilteredQuoteType(x))
+                    .Select(x => new FilteredQuoteType
+                    {
+                        Id = x.Id,
+                        CreatedOn = x.CreatedOn,
+                        CreatedBy = x.CreatedBy,
+                        Game = x.Game,
+                        Quote = x.Quote,
+                    })
                     .ToListAsync())
                     .RandomElementOrDefault();
             }
@@ -177,7 +190,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 quote = (await QueryVisibleQuotes(db)
-                    .Select(x => ToFilteredQuoteType(x))
+                    .Select(x => new FilteredQuoteType
+                    {
+                        Id = x.Id,
+                        CreatedOn = x.CreatedOn,
+                        CreatedBy = x.CreatedBy,
+                        Game = x.Game,
+                        Quote = x.Quote,
+                    })
                     .ToListAsync())
                     .RandomElementOrDefault();
             }

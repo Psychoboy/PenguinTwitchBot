@@ -132,3 +132,22 @@ Debug profiles and environment variables override this during development.
 - Keep migrations database-agnostic; use EF Core's provider-agnostic patterns
 - Test migrations on all providers before deployment
 - Each migration project has its own `Migrations/` folder with provider-specific SQL generation
+
+## Provider-Specific Migration Differences
+
+Migration names should match across providers, but generated migration bodies can differ.
+This is expected because provider SQL types and SQL generation differ (for example,
+PostgreSQL uses timezone-aware timestamp handling while SQLite/MariaDB do not).
+
+## UTC and Legacy Data
+
+The application now writes UTC timestamps for behavior-critical data paths.
+
+- Existing historical rows written in local time are not automatically converted by startup code.
+- If you restore legacy data, normalize timestamps during restore/import before relying on UTC-based expiry, cooldown, or scheduling logic.
+- Backup file names and backup file retention checks intentionally remain local-time based because they are file-system/operator workflows, not runtime behavior data.
+
+## Username/Key Normalization and Legacy Rows
+
+New writes normalize lookup-key style values (for example usernames and game setting keys).
+If your restored data contains legacy mixed-case key rows, normalize those rows during restore/import to avoid duplicates and inconsistent matching semantics across providers.

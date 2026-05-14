@@ -23,6 +23,8 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
+            // This count must remain semantically aligned with QuerySongRequestHistoryLimitedByMonths,
+            // which groups by SongId and returns one row per distinct song.
             var totalRecords = await unitOfWork.SongRequestHistory.CountDistinctSongsLimitedByMonths(numberOfMonths);
             return new PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>
             {

@@ -7,7 +7,7 @@ namespace DotNetTwitchBot.Repository
         Task<List<SongRequestHistoryWithRank>> QuerySongRequestHistoryLimitedByMonths(int numberOfMonths = 1, int? limit = null,
            int? offset = null);
         Task<int> GetRequestedCountForSong(string songId, int numberOfMonths = 0);
-        Task<List<SongRequestHistoryWithRank>> GetTopRequestedSongs(int topN, int numberOfMonths = 0);
+        Task<List<SongRequestHistoryWithRank>> GetTopRequestedSongs(int topN, int numberOfMonths = 1);
         Task<int> CountDistinctSongsLimitedByMonths(int numberOfMonths = 1);
     }
 }
