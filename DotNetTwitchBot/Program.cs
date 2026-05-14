@@ -524,7 +524,9 @@ internal class Program
         {
             "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
             "postgres" => configuration.GetConnectionString("PostgresConnection"),
-            "sqlite" => configuration.GetConnectionString("SqliteConnection") ?? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "dotnettwitchbot.sqlite")}",
+            "sqlite" => string.IsNullOrEmpty(configuration.GetConnectionString("SqliteConnection"))
+                ? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "dotnettwitchbot.sqlite")}"
+                : configuration.GetConnectionString("SqliteConnection"),
             _ => null
         };
 

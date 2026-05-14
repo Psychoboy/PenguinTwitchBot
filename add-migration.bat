@@ -2,13 +2,13 @@
 REM Quick migration generator for all 3 database providers
 REM Usage: add-migration.bat MigrationName
 
-if "%1"=="" (
+if "%~1"=="" (
     echo Usage: add-migration.bat MigrationName
     echo Example: add-migration.bat AddUserFeature
     exit /b 1
 )
 
-set migrationName=%1
+set "migrationName=%~1"
 
 echo.
 echo Building solution first...

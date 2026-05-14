@@ -15,8 +15,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
 		/// </summary>
 		public static void ConfigureDateTimes(this ModelBuilder modelBuilder, string? provider)
 		{
-			// Only apply custom configuration for providers where DateTime kind can be ambiguous.
-			if (provider != "postgres" && provider != "sqlite")
+			// Apply datetime configuration for all providers that don't store timezone info natively.
+			// MariaDB stores datetime without Kind; Postgres/SQLite also need Kind tagging on reads.
+			if (provider != "postgres" && provider != "sqlite" && provider != "mariadb")
 				return;
 
 			foreach (var entityType in modelBuilder.Model.GetEntityTypes())

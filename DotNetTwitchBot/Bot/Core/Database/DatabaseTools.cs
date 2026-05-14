@@ -18,7 +18,10 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         public async Task Backup()
         {
-            var provider = _configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant() ?? "mariadb";
+            var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
+            var provider = !string.IsNullOrEmpty(envProvider)
+                ? envProvider
+                : _configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant() ?? "mariadb";
             var isMariaDb = provider is "mariadb" or "mysql";
 
             if (isMariaDb)
