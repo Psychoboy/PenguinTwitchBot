@@ -79,7 +79,7 @@ namespace DotNetTwitchBot.Bot.Core.Database
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure DateTime properties for database provider compatibility
-            var provider = Database.ProviderName?.Contains("Npgsql") == true ? "postgres" : null;
+            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : null;
             modelBuilder.ConfigureDateTimes(provider);
 
             modelBuilder.Entity<SongRequestViewItem>()

@@ -60,5 +60,5 @@ if errorlevel 1 (
 cd %ROOT_DIR%
 
 echo.
-echo ✓ Migrations generated successfully for all 3 providers!
+echo Migrations generated successfully for all 3 providers!
 exit /b 0

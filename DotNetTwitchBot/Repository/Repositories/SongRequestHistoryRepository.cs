@@ -64,7 +64,7 @@ namespace DotNetTwitchBot.Repository.Repositories
             return QueryLimitedByMonths(numberOfMonths).CountAsync(x => x.SongId == songId);
         }
 
-        public Task<List<SongRequestHistoryWithRank>> GetTopRequestedSongs(int topN, int numberOfMonths = 0)
+        public Task<List<SongRequestHistoryWithRank>> GetTopRequestedSongs(int topN, int numberOfMonths = 1)
         {
             return QuerySongRequestHistoryLimitedByMonths(numberOfMonths, topN, null);
         }

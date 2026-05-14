@@ -483,13 +483,13 @@ internal class Program
         var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
         if (!string.IsNullOrEmpty(envProvider))
         {
-            Console.WriteLine($"📁 Using database provider from environment variable: {envProvider}");
+            Log.Information("Using database provider {Provider} from environment variable", envProvider);
             return envProvider switch
             {
                 "mariadb" or "mysql" => "mariadb",
                 "postgres" or "postgresql" => "postgres",
                 "sqlite" => "sqlite",
-                _ => "mariadb"
+                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
             };
         }
 
@@ -503,7 +503,7 @@ internal class Program
             "postgres" => "postgres",
             "postgresql" => "postgres",
             "sqlite" => "sqlite",
-            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, postgres, sqlite.")
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
         };
     }
 
@@ -523,7 +523,7 @@ internal class Program
         var configured = provider switch
         {
             "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
-            "postgres" => configuration.GetConnectionString("PostgresConnection") ?? configuration.GetConnectionString("DefaultConnection"),
+            "postgres" => configuration.GetConnectionString("PostgresConnection"),
             "sqlite" => configuration.GetConnectionString("SqliteConnection") ?? "Data Source=Data/dotnettwitchbot.sqlite",
             _ => null
         };
@@ -566,7 +566,8 @@ internal class Program
             case "sqlite":
                 options.UseSqlite(connectionString, sqliteOptions =>
                 {
-                    sqliteOptions.MigrationsAssembly(migrationsAssembly);
+                    sqliteOptions.MigrationsAssembly(migrationsAssembly)
+                        .CommandTimeout(30);
                 });
                 break;
 

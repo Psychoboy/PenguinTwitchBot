@@ -51,5 +51,5 @@ if errorlevel 1 (
 cd %ROOT_DIR%
 
 echo.
-echo ✓ Last migration removed from all 3 providers!
+echo Last migration removed from all 3 providers!
 exit /b 0

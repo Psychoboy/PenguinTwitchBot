@@ -18,7 +18,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 .Where(x => x.banned == false)
                 .ToLinqToDB();
             return _context.ViewerMessageCounts
-                .Where(x => x.Username == normalizedUsername && x.banned == false)
+                .Where(x => x.Username.ToLower() == normalizedUsername && x.banned == false)
                 .ToLinqToDB()
                 .Select(x => new ViewerMessageCountWithRank
                 {

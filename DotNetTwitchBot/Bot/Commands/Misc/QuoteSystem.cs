@@ -65,8 +65,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
 
         private IQueryable<QuoteType> QueryVisibleQuotes(IUnitOfWork db)
         {
-            var bannedUsernames = db.BannedViewers.Find(_ => true).Select(x => x.Username);
-            return db.Quotes.Find(_ => true).Where(x => !bannedUsernames.Contains(x.CreatedBy));
+            var bannedUsernames = db.BannedViewers
+                .Find(_ => true)
+                .Select(x => x.Username.ToLower());
+            return db.Quotes
+                .Find(_ => true)
+                .Where(x => !bannedUsernames.Contains(x.CreatedBy.ToLower()));
         }
 
         private static FilteredQuoteType ToFilteredQuoteType(QuoteType quote)
