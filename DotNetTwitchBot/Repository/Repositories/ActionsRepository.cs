@@ -367,7 +367,9 @@ namespace DotNetTwitchBot.Repository.Repositories
                 }
 
                 // Delete Triggers (they have FK to Actions)
+                #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 await context.Database.ExecuteSqlRawAsync($"DELETE FROM {sqlGenerationHelper.DelimitIdentifier("Triggers")}");
+                #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
                 // Finally, delete Actions
                 await context.Set<ActionType>().ExecuteDeleteAsync();
