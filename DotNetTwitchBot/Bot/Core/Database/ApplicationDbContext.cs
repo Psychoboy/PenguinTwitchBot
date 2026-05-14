@@ -133,6 +133,20 @@ namespace DotNetTwitchBot.Bot.Core.Database
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
 
+            // Alias name is a chat command identifier — always looked up as lowercase
+            modelBuilder.Entity<AliasModel>()
+                .Property(a => a.AliasName)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            // TTS registered voice usernames — admin may enter mixed-case but lookup uses Twitch login (lowercase)
+            modelBuilder.Entity<UserRegisteredVoice>()
+                .Property(u => u.Username)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
             modelBuilder.Entity<Models.Games.GameSetting>()
                 .Property(g => g.GameName)
                 .HasMaxLength(255)
@@ -142,13 +156,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
             modelBuilder.Entity<Models.Games.GameSetting>()
                 .Property(g => g.SettingName)
-                .HasMaxLength(255)
-                .HasConversion(
-                    v => UsernameNormalizer.Normalize(v),
-                    v => UsernameNormalizer.Normalize(v));
-
-            modelBuilder.Entity<QuoteType>()
-                .Property(q => q.CreatedBy)
                 .HasMaxLength(255)
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),
@@ -185,6 +192,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<FishingSnapEvent>()
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+
         }
     }
 }

@@ -74,10 +74,10 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             var bannedUsernames = db.BannedViewers
                 .Find(_ => true)
-                .Select(x =>  x.Username);
+                .Select(x => x.Username.ToLower());
             return db.Quotes
                 .Find(_ => true)
-                .Where(x => !bannedUsernames.Contains(x.CreatedBy));
+                .Where(x => !bannedUsernames.Contains(x.CreatedBy.ToLower()));
         }
 
         private async Task DeleteQuote(CommandEventArgs e)
@@ -120,7 +120,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             QuoteType quote = new()
             {
                 CreatedOn = DateTime.UtcNow,
-                CreatedBy = UsernameNormalizer.Normalize(e.DisplayName),
+                CreatedBy = e.DisplayName,
                 Game = await twitchService.GetCurrentGame(),
                 Quote = e.Arg
             };
@@ -170,8 +170,9 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var search = searchParam.ToLower();
                 quote = (await QueryVisibleQuotes(db)
-                    .Where(x => x.CreatedBy.Contains(searchParam) || x.Game.Contains(searchParam) || x.Quote.Contains(searchParam))
+                    .Where(x => x.CreatedBy.ToLower().Contains(search) || x.Game.ToLower().Contains(search) || x.Quote.ToLower().Contains(search))
                     .Select(x => new FilteredQuoteType
                     {
                         Id = x.Id,
