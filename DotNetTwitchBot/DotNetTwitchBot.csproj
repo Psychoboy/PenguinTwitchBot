@@ -120,4 +120,23 @@
     </None>
   </ItemGroup>
 
+  <!--
+    The migrations projects can't be ProjectReferences (they reference this project — circular).
+    Build them as subprocesses after publish and copy their DLLs into the publish output.
+  -->
+  <Target Name="PublishMigrationAssemblies" AfterTargets="Publish">
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.Postgres\DotNetTwitchBot.Migrations.Postgres.csproj&quot; -c $(Configuration)" />
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.MariaDb\DotNetTwitchBot.Migrations.MariaDb.csproj&quot; -c $(Configuration)" />
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.Sqlite\DotNetTwitchBot.Migrations.Sqlite.csproj&quot; -c $(Configuration)" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.Postgres\bin\$(Configuration)\net10.0\DotNetTwitchBot.Migrations.Postgres.dll"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.MariaDb\bin\$(Configuration)\net10.0\DotNetTwitchBot.Migrations.MariaDb.dll"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\DotNetTwitchBot.Migrations.Sqlite\bin\$(Configuration)\net10.0\DotNetTwitchBot.Migrations.Sqlite.dll"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

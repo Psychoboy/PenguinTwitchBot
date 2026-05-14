@@ -42,6 +42,10 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
+        // Pre-load migration assemblies from the application directory so Assembly.Load(name)
+        // can find them in self-contained / single-file publish scenarios.
+        PreloadMigrationAssemblies();
+
         Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
         Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "DotNetTwitchBot");
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
@@ -507,6 +511,23 @@ internal class Program
         };
     }
 
+    private static void PreloadMigrationAssemblies()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        string[] migrationDlls =
+        [
+            "DotNetTwitchBot.Migrations.Postgres.dll",
+            "DotNetTwitchBot.Migrations.MariaDb.dll",
+            "DotNetTwitchBot.Migrations.Sqlite.dll",
+        ];
+        foreach (var dll in migrationDlls)
+        {
+            var path = Path.Combine(baseDir, dll);
+            if (File.Exists(path))
+                System.Reflection.Assembly.LoadFrom(path);
+        }
+    }
+
     private static string GetMigrationsAssembly(string provider)
     {
         return provider switch
@@ -537,6 +558,11 @@ internal class Program
 
     private static void ConfigureDbContextOptions(DbContextOptionsBuilder options, string provider, string connectionString, string migrationsAssembly)
     {
+        // Downgrade pending-model-changes from error to warning so the app can start
+        // while a migration is being prepared.
+        options.ConfigureWarnings(w =>
+            w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
         switch (provider)
         {
             case "mariadb":

@@ -1100,6 +1100,7 @@ namespace DotNetTwitchBot.Migrations.MariaDb.Migrations
 
                     b.Property<string>("GameName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
                     b.Property<bool>("SettingBoolValue")
@@ -1116,6 +1117,7 @@ namespace DotNetTwitchBot.Migrations.MariaDb.Migrations
 
                     b.Property<string>("SettingName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("SettingStringValue")

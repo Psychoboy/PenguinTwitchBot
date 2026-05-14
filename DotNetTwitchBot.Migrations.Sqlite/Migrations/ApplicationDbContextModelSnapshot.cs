@@ -1049,6 +1049,7 @@ namespace DotNetTwitchBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("GameName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("SettingBoolValue")
@@ -1065,6 +1066,7 @@ namespace DotNetTwitchBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("SettingName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SettingStringValue")
