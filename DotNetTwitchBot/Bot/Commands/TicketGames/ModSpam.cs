@@ -61,7 +61,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var minAmount = await gameSettingsService.GetIntSetting(GAMENAME, MIN_AMOUNT, 1);
             var maxAmount = await gameSettingsService.GetIntSetting(GAMENAME, MAX_AMOUNT, 8);
             await addActive.AddActivePoints(tools.RandomRange(minAmount, maxAmount));
-            var elapsedTime = DateTime.Now - _startTime;
+            var elapsedTime = DateTime.UtcNow - _startTime;
             if (elapsedTime > _runTime)
             {
                 _intervalTimer?.Dispose();
@@ -80,7 +80,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
             var minTime = await gameSettingsService.GetIntSetting(GAMENAME, MIN_TIME, 15);
             var maxTime = await gameSettingsService.GetIntSetting(GAMENAME, MAX_TIME, 20);
             _runTime = new TimeSpan(0, 0, tools.RandomRange(minTime, minTime));
-            _startTime = DateTime.Now;
+            _startTime = DateTime.UtcNow;
             _intervalTimer = timeProvider.CreateTimer(TimerCallBack, this, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 

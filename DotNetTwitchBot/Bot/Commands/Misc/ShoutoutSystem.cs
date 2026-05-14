@@ -13,7 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ShoutoutSystem> _logger;
         private readonly IClipService _clipService;
-        private DateTime LastShoutOut = DateTime.Now;
+        private DateTime LastShoutOut = DateTime.UtcNow;
         private readonly Dictionary<string, DateTime> UserLastShoutout = [];
 
         public ShoutoutSystem(
@@ -43,12 +43,14 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var autoShoutExists = await db.AutoShoutouts.Find(x => x.Name.Equals(autoShoutout.Name)).FirstOrDefaultAsync();
+            var normalizedName = UsernameNormalizer.Normalize(autoShoutout.Name);
+            var autoShoutExists = await db.AutoShoutouts.Find(x => x.Name.Equals(normalizedName)).FirstOrDefaultAsync();
             if (autoShoutExists != null)
             {
-                _logger.LogWarning("{name} autoshoutout already exists.", autoShoutout.Name);
+                _logger.LogWarning("{name} autoshoutout already exists.", normalizedName);
                 return;
             }
+            autoShoutout.Name = normalizedName;
             await db.AutoShoutouts.AddAsync(autoShoutout);
             await db.SaveChangesAsync();
         }
@@ -64,27 +66,28 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
             if (ServiceBackbone.IsOnline == false) return;
-            var name = e.Name;
+            var normalizedName = UsernameNormalizer.Normalize(e.Name);
             AutoShoutout? autoShoutout = null;
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var beforeTime = DateTime.Now.AddHours(-12);
-                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(name) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
+                var beforeTime = DateTime.UtcNow.AddHours(-12);
+                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(normalizedName) && x.LastShoutout < beforeTime).FirstOrDefaultAsync();
             }
             if (autoShoutout != null)
             {
-                await Shoutout(name, autoShoutout.AutoPlayClip, true, false);
+                await Shoutout(normalizedName, autoShoutout.AutoPlayClip, true, false);
             }
         }
 
         private async Task Shoutout(string name, bool playClip, bool useAi, bool sourceOnly)
         {
             AutoShoutout? autoShoutout = null;
+            var normalizedName = UsernameNormalizer.Normalize(name);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(name.ToLower())).FirstOrDefaultAsync();
+                autoShoutout = await db.AutoShoutouts.Find(x => x.Name.Equals(normalizedName)).FirstOrDefaultAsync();
             }
 
             await UpdateLastShoutout(autoShoutout);
@@ -138,18 +141,18 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
         private async Task TwitchShoutOut(string userId)
         {
 
-            if (LastShoutOut.AddMinutes(2) < DateTime.Now)
+            if (LastShoutOut.AddMinutes(2) < DateTime.UtcNow)
             {
                 if (UserLastShoutout.TryGetValue(userId, out DateTime value))
                 {
-                    if (value.AddMinutes(60) > DateTime.Now) return;
+                    if (value.AddMinutes(60) > DateTime.UtcNow) return;
                 }
                 if (ServiceBackbone.IsOnline == false) return;
                 var result = await _twitchService.ShoutoutStreamer(userId);
                 if (result == ShoutoutResponseEnum.Success)
                 {
-                    LastShoutOut = DateTime.Now;
-                    UserLastShoutout[userId] = DateTime.Now;
+                    LastShoutOut = DateTime.UtcNow;
+                    UserLastShoutout[userId] = DateTime.UtcNow;
                 }
             }
         }
@@ -159,7 +162,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             if (autoShoutout == null) return;
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            autoShoutout.LastShoutout = DateTime.Now;
+            autoShoutout.LastShoutout = DateTime.UtcNow;
             db.AutoShoutouts.Update(autoShoutout);
             await db.SaveChangesAsync();
         }

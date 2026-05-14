@@ -127,12 +127,12 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     logger.LogWarning("Subscriber name was null or white space");
                     return false;
                 }
-                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.Now.AddDays(-5))
+                if (SubCache.TryGetValue(name, out var subTime) && subTime > DateTime.UtcNow.AddDays(-5))
                 {
                     logger.LogWarning("{name} Subscriber already in sub cache", name);
                     return true;
                 }
-                SubCache[name] = DateTime.Now;
+                SubCache[name] = DateTime.UtcNow;
                 return false;
             }
             finally

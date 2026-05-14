@@ -23,7 +23,7 @@ namespace DotNetTwitchBot.Bot.Core
                 offset: (validFilter.Page) * filter.Count,
                 limit: filter.Count
                 );
-            var totalRecords = await unitOfWork.SongRequestHistoryWithRank.CountAsync();
+            var totalRecords = await unitOfWork.SongRequestHistory.CountDistinctSongsLimitedByMonths(numberOfMonths);
             return new PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>
             {
                 Data = pagedData,
