@@ -95,7 +95,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.Viewers.Find(x =>
-                x.Username.ToLower().Contains(normalizedName) ||
+                x.Username.Contains(normalizedName) ||
                 x.DisplayName.Contains(name)).ToListAsync();
         }
 

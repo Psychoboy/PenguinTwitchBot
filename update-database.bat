@@ -18,7 +18,7 @@ set ROOT_DIR=%cd%
 echo Updating MariaDB...
 cd DotNetTwitchBot.Migrations.MariaDb
 set DOTNET_TWITCHBOT_ROOT=%ROOT_DIR%
-dotnet ef database update -c ApplicationDbContext
+dotnet ef database update -c ApplicationDbContext --startup-project "%ROOT_DIR%\DotNetTwitchBot"
 if errorlevel 1 (
     echo Error updating MariaDB
     cd %ROOT_DIR%
@@ -29,7 +29,7 @@ cd %ROOT_DIR%
 echo Updating PostgreSQL...
 cd DotNetTwitchBot.Migrations.Postgres
 set DOTNET_TWITCHBOT_ROOT=%ROOT_DIR%
-dotnet ef database update -c ApplicationDbContext
+dotnet ef database update -c ApplicationDbContext --startup-project "%ROOT_DIR%\DotNetTwitchBot"
 if errorlevel 1 (
     echo Error updating PostgreSQL
     cd %ROOT_DIR%
@@ -42,7 +42,7 @@ REM Create Data directory if it doesn't exist (SQLite needs it)
 if not exist "%ROOT_DIR%\DotNetTwitchBot\Data" mkdir "%ROOT_DIR%\DotNetTwitchBot\Data"
 cd DotNetTwitchBot.Migrations.Sqlite
 set DOTNET_TWITCHBOT_ROOT=%ROOT_DIR%
-dotnet ef database update -c ApplicationDbContext
+dotnet ef database update -c ApplicationDbContext --startup-project "%ROOT_DIR%\DotNetTwitchBot"
 if errorlevel 1 (
     echo Error updating SQLite
     cd %ROOT_DIR%

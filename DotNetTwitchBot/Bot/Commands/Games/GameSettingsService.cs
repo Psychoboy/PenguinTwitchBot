@@ -251,8 +251,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             setting = (await dbContext.GameSettings.GetAsync(x =>
-                x.GameName.ToLower() == normalizedGameName &&
-                x.SettingName.ToLower() == normalizedSettingName)).FirstOrDefault();
+                x.GameName == normalizedGameName &&
+                x.SettingName == normalizedSettingName)).FirstOrDefault();
             cache.Set(cacheKey, setting);
             return setting;
         }
@@ -290,8 +290,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await dbContext.GameSettings.GetAsync(x =>
-                x.GameName.ToLower() == gameName &&
-                x.SettingName.ToLower() == PointTypeId)).FirstOrDefault();
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if(setting != null)
             {
                 pointType = await dbContext.PointTypes.GetByIdAsync(setting.SettingIntValue);
@@ -340,8 +340,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await dbContext.GameSettings.GetAsync(x =>
-                x.GameName.ToLower() == gameName &&
-                x.SettingName.ToLower() == PointTypeId)).FirstOrDefault();
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting == null)
             {
                 await SetPointTypeForGame(gameName, 1);
@@ -354,8 +354,8 @@ namespace DotNetTwitchBot.Bot.Commands.Games
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var setting = (await dbContext.GameSettings.GetAsync(x =>
-                x.GameName.ToLower() == gameName &&
-                x.SettingName.ToLower() == PointTypeId)).FirstOrDefault();
+                x.GameName == gameName &&
+                x.SettingName == PointTypeId)).FirstOrDefault();
             if (setting != null)
             {
                 setting.SettingIntValue = pointTypeId;
