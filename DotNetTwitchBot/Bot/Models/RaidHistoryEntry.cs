@@ -20,8 +20,8 @@ namespace DotNetTwitchBot.Bot.Models
         public int TotalOutgoingRaids { get; set; }
         public int TotalOutGoingRaidViewers { get; set; }
         public bool IsOnline { get; set; } = false;
-        public DateTime LastIncomingRaid { get; set; } = DateTime.Now;
-        public DateTime LastOutgoingRaid { get; set; } = DateTime.Now;
+        public DateTime LastIncomingRaid { get; set; } = DateTime.UtcNow;
+        public DateTime LastOutgoingRaid { get; set; } = DateTime.UtcNow;
         public DateTime LastCheckOnline { get; set; } = DateTime.MinValue;
         public string LastGame { get; set; } = string.Empty;
     }

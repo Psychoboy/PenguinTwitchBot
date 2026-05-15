@@ -171,7 +171,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.GiveawayExclusions.Find(x => x.ExpireDateTime == null || x.ExpireDateTime > DateTime.Now).ToListAsync();
+            return await db.GiveawayExclusions.Find(x => x.ExpireDateTime == null || x.ExpireDateTime > DateTime.UtcNow).ToListAsync();
         }
 
         public async Task<string> GetImageUrl()

@@ -182,12 +182,12 @@ namespace DotNetTwitchBot.Bot.Commands
 
         public async Task<bool> IsCoolDownExpired(string user, string command)
         {
-            if(await GetGlobalCooldown(command) > DateTime.Now)
+            if(await GetGlobalCooldown(command) > DateTime.UtcNow)
             {
                 return false;
             }
 
-            if (await GetUserCooldown(user, command) > DateTime.Now)
+            if (await GetUserCooldown(user, command) > DateTime.UtcNow)
             {
                 return false;
             }
@@ -271,12 +271,12 @@ namespace DotNetTwitchBot.Bot.Commands
             var globalCooldown = DateTime.MinValue;
             var userCooldown = DateTime.MinValue;
             var dbGlobalCooldown = await GetGlobalCooldown(command);
-            if(dbGlobalCooldown > DateTime.Now)
+            if(dbGlobalCooldown > DateTime.UtcNow)
             {
                 globalCooldown = dbGlobalCooldown;
             }
             var dbUserCooldown = await GetUserCooldown(user, command);
-            if (dbUserCooldown > DateTime.Now)
+            if (dbUserCooldown > DateTime.UtcNow)
             {
                 userCooldown = dbUserCooldown;
             }
@@ -288,12 +288,12 @@ namespace DotNetTwitchBot.Bot.Commands
 
             if (globalCooldown > userCooldown)
             {
-                var timeDiff = globalCooldown - DateTime.Now;
+                var timeDiff = globalCooldown - DateTime.UtcNow;
                 return ": " + timeDiff.ToFriendlyString();
             }
             else if (userCooldown > globalCooldown)
             {
-                var timeDiff = userCooldown - DateTime.Now;
+                var timeDiff = userCooldown - DateTime.UtcNow;
                 return "for you: " + timeDiff.ToFriendlyString();
             }
             return "";
@@ -305,12 +305,12 @@ namespace DotNetTwitchBot.Bot.Commands
             {
                 return;
             }
-            await AddCoolDown(user, command, DateTime.Now.AddSeconds(cooldown));
+            await AddCoolDown(user, command, DateTime.UtcNow.AddSeconds(cooldown));
         }
 
         public async Task AddCoolDown(string user, string command, DateTime cooldown)
         {
-            if (cooldown <= DateTime.Now)
+            if (cooldown <= DateTime.UtcNow)
             {
                 return;
             }
@@ -335,12 +335,12 @@ namespace DotNetTwitchBot.Bot.Commands
             {
                 return;
             }
-            await AddGlobalCooldown(command, DateTime.Now.AddSeconds(cooldown));
+            await AddGlobalCooldown(command, DateTime.UtcNow.AddSeconds(cooldown));
         }
 
         public async Task AddGlobalCooldown(string command, DateTime cooldown)
         {
-            if(cooldown <= DateTime.Now)
+            if(cooldown <= DateTime.UtcNow)
             {
                 return;
             }
@@ -455,7 +455,7 @@ namespace DotNetTwitchBot.Bot.Commands
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Cooldowns.Find(x => x.NextUserCooldownTime > DateTime.Now || x.NextGlobalCooldownTime > DateTime.Now).ToListAsync();
+            return await db.Cooldowns.Find(x => x.NextUserCooldownTime > DateTime.UtcNow || x.NextGlobalCooldownTime > DateTime.UtcNow).ToListAsync();
         }
     }
 }

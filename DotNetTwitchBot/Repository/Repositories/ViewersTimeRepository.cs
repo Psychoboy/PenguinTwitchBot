@@ -13,11 +13,12 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<ViewerTimeWithRank?> GetUserTimeWithRankByUsername(string username)
         {
+            var normalizedUsername = Bot.Core.UsernameNormalizer.Normalize(username);
             var allViewerTimes = _context.ViewersTime
                 .Where(x => x.banned == false)
                 .ToLinqToDB();
             return _context.ViewersTime
-                .Where(x => x.Username == username && x.banned == false)
+                .Where(x => x.Username == normalizedUsername && x.banned == false)
                 .ToLinqToDB()
                 .Select(x => new ViewerTimeWithRank
                 {
