@@ -32,15 +32,16 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
         public async Task OpenNameWheel()
         {
-            nameWheelActive = true;
-            nameEntries.Clear();
-            nameWheel = null;
             var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName("join");
             if(defaultCommand == null)
             {
                 logger.LogError("Join command not found, cannot open name wheel");
                 return;
             }
+            
+            nameWheelActive = true;
+            nameEntries.Clear();
+            nameWheel = null;
             await ServiceBackbone.SendChatMessage($"The viewer wheel is now open! Type !{defaultCommand.CustomCommandName} to enter the wheel.");
         }
 
