@@ -9,7 +9,7 @@ namespace DotNetTwitchBot.Bot.Models.Giveaway
         [JsonIgnore]
         public Int64? Id { get; set; }
         public string Username { get; set; } = "";
-        public DateTime WinningDate { get; set; } = DateTime.Now;
+        public DateTime WinningDate { get; set; } = DateTime.UtcNow;
         public string Prize { get; set; } = "";
         public string PrizeTier { get; set; } = "";
         public bool IsFollowing { get; set; }

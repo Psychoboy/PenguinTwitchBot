@@ -58,7 +58,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
 
-            if (Random.Shared.NextDouble() < rodSnapChance)
+            if (StaticTools.NextDouble() < rodSnapChance)
             {
                 await _inventoryService.ConsumeItemsOnRodSnap(userId, username);
 
@@ -98,7 +98,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 };
             }
 
-            if (Random.Shared.NextDouble() < lineSnapChance)
+            if (StaticTools.NextDouble() < lineSnapChance)
             {
                 await _inventoryService.ConsumeItemsOnLineSnap(userId, username);
 

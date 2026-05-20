@@ -167,10 +167,11 @@ namespace DotNetTwitchBot.Controllers
         public IActionResult Signin([FromQuery(Name = "r")] string? redirect)
         {
             logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
+            var safeRedirect = NormalizeLocalRedirect(redirect);
 #if DEBUG
-            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect", redirect);
+            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect", safeRedirect);
 #else
-            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect", redirect);
+            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect", safeRedirect);
 #endif
             return Redirect(url);
         }
@@ -271,11 +272,8 @@ namespace DotNetTwitchBot.Controllers
                 );
                 logger.LogInformation("{login} logged in to web interface", user.Login);
             }
-            if (string.IsNullOrEmpty(redirect))
-            {
-                return Redirect("/");
-            }
-            return Redirect(redirect);
+            var redirectTarget = NormalizeLocalRedirect(redirect);
+            return LocalRedirect(redirectTarget);
         }
 
         [HttpGet("/signout")]
@@ -291,13 +289,25 @@ namespace DotNetTwitchBot.Controllers
         private string GetAuthorizationCodeUrl(string redirectUri, string? redirect)
         {
             var stateString = Guid.NewGuid().ToString();
-            stateCache.Set(stateString, redirect, DateTimeOffset.Now.AddMinutes(60));
+            var safeRedirect = NormalizeLocalRedirect(redirect);
+            stateCache.Set(stateString, safeRedirect, DateTimeOffset.Now.AddMinutes(60));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={configuration["twitchClientId"]}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
                    $"state={stateString}&" +
                    "response_type=code&" +
                    $"scope=";
+        }
+
+        private string NormalizeLocalRedirect(string? redirect)
+        {
+            if (string.IsNullOrWhiteSpace(redirect))
+            {
+                return "/";
+            }
+
+            var candidate = redirect.Trim();
+            return Url.IsLocalUrl(candidate) ? candidate : "/";
         }
 
         private string GetBotScopeUrl(string redirectUri, string? clientId)

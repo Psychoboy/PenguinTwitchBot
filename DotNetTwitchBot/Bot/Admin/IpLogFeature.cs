@@ -1,4 +1,5 @@
-﻿using DotNetTwitchBot.Bot.Models.IpLogs;
+﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Models.IpLogs;
 using DotNetTwitchBot.Models;
 using DotNetTwitchBot.Repository;
 
@@ -10,25 +11,25 @@ namespace DotNetTwitchBot.Bot.Admin
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetKnownIpsForUser(username);
+            return await unitOfWork.IpLogs.GetKnownIpsForUser(UsernameNormalizer.Normalize(username));
         }
 
         public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetDuplicateIpsForUser(username);
+            return await unitOfWork.IpLogs.GetDuplicateIpsForUser(UsernameNormalizer.Normalize(username));
         }
 
         public async Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps()
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var query = unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
+            var data = await unitOfWork.IpLogs.GetAllUsersWithDuplicateIps();
             return new PagedDataResponse<IpLogUsersWithSameIp>
             {
-                TotalItems = await query.CountAsync(),
-                Data = await query.ToListAsync(),
+                TotalItems = data.Count,
+                Data = data,
             };
         }
     }
