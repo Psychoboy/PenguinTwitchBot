@@ -110,8 +110,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TwitchLib.Api\TwitchLib.Api\TwitchLib.Api.csproj" />
-    <ProjectReference Include="..\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets.csproj" />
+    <PackageReference Include="TwitchLib.Api" Version="3.11.0" />
+    <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.8.0" />
   </ItemGroup>
 
   <ItemGroup>
