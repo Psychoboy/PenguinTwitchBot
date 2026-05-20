@@ -24,6 +24,9 @@ jobs:
       with:
         dotnet-version: 9.0.x
         submodules: recursive
+    - name: Pack TwitchLib local packages
+      run: pack-twitchlib.bat
+      shell: cmd
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
