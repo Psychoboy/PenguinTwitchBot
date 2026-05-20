@@ -17,13 +17,55 @@
 
                 <div style="max-height: 400px; overflow-y: auto;">
                     <MudList T="string">
-                        @foreach (var type in GetFilteredSubActionTypes())
+                        @foreach (var item in GetMainListItems())
+                        {
+                            @if (item.IsObsCategory)
+                            {
+                                <MudListItem T="string" OnClick="SelectObsCategory">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Videocam" Color="Color.Warning" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1"><b>OBS</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">Configure OBS scenes, sources, audio, and more</MudText>
+                                        </MudStack>
+                                        <MudSpacer />
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                            else
+                            {
+                                <MudListItem T="string" OnClick="@(() => SelectType(item.Type))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@GetIconForType(item.Type)" Color="@GetColorForType(item.Type)" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1"><b>@GetDisplayName(item.Type)</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(item.Type)</MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                            <MudDivider />
+                        }
+                    </MudList>
+                </div>
+            }
+            else if (_currentStep == WizardStep.SelectObsType)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Videocam" Color="Color.Warning" />
+                    <MudText Typo="Typo.h6">OBS Actions</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select an OBS action type</MudText>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <MudList T="string">
+                        @foreach (var type in GetObsSubActionTypes())
                         {
                             <MudListItem T="string" OnClick="@(() => SelectType(type))">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                     <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
                                     <MudStack Spacing="0">
-                                        <MudText Typo="Typo.body1"><b>@GetDisplayName(type)</b></MudText>
+                                        <MudText Typo="Typo.body1"><b>@GetObsDisplayName(type)</b></MudText>
                                         <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
                                     </MudStack>
                                 </MudStack>
@@ -50,9 +92,9 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        @if (_currentStep == WizardStep.Configure)
+        @if (_currentStep != WizardStep.SelectType)
         {
-            <MudButton OnClick="BackToTypeSelection" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
+            <MudButton OnClick="GoBack" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
         }
         <MudButton OnClick="Cancel">Cancel</MudButton>
         @if (_currentStep == WizardStep.Configure)
@@ -78,10 +120,12 @@
     private enum WizardStep
     {
         SelectType,
+        SelectObsType,
         Configure
     }
 
     private WizardStep _currentStep = WizardStep.SelectType;
+    private WizardStep _previousStep = WizardStep.SelectType;
     private SubActionTypes _selectedType = SubActionTypes.None;
     private string _searchText = "";
     private string? _validationError;
@@ -104,6 +148,57 @@
         }
     }
 
+    private static bool IsObsType(SubActionTypes type)
+    {
+        var metadata = SubActionRegistry.GetMetadata(type);
+        return metadata?.DisplayName.StartsWith("OBS -", StringComparison.OrdinalIgnoreCase) ?? false;
+    }
+
+    private List<(SubActionTypes Type, bool IsObsCategory)> GetMainListItems()
+    {
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            // When searching, show all matching types flat (including OBS), sorted alphabetically
+            return SubActionRegistry.Metadata.Keys
+                .Where(t => t != SubActionTypes.None)
+                .Where(t =>
+                {
+                    var metadata = SubActionRegistry.GetMetadata(t);
+                    if (metadata == null) return false;
+                    return metadata.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                           metadata.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+                })
+                .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
+                .Select(t => (t, false))
+                .ToList();
+        }
+
+        // When not searching: non-OBS types + OBS category entry, sorted alphabetically
+        var nonObsTypes = SubActionRegistry.Metadata.Keys
+            .Where(t => t != SubActionTypes.None && !IsObsType(t))
+            .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
+            .ToList();
+
+        var result = new List<(SubActionTypes Type, bool IsObsCategory)>();
+        bool obsAdded = false;
+
+        foreach (var type in nonObsTypes)
+        {
+            var displayName = SubActionRegistry.GetMetadata(type)?.DisplayName ?? "";
+            if (!obsAdded && string.Compare("OBS", displayName, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                result.Add((SubActionTypes.None, true));
+                obsAdded = true;
+            }
+            result.Add((type, false));
+        }
+
+        if (!obsAdded)
+            result.Add((SubActionTypes.None, true));
+
+        return result;
+    }
+
     private List<SubActionTypes> GetFilteredSubActionTypes()
     {
         var types = SubActionRegistry.Metadata.Keys
@@ -121,13 +216,41 @@
                        metadata.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
             }).ToList();
         }
+        else
+        {
+            // When not searching, OBS types are grouped under the OBS category entry
+            types = types.Where(t => !IsObsType(t)).ToList();
+        }
 
         return types;
+    }
+
+    private List<SubActionTypes> GetObsSubActionTypes()
+    {
+        return SubActionRegistry.Metadata.Keys
+            .Where(t => t != SubActionTypes.None && IsObsType(t))
+            .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
+            .ToList();
+    }
+
+    private string GetObsDisplayName(SubActionTypes type)
+    {
+        var name = GetDisplayName(type);
+        const string prefix = "OBS - ";
+        return name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? name[prefix.Length..]
+            : name;
+    }
+
+    private void SelectObsCategory()
+    {
+        _currentStep = WizardStep.SelectObsType;
     }
 
     private void SelectType(SubActionTypes type)
     {
         _selectedType = type;
+        _previousStep = _currentStep;
         _currentStep = WizardStep.Configure;
         
         var subActionType = SubActionRegistry.GetSubActionType(type);
@@ -141,10 +264,22 @@
         }
     }
 
+    private void GoBack()
+    {
+        if (_currentStep == WizardStep.Configure)
+        {
+            _currentStep = _previousStep;
+            _validationError = null;
+        }
+        else if (_currentStep == WizardStep.SelectObsType)
+        {
+            _currentStep = WizardStep.SelectType;
+        }
+    }
+
     private void BackToTypeSelection()
     {
-        _currentStep = WizardStep.SelectType;
-        _validationError = null;
+        GoBack();
     }
 
     private RenderFragment RenderConfiguration()

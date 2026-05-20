@@ -1607,11 +1607,14 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PointTypeId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("Username");
+
+                    b.HasIndex("UserId", "PointTypeId");
+
+                    b.HasIndex("PointTypeId", "Banned", "Points")
+                        .IsDescending(false, false, true);
 
                     b.ToTable("UserPoints");
                 });
@@ -2045,38 +2048,21 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<bool>("banned")
                         .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MessageCount");
+
                     b.HasIndex("UserId");
 
+                    b.HasIndex("Username");
+
                     b.ToTable("ViewerMessageCounts");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCountWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<long>("MessageCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewerMessageCountWithRanks", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTime", b =>
@@ -2096,38 +2082,21 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<bool>("banned")
                         .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Time");
+
                     b.HasIndex("UserId");
 
+                    b.HasIndex("Username");
+
                     b.ToTable("ViewersTime");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTimeWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<long>("Time")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewersTimeWithRank", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.Wheel", b =>

@@ -19,7 +19,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
     {
         protected readonly Timer _pointsToActiveCommandTimer = new(1000);
         private long _pointsToGiveOut = 0;
-        private DateTime _lastPointsGivenOut = DateTime.Now;
+        private DateTime _lastPointsGivenOut = DateTime.UtcNow;
 
         public static readonly string GAMENAME = "AddActive";
         public static readonly string MAX_POINTS = "MaxPoints";
@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         protected virtual DateTime GetDateTime()
         {
-            return DateTime.Now;
+            return DateTime.UtcNow;
         }
 
         private async void OnActiveCommandTimerElapsed(object? sender, ElapsedEventArgs e)

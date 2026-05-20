@@ -9,6 +9,36 @@
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7293;http://localhost:4000"
     },
+    "DotNetTwitchBot (MariaDB)": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATABASE_PROVIDER": "mariadb"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7293;http://localhost:4000"
+    },
+    "DotNetTwitchBot (PostgreSQL)": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATABASE_PROVIDER": "postgres"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7293;http://localhost:4000"
+    },
+    "DotNetTwitchBot (SQLite)": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATABASE_PROVIDER": "sqlite"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7293;http://localhost:4000"
+    },
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
