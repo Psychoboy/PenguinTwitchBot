@@ -257,7 +257,7 @@ namespace DotNetTwitchBot.Test.Bot.Commands.Features
             Assert.True(testViewer.isVip);
             Assert.True(testViewer.isBroadcaster);
             Assert.Contains(testViewer.Username, viewerFeature.GetActiveViewers());
-            Assert.Equal(DateTime.Now, testViewer.LastSeen, new TimeSpan(0, 1, 0));
+            Assert.Equal(DateTime.UtcNow, testViewer.LastSeen, new TimeSpan(0, 1, 0));
         }
 
         [Fact]

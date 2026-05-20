@@ -7,6 +7,7 @@ namespace DotNetTwitchBot.Bot.Models.Actions.Triggers
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
         public int Id { get; set; }
 
         public string Name { get; set; } = null!;

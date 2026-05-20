@@ -3,6 +3,8 @@ using DotNetTwitchBot.Bot.Actions.SubActions;
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -353,17 +355,21 @@ namespace DotNetTwitchBot.Repository.Repositories
                     .Distinct()
                     .ToList();
 
+                var sqlGenerationHelper = context.Database.GetService<ISqlGenerationHelper>();
+
                 // Delete all subaction tables
                 foreach (var tableName in subActionTableNames)
                 {
                     // These values are all controlled internally within the application
 #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
-                    await context.Database.ExecuteSqlRawAsync($"DELETE FROM `{tableName}`");
+                    await context.Database.ExecuteSqlRawAsync($"DELETE FROM {sqlGenerationHelper.DelimitIdentifier(tableName)}");
 #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
                 }
 
                 // Delete Triggers (they have FK to Actions)
-                await context.Database.ExecuteSqlRawAsync("DELETE FROM `Triggers`");
+                #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
+                await context.Database.ExecuteSqlRawAsync($"DELETE FROM {sqlGenerationHelper.DelimitIdentifier("Triggers")}");
+                #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
                 // Finally, delete Actions
                 await context.Set<ActionType>().ExecuteDeleteAsync();

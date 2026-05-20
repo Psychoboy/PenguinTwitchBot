@@ -107,7 +107,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             // Run simulations
             for (int i = 0; i < iterations; i++)
             {
-                if (Random.Shared.NextDouble() < rodSnapChance)
+                if (StaticTools.NextDouble() < rodSnapChance)
                 {
                     result.RodSnapCount++;
                     result.FailedAttempts++;
@@ -115,7 +115,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                     continue;
                 }
 
-                if (Random.Shared.NextDouble() < lineSnapChance)
+                if (StaticTools.NextDouble() < lineSnapChance)
                 {
                     result.LineSnapCount++;
                     result.FailedAttempts++;

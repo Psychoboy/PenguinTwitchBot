@@ -239,7 +239,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
                     x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
                     ).FirstOrDefault();
-                if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
+                if (existingDuel != null && existingDuel.ExpiresAt > DateTime.UtcNow)
                 {
                     return true;
                 }
@@ -264,7 +264,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     .Where(x => x.Attacker.Equals(name, StringComparison.OrdinalIgnoreCase) ||
                     x.Defender.Equals(name, StringComparison.OrdinalIgnoreCase)
                     ).FirstOrDefault();
-                if (existingDuel != null && existingDuel.ExpiresAt > DateTime.Now)
+                if (existingDuel != null && existingDuel.ExpiresAt > DateTime.UtcNow)
                 {
                     return existingDuel;
                 }
