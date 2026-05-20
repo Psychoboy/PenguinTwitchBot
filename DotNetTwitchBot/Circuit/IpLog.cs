@@ -10,9 +10,10 @@ namespace DotNetTwitchBot.Circuit
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
+            var normalizedUsername = Bot.Core.UsernameNormalizer.Normalize(username);
             await Task.WhenAll(
-                AddOrUpdateIpEntry(username, userId, ipAddress),
-                CheckForIPv6AndUpdateEntries(username, userId, ipAddress)
+                AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
+                CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)
             );
         }
 
@@ -21,7 +22,7 @@ namespace DotNetTwitchBot.Circuit
             logger.LogInformation("Starting cleanup of old IP log entries.");
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var cutoffDate = DateTime.Now.AddMonths(-6);
+            var cutoffDate = DateTime.UtcNow.AddMonths(-6);
             var oldEntries = db.IpLogs.Find(x => x.ConnectedDate < cutoffDate);
             db.IpLogs.RemoveRange(oldEntries);
             var removedLogs = await db.SaveChangesAsync();
@@ -35,7 +36,7 @@ namespace DotNetTwitchBot.Circuit
             var existingEntry = await db.IpLogs.Find(x => x.Username.Equals(username) && x.Ip.Equals(ipAddress)).FirstOrDefaultAsync();
             if (existingEntry != null)
             {
-                existingEntry.ConnectedDate = DateTime.Now;
+                existingEntry.ConnectedDate = DateTime.UtcNow;
                 if(string.IsNullOrEmpty(existingEntry.UserId) && !string.IsNullOrEmpty(userId))
                 {
                     existingEntry.UserId = userId;

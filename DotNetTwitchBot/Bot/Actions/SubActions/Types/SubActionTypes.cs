@@ -37,6 +37,16 @@
         ObsSetScene,
         ObsSetSceneFilterState,
         ExecutePointCommand,
-        Fishing
+        Fishing,
+        ObsSetSourceVisibility,
+        ObsSetSourceMuteState,
+        ObsSetText,
+        ObsSetBrowserSourceUrl,
+        ObsSetColorSourceColor,
+        ObsSetImageSourceFile,
+        ObsSetMediaSourceFile,
+        ObsSetMediaState,
+        ObsSetSourceAudioTrackState,
+        ObsSetSourceFilterState
     }
 }

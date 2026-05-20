@@ -39,7 +39,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             var viewer = await _viewerFeature.GetViewerByUserName(e.TargetUser);
             if (viewer != null && viewer.LastSeen != DateTime.MinValue)
             {
-                var seconds = Convert.ToInt32((DateTime.Now - viewer.LastSeen).TotalSeconds);
+                var seconds = Convert.ToInt32((DateTime.UtcNow - viewer.LastSeen).TotalSeconds);
                 await RespondWithMessage(e, $"{viewer.NameWithTitle()} was last seen {StaticTools.ConvertToCompoundDuration(seconds)} ago");
             }
             else
