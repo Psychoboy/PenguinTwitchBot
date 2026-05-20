@@ -220,7 +220,7 @@ namespace DotNetTwitchBot.Bot.DatabaseTools
                 }
                 catch (Exception ex)
                 {
-                    logger?.LogWarning(ex, "Failed to reset sequence for table {Table}", ex.Message);
+                    logger?.LogWarning(ex, "Failed to reset sequence for table {Table}", table);
                 }
             }
         }
