@@ -17,7 +17,7 @@ namespace DotNetTwitchBot.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -951,6 +951,9 @@ namespace DotNetTwitchBot.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<double>("LineSnapChance")
+                        .HasColumnType("double");
+
                     b.Property<int>("RarityEpicThreshold")
                         .HasColumnType("int");
 
@@ -962,6 +965,9 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<int>("RarityUncommonThreshold")
                         .HasColumnType("int");
+
+                    b.Property<double>("RodSnapChance")
+                        .HasColumnType("double");
 
                     b.HasKey("Id");
 
@@ -1028,6 +1034,52 @@ namespace DotNetTwitchBot.Migrations
                     b.HasIndex("TargetFishTypeId");
 
                     b.ToTable("FishingShopItems");
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Fishing.FishingSnapEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("LostItemCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LostItemsJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SnapType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTime>("SnappedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("TotalGoldLost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SnapType", "SnappedAt")
+                        .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+                    b.HasIndex("UserId", "SnappedAt")
+                        .HasDatabaseName("IX_FishingSnapEvents_UserId_SnappedAt");
+
+                    b.ToTable("FishingSnapEvents");
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Fishing.UserFishingBoost", b =>
@@ -1555,11 +1607,14 @@ namespace DotNetTwitchBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PointTypeId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("Username");
+
+                    b.HasIndex("UserId", "PointTypeId");
+
+                    b.HasIndex("PointTypeId", "Banned", "Points")
+                        .IsDescending(false, false, true);
 
                     b.ToTable("UserPoints");
                 });
@@ -1993,38 +2048,21 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<bool>("banned")
                         .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MessageCount");
+
                     b.HasIndex("UserId");
 
+                    b.HasIndex("Username");
+
                     b.ToTable("ViewerMessageCounts");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerMessageCountWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<long>("MessageCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewerMessageCountWithRanks", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTime", b =>
@@ -2044,38 +2082,21 @@ namespace DotNetTwitchBot.Migrations
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<bool>("banned")
                         .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Time");
+
                     b.HasIndex("UserId");
 
+                    b.HasIndex("Username");
+
                     b.ToTable("ViewersTime");
-                });
-
-            modelBuilder.Entity("DotNetTwitchBot.Bot.Models.ViewerTimeWithRank", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Ranking")
-                        .HasColumnType("int");
-
-                    b.Property<long>("Time")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("ViewersTimeWithRank", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Models.Wheel.Wheel", b =>

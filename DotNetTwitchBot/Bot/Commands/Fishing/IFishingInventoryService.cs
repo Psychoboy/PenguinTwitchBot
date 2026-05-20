@@ -13,5 +13,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
         Task EquipItem(string userId, int userBoostId);
         Task UnequipItem(string userId, int userBoostId);
         Task ConsumeItemUse(string userId, int userBoostId);
+        Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username);
+        Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username);
     }
 }

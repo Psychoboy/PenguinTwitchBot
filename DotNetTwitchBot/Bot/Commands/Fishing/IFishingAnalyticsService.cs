@@ -5,7 +5,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
     public interface IFishingAnalyticsService
     {
-        Task<FishingSimulationResult> SimulateFishing(int iterations, bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+        Task<FishingSimulationResult> SimulateFishing(int iterations, List<int> shopItemIds);
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds);
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);

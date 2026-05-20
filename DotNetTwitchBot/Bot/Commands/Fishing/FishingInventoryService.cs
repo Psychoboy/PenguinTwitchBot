@@ -1,6 +1,7 @@
 using DotNetTwitchBot.Bot.Core.Database;
 using DotNetTwitchBot.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace DotNetTwitchBot.Bot.Commands.Fishing
 {
@@ -112,27 +113,14 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             var userBoost = await context.UserFishingBoosts
                 .Include(b => b.ShopItem)
                 .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
-            if (userBoost == null || userBoost.ShopItem == null)
+
+            var sellEligibility = FishingInventorySellRules.GetSellEligibility(userBoost);
+            if (sellEligibility != SellEligibilityReason.Eligible)
             {
-                throw new InvalidOperationException("Item not found");
+                throw new InvalidOperationException(FishingInventorySellRules.GetSellFailureMessage(sellEligibility));
             }
 
-            if(userBoost.IsEquipped)
-            {
-                throw new InvalidOperationException("Cannot sell an equipped item");
-            }
-
-            if(userBoost.RemainingUses >= 0)
-            {
-                throw new InvalidOperationException("Can not sell items with limited usage");
-            }
-
-            if(userBoost.ShopItem?.IsConsumable == true )
-            {
-                throw new InvalidOperationException("Cannot sell consumable items");
-            }
-
-            var sellPrice =  (int)(userBoost.ShopItem?.Cost * 0.15 ?? 0); // 15% of price back
+            var sellPrice = FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem);
             var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
             if (gold == null)
             {
@@ -246,6 +234,183 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             }
 
             await context.SaveChangesAsync();
+        }
+
+        public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
+            var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
+            context.FishingSnapEvents.Add(snapEvent);
+            await context.SaveChangesAsync();
+            return snapEvent;
+        }
+
+        public async Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
+            var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
+            context.FishingSnapEvents.Add(snapEvent);
+            await context.SaveChangesAsync();
+            return snapEvent;
+        }
+
+        private static FishingSnapEvent BuildSnapEvent(string userId, string username, string snapType, FishingSnapLossResult lossResult)
+        {
+            return new FishingSnapEvent
+            {
+                UserId = userId,
+                Username = username,
+                SnapType = snapType,
+                TotalGoldLost = decimal.Round(lossResult.TotalGoldLost, 2, MidpointRounding.AwayFromZero),
+                LostItemCount = lossResult.LostItems.Count,
+                LostItemsJson = JsonSerializer.Serialize(lossResult.LostItems),
+                SnappedAt = DateTime.UtcNow
+            };
+        }
+
+        private static async Task<FishingSnapLossResult> ApplySnapLosses(ApplicationDbContext context, string userId, bool includeRodLoss)
+        {
+            var lossResult = new FishingSnapLossResult();
+
+            var equippedItems = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .Where(b => b.UserId == userId && b.IsEquipped)
+                .ToListAsync();
+
+            if (includeRodLoss)
+            {
+                foreach (var rodItem in equippedItems.Where(i => i.ShopItem?.EquipmentSlot == EquipmentSlot.Rod))
+                {
+                    RegisterFullItemLoss(lossResult, rodItem);
+                    context.UserFishingBoosts.Remove(rodItem);
+                }
+            }
+
+            foreach (var item in equippedItems)
+            {
+                var slot = item.ShopItem?.EquipmentSlot;
+
+                if (includeRodLoss && slot == EquipmentSlot.Rod)
+                {
+                    continue;
+                }
+
+                // Line/hook are always lost on a snapped line.
+                if (slot == EquipmentSlot.Line || slot == EquipmentSlot.Hook)
+                {
+                    RegisterFullItemLoss(lossResult, item);
+                    context.UserFishingBoosts.Remove(item);
+                    continue;
+                }
+
+                if (slot != EquipmentSlot.Bait && slot != EquipmentSlot.Lure)
+                {
+                    continue;
+                }
+
+                if (item.RemainingUses == -1)
+                {
+                    // Unlimited bait/lure are fully lost on snap.
+                    RegisterFullItemLoss(lossResult, item);
+                    context.UserFishingBoosts.Remove(item);
+                    continue;
+                }
+
+                var remainingUsesBefore = item.RemainingUses;
+                if (item.RemainingUses > 0)
+                {
+                    item.RemainingUses--;
+                }
+                var remainingUsesAfter = item.RemainingUses;
+
+                item.LastUsedAt = DateTime.UtcNow;
+
+                var usesLost = Math.Max(0, remainingUsesBefore - remainingUsesAfter);
+                if (usesLost > 0)
+                {
+                    RegisterUseLoss(lossResult, item, usesLost, remainingUsesBefore, remainingUsesAfter);
+                }
+
+                if (item.ShopItem?.IsConsumable == true && item.RemainingUses <= 0)
+                {
+                    item.IsEquipped = false;
+                    context.UserFishingBoosts.Remove(item);
+                }
+                else if (item.RemainingUses <= 0)
+                {
+                    item.IsEquipped = false;
+                }
+            }
+
+            return lossResult;
+        }
+
+        private static void RegisterFullItemLoss(FishingSnapLossResult lossResult, UserFishingBoost item)
+        {
+            var cost = item.ShopItem?.Cost ?? 0;
+            var valueLost = decimal.Round(cost, 2, MidpointRounding.AwayFromZero);
+
+            lossResult.TotalGoldLost += valueLost;
+            lossResult.LostItems.Add(new FishingSnapLostItem
+            {
+                UserBoostId = item.Id,
+                ShopItemId = item.ShopItemId,
+                ItemName = item.ShopItem?.Name ?? "Unknown Item",
+                EquipmentSlot = item.ShopItem?.EquipmentSlot?.ToString() ?? "Unknown",
+                ItemCostAtSnap = cost,
+                UsesLost = item.RemainingUses == -1 ? -1 : Math.Max(1, item.RemainingUses),
+                RemainingUsesBefore = item.RemainingUses,
+                RemainingUsesAfter = null,
+                ItemRemoved = true,
+                GoldValueLost = valueLost
+            });
+        }
+
+        private static void RegisterUseLoss(
+            FishingSnapLossResult lossResult,
+            UserFishingBoost item,
+            int usesLost,
+            int remainingUsesBefore,
+            int remainingUsesAfter)
+        {
+            var perUseLoss = CalculatePerUseLoss(item.ShopItem);
+            var valueLost = decimal.Round(perUseLoss * usesLost, 2, MidpointRounding.AwayFromZero);
+
+            lossResult.TotalGoldLost += valueLost;
+            lossResult.LostItems.Add(new FishingSnapLostItem
+            {
+                UserBoostId = item.Id,
+                ShopItemId = item.ShopItemId,
+                ItemName = item.ShopItem?.Name ?? "Unknown Item",
+                EquipmentSlot = item.ShopItem?.EquipmentSlot?.ToString() ?? "Unknown",
+                ItemCostAtSnap = item.ShopItem?.Cost ?? 0,
+                UsesLost = usesLost,
+                RemainingUsesBefore = remainingUsesBefore,
+                RemainingUsesAfter = remainingUsesAfter,
+                ItemRemoved = false,
+                GoldValueLost = valueLost
+            });
+        }
+
+        private static decimal CalculatePerUseLoss(FishingShopItem? item)
+        {
+            if (item == null)
+            {
+                return 0m;
+            }
+
+            if (item.MaxUses.HasValue && item.MaxUses.Value > 0)
+            {
+                return (decimal)item.Cost / item.MaxUses.Value;
+            }
+
+            return item.Cost;
         }
     }
 }

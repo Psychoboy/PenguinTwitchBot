@@ -369,8 +369,8 @@
             IntervalMaximumSeconds = 900,
             MinimumMessages = 15,
             Shuffle = true,
-            LastRun = DateTime.Now,
-            NextRun = DateTime.Now.AddSeconds(300)
+            LastRun = DateTime.UtcNow,
+            NextRun = DateTime.UtcNow.AddSeconds(300)
         };
         _isNewTimerGroup = true;
         _associatedActions = null;

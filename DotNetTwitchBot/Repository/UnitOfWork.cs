@@ -22,9 +22,7 @@ namespace DotNetTwitchBot.Repository
             TimerGroups = new TimerGroupsRepository(_context);
             DeathCounters = new DeathCountersRepository(_context);
             ViewerMessageCounts = new ViewerMessageCountsRepository(_context);
-            ViewerMessageCountsWithRank = new ViewerMessageCountsWithRankRepository(_context);
             ViewersTime = new ViewersTimeRepository(_context);
-            ViewersTimeWithRank = new ViewersTimeWithRankRepository(_context);
             ActionCommands = new ActionCommandsRepository(_context);
             ActionKeywords = new ActionKeywordsRepository(_context);
             Keywords = new KeywordsRepository(_context);
@@ -37,16 +35,13 @@ namespace DotNetTwitchBot.Repository
             SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
             Songs = new SongsRepository(_context);
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
-            SongRequestMetricsWithRank = new SongRequestMetricsWithRankRepository(_context);
             ExternalCommands = new ExternalCommandsRepository(_context);
             BannedViewers = new BannedViewersRepository(_context);
-            FilteredQuotes = new FilteredQuotesRepository(_context);
             ViewerChatHistories = new ViewerChatHistoriesRepository(_context);
             RegisteredVoices = new RegisteredVoiceRepository(_context);
             UserRegisteredVoices = new UserRegisteredVoicesRepository(_context);
             DiscordTwitchEventMap = new DiscordTwitchScheduleMapRepository(_context);
             SongRequestHistory = new SongRequestHistoryRepository(_context);
-            SongRequestHistoryWithRank = new SongRequestHistoryWithRankRepository(_context);
             IpLogs = new IpLogRepository(_context);
             Wheels = new WheelRepository(_context);
             WheelProperties = new WheelPropertiesRepository(_context);
@@ -68,14 +63,13 @@ namespace DotNetTwitchBot.Repository
             FishingShopItems = new FishingShopItemRepository(_context);
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
+            FishingSnapEvents = new FishingSnapEventRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
         public IDefaultCommandRepository DefaultCommands { get; private set; }
         public ISongRequestMetricsRepository SongRequestMetrics { get; private set; }
         public ISongRequestHistoryRepository SongRequestHistory { get; private set; }
-        public ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; private set; }
-        public ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; private set; }
         public IRaidHistoryRepository RaidHistory { get; private set; }
         public IViewersRepository Viewers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
@@ -86,9 +80,7 @@ namespace DotNetTwitchBot.Repository
         public ITimerGroupsRepository TimerGroups { get; private set; }
         public IDeathCountersRepository DeathCounters { get; private set; }
         public IViewerMessageCountsRepository ViewerMessageCounts { get; private set; }
-        public IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; private set; }
         public IViewersTimeRepository ViewersTime { get; private set; }
-        public IViewersTimeWithRankRepository ViewersTimeWithRank { get; private set; }
         public IViewerChatHistoriesRepository ViewerChatHistories { get; private set; }
         public IActionCommandsRepository ActionCommands { get; private set; }
         public IActionKeywordsRepository ActionKeywords { get; private set; }
@@ -104,7 +96,6 @@ namespace DotNetTwitchBot.Repository
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
-        public IFilteredQuotesRepository FilteredQuotes { get; private set; }
         public IRegisteredVoiceRepository RegisteredVoices { get; private set; }
         public IUserRegisteredVoicesRepository UserRegisteredVoices { get; private set; }
         public IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; private set; }
@@ -129,6 +120,7 @@ namespace DotNetTwitchBot.Repository
         public IFishingShopItemRepository FishingShopItems { get; private set; }
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
+        public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
 
         public void Dispose()
         {

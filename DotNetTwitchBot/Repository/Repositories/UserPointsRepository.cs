@@ -26,12 +26,14 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         public Task<UserPointsWithRank?> UserPointsByUserIdWithRank(string userId, int pointType)
         {
-            var result = _context.UserPoints
-                .Include(x => x.PointType)
+            var allPoints = _context.UserPoints
                 .Where(x => x.PointTypeId == pointType && x.Banned == false)
-                .OrderByDescending(x => x.Points)
+                .ToLinqToDB();
+            return _context.UserPoints
+                .Include(x => x.PointType)
+                .Where(x => x.UserId == userId && x.PointTypeId == pointType && x.Banned == false)
                 .ToLinqToDB()
-                .Select((x, i) => new UserPointsWithRank
+                .Select(x => new UserPointsWithRank
                 {
                     Id = x.Id,
                     PointTypeId = x.PointTypeId,
@@ -40,21 +42,18 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Username = x.Username,
                     Points = x.Points,
                     Banned = x.Banned,
-                    Ranking = (int)Sql.Ext.Rank().Over().OrderByDesc(x.Points).ToValue()
-                });
-            var resultCte = result.AsCte();
-            return resultCte.Where(x => x.UserId == userId).FirstOrDefaultAsyncLinqToDB();
+                    Ranking = allPoints.Count(u => u.Points > x.Points) + 1
+                })
+                .FirstOrDefaultAsyncLinqToDB();
         }
 
         public IQueryable<UserPointsWithRank> GetRankedPoints(int pointType,
-            Expression<Func<UserPointsWithRank, bool>>? filter = null, 
-            Func<IQueryable<UserPointsWithRank>, IOrderedQueryable<UserPointsWithRank>>? orderBy = null, 
+            Expression<Func<UserPointsWithRank, bool>>? filter = null,
             int? limit = null, int? offset = null)
         {
             var result = _context.UserPoints
             .Include(x => x.PointType)
                 .Where(x => x.PointTypeId == pointType && x.Banned == false)
-                .OrderByDescending(x => x.Points)
                 .ToLinqToDB()
                 .Select((x, i) => new UserPointsWithRank
                 {
@@ -73,10 +72,7 @@ namespace DotNetTwitchBot.Repository.Repositories
                 query = query.Where(filter);
             }
 
-            if (orderBy != null)
-            {
-                query = orderBy(query);
-            }
+            query = query.OrderBy(x => x.Ranking);
 
             if (offset != null)
             {

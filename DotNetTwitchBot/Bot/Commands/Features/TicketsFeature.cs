@@ -14,6 +14,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly ILogger<TicketsFeature> _logger;
 
         readonly Timer _autoPointsTimer;
+        private readonly SemaphoreSlim _distributionLock = new(1, 1);
 
         private readonly IViewerFeature _viewerFeature;
         private readonly IPointsSystem _pointsSystem;
@@ -164,15 +165,37 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async void OnTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            if (ServiceBackbone.IsOnline)
+            // Non-blocking acquire: skip this tick if a distribution is already running.
+            // Using WaitAsync would queue up callbacks indefinitely if distribution runs long.
+            if (!_distributionLock.Wait(0))
             {
-                var pointsForEveryone = await GetPointsForEveryone();
-                var pointsForActiveUsers = await GetPointsForActiveUsers();
-                var pointsForSubs = await GetPointsForSubs();
+                _logger.LogWarning("Ticket distribution already in progress; skipping tick.");
+                return;
+            }
 
-                _logger.LogInformation("Starting to give  out tickets");
-                await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
-                await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
+            try
+            {
+                if (ServiceBackbone.IsOnline)
+                {
+                    try
+                    {
+                        var pointsForEveryone = await GetPointsForEveryone();
+                        var pointsForActiveUsers = await GetPointsForActiveUsers();
+                        var pointsForSubs = await GetPointsForSubs();
+
+                        _logger.LogInformation("Starting to give out tickets");
+                        await GiveTicketsToActiveAndSubsOnlineWithBonus(pointsForActiveUsers, pointsForSubs);
+                        await GiveTicketsToAllOnlineViewersWithBonus(pointsForEveryone, 0);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unhandled exception while distributing tickets.");
+                    }
+                }
+            }
+            finally
+            {
+                _distributionLock.Release();
             }
         }
 

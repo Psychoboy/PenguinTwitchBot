@@ -5,9 +5,7 @@
         IAudioCommandsRepository AudioCommands { get; }
         IDefaultCommandRepository DefaultCommands { get; }
         ISongRequestMetricsRepository SongRequestMetrics { get; }
-        ISongRequestMetricsWithRankRepository SongRequestMetricsWithRank { get; }
         ISongRequestHistoryRepository SongRequestHistory { get; }
-        ISongRequestHistoryWithRankRepository SongRequestHistoryWithRank { get; }
         IRaidHistoryRepository RaidHistory { get; }
         IViewersRepository Viewers { get; }
         IAliasRepository Aliases { get; }
@@ -18,9 +16,7 @@
         ITimerGroupsRepository TimerGroups { get; }
         IDeathCountersRepository DeathCounters { get; }
         IViewerMessageCountsRepository ViewerMessageCounts { get; }
-        IViewerMessageCountsWithRankRepository ViewerMessageCountsWithRank { get; }
         IViewersTimeRepository ViewersTime { get; }
-        IViewersTimeWithRankRepository ViewersTimeWithRank { get; }
         IViewerChatHistoriesRepository ViewerChatHistories { get; }
         IActionCommandsRepository ActionCommands { get; }
         IActionKeywordsRepository ActionKeywords { get; }
@@ -36,7 +32,6 @@
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }
-        IFilteredQuotesRepository FilteredQuotes { get; }
         IRegisteredVoiceRepository RegisteredVoices { get; }
         IUserRegisteredVoicesRepository UserRegisteredVoices { get; }
         IDiscordTwitchScheduleMapRepository DiscordTwitchEventMap { get; }
@@ -65,5 +60,6 @@
         IFishingShopItemRepository FishingShopItems { get; }
         IUserFishingBoostRepository UserFishingBoosts { get; }
         IFishingSettingsRepository FishingSettings { get; }
+        IFishingSnapEventRepository FishingSnapEvents { get; }
     }
 }

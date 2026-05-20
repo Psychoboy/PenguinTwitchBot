@@ -44,5 +44,8 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers.Configurations
         public const string DeathDecremented = "Death.Decremented";
         public const string DeathReset = "Death.Reset";
         public const string DeathSet = "Death.Set";
+
+        // Wheel events
+        public const string WheelSpinResult = "WheelSpin.Result";
     }
 }

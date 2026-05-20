@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
     /// </summary>
     public class FishingShopItemGenerator
     {
-        public async Task<int> GenerateDefaultItems(ApplicationDbContext context)
+        public async Task<int> GenerateDefaultItems(ApplicationDbContext context, bool updateExisting = false)
         {
             var existingItems = await context.FishingShopItems.ToListAsync();
             var itemsToAdd = new List<FishingShopItem>();
@@ -21,7 +21,7 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             );
 
             bool ItemExists(string name) =>
-                existingNames.Contains(name) ||
+                (!updateExisting && existingNames.Contains(name)) ||
                 itemsToAdd.Any(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
             // Add equipment items
@@ -36,16 +36,68 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             AddBaits(itemsToAdd, ItemExists);
             AddLures(itemsToAdd, ItemExists);
 
-            // Add fish-specific items
-            await AddFishSpecificItems(context, itemsToAdd, ItemExists);
+            var changedCount = 0;
 
-            if (itemsToAdd.Any())
+            if (updateExisting && itemsToAdd.Any())
+            {
+                var addList = new List<FishingShopItem>();
+                var existingByName = existingItems.ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var template in itemsToAdd)
+                {
+                    if (existingByName.TryGetValue(template.Name, out var existing))
+                    {
+                        if (ApplyTemplate(existing, template))
+                        {
+                            changedCount++;
+                        }
+                    }
+                    else
+                    {
+                        addList.Add(template);
+                    }
+                }
+
+                if (addList.Any())
+                {
+                    context.FishingShopItems.AddRange(addList);
+                    changedCount += addList.Count;
+                }
+            }
+            else if (itemsToAdd.Any())
             {
                 context.FishingShopItems.AddRange(itemsToAdd);
+                changedCount += itemsToAdd.Count;
+            }
+
+            if (changedCount > 0)
+            {
                 await context.SaveChangesAsync();
             }
 
-            return itemsToAdd.Count;
+            return changedCount;
+        }
+
+        private static bool ApplyTemplate(FishingShopItem existing, FishingShopItem template)
+        {
+            var changed = false;
+
+            if (existing.Description != template.Description) { existing.Description = template.Description; changed = true; }
+            if (existing.Cost != template.Cost) { existing.Cost = template.Cost; changed = true; }
+            if (existing.BoostType != template.BoostType) { existing.BoostType = template.BoostType; changed = true; }
+            if (existing.BoostAmount != template.BoostAmount) { existing.BoostAmount = template.BoostAmount; changed = true; }
+            if (existing.BoostType2 != template.BoostType2) { existing.BoostType2 = template.BoostType2; changed = true; }
+            if (existing.BoostAmount2 != template.BoostAmount2) { existing.BoostAmount2 = template.BoostAmount2; changed = true; }
+            if (existing.BoostType3 != template.BoostType3) { existing.BoostType3 = template.BoostType3; changed = true; }
+            if (existing.BoostAmount3 != template.BoostAmount3) { existing.BoostAmount3 = template.BoostAmount3; changed = true; }
+            if (existing.TargetFishTypeId != template.TargetFishTypeId) { existing.TargetFishTypeId = template.TargetFishTypeId; changed = true; }
+            if (existing.Enabled != template.Enabled) { existing.Enabled = template.Enabled; changed = true; }
+            if (existing.EquipmentSlot != template.EquipmentSlot) { existing.EquipmentSlot = template.EquipmentSlot; changed = true; }
+            if (existing.MaxUses != template.MaxUses) { existing.MaxUses = template.MaxUses; changed = true; }
+            if (existing.IsConsumable != template.IsConsumable) { existing.IsConsumable = template.IsConsumable; changed = true; }
+            if (existing.IsAdminOnly != template.IsAdminOnly) { existing.IsAdminOnly = template.IsAdminOnly; changed = true; }
+
+            return changed;
         }
 
         private void AddRods(List<FishingShopItem> items, Func<string, bool> itemExists)
@@ -165,97 +217,5 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
                 items.Add(new FishingShopItem { Name = "Swimbait", Description = "Realistic swimming lure (+45% rarity, 5 uses)", Cost = 400, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.45, EquipmentSlot = EquipmentSlot.Lure, IsConsumable = true, MaxUses = 5, Enabled = true });
         }
 
-        private async Task AddFishSpecificItems(ApplicationDbContext context, List<FishingShopItem> items, Func<string, bool> itemExists)
-        {
-            var allFish = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
-            var targetFish = allFish.Where(f => f.Rarity >= FishRarity.Rare).ToList();
-
-            foreach (var fish in targetFish)
-            {
-                // Fish-Specific Bait
-                var baitName = $"{fish.Name} Bait";
-                if (!itemExists(baitName))
-                {
-                    var baitCost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 800,
-                        FishRarity.Epic => 450,
-                        FishRarity.Rare => 250,
-                        _ => 150
-                    };
-
-                    var baitBoost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 3.0,   // 300% boost
-                        FishRarity.Epic => 2.0,        // 200% boost
-                        FishRarity.Rare => 1.5,        // 150% boost
-                        _ => 1.0
-                    };
-
-                    var baitUses = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 3,
-                        FishRarity.Epic => 5,
-                        _ => 7
-                    };
-
-                    items.Add(new FishingShopItem
-                    {
-                        Name = baitName,
-                        Description = $"Specialized bait for {fish.Name} ({baitUses} uses)",
-                        Cost = baitCost,
-                        BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = baitBoost,
-                        TargetFishTypeId = fish.Id,
-                        IsConsumable = true,
-                        MaxUses = baitUses,
-                        Enabled = true,
-                        EquipmentSlot = EquipmentSlot.Bait
-                    });
-                }
-
-                // Fish-Specific Lure
-                var lureName = $"{fish.Name} Lure";
-                if (!itemExists(lureName))
-                {
-                    var lureCost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 1000,
-                        FishRarity.Epic => 600,
-                        FishRarity.Rare => 350,
-                        _ => 200
-                    };
-
-                    var lureBoost = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 4.0,   // 400% boost  
-                        FishRarity.Epic => 2.5,        // 250% boost
-                        FishRarity.Rare => 1.8,        // 180% boost
-                        _ => 1.2
-                    };
-
-                    var lureUses = fish.Rarity switch
-                    {
-                        FishRarity.Legendary => 5,
-                        FishRarity.Epic => 7,
-                        _ => 10
-                    };
-
-                    items.Add(new FishingShopItem
-                    {
-                        Name = lureName,
-                        Description = $"Premium lure designed for {fish.Name} ({lureUses} uses)",
-                        Cost = lureCost,
-                        BoostType = FishingBoostType.SpecificFishBoost,
-                        BoostAmount = lureBoost,
-                        TargetFishTypeId = fish.Id,
-                        IsConsumable = true,
-                        MaxUses = lureUses,
-                        Enabled = true,
-                        EquipmentSlot = EquipmentSlot.Lure
-                    });
-                }
-            }
-        }
     }
 }

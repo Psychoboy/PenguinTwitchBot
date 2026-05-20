@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Bot.Actions.SubActions.Types;
 using DotNetTwitchBot.Bot.Commands.Fishing;
+using DotNetTwitchBot.Bot.Models.Fishing;
 using DotNetTwitchBot.Bot.Notifications;
 using DotNetTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;
@@ -64,7 +65,52 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 try
                 {
-                    var fishCatch = await _fishingGameplayService.PerformFishingAttempt(userId, username);
+                    var attemptResult = await _fishingGameplayService.PerformFishingAttempt(userId, username);
+
+                    if (attemptResult.Outcome == FishingAttemptOutcome.LineSnapped ||
+                        attemptResult.Outcome == FishingAttemptOutcome.RodSnapped)
+                    {
+                        var isRodSnap = attemptResult.Outcome == FishingAttemptOutcome.RodSnapped;
+                        var failText = isRodSnap ? "ROD SNAPPED" : "LINE SNAPPED";
+
+                        var snappedMessage = new
+                        {
+                            fishing = new
+                            {
+                                username = username,
+                                fishName = failText,
+                                rarity = "Accident",
+                                stars = 0,
+                                weight = 0.0,
+                                gold = 0,
+                                imageFileName = "",
+                                lineSnapped = true,
+                                rodSnapped = isRodSnap,
+                                duration = settings.DisplayDurationMs
+                            }
+                        };
+
+                        await _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(snappedMessage));
+
+                        if (attempts > 1 && i < attempts - 1)
+                        {
+                            await Task.Delay(settings.DisplayDurationMs + 500);
+                        }
+
+                        _logger.LogInformation("User {Username} had a snapped {SnapType} and caught nothing", username, isRodSnap ? "rod" : "line");
+                        variables["fish_type"] = failText;
+                        variables["fish_rarity"] = "Accident";
+                        variables["fish_stars"] = "0";
+                        variables["fish_weight"] = "0";
+                        variables["fish_gold"] = "0";
+                        continue;
+                    }
+
+                    var fishCatch = attemptResult.FishCatch;
+                    if (fishCatch == null)
+                    {
+                        throw new InvalidOperationException("Fishing attempt completed without catch data.");
+                    }
 
                     var message = new
                     {

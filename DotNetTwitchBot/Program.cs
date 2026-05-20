@@ -38,8 +38,14 @@ using TwitchLib.EventSub.Websockets.Extensions;
 internal class Program
 {
     private static ILogger<Program>? logger;
+    private static int _fatalSignalCount;
+
     private static async Task Main(string[] args)
     {
+        // Pre-load migration assemblies from the application directory so Assembly.Load(name)
+        // can find them in self-contained / single-file publish scenarios.
+        PreloadMigrationAssemblies();
+
         Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
         Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "DotNetTwitchBot");
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
@@ -80,9 +86,13 @@ internal class Program
                };
            });
 
-        builder.Logging.ClearProviders();
+        var serilogLogger = loggerConfiguration.CreateLogger();
+        Log.Logger = serilogLogger;
 
-        builder.Logging.AddSerilog(loggerConfiguration.CreateLogger());
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSerilog(serilogLogger, dispose: false);
+
+        RegisterGlobalExceptionHandlers();
 
         // Add OpenTelemetry data to json logs
         builder.Services.AddOpenTelemetry()
@@ -200,17 +210,15 @@ internal class Program
 
         //builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        var databaseProvider = GetDatabaseProvider(builder.Configuration);
+        var connectionString = GetConnectionString(builder.Configuration, databaseProvider);
+        var migrationsAssembly = GetMigrationsAssembly(databaseProvider);
+        Log.Information("Using database provider {Provider}", databaseProvider);
+
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: System.TimeSpan.FromSeconds(15),
-                    errorNumbersToAdd: null
-                )
-                .TranslateParameterizedCollectionsToConstants()
-                .EnablePrimitiveCollectionsSupport());
-            });
+        {
+            ConfigureDbContextOptions(options, databaseProvider, connectionString, migrationsAssembly);
+        });
 
         builder.Services.AddSignalR();
 
@@ -319,13 +327,33 @@ internal class Program
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         var wsEventHandler = app.Services.GetRequiredService<DotNetTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
-        lifetime.ApplicationStopping.Register(async () =>
+        lifetime.ApplicationStopping.Register(() =>
         {
             logger?.LogInformation("Application trying to stop.");
-            await Task.WhenAll(
-                websocketMessenger.CloseAllSockets(),
-                wsEventHandler.CloseAllSockets()
-            );
+            // Fire-and-forget: don't block the shutdown thread. A blocked synchronous wait
+            // ties up a thread-pool thread and can itself cause starvation during shutdown.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var closeTask = Task.WhenAll(
+                        websocketMessenger.CloseAllSockets(),
+                        wsEventHandler.CloseAllSockets()
+                    );
+                    if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
+                    {
+                        logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                    }
+                    else
+                    {
+                        await closeTask; // propagate any exceptions from the close tasks
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
+                }
+            });
         });
 
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
@@ -344,19 +372,268 @@ internal class Program
 
         LinqToDBForEFTools.Initialize();
 
-        await app.RunAsync(); //Start in future to read input
+        try
+        {
+            await app.RunAsync(); //Start in future to read input
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Host terminated unexpectedly");
+            throw;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
 
+    }
+
+    private static void RegisterGlobalExceptionHandlers()
+    {
+        TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+        {
+            if (IsExpectedBackgroundConnectionRefusal(eventArgs.Exception) ||
+                IsExpectedBlazorInteropRegistrationRace(eventArgs.Exception))
+            {
+                Log.Debug(eventArgs.Exception, "Observed expected unobserved task exception during transient shutdown/reconnect flow");
+                eventArgs.SetObserved();
+                return;
+            }
+            else
+            {
+                Log.Error(eventArgs.Exception, "Unobserved task exception detected");
+            }
+            eventArgs.SetObserved();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            if (Interlocked.Increment(ref _fatalSignalCount) == 1)
+            {
+                Log.Information("Process exit signal received");
+            }
+            // CloseAndFlush is handled in the finally block after RunAsync.
+        };
+
+        Console.CancelKeyPress += (_, eventArgs) =>
+        {
+            if (Interlocked.Increment(ref _fatalSignalCount) == 1)
+            {
+                Log.Warning("Console cancel signal received ({SpecialKey})", eventArgs.SpecialKey);
+            }
+            // CloseAndFlush is handled in the finally block after RunAsync.
+        };
+    }
+
+    private static bool IsExpectedBackgroundConnectionRefusal(Exception exception)
+    {
+        var aggregate = exception as AggregateException;
+        var all = aggregate?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var inner in all)
+        {
+            var message = inner.ToString();
+            if (message.Contains("Failed to start Websocket client", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("Unable to connect to the remote server", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (message.Contains("actively refused", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("4455", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsExpectedBlazorInteropRegistrationRace(Exception exception)
+    {
+        var aggregate = exception as AggregateException;
+        var all = aggregate?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var inner in all)
+        {
+            var message = inner.ToString();
+            if (message.Contains("Interop methods are already registered for renderer", StringComparison.OrdinalIgnoreCase) &&
+                message.Contains("attachWebRendererInterop", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
-            Log.Fatal("Unhandled exception:", ex);
+            Log.Fatal(ex, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
         }
         else
         {
-            Log.Fatal("Unhandled non-exception object:", e.ExceptionObject);
+            Log.Fatal("Unhandled non-exception object (IsTerminating: {IsTerminating}): {ExceptionObject}", e.IsTerminating, e.ExceptionObject);
         }
+
+        Log.CloseAndFlush();
+    }
+
+    private static string GetDatabaseProvider(IConfiguration configuration)
+    {
+        // Check environment variable first (for debug profile selection)
+        var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(envProvider))
+        {
+            Log.Information("Using database provider {Provider} from environment variable", envProvider);
+            return envProvider switch
+            {
+                "mariadb" or "mysql" => "mariadb",
+                "postgres" or "postgresql" => "postgres",
+                "sqlite" => "sqlite",
+                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+            };
+        }
+
+        // Fall back to configuration file
+        var provider = configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant();
+        return provider switch
+        {
+            null or "" => "mariadb",
+            "mariadb" => "mariadb",
+            "mysql" => "mariadb",
+            "postgres" => "postgres",
+            "postgresql" => "postgres",
+            "sqlite" => "sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+        };
+    }
+
+    private static void PreloadMigrationAssemblies()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        string[] migrationDlls =
+        [
+            "DotNetTwitchBot.Migrations.Postgres.dll",
+            "DotNetTwitchBot.Migrations.MariaDb.dll",
+            "DotNetTwitchBot.Migrations.Sqlite.dll",
+        ];
+        foreach (var dll in migrationDlls)
+        {
+            var path = Path.Combine(baseDir, dll);
+            if (File.Exists(path))
+                System.Reflection.Assembly.LoadFrom(path);
+        }
+    }
+
+    private static string GetMigrationsAssembly(string provider)
+    {
+        return provider switch
+        {
+            "mariadb" => "DotNetTwitchBot.Migrations.MariaDb",
+            "postgres" => "DotNetTwitchBot.Migrations.Postgres",
+            "sqlite" => "DotNetTwitchBot.Migrations.Sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'.")
+        };
+    }
+
+    private static string GetConnectionString(IConfiguration configuration, string provider)
+    {
+        var configured = provider switch
+        {
+            "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
+            "postgres" => configuration.GetConnectionString("PostgresConnection"),
+            "sqlite" => string.IsNullOrEmpty(configuration.GetConnectionString("SqliteConnection"))
+                ? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "dotnettwitchbot.sqlite")}"
+                : configuration.GetConnectionString("SqliteConnection"),
+            _ => null
+        };
+
+        return string.IsNullOrWhiteSpace(configured)
+            ? throw new InvalidOperationException($"Connection string is missing for provider '{provider}'.")
+            : configured;
+    }
+
+    private static void ConfigureDbContextOptions(DbContextOptionsBuilder options, string provider, string connectionString, string migrationsAssembly)
+    {
+        // Downgrade pending-model-changes from error to warning so the app can start
+        // while a migration is being prepared.
+        options.ConfigureWarnings(w =>
+            w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
+        switch (provider)
+        {
+            case "mariadb":
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
+                {
+                    mysqlOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorNumbersToAdd: null
+                        )
+                        .TranslateParameterizedCollectionsToConstants()
+                        .EnablePrimitiveCollectionsSupport();
+                });
+                break;
+
+            case "postgres":
+                options.UseNpgsql(connectionString, postgresOptions =>
+                {
+                    postgresOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorCodesToAdd: null
+                        );
+                });
+                break;
+
+            case "sqlite":
+                // Append shared-cache, foreign keys, and pooling defaults if not already specified
+                var sqliteConnStr = connectionString!.Contains("Cache=", StringComparison.OrdinalIgnoreCase)
+                    ? connectionString
+                    : connectionString + ";Cache=Shared;Foreign Keys=True";
+                options.UseSqlite(sqliteConnStr, sqliteOptions =>
+                {
+                    sqliteOptions.MigrationsAssembly(migrationsAssembly)
+                        .CommandTimeout(30);
+                });
+                options.AddInterceptors(new SqliteWalInterceptor());
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unsupported database provider '{provider}'.");
+        }
+    }
+}
+
+/// <summary>
+/// Applies WAL journal mode and busy timeout PRAGMAs to every SQLite connection opened by EF Core.
+/// Required for multi-threaded ASP.NET Core workloads to avoid "database is locked" errors.
+/// </summary>
+file sealed class SqliteWalInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.DbConnectionInterceptor
+{
+    private const string Pragmas = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+
+    public override void ConnectionOpened(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        cmd.ExecuteNonQuery();
+    }
+
+    public override async Task ConnectionOpenedAsync(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

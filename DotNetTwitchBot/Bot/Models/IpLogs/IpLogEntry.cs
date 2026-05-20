@@ -9,6 +9,6 @@
         public string UserId { get; set; } = null!;
         public string Ip { get; set; } = null!;
         public int Count { get; set; } = 1;
-        public DateTime ConnectedDate { get; set; } = DateTime.Now;
+        public DateTime ConnectedDate { get; set; } = DateTime.UtcNow;
     }
 }

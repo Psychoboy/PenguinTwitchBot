@@ -1,4 +1,5 @@
 using DotNetTwitchBot.Bot;
+using DotNetTwitchBot.Bot.Actions.Triggers.Configurations;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models.Wheel;
@@ -14,6 +15,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
     public class WheelService(
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService,
         IServiceScopeFactory scopeFactory,
         IWebSocketMessenger webSocketMessenger,
         Application.Notifications.IPenguinDispatcher dispatcher,
@@ -28,12 +30,19 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         private bool nameWheelActive = false;
         private bool nameWheelShown = false;
 
-        public void OpenNameWheel()
+        public async Task OpenNameWheel()
         {
+            var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName("join");
+            if(defaultCommand == null)
+            {
+                logger.LogError("Join command not found, cannot open name wheel");
+                return;
+            }
+            
             nameWheelActive = true;
             nameEntries.Clear();
             nameWheel = null;
-            ServiceBackbone.SendChatMessage("The viewer wheel is now open! Type !join to enter the wheel.");
+            await ServiceBackbone.SendChatMessage($"The viewer wheel is now open! Type !{defaultCommand.CustomCommandName} to enter the wheel.");
         }
 
         public void ShowNameWheel()
@@ -72,16 +81,15 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
 
             showWheel.Items.AddRange(props);
             var json = JsonSerializer.Serialize(showWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "show wheel");
         }
 
         public void HideWheel()
         {
             var hideWheel = new HideWheel();
             var json = JsonSerializer.Serialize(hideWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "hide wheel");
+            nameWheel = null;
         }
 
         public void SpinWheel()
@@ -99,8 +107,19 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
             WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
             var spinWheel = new SpinWheel(WinningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
-            var task = webSocketMessenger.AddToQueue(json);
-            task.Wait(500);
+            _ = QueueWheelMessageAsync(json, "spin wheel");
+        }
+
+        private async Task QueueWheelMessageAsync(string json, string action)
+        {
+            try
+            {
+                await webSocketMessenger.AddToQueue(json);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to {action} websocket message", action);
+            }
         }
 
         public async Task<List<Wheel>> GetWheels()
@@ -158,11 +177,36 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         {
             if (WinningIndex == index)
             {
-                var winningMessage = CurrentWheel?.WinningMessage.Replace("{label}", CurrentWheel.Properties[index].Label, StringComparison.OrdinalIgnoreCase);
-                if (winningMessage != null)
+                var winningLabel = CurrentWheel?.Properties[index].Label;
+                if (!string.IsNullOrWhiteSpace(winningLabel))
                 {
-                    Thread.Sleep(4000);
-                    await ServiceBackbone.SendChatMessage(winningMessage);
+                    var winningMessage = CurrentWheel?.WinningMessage
+                        .Replace("{label}", winningLabel, StringComparison.OrdinalIgnoreCase) ?? string.Empty;
+
+                    var eventArgs = new CommandEventArgs
+                    {
+                        Command = "spinwheel",
+                        Arg = winningLabel,
+                        Args = [winningLabel],
+                        DisplayName = "System",
+                        Name = "system",
+                        IsBroadcaster = true,
+                        FromOwnChannel = true
+                    };
+
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "spinwheel",
+                        DefaultCommandEventTypes.WheelSpinResult,
+                        eventArgs,
+                        new Dictionary<string, string>
+                        {
+                            { "WheelSpinResult", winningLabel },
+                            { "WinningLabel", winningLabel },
+                            { "WinningMessage", winningMessage },
+                            { "WheelName", CurrentWheel?.Name ?? string.Empty },
+                            { "WinningIndex", index.ToString() },
+                            {"IsNameWheel", nameWheel != null ? "true" : "false" }
+                        });
                 }
             }
         }
@@ -203,7 +247,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                     }
                     break;
                 case "opennamewheel":
-                    OpenNameWheel();
+                    await OpenNameWheel();
                     break;
                 case "shownamewheel":
                     ShowNameWheel();

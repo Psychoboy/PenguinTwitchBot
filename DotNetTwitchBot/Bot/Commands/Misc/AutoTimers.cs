@@ -143,12 +143,12 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     if (ServiceBackbone.IsOnline)
                     {
                         // Stream is online - run all active timers that are due
-                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true);
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.UtcNow && x.Active == true);
                     }
                     else
                     {
                         // Stream is offline - only run timers that allow offline execution
-                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.Now && x.Active == true && x.OnlineOnly == false);
+                        timerGroups = await db.TimerGroups.GetAsync(filter: x => x.NextRun < DateTime.UtcNow && x.Active == true && x.OnlineOnly == false);
                     }
                 }
                 if (timerGroups == null || timerGroups.Count != 0 == false) return;
@@ -205,8 +205,8 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
             try
             {
                 var randomNextSeconds = StaticTools.RandomRange(group.IntervalMinimumSeconds, group.IntervalMaximumSeconds);
-                group.NextRun = DateTime.Now.AddSeconds(randomNextSeconds);
-                group.LastRun = DateTime.Now;
+                group.NextRun = DateTime.UtcNow.AddSeconds(randomNextSeconds);
+                group.LastRun = DateTime.UtcNow;
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 db.TimerGroups.Update(group);

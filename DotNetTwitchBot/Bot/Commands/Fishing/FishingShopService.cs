@@ -131,13 +131,13 @@ namespace DotNetTwitchBot.Bot.Commands.Fishing
             return updatedCount;
         }
 
-        public async Task<int> GenerateDefaultShopItems()
+        public async Task<int> GenerateDefaultShopItems(bool updateExisting = false)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var generator = new FishingShopItemGenerator();
-            return await generator.GenerateDefaultItems(context);
+            return await generator.GenerateDefaultItems(context, updateExisting);
         }
 
         /// <summary>
