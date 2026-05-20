@@ -29,32 +29,31 @@ namespace DotNetTwitchBot.Repository.Repositories
 
         }
 
-        public IQueryable<IpLogUsersWithSameIp> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null)
+        public async Task<List<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps()
         {
-            var query = from p1 in _context.IpLogEntrys
-                        join p2 in _context.IpLogEntrys on p1.Ip equals p2.Ip
-                        where p1.Username.CompareTo(p2.Username) < 0
-                        select new IpLogUsersWithSameIp
-                        {
-                            User1 = p1.Username,
-                            User2 = p2.Username
-                        };
+            // Fetch distinct (Ip, Username) pairs — much smaller than the full table.
+            // Avoids an O(N²) self-join by doing pair generation in memory.
+            var ipUserPairs = await _context.IpLogEntrys
+                .Select(x => new { x.Ip, x.Username })
+                .Distinct()
+                .ToListAsync();
 
-            query = query.Distinct();
-            query = query.OrderBy(x => x.User1).ThenBy(x => x.User2);
-
-
-            if (offset != null)
-            {
-                query = query.Skip((int)offset);
-            }
-
-            if (limit != null)
-            {
-                query = query.Take((int)limit);
-            }
-
-            return query;
+            return ipUserPairs
+                .GroupBy(x => x.Ip)
+                .Where(g => g.Count() > 1)
+                .SelectMany(g =>
+                {
+                    var users = g.Select(x => x.Username).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                    var pairs = new List<IpLogUsersWithSameIp>();
+                    for (var i = 0; i < users.Count; i++)
+                        for (var j = i + 1; j < users.Count; j++)
+                            pairs.Add(new IpLogUsersWithSameIp { User1 = users[i], User2 = users[j] });
+                    return pairs;
+                })
+                .DistinctBy(x => (x.User1.ToLowerInvariant(), x.User2.ToLowerInvariant()))
+                .OrderBy(x => x.User1, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.User2, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         public async Task<List<IpLogEntry>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null)

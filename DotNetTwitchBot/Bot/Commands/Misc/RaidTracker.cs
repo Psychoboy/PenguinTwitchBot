@@ -60,7 +60,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 while (true)
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var tenMinsAgo = DateTime.Now.AddMinutes(-10);
+                    var tenMinsAgo = DateTime.UtcNow.AddMinutes(-10);
                     var raidHistory = await db.RaidHistory.Find(x => x.LastCheckOnline < tenMinsAgo).OrderBy(x => x.LastCheckOnline).Take(100).ToListAsync();
                     if (raidHistory == null || raidHistory.Count == 0) return;
                     var userIds = raidHistory.Select(x => x.UserId);
@@ -75,7 +75,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     {
                         var matchingStream = onlineStreams.FirstOrDefault(x => x.UserId == raidHistoryItem.UserId);
                         raidHistoryItem.IsOnline = matchingStream != null;
-                        raidHistoryItem.LastCheckOnline = DateTime.Now;
+                        raidHistoryItem.LastCheckOnline = DateTime.UtcNow;
                         if(matchingStream != null)
                         {
                             raidHistoryItem.DisplayName = matchingStream.DisplayName;
@@ -129,7 +129,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                 }
                 raidHistory.TotalIncomingRaids++;
                 raidHistory.TotalIncomingRaidViewers += e.NumberOfViewers;
-                raidHistory.LastIncomingRaid = DateTime.Now;
+                raidHistory.LastIncomingRaid = DateTime.UtcNow;
                 raidHistory.Name = e.Name;
                 raidHistory.DisplayName = e.DisplayName;
                 var game = await _twitchService.GetCurrentGame(userId);
@@ -192,7 +192,7 @@ namespace DotNetTwitchBot.Bot.Commands.Misc
                     };
                     raidHistory.TotalOutgoingRaids++;
                     raidHistory.TotalOutGoingRaidViewers += await _twitchService.GetViewerCount();
-                    raidHistory.LastOutgoingRaid = DateTime.Now;
+                    raidHistory.LastOutgoingRaid = DateTime.UtcNow;
                     db.RaidHistory.Update(raidHistory);
                     await db.SaveChangesAsync();
                 }

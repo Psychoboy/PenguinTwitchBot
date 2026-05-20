@@ -479,7 +479,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
                     UserId = userId,
                     DisplayName = user,
                     Username = user,
-                    FollowDate = DateTime.Now
+                    FollowDate = DateTime.UtcNow
                 };
 
             }

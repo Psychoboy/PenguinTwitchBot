@@ -30,12 +30,19 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         private bool nameWheelActive = false;
         private bool nameWheelShown = false;
 
-        public void OpenNameWheel()
+        public async Task OpenNameWheel()
         {
+            var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName("join");
+            if(defaultCommand == null)
+            {
+                logger.LogError("Join command not found, cannot open name wheel");
+                return;
+            }
+            
             nameWheelActive = true;
             nameEntries.Clear();
             nameWheel = null;
-            ServiceBackbone.SendChatMessage("The viewer wheel is now open! Type !join to enter the wheel.");
+            await ServiceBackbone.SendChatMessage($"The viewer wheel is now open! Type !{defaultCommand.CustomCommandName} to enter the wheel.");
         }
 
         public void ShowNameWheel()
@@ -240,7 +247,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
                     }
                     break;
                 case "opennamewheel":
-                    OpenNameWheel();
+                    await OpenNameWheel();
                     break;
                 case "shownamewheel":
                     ShowNameWheel();

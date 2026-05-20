@@ -4,11 +4,17 @@ namespace DotNetTwitchBot.Repository.Repositories
 {
     public class SongRequestHistoryRepository(ApplicationDbContext context) : GenericRepository<SongRequestHistory>(context), ISongRequestHistoryRepository
     {
+        private IQueryable<SongRequestHistory> QueryLimitedByMonths(int numberOfMonths)
+        {
+            return _context.SongRequestHistories.Where(d =>
+                numberOfMonths > 0
+                    ? d.RequestDate > DateTime.UtcNow.AddMonths(-numberOfMonths)
+                    : d.RequestDate > DateTime.MinValue);
+        }
+
         public async Task<List<SongRequestHistoryWithRank>> QuerySongRequestHistoryLimitedByMonths(int numberOfMonths = 1, int? limit = null, int? offset = null)
         {
-            var query = _context.SongRequestHistories
-                .Where(d => numberOfMonths > 0 ? 
-                d.RequestDate > DateTime.Now.AddMonths(-numberOfMonths) : d.RequestDate > DateTime.MinValue)
+            IQueryable<SongRequestHistoryWithRank> query = QueryLimitedByMonths(numberOfMonths)
                 .GroupBy(c => new
                 {
                     c.SongId,
@@ -19,37 +25,49 @@ namespace DotNetTwitchBot.Repository.Repositories
                     Duration = g.Key.Duration,
                     Title = g.Key.Title,
                     SongId = g.Key.SongId,
-                    RequestedCount = g.Count()
+                    RequestedCount = g.Count(),
+                    LastRequestDate = g.Max(x => x.RequestDate)
                 })
-                .OrderByDescending(o => o.RequestedCount)
-                .AsAsyncEnumerable();
+                .OrderByDescending(o => o.RequestedCount);
 
-            var result = new List<SongRequestHistoryWithRank>();
-            int index = 0;
-
-            await foreach (var r in query)
+            int startRank = 1;
+            if (offset.HasValue)
             {
-                result.Add(new SongRequestHistoryWithRank
-                {
-                    Duration = r.Duration,
-                    Title = r.Title,
-                    SongId = r.SongId,
-                    RequestedCount = r.RequestedCount,
-                    Ranking = ++index
-                });
+                query = query.Skip(offset.Value);
+                startRank = offset.Value + 1;
             }
 
-            if (offset != null)
+            if (limit.HasValue)
             {
-                result = [.. result.Skip((int)offset)];
+                query = query.Take(limit.Value);
             }
 
-            if (limit != null)
+            var rows = await query.ToListAsync();
+            int rank = startRank;
+            foreach (var r in rows)
             {
-                result = [.. result.Take((int)limit)];
+                r.Ranking = rank++;
             }
 
-            return result;
+            return rows;
+        }
+
+        public Task<int> GetRequestedCountForSong(string songId, int numberOfMonths = 0)
+        {
+            return QueryLimitedByMonths(numberOfMonths).CountAsync(x => x.SongId == songId);
+        }
+
+        public Task<List<SongRequestHistoryWithRank>> GetTopRequestedSongs(int topN, int numberOfMonths = 1)
+        {
+            return QuerySongRequestHistoryLimitedByMonths(numberOfMonths, topN, null);
+        }
+
+        public Task<int> CountDistinctSongsLimitedByMonths(int numberOfMonths = 1)
+        {
+            return QueryLimitedByMonths(numberOfMonths)
+                .Select(x => x.SongId)
+                .Distinct()
+                .CountAsync();
         }
     }
 }

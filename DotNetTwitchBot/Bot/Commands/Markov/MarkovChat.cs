@@ -109,7 +109,7 @@ namespace DotNetTwitchBot.Bot.Commands.Markov
                     !Bots.Contains(x.Username.ToLower()) &&
                     !bannedUsers.Contains(x.Username.ToLower()) && 
                     !x.Message.Contains("http") &&
-                    x.CreatedAt > DateTime.Now.AddMonths(-numberOfMonths)
+                    x.CreatedAt > DateTime.UtcNow.AddMonths(-numberOfMonths)
                 )
                 .Select(x => x.Message).ToListAsync();
 

@@ -10,7 +10,7 @@ namespace DotNetTwitchBot.Bot.Commands.WheelSpin
         Task<List<Wheel>> GetWheels();
         void HideWheel();
         Task SaveWheel(Wheel wheel);
-        void OpenNameWheel();
+        Task OpenNameWheel();
         void ShowNameWheel();
         void ShowWheel(Wheel wheel);
         void SpinWheel();

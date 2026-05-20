@@ -14,7 +14,7 @@ namespace DotNetTwitchBot.Bot.Models
         [JsonIgnore]
         public int? Id { get; set; }
         public string Username { get; set; } = null!;
-        public DateTime LastSub { get; set; } = DateTime.Now;
+        public DateTime LastSub { get; set; } = DateTime.UtcNow;
         public string UserId { get; set; } = string.Empty;
     }
 }

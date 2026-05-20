@@ -42,6 +42,10 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
+        // Pre-load migration assemblies from the application directory so Assembly.Load(name)
+        // can find them in self-contained / single-file publish scenarios.
+        PreloadMigrationAssemblies();
+
         Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
         Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "DotNetTwitchBot");
         using var server = new Prometheus.KestrelMetricServer(port: 4999);
@@ -206,17 +210,15 @@ internal class Program
 
         //builder.Services.AddAntiforgery(o => o.SuppressXFrameOptionsHeader = true);
 
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        var databaseProvider = GetDatabaseProvider(builder.Configuration);
+        var connectionString = GetConnectionString(builder.Configuration, databaseProvider);
+        var migrationsAssembly = GetMigrationsAssembly(databaseProvider);
+        Log.Information("Using database provider {Provider}", databaseProvider);
+
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), options => options.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: System.TimeSpan.FromSeconds(15),
-                    errorNumbersToAdd: null
-                )
-                .TranslateParameterizedCollectionsToConstants()
-                .EnablePrimitiveCollectionsSupport());
-            });
+        {
+            ConfigureDbContextOptions(options, databaseProvider, connectionString, migrationsAssembly);
+        });
 
         builder.Services.AddSignalR();
 
@@ -477,5 +479,161 @@ internal class Program
         }
 
         Log.CloseAndFlush();
+    }
+
+    private static string GetDatabaseProvider(IConfiguration configuration)
+    {
+        // Check environment variable first (for debug profile selection)
+        var envProvider = Environment.GetEnvironmentVariable("DATABASE_PROVIDER")?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(envProvider))
+        {
+            Log.Information("Using database provider {Provider} from environment variable", envProvider);
+            return envProvider switch
+            {
+                "mariadb" or "mysql" => "mariadb",
+                "postgres" or "postgresql" => "postgres",
+                "sqlite" => "sqlite",
+                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+            };
+        }
+
+        // Fall back to configuration file
+        var provider = configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant();
+        return provider switch
+        {
+            null or "" => "mariadb",
+            "mariadb" => "mariadb",
+            "mysql" => "mariadb",
+            "postgres" => "postgres",
+            "postgresql" => "postgres",
+            "sqlite" => "sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+        };
+    }
+
+    private static void PreloadMigrationAssemblies()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        string[] migrationDlls =
+        [
+            "DotNetTwitchBot.Migrations.Postgres.dll",
+            "DotNetTwitchBot.Migrations.MariaDb.dll",
+            "DotNetTwitchBot.Migrations.Sqlite.dll",
+        ];
+        foreach (var dll in migrationDlls)
+        {
+            var path = Path.Combine(baseDir, dll);
+            if (File.Exists(path))
+                System.Reflection.Assembly.LoadFrom(path);
+        }
+    }
+
+    private static string GetMigrationsAssembly(string provider)
+    {
+        return provider switch
+        {
+            "mariadb" => "DotNetTwitchBot.Migrations.MariaDb",
+            "postgres" => "DotNetTwitchBot.Migrations.Postgres",
+            "sqlite" => "DotNetTwitchBot.Migrations.Sqlite",
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'.")
+        };
+    }
+
+    private static string GetConnectionString(IConfiguration configuration, string provider)
+    {
+        var configured = provider switch
+        {
+            "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
+            "postgres" => configuration.GetConnectionString("PostgresConnection"),
+            "sqlite" => string.IsNullOrEmpty(configuration.GetConnectionString("SqliteConnection"))
+                ? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "dotnettwitchbot.sqlite")}"
+                : configuration.GetConnectionString("SqliteConnection"),
+            _ => null
+        };
+
+        return string.IsNullOrWhiteSpace(configured)
+            ? throw new InvalidOperationException($"Connection string is missing for provider '{provider}'.")
+            : configured;
+    }
+
+    private static void ConfigureDbContextOptions(DbContextOptionsBuilder options, string provider, string connectionString, string migrationsAssembly)
+    {
+        // Downgrade pending-model-changes from error to warning so the app can start
+        // while a migration is being prepared.
+        options.ConfigureWarnings(w =>
+            w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
+        switch (provider)
+        {
+            case "mariadb":
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
+                {
+                    mysqlOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorNumbersToAdd: null
+                        )
+                        .TranslateParameterizedCollectionsToConstants()
+                        .EnablePrimitiveCollectionsSupport();
+                });
+                break;
+
+            case "postgres":
+                options.UseNpgsql(connectionString, postgresOptions =>
+                {
+                    postgresOptions.MigrationsAssembly(migrationsAssembly)
+                        .EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(15),
+                            errorCodesToAdd: null
+                        );
+                });
+                break;
+
+            case "sqlite":
+                // Append shared-cache, foreign keys, and pooling defaults if not already specified
+                var sqliteConnStr = connectionString!.Contains("Cache=", StringComparison.OrdinalIgnoreCase)
+                    ? connectionString
+                    : connectionString + ";Cache=Shared;Foreign Keys=True";
+                options.UseSqlite(sqliteConnStr, sqliteOptions =>
+                {
+                    sqliteOptions.MigrationsAssembly(migrationsAssembly)
+                        .CommandTimeout(30);
+                });
+                options.AddInterceptors(new SqliteWalInterceptor());
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unsupported database provider '{provider}'.");
+        }
+    }
+}
+
+/// <summary>
+/// Applies WAL journal mode and busy timeout PRAGMAs to every SQLite connection opened by EF Core.
+/// Required for multi-threaded ASP.NET Core workloads to avoid "database is locked" errors.
+/// </summary>
+file sealed class SqliteWalInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.DbConnectionInterceptor
+{
+    private const string Pragmas = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+
+    public override void ConnectionOpened(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        cmd.ExecuteNonQuery();
+    }
+
+    public override async Task ConnectionOpenedAsync(
+        System.Data.Common.DbConnection connection,
+        Microsoft.EntityFrameworkCore.Diagnostics.ConnectionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = Pragmas;
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

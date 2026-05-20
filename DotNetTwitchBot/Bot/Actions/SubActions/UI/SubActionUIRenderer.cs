@@ -62,7 +62,8 @@ namespace DotNetTwitchBot.Bot.Actions.SubActions.UI
                     RenderSwitch(builder, ref sequence, field, currentValue as bool? ?? false, receiver, onValueChanged);
                     break;
                 case UIFieldType.Select:
-                    RenderSelect(builder, ref sequence, field, currentValue as string ?? "", receiver, onValueChanged);
+                    var selectValue = currentValue is string s ? s : currentValue != null ? Convert.ToString(currentValue) ?? "" : "";
+                    RenderSelect(builder, ref sequence, field, selectValue, receiver, onValueChanged);
                     break;
                 case UIFieldType.Info:
                     RenderInfo(builder, ref sequence, field);
