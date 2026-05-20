@@ -4,6 +4,8 @@ namespace DotNetTwitchBot.Bot.Models.Points
 {
     [Index(nameof(UserId))]
     [Index(nameof(Username))]
+    [Index(nameof(UserId), nameof(PointTypeId))]
+    [Index(nameof(PointTypeId), nameof(Banned), nameof(Points), IsDescending = new[] { false, false, true })]
     public class UserPoints
     {
         [Key]

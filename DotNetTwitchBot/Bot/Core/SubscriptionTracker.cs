@@ -68,7 +68,7 @@ namespace DotNetTwitchBot.Bot.Core
                     UserId = userId
                 };
                 subHistory.Username = name;
-                subHistory.LastSub = DateTime.Now;
+                subHistory.LastSub = DateTime.UtcNow;
                 db.SubscriptionHistories.Update(subHistory);
                 await db.SaveChangesAsync();
             }

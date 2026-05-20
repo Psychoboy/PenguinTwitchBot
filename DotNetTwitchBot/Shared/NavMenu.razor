@@ -1,5 +1,6 @@
 ﻿@inject NavigationManager Navigation
 @implements IDisposable
+@using DotNetTwitchBot.Helpers
 
 <MudNavMenu>
 <CascadingAuthenticationState>  
@@ -134,7 +135,7 @@
 
     private void Signin()
     {
-        Navigation.NavigateTo("/signin?r=" + new Uri(Navigation.Uri).AbsoluteUri, true);
+        Navigation.NavigateToSigninWithReturnUrl();
     }
 
     protected override void OnInitialized()

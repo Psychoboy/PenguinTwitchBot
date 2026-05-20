@@ -110,9 +110,9 @@
         Wheels = await WheelService.GetWheels();
     }
 
-    private void OpenViewerWheel()
+    private Task OpenViewerWheel()
     {
-        WheelService.OpenNameWheel();
+        return WheelService.OpenNameWheel();
     }
 
     private void ShowViewerWheel()
