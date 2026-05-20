@@ -2337,6 +2337,96 @@ namespace DotNetTwitchBot.Migrations.MariaDb.Migrations
                     b.ToTable("subactions_multicounter", (string)null);
                 });
 
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetBrowserSourceUrlType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_obs_setbrowsersourceurl", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetColorSourceColorType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setcolorsourcecolor", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetImageSourceFileType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setimagesourcefile", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetMediaSourceFileType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setmediasourcefile", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetMediaStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MediaAction")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setmediastate", (string)null);
+                });
+
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSceneFilterStateType", b =>
                 {
                     b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
@@ -2370,6 +2460,103 @@ namespace DotNetTwitchBot.Migrations.MariaDb.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_obs_setscene", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSourceAudioTrackStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("TrackEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("TrackNumber")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setsourceaudiotrackstate", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSourceFilterStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("FilterEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("FilterName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_obs_setsourcefilterstate", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSourceMuteStateType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Muted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.ToTable("subactions_obs_setinputmute", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetSourceVisibilityType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SceneName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Visible")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("subactions_obs_setsourcevisibility", (string)null);
+                });
+
+            modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsSetTextType", b =>
+                {
+                    b.HasBaseType("DotNetTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("InputName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OBSConnectionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TextContent")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_obs_settext", (string)null);
                 });
 
             modelBuilder.Entity("DotNetTwitchBot.Bot.Actions.SubActions.Types.ObsTriggerHotkeyType", b =>
