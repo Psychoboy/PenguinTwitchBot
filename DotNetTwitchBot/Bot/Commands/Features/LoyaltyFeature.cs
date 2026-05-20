@@ -4,6 +4,7 @@ using DotNetTwitchBot.Bot.Events;
 using DotNetTwitchBot.Bot.Events.Chat;
 using DotNetTwitchBot.Bot.Models;
 using DotNetTwitchBot.Repository;
+using LinqToDB.EntityFrameworkCore;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -171,7 +172,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerMessage = await db.ViewerMessageCountsWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                viewerMessage = await db.ViewerMessageCounts.GetUserMessageCountWithRankByUsername(name);
             }
 
             return viewerMessage ?? new ViewerMessageCountWithRank { Ranking = int.MaxValue };
@@ -181,7 +182,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.ViewerMessageCountsWithRank.GetAsync(orderBy: x => x.OrderBy(y => y.Ranking), limit: topN);
+            return await db.ViewerMessageCounts.GetRankedMessageCounts(limit: topN).ToListAsyncLinqToDB();
         }
 
         public async Task<ViewerTimeWithRank> GetUserTimeAndRank(string name)
@@ -190,7 +191,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                viewerTime = await db.ViewersTimeWithRank.Find(x => x.Username.Equals(name)).FirstOrDefaultAsync();
+                viewerTime = await db.ViewersTime.GetUserTimeWithRankByUsername(name);
             }
             return viewerTime ?? new ViewerTimeWithRank() { Ranking = int.MaxValue };
         }

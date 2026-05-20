@@ -6,6 +6,6 @@ namespace DotNetTwitchBot.Repository
     {
         Task<List<IpLogEntry>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null);
         Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, int? limit = null, int? offset = null);
-        IQueryable<IpLogUsersWithSameIp> GetAllUsersWithDuplicateIps(int? limit = null, int? offset = null);
+        Task<List<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps();
     }
 }

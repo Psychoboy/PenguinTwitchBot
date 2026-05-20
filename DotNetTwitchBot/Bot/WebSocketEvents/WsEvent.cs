@@ -2,7 +2,7 @@
 {
     public class WsEvent
     {
-        public DateTime TimeStamp { get; set; } = DateTime.Now;
+        public DateTime TimeStamp { get; set; } = DateTime.UtcNow;
         public WsEventType Event { get; set; } = new WsEventType();
         public Dictionary<string, object> Data { get; set; } = [];
     }

@@ -9,6 +9,7 @@ using DotNetTwitchBot.Bot.Models.Timers;
 using DotNetTwitchBot.Bot.Models.Wheel;
 using DotNetTwitchBot.Bot.Models.Obs;
 using DotNetTwitchBot.Bot.Models.Fishing;
+using DotNetTwitchBot.Bot.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetTwitchBot.Bot.Core.Database
@@ -69,13 +70,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
         public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
 
-        //Virtual tables
-        public DbSet<ViewerTimeWithRank> ViewersTimeWithRank { get; set; } = null!;
-        public DbSet<ViewerMessageCountWithRank> ViewerMessageCountWithRanks { get; set; } = null!;
-        public DbSet<FilteredQuoteType> FilteredQuotes { get; set; } = null!;
-        public DbSet<Models.Metrics.SongRequestMetricsWithRank> SongRequestMetricsWithRank { get; set; } = null!;
-        public DbSet<Models.Metrics.SongRequestHistoryWithRank> SongRequestHistoryWithRanks { get; set; } = null!;
-        
         public DbSet<ActionType> Actions { get; set; } = null!;
         public DbSet<SubActionType> SubActions { get; set; } = null!;
         public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
@@ -84,18 +78,9 @@ namespace DotNetTwitchBot.Bot.Core.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-
-            modelBuilder.Entity<ViewerTimeWithRank>()
-            .ToView(nameof(ViewersTimeWithRank))
-            .HasKey(t => t.Id);
-
-            modelBuilder.Entity<ViewerMessageCountWithRank>()
-            .ToView(nameof(ViewerMessageCountWithRanks))
-            .HasKey(t => t.Id);
-
-            modelBuilder.Entity<FilteredQuoteType>()
-            .ToView(nameof(FilteredQuotes))
-            .HasKey(t => t.Id);
+            // Configure DateTime properties for database provider compatibility
+            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : Database.IsMySql() ? "mariadb" : null;
+            modelBuilder.ConfigureDateTimes(provider);
 
             modelBuilder.Entity<SongRequestViewItem>()
             .HasKey(c => c.Id);
@@ -103,14 +88,6 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<SongRequestViewItem>()
             .Property(c => c.Id)
             .ValueGeneratedNever();
-
-            modelBuilder.Entity<Models.Metrics.SongRequestMetricsWithRank>()
-                .ToView(nameof(Models.Metrics.SongRequestMetricsWithRank))
-            .HasKey(c => c.SongId);
-
-            modelBuilder.Entity<Models.Metrics.SongRequestHistoryWithRank>()
-                .ToView(nameof(Models.Metrics.SongRequestHistoryWithRank))
-            .HasKey(c => c.SongId);
 
             modelBuilder.Entity<MusicPlaylist>().Navigation(t => t.Songs).AutoInclude();
             modelBuilder.Entity<Wheel>().Navigation(t => t.Properties).AutoInclude();
@@ -140,6 +117,49 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<Models.Queues.QueueConfiguration>()
                 .HasIndex(q => q.Name)
                 .IsUnique();
+
+            modelBuilder.Entity<Viewer>()
+                .Property(v => v.Username)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            // AutoShoutout name normalization at model level
+            modelBuilder.Entity<AutoShoutout>()
+                .Property(a => a.Name)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            // Alias name is a chat command identifier — always looked up as lowercase
+            modelBuilder.Entity<AliasModel>()
+                .Property(a => a.AliasName)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            // TTS registered voice usernames — admin may enter mixed-case but lookup uses Twitch login (lowercase)
+            modelBuilder.Entity<UserRegisteredVoice>()
+                .Property(u => u.Username)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<Models.Games.GameSetting>()
+                .Property(g => g.GameName)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<Models.Games.GameSetting>()
+                .Property(g => g.SettingName)
+                .HasMaxLength(255)
+                .HasConversion(
+                    v => UsernameNormalizer.Normalize(v),
+                    v => UsernameNormalizer.Normalize(v));
 
             // Configure FishCatch with proper column constraints and index
             modelBuilder.Entity<FishCatch>()
@@ -172,6 +192,8 @@ namespace DotNetTwitchBot.Bot.Core.Database
             modelBuilder.Entity<FishingSnapEvent>()
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+
         }
     }
 }

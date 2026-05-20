@@ -65,7 +65,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             try
             {
                 var chatters = await _twitchService.GetCurrentChatters();
-                _users = new(chatters.Select(x => x.UserLogin).Distinct());
+                _users = new(chatters.Select(x => UsernameNormalizer.Normalize(x.UserLogin)).Distinct());
                 foreach (var chatter in chatters)
                 {
                     await AddOrUpdateLastSeen(chatter.UserId);
@@ -91,9 +91,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<List<Viewer>> SearchForViewer(string name)
         {
+            var normalizedName = UsernameNormalizer.Normalize(name);
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.Viewers.Find(x => x.Username.Contains(name) || x.DisplayName.Contains(name)).ToListAsync();
+            return await db.Viewers.Find(x =>
+                x.Username.Contains(normalizedName)).ToListAsync();
         }
 
         private async void OnSubscriberTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -134,7 +136,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         private async Task UpdateLastSeen(Viewer viewer)
         {
-            viewer.LastSeen = DateTime.Now;
+            viewer.LastSeen = DateTime.UtcNow;
             await UpdateViewer(viewer);
         }
 
@@ -184,9 +186,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public List<string> GetActiveViewers()
         {
-            var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.Now).Select(x => x.Key).ToList();
+            var activeViewers = _usersLastActive.Where(kvp => kvp.Value.AddMinutes(15) > DateTime.UtcNow).Select(x => x.Key).ToList();
             ActiveViewers.Set(activeViewers.Count);
-            var lurkers = _lurkers.Where(x => x.Value > DateTime.Now.AddHours(-1)).Select(x => x.Key);
+            var lurkers = _lurkers.Where(x => x.Value > DateTime.UtcNow.AddHours(-1)).Select(x => x.Key);
             activeViewers.AddRange(lurkers.Where(x => activeViewers.Contains(x, StringComparer.OrdinalIgnoreCase) == false));
             return activeViewers;
         }
@@ -202,9 +204,10 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Viewer?> GetViewerByUserName(string username)
         {
+            var normalizedUsername = UsernameNormalizer.Normalize(username);
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var viewer = await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
+            var viewer = await db.Viewers.Find(x => x.Username.Equals(normalizedUsername)).FirstOrDefaultAsync();
             if(viewer == null)
             {
                 var twitchViewer = await _twitchService.GetUserByName(username);
@@ -227,10 +230,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
 
         public async Task<Viewer?> GetViewerByUserIdOrName(string userId, string username)
         {
+            var normalizedUsername = UsernameNormalizer.Normalize(username);
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewer =  await db.Viewers.Find(x => x.UserId.Equals(userId)).FirstOrDefaultAsync();
-            viewer ??= await db.Viewers.Find(x => x.Username.Equals(username.ToLower())).FirstOrDefaultAsync();
+            viewer ??= await db.Viewers.Find(x => x.Username.Equals(normalizedUsername)).FirstOrDefaultAsync();
             if(viewer == null)
             {
                 var twitchViewer = await _twitchService.GetUserByName(username);
@@ -331,7 +335,9 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private void UpdateLastActive(string? sender)
         {
             if (sender == null) return;
-            _usersLastActive[sender] = DateTime.Now;
+            var normalized = UsernameNormalizer.Normalize(sender);
+            if (string.IsNullOrWhiteSpace(normalized)) return;
+            _usersLastActive[normalized] = DateTime.UtcNow;
         }
 
         public async Task OnChatMessage(ChatMessageEventArgs e)
@@ -344,12 +350,13 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 UserId = e.UserId
             };
             if (viewer.DisplayName != e.DisplayName) viewer.DisplayName = e.DisplayName;
-            if (viewer.Username != e.Name) viewer.Username = e.Name;
+            var normalizedName = UsernameNormalizer.Normalize(e.Name);
+            if (viewer.Username != normalizedName) viewer.Username = normalizedName;
             if (viewer.isMod != e.IsMod) viewer.isMod = e.IsMod;
             if (viewer.isSub != e.IsSub) viewer.isSub = e.IsSub;
             if (viewer.isVip != e.IsVip) viewer.isVip = e.IsVip;
             if (viewer.isBroadcaster != e.IsBroadcaster) viewer.isBroadcaster = e.IsBroadcaster;
-            viewer.LastSeen = DateTime.Now;
+            viewer.LastSeen = DateTime.UtcNow;
             await UpdateViewer(viewer);
         }
 
@@ -365,8 +372,8 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             {
                 DisplayName = user.DisplayName,
                 UserId = userId,
-                Username = user.Login,
-                LastSeen = DateTime.Now
+                Username = UsernameNormalizer.Normalize(user.Login),
+                LastSeen = DateTime.UtcNow
             };
             await UpdateViewer(viewer);
         }
@@ -393,7 +400,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                             {
                                 _logger.LogWarning("{name} was not a subscriber and is being updated manually bulk.", viewer.Username);
                             }
-                            viewer.Username = subscriber.UserLogin;
+                            viewer.Username = UsernameNormalizer.Normalize(subscriber.UserLogin);
                             viewer.DisplayName = subscriber.UserName;
                             viewer.isSub = true;
                             db.Viewers.Update(viewer);
@@ -409,7 +416,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var subTracker = scope.ServiceProvider.GetRequiredService<SubscriptionTracker>();
-                    var missingNames = await subTracker.MissingSubs(subscribers.Select(x => x.UserLogin));
+                    var missingNames = await subTracker.MissingSubs(subscribers.Select(x => UsernameNormalizer.Normalize(x.UserLogin)));
                     foreach (var missingName in missingNames)
                     {
                         var viewer = await _twitchService.GetUserByName(missingName);
@@ -428,7 +435,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     var curSubscribers = await db.Viewers.Find(x => x.isSub == true).ToListAsync();
                     foreach (var curSubscriber in curSubscribers)
                     {
-                        if (!subscribers.Exists(x => x.UserLogin.Equals(curSubscriber.Username)))
+                        if (!subscribers.Exists(x => UsernameNormalizer.Normalize(x.UserLogin).Equals(curSubscriber.Username)))
                         {
                             _logger.LogInformation("Removing Subscriber {name}", curSubscriber.Username);
                             curSubscriber.isSub = false;
@@ -461,7 +468,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                             {
                                 UserId = editor.UserId
                             };
-                            viewer.Username = editor.UserName;
+                            viewer.Username = UsernameNormalizer.Normalize(editor.UserName);
                             viewer.DisplayName = editor.UserName;
                             viewer.isEditor = true;
                             db.Viewers.Update(viewer);
@@ -479,7 +486,7 @@ namespace DotNetTwitchBot.Bot.Commands.Features
                     var curEditors = await db.Viewers.Find(x => x.isEditor == true).ToListAsync();
                     foreach (var curEditor in curEditors)
                     {
-                        if (!editors.Exists(x => x.UserName.Equals(curEditor.Username)))
+                        if (!editors.Exists(x => UsernameNormalizer.Normalize(x.UserName).Equals(curEditor.Username)))
                         {
                             _logger.LogInformation("Removing Editor {name}", curEditor.Username);
                             curEditor.isEditor = false;
@@ -507,7 +514,11 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             var command = CommandHandler.GetCommandDefaultName(e.Command);
             if (command.Equals("lurk"))
             {
-                _lurkers[e.Name] = DateTime.Now;
+                var normalizedName = UsernameNormalizer.Normalize(e.Name);
+                if (!string.IsNullOrWhiteSpace(normalizedName))
+                {
+                    _lurkers[normalizedName] = DateTime.UtcNow;
+                }
             }
             return Task.CompletedTask;
         }
