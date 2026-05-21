@@ -62,6 +62,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             };
 
             _gameSettingsService.GetDoubleSetting("TwitchEventBonus", "BitsPerPoint", 1.0).Returns(1.0);
+            _gameSettingsService.GetStringSetting("TwitchEventBonus", "CheerMessage", Arg.Any<string>()).Returns("{Name} just cheered {Amount} bits! sptvHype");
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
             await _twitchEventsBonus.StartAsync(default);
 
@@ -85,6 +86,7 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             };
 
             _gameSettingsService.GetIntSetting("TwitchEventBonus", "PointsPerSub", 500).Returns(500);
+            _gameSettingsService.GetStringSetting("TwitchEventBonus", "SubMessage", Arg.Any<string>()).Returns("{Name} just subscribed{Details}! sptvHype");
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
 
             await _twitchEventsBonus.StartAsync(default);
@@ -109,6 +111,8 @@ namespace DotNetTwitchBot.Test.Bot.Core.Points
             };
 
             _gameSettingsService.GetIntSetting("TwitchEventBonus", "PointsPerSub", 500).Returns(500);
+            _gameSettingsService.GetStringSetting("TwitchEventBonus", "SubGiftMessage", Arg.Any<string>()).Returns("{Name} gifted {Amount} subscriptions to the channel! sptvHype sptvHype sptvHype");
+            _gameSettingsService.GetStringSetting("TwitchEventBonus", "SubGiftTotalMessage", Arg.Any<string>()).Returns(" They have gifted a total of {Total} subs to the channel!");
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
             await _twitchEventsBonus.StartAsync(default);
 
