@@ -26,6 +26,7 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - [Database Support](#database-support)
 - [Optional Integrations](#optional-integrations)
 - [Web Dashboard](#web-dashboard)
+- [OBS Browser Sources](#obs-browser-sources)
 - [REST API & Stream Deck Integration](#rest-api--stream-deck-integration)
 - [Contributing / Building From Source](#contributing--building-from-source)
 - [License](#license)
@@ -206,6 +207,39 @@ The bot includes a web-based dashboard accessible at `http://localhost:5000` (de
 - View and manage clips
 - Configure Discord, TTS, and other integrations
 - Access administrative tools
+
+---
+
+## OBS Browser Sources
+
+The bot serves several overlay pages designed to be added as **Browser Sources** in OBS (or any other streaming software that supports browser sources). All URLs are relative to the bot's address — `http://localhost:5000` by default.
+
+To add any of these in OBS:
+1. In a Scene, click **+** under Sources → **Browser**.
+2. Paste the URL from the table below.
+3. Set the width/height to match your canvas (typically 1920×1080).
+4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"** as needed.
+5. Check **"Use custom frame rate"** only if you need to match a specific frame rate.
+
+> For a clean overlay, make sure **"Control audio via OBS"** is enabled if the source plays audio (clips, TTS, alerts).
+
+### Available Overlays
+
+| Overlay | URL | Description |
+|---------|-----|-------------|
+| **Alerts** | `http://localhost:5000/alerts.html` | Displays follow, sub, raid, cheer, and channel point redemption alerts with images, sounds, and text animations. |
+| **Clips** | `http://localhost:5000/clips.html` | Plays back Twitch clips downloaded by the bot. Shows the clip video along with the clipper's name and game info. |
+| **Fishing** | `http://localhost:5000/fishing.html` | Shows a real-time fishing game overlay — displays catch notifications, fish details, and leaderboard updates as viewers fish in chat. |
+| **Wheel Spin** | `http://localhost:5000/wheel.html` | Renders the interactive prize wheel. Animates and displays the result whenever a wheel spin is triggered. |
+
+### Recommended OBS Settings per Source
+
+| Overlay | Width | Height | Notes |
+|---------|-------|--------|-------|
+| Alerts | 1920 | 1080 | Transparent background — place on top of other sources. |
+| Clips | 1920 | 1080 | Has its own background; layer accordingly. |
+| Fishing | 1920 | 1080 | Transparent background — place on top of other sources. |
+| Wheel Spin | 800 | 800 | Resize to taste; no transparency by default. |
 
 ---
 
