@@ -362,4 +362,4 @@ docker run -p 5000:5000 -v ./data:/app/Data penguintwitchbot
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+This project is licensed under the [MIT License](LICENSE).
