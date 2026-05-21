@@ -1,5 +1,4 @@
 using DotNetTwitchBot.Bot.Commands.Games;
-using DotNetTwitchBot.Bot.Commands.PastyGames;
 using DotNetTwitchBot.Bot.Commands.TicketGames;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;

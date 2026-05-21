@@ -16,7 +16,6 @@ public class SlotsSettingsProvider : IGameSettingsFormProvider
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
         var svc = serviceProvider.GetRequiredService<IGameSettingsService>();
-        var slots = serviceProvider.GetRequiredService<Slots>();
         return new Dictionary<string, object?>
         {
             [Slots.GAMESETTING_3_OF_A_KIND]         = await svc.GetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_3_OF_A_KIND, 3.5),
@@ -35,7 +34,8 @@ public class SlotsSettingsProvider : IGameSettingsFormProvider
             svc.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_2_OF_A_KIND, Get<double>(values, Slots.GAMESETTING_2_OF_A_KIND)),
             svc.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_FIRST_2_MULTIPLIER, Get<double>(values, Slots.GAMESETTING_FIRST_2_MULTIPLIER)),
             svc.SetDoubleSetting(Slots.GAMENAME, Slots.GAMESETTING_LAST_2_MULTIPLIER, Get<double>(values, Slots.GAMESETTING_LAST_2_MULTIPLIER)),
-            svc.SetStringSetting(Slots.GAMENAME, Slots.GAMESETTING_EMOTES, Get<string>(values, Slots.GAMESETTING_EMOTES))
+            svc.SetStringSetting(Slots.GAMENAME, Slots.GAMESETTING_EMOTES,
+                string.Join(',', Get<string>(values, Slots.GAMESETTING_EMOTES).Split(',').Select(e => e.Trim()).Where(e => e.Length > 0)))
         );
     }
 

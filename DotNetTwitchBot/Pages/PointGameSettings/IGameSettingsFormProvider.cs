@@ -26,6 +26,12 @@ public interface IGameSettingsFormProvider
 
 public static class GameSettingsProviderHelpers
 {
-    public static T Get<T>(Dictionary<string, object?> values, string key) =>
-        values.TryGetValue(key, out var v) && v is T t ? t : default!;
+    public static T Get<T>(Dictionary<string, object?> values, string key)
+    {
+        if (!values.TryGetValue(key, out var v))
+            throw new KeyNotFoundException($"Setting key '{key}' was not found in values dictionary.");
+        if (v is T t)
+            return t;
+        throw new InvalidCastException($"Setting key '{key}' has value of type '{v?.GetType().Name ?? "null"}' but expected '{typeof(T).Name}'.");
+    }
 }

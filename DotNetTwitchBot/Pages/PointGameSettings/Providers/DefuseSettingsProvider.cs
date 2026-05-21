@@ -35,7 +35,7 @@ public class DefuseSettingsProvider : IGameSettingsFormProvider
         await Task.WhenAll(
             svc.SetIntSetting(Defuse.GAMENAME, Defuse.COST, Get<int>(values, Defuse.COST)),
             svc.SetDoubleSetting(Defuse.GAMENAME, Defuse.WIN_MULTIPLIER, Get<double>(values, Defuse.WIN_MULTIPLIER)),
-            svc.SetStringSetting(Defuse.GAMENAME, Defuse.WIRES, string.Join(',', Get<string>(values, Defuse.WIRES).Split(',').Select(w => w.Trim()))),
+            svc.SetStringSetting(Defuse.GAMENAME, Defuse.WIRES, string.Join(',', Get<string>(values, Defuse.WIRES).Split(',').Select(w => w.Trim()).Where(w => w.Length > 0))),
             svc.SetStringSetting(Defuse.GAMENAME, Defuse.STARTING, Get<string>(values, Defuse.STARTING)),
             svc.SetStringSetting(Defuse.GAMENAME, Defuse.SUCCESS, Get<string>(values, Defuse.SUCCESS)),
             svc.SetStringSetting(Defuse.GAMENAME, Defuse.FAIL, Get<string>(values, Defuse.FAIL)),

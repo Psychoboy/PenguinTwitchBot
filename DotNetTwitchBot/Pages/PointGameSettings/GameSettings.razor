@@ -10,8 +10,8 @@
                     <MudStack Spacing="1">
                         <MudText Typo="Typo.h5">Game Settings</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Configure each game's costs and messages. Dynamic variables like <code>{Cost}</code> and <code>{PointType}</code> are replaced at runtime.
-                            To assign which point type a game uses, visit <MudLink Href="/pointsettings">Point Settings</MudLink>.
+                            Configure each game's costs, point type, and messages. Dynamic variables like <code>{Cost}</code> and <code>{PointType}</code> are replaced at runtime.
+                            Use the Point Type selector within each game's settings to choose which point type it uses.
                         </MudText>
                     </MudStack>
                 </MudPaper>
@@ -23,7 +23,10 @@
                 {
                     var p = provider;
                     <MudItem xs="12" sm="6" md="4">
-                        <MudPaper Class="pa-3" Elevation="2" Style="cursor:pointer;" @onclick="() => _selectedProvider = p">
+                        <MudPaper Class="pa-3" Elevation="2" Style="cursor:pointer;"
+                              tabindex="0"
+                              @onclick="() => _selectedProvider = p"
+                              @onkeydown="@((e) => { if (e.Key == "Enter" || e.Key == " ") _selectedProvider = p; })">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@p.Icon" Color="Color.Primary" Size="Size.Large" />
                                 <MudStack Spacing="0">

@@ -141,6 +141,10 @@ else
                 _selectedPointType = await PointsSystem.GetPointTypeForGame(Provider.PointsGameName);
             }
         }
+        catch (Exception ex)
+        {
+            _validationError = $"Failed to load settings: {ex.Message}";
+        }
         finally
         {
             _loading = false;
