@@ -59,20 +59,20 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     return;
                 }
                 ClaimedBonuses.Add(username);
-                var minAmount = await gameSettingsService.GetIntSetting(GAMENAME, MINAMOUNT, 25);
-                var maxAmount = await gameSettingsService.GetIntSetting(GAMENAME, MAXAMOUNT, 50);
+                var minAmount = Math.Clamp(await gameSettingsService.GetIntSetting(GAMENAME, MINAMOUNT, 25), 1, int.MaxValue - 1);
+                var maxAmount = Math.Clamp(await gameSettingsService.GetIntSetting(GAMENAME, MAXAMOUNT, 50), minAmount, int.MaxValue - 1);
                 var ticketsWon = RandomNumberGenerator.GetInt32(minAmount, maxAmount + 1);
                 var amount = await pointSystem.AddPointsByUsernameAndGame(username, GAMENAME, ticketsWon);
                 if(amount == 0)
                 {
                     logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);
-                    var errorMsg = await gameSettingsService.GetStringSetting(GAMENAME, ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator.");
+                    var errorMsg = (await gameSettingsService.GetStringSetting(GAMENAME, ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator.")) ?? string.Empty;
                     errorMsg = errorMsg.Replace("{Name}", username, StringComparison.OrdinalIgnoreCase);
                     await dispatcher.Publish(new SendBotMessage(errorMsg, true));
                     return;
                 }
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
-                var winMessage = await gameSettingsService.GetStringSetting(GAMENAME, WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets.");
+                var winMessage = (await gameSettingsService.GetStringSetting(GAMENAME, WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets.")) ?? string.Empty;
                 winMessage = winMessage
                     .Replace("{Name}", username, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Amount}", ticketsWon.ToString("N0"), StringComparison.OrdinalIgnoreCase)

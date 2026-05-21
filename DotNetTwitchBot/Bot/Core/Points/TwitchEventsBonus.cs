@@ -81,7 +81,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
         {
             if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous || string.IsNullOrWhiteSpace(e.UserId))
             {
-                var anonMsg = await gameSettingsService.GetStringSetting(GAMENAME, ANONYMOUSCHEERMESSAGE, "Someone just cheered {Amount} bits! sptvHype");
+                var anonMsg = (await gameSettingsService.GetStringSetting(GAMENAME, ANONYMOUSCHEERMESSAGE, "Someone just cheered {Amount} bits! sptvHype")) ?? string.Empty;
                 anonMsg = anonMsg.Replace("{Amount}", e.Amount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                 await ServiceBackbone.SendChatMessage(anonMsg, false);
                 return;
@@ -96,7 +96,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     var pointType = await pointsSystem.GetPointTypeForGame(GAMENAME);
                     logger.LogInformation("Gave {name} {points} {PointType} for cheering.", e.Name, pointsToAward, pointType.Name);
                     await pointsSystem.AddPointsByUserIdAndGame(e.UserId, GAMENAME, pointsToAward);
-                    var cheerMsg = await gameSettingsService.GetStringSetting(GAMENAME, CHEERMESSAGE, "{Name} just cheered {Amount} bits! sptvHype");
+                    var cheerMsg = (await gameSettingsService.GetStringSetting(GAMENAME, CHEERMESSAGE, "{Name} just cheered {Amount} bits! sptvHype")) ?? string.Empty;
                     cheerMsg = cheerMsg
                         .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                         .Replace("{Amount}", e.Amount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
@@ -118,13 +118,13 @@ namespace DotNetTwitchBot.Bot.Core.Points
                 var pointType = await pointsSystem.GetPointTypeForGame(GAMENAME);
                 logger.LogInformation("Gave {name} {points} {PointType} for subscribing.", args.Name, subPoints, pointType.Name);
                 await pointsSystem.AddPointsByUserIdAndGame(args.UserId, GAMENAME, subPoints);
-                var giftMsg = await gameSettingsService.GetStringSetting(GAMENAME, SUBGIFTMESSAGE, "{Name} gifted {Amount} subscriptions to the channel! sptvHype sptvHype sptvHype");
+                var giftMsg = (await gameSettingsService.GetStringSetting(GAMENAME, SUBGIFTMESSAGE, "{Name} gifted {Amount} subscriptions to the channel! sptvHype sptvHype sptvHype")) ?? string.Empty;
                 giftMsg = giftMsg
                     .Replace("{Name}", args.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Amount}", args.GiftAmount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                 if (args.TotalGifted != null && args.TotalGifted > args.GiftAmount)
                 {
-                    var totalMsg = await gameSettingsService.GetStringSetting(GAMENAME, SUBGIFTTOTALMESSAGE, " They have gifted a total of {Total} subs to the channel!");
+                    var totalMsg = (await gameSettingsService.GetStringSetting(GAMENAME, SUBGIFTTOTALMESSAGE, " They have gifted a total of {Total} subs to the channel!")) ?? string.Empty;
                     giftMsg += totalMsg.Replace("{Total}", args.TotalGifted.Value.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                 }
                 await ServiceBackbone.SendChatMessage(giftMsg, false);
@@ -184,7 +184,7 @@ namespace DotNetTwitchBot.Bot.Core.Points
                     if (e.Count != null && e.Count > 0) details += " and";
                     details += $" for {e.Streak} months in a row";
                 }
-                var subMsgTemplate = await gameSettingsService.GetStringSetting(GAMENAME, SUBMESSAGE, "{Name} just subscribed{Details}! sptvHype");
+                var subMsgTemplate = (await gameSettingsService.GetStringSetting(GAMENAME, SUBMESSAGE, "{Name} just subscribed{Details}! sptvHype")) ?? string.Empty;
                 var message = subMsgTemplate
                     .Replace("{Name}", e.DisplayName, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Details}", details, StringComparison.OrdinalIgnoreCase);
