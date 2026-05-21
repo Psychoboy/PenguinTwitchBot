@@ -63,14 +63,14 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - **Free For All (FFA)** — Everyone-against-everyone game mode
 
 ### Media & Integrations
-- **Song Requests** — YouTube-based song request queue powered by `yt-dlp`; viewers can request songs with points
+- **Song Requests** — YouTube-based song request queue; viewers can request songs with points
 - **Text-to-Speech (TTS)** — Read chat messages or channel point redemptions aloud
 - **OBS Integration** — Connect to OBS for scene control and alerts
 - **Discord Integration** *(optional)* — Go-live announcements, live member role assignment, and chat bridge
 - **Weather Commands** *(optional)* — `!weather` command powered by OpenWeatherMap
 - **AI Chat Responses** *(optional)* — OpenAI-powered chat responses and automated shoutouts
 - **Channel Point Redeems** — Handle Twitch channel point redemptions with custom actions
-- **Clip Tracking** — Track and surface clips from your channel
+- **Clip Tracking** — Automatically downloads and plays back Twitch clips using `yt-dlp` (bundled)
 
 ---
 
@@ -175,7 +175,7 @@ The database is created and migrated automatically on startup. You can switch da
 All optional integrations can be configured during the setup wizard or added later by editing `appsettings.secrets.json`.
 
 ### YouTube / Song Requests
-Requires a **YouTube Data API v3** key from [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com). The bot uses `yt-dlp` (bundled) to download and play audio.
+Requires a **YouTube Data API v3** key from [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com). Used to search and queue YouTube videos for the song request feature.
 
 ### Discord
 Requires a **Discord bot token** from [discord.com/developers](https://discord.com/developers/applications). Enable **Server Members Intent** and **Message Content Intent** in the bot settings. Features include:
