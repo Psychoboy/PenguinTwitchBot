@@ -68,6 +68,7 @@
     private readonly List<IGameSettingsFormProvider> _providers =
     [
         new AddActiveSettingsProvider(),
+        new BonusTicketsSettingsProvider(),
         new DefuseSettingsProvider(),
         new FFASettingsProvider(),
         new GambleSettingsProvider(),
@@ -76,6 +77,7 @@
         new ModSpamSettingsProvider(),
         new RouletteSettingsProvider(),
         new SlotsSettingsProvider(),
+        new TwitchEventBonusSettingsProvider(),
         new ViewersInChatBonusProvider(),
     ];
 }
