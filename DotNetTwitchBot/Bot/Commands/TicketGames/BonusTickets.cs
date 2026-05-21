@@ -1,5 +1,6 @@
 using DotNetTwitchBot.Application.ChatMessage.Notification;
 using DotNetTwitchBot.Bot.Commands.Features;
+using DotNetTwitchBot.Bot.Commands.Games;
 using DotNetTwitchBot.Bot.Core;
 using DotNetTwitchBot.Bot.Core.Points;
 using System.Security.Cryptography;
@@ -8,11 +9,18 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 {
     public class BonusTickets(
         IPointsSystem pointSystem,
+        IGameSettingsService gameSettingsService,
         Application.Notifications.IPenguinDispatcher dispatcher, 
         IServiceBackbone serviceBackbone, 
         IViewerFeature viewerFeature,
         ILogger<BonusTickets> logger) : IBonusTickets
     {
+        public static readonly string GAMENAME = "Bonus";
+        public static readonly string MINAMOUNT = "MinAmount";
+        public static readonly string MAXAMOUNT = "MaxAmount";
+        public static readonly string WINMESSAGE = "WinMessage";
+        public static readonly string ERRORMESSAGE = "ErrorMessage";
+
         private static readonly List<string> ClaimedBonuses = [];
         private static readonly SemaphoreSlim _semaphoreSlim = new(1);
         public async Task<bool> DidUserRedeemBonus(string username)
@@ -51,19 +59,25 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
                     return;
                 }
                 ClaimedBonuses.Add(username);
-                var ticketsWon = RandomNumberGenerator.GetInt32(25, 51);
-                var amount = await pointSystem.AddPointsByUsernameAndGame(username, "bonus", ticketsWon);
+                var minAmount = await gameSettingsService.GetIntSetting(GAMENAME, MINAMOUNT, 25);
+                var maxAmount = await gameSettingsService.GetIntSetting(GAMENAME, MAXAMOUNT, 50);
+                var ticketsWon = RandomNumberGenerator.GetInt32(minAmount, maxAmount + 1);
+                var amount = await pointSystem.AddPointsByUsernameAndGame(username, GAMENAME, ticketsWon);
                 if(amount == 0)
                 {
                     logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);
-                    await dispatcher.Publish(new SendBotMessage($"{username}, something went wrong when trying to give you bonus tickets. Please contact a moderator.", true));
+                    var errorMsg = await gameSettingsService.GetStringSetting(GAMENAME, ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator.");
+                    errorMsg = errorMsg.Replace("{Name}", username, StringComparison.OrdinalIgnoreCase);
+                    await dispatcher.Publish(new SendBotMessage(errorMsg, true));
                     return;
                 }
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
-                var message = string.Format(
-                    "{0} just got {1} bonus tickets from https://bot.superpenguin.tv and now has {2} tickets.",
-                    username, ticketsWon.ToString("N0"), amount.ToString("N0"));
-                await dispatcher.Publish(new SendBotMessage(message, true));
+                var winMessage = await gameSettingsService.GetStringSetting(GAMENAME, WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets.");
+                winMessage = winMessage
+                    .Replace("{Name}", username, StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Amount}", ticketsWon.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                    .Replace("{Total}", amount.ToString("N0"), StringComparison.OrdinalIgnoreCase);
+                await dispatcher.Publish(new SendBotMessage(winMessage, true));
             }
             finally
             {
@@ -86,7 +100,7 @@ namespace DotNetTwitchBot.Bot.Commands.TicketGames
 
         public Task Setup()
         {
-            return pointSystem.RegisterDefaultPointForGame("Bonus");
+            return pointSystem.RegisterDefaultPointForGame(GAMENAME);
         }
     }
 }
