@@ -14,6 +14,7 @@ public class ViewersInChatBonusProvider : IGameSettingsFormProvider
     public string DisplayName => "Viewers in Chat Bonus";
     public string? Description => "Periodic point rewards distributed every 15 minutes based on viewer activity";
     public string Icon => Icons.Material.Filled.People;
+    public string? PointsGameName => null;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

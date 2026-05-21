@@ -11,6 +11,7 @@ public class MarkovSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Markov Chat";
     public string? Description => "AI-generated chat messages from historical chat logs";
     public string Icon => Icons.Material.Filled.SmartToy;
+    public string? PointsGameName => MarkovChat.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

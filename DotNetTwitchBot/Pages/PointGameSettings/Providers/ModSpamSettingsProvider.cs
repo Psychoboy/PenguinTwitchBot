@@ -11,6 +11,7 @@ public class ModSpamSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Mod Spam";
     public string? Description => "Random moderation spam events that award points via AddActive";
     public string Icon => Icons.Material.Filled.Campaign;
+    public string? PointsGameName => ModSpam.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

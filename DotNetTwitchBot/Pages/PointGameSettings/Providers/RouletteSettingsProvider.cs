@@ -12,6 +12,7 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Roulette";
     public string? Description => "High-risk spin with configurable odds and per-stream limits";
     public string Icon => Icons.Material.Filled.Autorenew;
+    public string? PointsGameName => Roulette.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

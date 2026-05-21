@@ -1,6 +1,9 @@
 @using DotNetTwitchBot.Pages.PointGameSettings
+@using DotNetTwitchBot.Bot.Core.Points
+@using DotNetTwitchBot.Bot.Models.Points
 @inject IServiceProvider ServiceProvider
 @inject ISnackbar Snackbar
+@inject IPointsSystem PointsSystem
 
 @if (_loading)
 {
@@ -14,6 +17,31 @@ else
             <MudAlert Severity="Severity.Error" ShowCloseIcon="true" CloseIconClicked="@(() => _validationError = null)">
                 @_validationError
             </MudAlert>
+        }
+
+        @if (Provider.PointsGameName != null)
+        {
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Color="Color.Primary" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h6">Point Type</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Which point currency this game uses</MudText>
+                        </MudStack>
+                    </MudStack>
+                    <MudDivider />
+                    <MudSelect T="PointType" Label="Point Type" Value="_selectedPointType"
+                               ValueChanged="@((PointType pt) => _selectedPointType = pt)"
+                               ToStringFunc="@(pt => pt?.Name ?? "")"
+                               Variant="Variant.Outlined">
+                        @foreach (var pt in _pointTypes)
+                        {
+                            <MudSelectItem Value="@pt" />
+                        }
+                    </MudSelect>
+                </MudStack>
+            </MudPaper>
         }
 
         @foreach (var section in Provider.GetSections())
@@ -95,6 +123,8 @@ else
     private string? _validationError;
     private bool _saving;
     private bool _loading;
+    private IEnumerable<PointType> _pointTypes = [];
+    private PointType? _selectedPointType;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -105,6 +135,11 @@ else
         try
         {
             _values = await Provider.LoadAsync(ServiceProvider);
+            if (Provider.PointsGameName != null)
+            {
+                _pointTypes = await PointsSystem.GetPointTypes();
+                _selectedPointType = await PointsSystem.GetPointTypeForGame(Provider.PointsGameName);
+            }
         }
         finally
         {
@@ -121,6 +156,8 @@ else
         try
         {
             await Provider.SaveAsync(ServiceProvider, _values);
+            if (Provider.PointsGameName != null && _selectedPointType != null)
+                await PointsSystem.SetPointTypeForGame(Provider.PointsGameName, _selectedPointType.GetId());
             Snackbar.Add($"{Provider.DisplayName} settings saved.", Severity.Success);
         }
         catch (Exception ex)

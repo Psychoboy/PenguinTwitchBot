@@ -11,6 +11,7 @@ public class AddActiveSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Add Active";
     public string? Description => "Bulk point distribution to active users on a timer";
     public string Icon => Icons.Material.Filled.GroupAdd;
+    public string? PointsGameName => AddActive.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

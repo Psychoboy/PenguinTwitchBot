@@ -11,6 +11,7 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Gamble";
     public string? Description => "Dice roll gambling with accumulating jackpot";
     public string Icon => Icons.Material.Filled.Casino;
+    public string? PointsGameName => Gamble.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

@@ -11,6 +11,7 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Heist";
     public string? Description => "Team-based heist with survival odds";
     public string Icon => Icons.Material.Filled.LocalPolice;
+    public string? PointsGameName => Heist.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

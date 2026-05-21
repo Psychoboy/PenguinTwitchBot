@@ -11,6 +11,7 @@ public class SlotsSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Slots";
     public string? Description => "Slot machine with configurable emotes and payout multipliers";
     public string Icon => Icons.Material.Filled.ViewWeek;
+    public string? PointsGameName => Slots.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

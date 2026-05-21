@@ -11,6 +11,7 @@ public class FFASettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "FFA";
     public string? Description => "Free-for-all last-viewer-standing game";
     public string Icon => Icons.Material.Filled.EmojiEvents;
+    public string? PointsGameName => FFA.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {

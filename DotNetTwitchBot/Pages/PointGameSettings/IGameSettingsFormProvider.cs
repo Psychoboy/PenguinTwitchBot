@@ -14,6 +14,7 @@ public interface IGameSettingsFormProvider
     string DisplayName { get; }
     string? Description { get; }
     string Icon { get; }
+    string? PointsGameName { get; }
 
     Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider);
     Task SaveAsync(IServiceProvider serviceProvider, Dictionary<string, object?> values);

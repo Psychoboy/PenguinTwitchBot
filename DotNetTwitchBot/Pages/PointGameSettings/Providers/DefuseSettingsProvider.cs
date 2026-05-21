@@ -11,6 +11,7 @@ public class DefuseSettingsProvider : IGameSettingsFormProvider
     public string DisplayName => "Defuse";
     public string? Description => "Cut the right wire to win, wrong wire loses points";
     public string Icon => Icons.Material.Filled.Warning;
+    public string? PointsGameName => Defuse.GAMENAME;
 
     public async Task<Dictionary<string, object?>> LoadAsync(IServiceProvider serviceProvider)
     {
