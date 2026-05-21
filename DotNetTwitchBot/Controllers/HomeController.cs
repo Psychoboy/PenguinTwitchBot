@@ -48,12 +48,7 @@ namespace DotNetTwitchBot.Controllers
         public IActionResult StreamerSignin()
         {
             logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
-#if DEBUG
-            var url = GetBotScopeUrl("https://localhost:7293/streamerredirect", configuration["twitchClientId"]);
-#else
-            var url = GetBotScopeUrl("https://bot.superpenguin.tv/streamerredirect", configuration["twitchClientId"]);
-#endif
-
+            var url = GetBotScopeUrl($"{configuration["BaseUrl"]}/streamerredirect", configuration["twitchClientId"]);
             return Redirect(url);
         }
         [HttpGet("streamerredirect")]
@@ -70,11 +65,7 @@ namespace DotNetTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-#if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/streamerredirect");
-#else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://bot.superpenguin.tv/streamerredirect");
-#endif
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{configuration["BaseUrl"]}/streamerredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -143,11 +134,7 @@ namespace DotNetTwitchBot.Controllers
 
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchBotClientId"];
-#if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], "https://localhost:7293/botredirect");
-#else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], "https://bot.superpenguin.tv/botredirect");
-#endif
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{configuration["BaseUrl"]}/botredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -168,11 +155,7 @@ namespace DotNetTwitchBot.Controllers
         {
             logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
             var safeRedirect = NormalizeLocalRedirect(redirect);
-#if DEBUG
-            var url = GetAuthorizationCodeUrl("https://localhost:7293/redirect", safeRedirect);
-#else
-            var url = GetAuthorizationCodeUrl("https://bot.superpenguin.tv/redirect", safeRedirect);
-#endif
+            var url = GetAuthorizationCodeUrl($"{configuration["BaseUrl"]}/redirect", safeRedirect);
             return Redirect(url);
         }
 
@@ -192,11 +175,7 @@ namespace DotNetTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-#if DEBUG
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://localhost:7293/redirect");
-#else
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], "https://bot.superpenguin.tv/redirect");
-#endif
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{configuration["BaseUrl"]}/redirect");
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {
@@ -219,7 +198,7 @@ namespace DotNetTwitchBot.Controllers
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),
-                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login) || botName.Equals(user.Login) ? "Streamer": "Viewer"),
+                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login, StringComparison.OrdinalIgnoreCase) || botName.Equals(user.Login, StringComparison.OrdinalIgnoreCase) ? "Streamer": "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName),
                     new Claim("UserId", user.Id),

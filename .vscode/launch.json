@@ -14,8 +14,14 @@
             "args": [],
             "cwd": "${workspaceFolder}/DotNetTwitchBot",
             "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "Application Starting",
+                "uriFormat": "http://localhost:5000"
+            },
             "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "http://localhost:5000"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -34,11 +40,12 @@
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Application Starting",
-                "uriFormat": "https://localhost:7293"
+                "uriFormat": "http://localhost:5000"
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "DATABASE_PROVIDER": "mariadb"
+                "DATABASE_PROVIDER": "mariadb",
+                "ASPNETCORE_URLS": "http://localhost:5000"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -57,11 +64,12 @@
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Application Starting",
-                "uriFormat": "https://localhost:7293"
+                "uriFormat": "http://localhost:5000"
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "DATABASE_PROVIDER": "postgres"
+                "DATABASE_PROVIDER": "postgres",
+                "ASPNETCORE_URLS": "http://localhost:5000"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -80,11 +88,12 @@
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Application Starting",
-                "uriFormat": "https://localhost:7293"
+                "uriFormat": "http://localhost:5000"
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "DATABASE_PROVIDER": "sqlite"
+                "DATABASE_PROVIDER": "sqlite",
+                "ASPNETCORE_URLS": "http://localhost:5000"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"

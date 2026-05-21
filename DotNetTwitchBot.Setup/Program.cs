@@ -33,7 +33,7 @@ app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
-const string listenUrl = "http://localhost:5050";
+const string listenUrl = "http://localhost:5000";
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     Console.ForegroundColor = ConsoleColor.Cyan;

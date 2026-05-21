@@ -1,4 +1,5 @@
 ﻿using DotNetTwitchBot.Bot.Core;
+using DotNetTwitchBot.Bot.Models;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DotNetTwitchBot.HealthChecks
@@ -6,13 +7,18 @@ namespace DotNetTwitchBot.HealthChecks
     public class DiscordServiceHealthCheck : IHealthCheck
     {
         private readonly IDiscordService _discordService;
+        private readonly DiscordSettings _discordSettings;
 
-        public DiscordServiceHealthCheck(IDiscordService discordService)
+        public DiscordServiceHealthCheck(IDiscordService discordService, IConfiguration configuration)
         {
             _discordService = discordService;
+            _discordSettings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? new DiscordSettings();
         }
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(_discordSettings.DiscordToken))
+                return Task.FromResult(HealthCheckResult.Healthy("Discord is not configured."));
+
             try
             {
                 var connectionState = _discordService.ServiceStatus();

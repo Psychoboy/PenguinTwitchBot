@@ -623,6 +623,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                _logger.LogInformation("Discord token is not configured — Discord service will not start.");
+                return;
+            }
+
             _logger.LogInformation("Starting Discord Service.");
             
             _client.Connected += Connected;
@@ -647,6 +653,9 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+                return;
+
             _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
             _client.Ready -= OnReady;

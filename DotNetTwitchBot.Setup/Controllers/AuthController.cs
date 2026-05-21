@@ -8,7 +8,7 @@ namespace DotNetTwitchBot.Setup.Controllers;
 [ApiController]
 public class AuthController(SetupService setupService, ILogger<AuthController> logger) : ControllerBase
 {
-    private const string StreamerRedirectUri = "http://localhost:5050/streamerredirect";
+    private const string StreamerRedirectUri = "http://localhost:5000/streamerredirect";
 
     [HttpGet("/streamerredirect")]
     public async Task<IActionResult> StreamerRedirect(
