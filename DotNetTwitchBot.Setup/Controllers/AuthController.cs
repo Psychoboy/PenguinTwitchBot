@@ -18,7 +18,8 @@ public class AuthController(SetupService setupService, ILogger<AuthController> l
     {
         if (!string.IsNullOrEmpty(error))
         {
-            logger.LogWarning("Streamer auth denied by user: {Error}", error);
+            var safeError = error.Replace("\r", "").Replace("\n", "");
+            logger.LogWarning("Streamer auth denied by user: {Error}", safeError);
             return Redirect("/?streamerAuthFailed=1");
         }
 
