@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetTwitchBot.Migrations.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetTwitchBot.Migrations.Sqlite", "DotNetTwitchBot.Migrations.Sqlite\DotNetTwitchBot.Migrations.Sqlite.csproj", "{58A7485A-A217-4A97-A021-38BCE1E82DD7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetTwitchBot.Setup", "DotNetTwitchBot.Setup\DotNetTwitchBot.Setup.csproj", "{6F13E98B-32BD-415E-BBC5-9CA1944A0129}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -130,6 +132,18 @@ Global
 		{58A7485A-A217-4A97-A021-38BCE1E82DD7}.Release|x64.Build.0 = Release|Any CPU
 		{58A7485A-A217-4A97-A021-38BCE1E82DD7}.Release|x86.ActiveCfg = Release|Any CPU
 		{58A7485A-A217-4A97-A021-38BCE1E82DD7}.Release|x86.Build.0 = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|x64.Build.0 = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Debug|x86.Build.0 = Debug|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x64.ActiveCfg = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x64.Build.0 = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x86.ActiveCfg = Release|Any CPU
+		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

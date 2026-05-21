@@ -14,11 +14,6 @@
             "args": [],
             "cwd": "${workspaceFolder}/DotNetTwitchBot",
             "stopAtEntry": false,
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "Application Starting",
-                "uriFormat": "https://localhost:7293"
-            },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
@@ -90,6 +85,23 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "sqlite"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": "DotNetTwitchBot.Setup",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/DotNetTwitchBot.Setup/bin/Debug/net10.0/DotNetTwitchBot.Setup.dll",
+            "console": "integratedTerminal",
+            "args": [],
+            "cwd": "${workspaceFolder}/DotNetTwitchBot.Setup",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"

@@ -1,0 +1,720 @@
+@page "/"
+@using DotNetTwitchBot.Setup.Models
+@inject SetupService SetupSvc
+@inject NavigationManager NavManager
+
+<PageTitle>DotNetTwitchBot — First-Time Setup</PageTitle>
+
+@if (_done)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+        <MudPaper Elevation="4" Class="pa-8">
+            <MudStack Spacing="4" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                <MudText Typo="Typo.h5" Align="Align.Center">Configuration Saved!</MudText>
+                <MudText Typo="Typo.body1" Align="Align.Center">
+                    Your settings have been written to <strong>@SetupSvc.SecretsFilePath</strong>.
+                </MudText>
+                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                    Now start the bot. After it loads, navigate to <strong>/streamersignin</strong> and
+                    <strong>/botsignin</strong> to authorize your Twitch accounts.
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mt-2">
+                    This setup window is closing now. You can close this browser tab.
+                </MudAlert>
+            </MudStack>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6 mb-6">
+
+        <!-- Header -->
+        <MudText Typo="Typo.h4" Class="mb-1">DotNetTwitchBot — First-Time Setup</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Step @(_step + 1) of @TotalSteps &mdash; @StepTitle
+        </MudText>
+        <MudProgressLinear Value="@((_step + 1.0) / TotalSteps * 100)" Color="Color.Primary" Class="mb-4" />
+
+        <MudPaper Elevation="3" Class="pa-6">
+
+            @if (_errors.Count > 0)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    @foreach (var err in _errors)
+                    {
+                        <div>@err</div>
+                    }
+                </MudAlert>
+            }
+
+            <!-- ── Step 0: Welcome ─────────────────────────────────────────── -->
+            @if (_step == 0)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Welcome!</MudText>
+                    <MudText>
+                        This wizard will guide you through configuring DotNetTwitchBot for the first time.
+                        It takes about 5–10 minutes and creates the <code>appsettings.secrets.json</code> file
+                        that the bot reads on every startup.
+                    </MudText>
+                    <MudText Typo="Typo.subtitle2">You will need:</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch account for the <strong>streamer</strong> (your channel)</MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch account for the <strong>bot</strong> (can be the same as the streamer)</MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch developer application (we'll walk you through creating one)</MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">Optional: YouTube API key, Discord bot token, Weather API key, OpenAI API key</MudListItem>
+                    </MudList>
+                    <MudAlert Severity="Severity.Info">
+                        The config will be written to: <strong>@Path.GetFullPath(SetupSvc.SecretsFilePath)</strong>
+                    </MudAlert>
+                </MudStack>
+            }
+
+            <!-- ── Step 1: Bot Identity ────────────────────────────────────── -->
+            @if (_step == 1)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Bot Identity</MudText>
+                    <MudText>
+                        Enter the Twitch usernames for the bot account and your channel.
+                        Usernames are case-insensitive and should match exactly what appears on Twitch.
+                    </MudText>
+                    <MudTextField @bind-Value="_model.BotName"
+                                  Label="Bot Username"
+                                  HelperText="The Twitch username the bot chats as (e.g. my_cool_bot)"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.SmartToy"
+                                  Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_model.Broadcaster"
+                                  Label="Broadcaster / Channel Name"
+                                  HelperText="Your Twitch channel name — the channel the bot monitors"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tv"
+                                  Variant="Variant.Outlined" />
+                    <MudAlert Severity="Severity.Info">
+                        The bot and broadcaster can be the same Twitch account if you prefer.
+                    </MudAlert>
+                </MudStack>
+            }
+
+            <!-- ── Step 2: Twitch Streamer App ────────────────────────────── -->
+            @if (_step == 2)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Twitch Streamer Application</MudText>
+                    <MudText>
+                        The bot needs a Twitch developer application to access the Twitch API on behalf of your streamer account.
+                    </MudText>
+                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                        <strong>How to create a Twitch application:</strong>
+                        <ol style="margin: 8px 0 0 16px; padding: 0;">
+                            <li>Go to <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink></li>
+                            <li>Log in with your <strong>streamer</strong> account</li>
+                            <li>Set the name to something like "MyBot Streamer"</li>
+                            <li>Add the OAuth Redirect URL: <code>http://localhost:5050/streamerredirect</code></li>
+                            <li>Set Category to "Chat Bot" and click Create</li>
+                            <li>Click "Manage" → "New Secret" to generate a client secret</li>
+                        </ol>
+                    </MudAlert>
+                    <MudTextField @bind-Value="_model.TwitchClientId"
+                                  Label="Client ID"
+                                  HelperText="Found on the application management page"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.VpnKey"
+                                  Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_model.TwitchClientSecret"
+                                  Label="Client Secret"
+                                  HelperText="Click 'New Secret' to generate one"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                                  Variant="Variant.Outlined" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        You will authorize your Twitch account after the bot starts — not right now.
+                    </MudText>
+                </MudStack>
+            }
+
+            <!-- ── Step 3: Twitch Bot App ─────────────────────────────────── -->
+            @if (_step == 3)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Twitch Bot Application</MudText>
+                    <MudText>
+                        The bot also needs credentials for the account it will <em>chat from</em>.
+                        This can be the same application as the streamer app, or a separate one.
+                    </MudText>
+                    <MudSwitch @bind-Value="_model.BotUseSameApp" Color="Color.Primary"
+                               Label="Use the same Twitch app as the streamer (simplest setup)"
+                               @bind-Value:after="OnBotUseSameAppChanged" />
+
+                    @if (!_model.BotUseSameApp)
+                    {
+                        <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                            Create a second application at
+                            <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink>
+                            — this time log in with your <strong>bot</strong> account and add redirect URL
+                            <code>http://localhost:5050/botredirect</code>.
+                        </MudAlert>
+                        <MudTextField @bind-Value="_model.TwitchBotClientId"
+                                      Label="Bot Client ID"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.VpnKey"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.TwitchBotClientSecret"
+                                      Label="Bot Client Secret"
+                                      InputType="InputType.Password"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                                      Variant="Variant.Outlined" />
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success">
+                            The streamer app credentials will be reused for the bot. Make sure the redirect URL
+                            <code>http://localhost:5050/botredirect</code> is also added to the application's
+                            OAuth Redirect URLs.
+                        </MudAlert>
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 4: Authorize Streamer Account ────────────────────── -->
+            @if (_step == 4)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Authorize Streamer Account</MudText>
+                    @if (SetupSvc.StreamerAuthed)
+                    {
+                        <MudAlert Severity="Severity.Success">
+                            Streamer account authorized successfully! Click <strong>Next</strong> to continue.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudText>
+                            Click the button below to sign in to Twitch as your <strong>streamer account</strong>
+                            and grant the bot access. Your browser will open the Twitch authorization page.
+                        </MudText>
+                        <MudAlert Severity="Severity.Warning">
+                            Make sure <code>http://localhost:5050/streamerredirect</code> is listed as an
+                            OAuth Redirect URL in your Twitch application (configured in Step 2).
+                        </MudAlert>
+                        @if (_streamerAuthFailed)
+                        {
+                            <MudAlert Severity="Severity.Error">
+                                Authorization failed or was denied. Please try again.
+                            </MudAlert>
+                        }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   OnClick="BeginStreamerAuth">
+                            Authorize Streamer Account on Twitch
+                        </MudButton>
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 5: Get Bot Token ──────────────────────────────────── -->
+            @if (_step == 5)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Get Bot Token <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
+                    <MudText>
+                        The bot fetches its own access token automatically at startup using the credentials
+                        you provided. Click <strong>Test &amp; Fetch</strong> to verify the credentials now,
+                        or skip this step — the bot handles it on first launch.
+                    </MudText>
+                    @if (SetupSvc.BotAuthed)
+                    {
+                        <MudAlert Severity="Severity.Success">
+                            Bot token fetched successfully!
+                        </MudAlert>
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                               Disabled="_fetchingBotToken"
+                               StartIcon="@Icons.Material.Filled.SmartToy"
+                               OnClick="FetchBotTokenAsync">
+                        @(_fetchingBotToken ? "Fetching…" : "Test & Fetch Bot Token")
+                    </MudButton>
+                    @if (_fetchingBotToken)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 6: Database ───────────────────────────────────────── -->
+            @if (_step == 6)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Database</MudText>
+                    <MudText>
+                        Choose where the bot stores its data. SQLite requires no external server and is recommended
+                        for most users.
+                    </MudText>
+                    <MudSelect T="DatabaseProviderOption" @bind-Value="_model.DatabaseProvider"
+                               Label="Database Provider" Variant="Variant.Outlined"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
+                        <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended — no server needed)</MudSelectItem>
+                        <MudSelectItem Value="DatabaseProviderOption.MariaDb">MariaDB / MySQL</MudSelectItem>
+                        <MudSelectItem Value="DatabaseProviderOption.Postgres">PostgreSQL</MudSelectItem>
+                    </MudSelect>
+
+                    @if (_model.DatabaseProvider == DatabaseProviderOption.Sqlite)
+                    {
+                        <MudTextField @bind-Value="_model.SqliteFilePath"
+                                      Label="SQLite File Path (optional)"
+                                      HelperText="Leave blank to use the default: Data/dotnettwitchbot.sqlite"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.FolderOpen"
+                                      Variant="Variant.Outlined" />
+                    }
+                    @if (_model.DatabaseProvider == DatabaseProviderOption.MariaDb)
+                    {
+                        <MudTextField @bind-Value="_model.MariaDbConnectionString"
+                                      Label="MariaDB Connection String"
+                                      HelperText="Example: Server=localhost;Database=twitchbot;User=root;Password=secret;"
+                                      Variant="Variant.Outlined" />
+                    }
+                    @if (_model.DatabaseProvider == DatabaseProviderOption.Postgres)
+                    {
+                        <MudTextField @bind-Value="_model.PostgresConnectionString"
+                                      Label="PostgreSQL Connection String"
+                                      HelperText="Example: Host=localhost;Database=twitchbot;Username=postgres;Password=secret;"
+                                      Variant="Variant.Outlined" />
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 7: YouTube API ────────────────────────────────────────────── -->
+            @if (_step == 7)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">YouTube API <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
+                    <MudText>
+                        Required for the song-request feature to look up and queue YouTube videos.
+                        You can skip this and add it later by editing <code>appsettings.secrets.json</code>.
+                    </MudText>
+                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                        <strong>How to get a YouTube Data API v3 key:</strong>
+                        <ol style="margin: 8px 0 0 16px; padding: 0;">
+                            <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console — YouTube Data API v3</MudLink></li>
+                            <li>Enable the API for your project</li>
+                            <li>Go to Credentials → Create Credentials → API Key</li>
+                        </ol>
+                    </MudAlert>
+                    <MudTextField @bind-Value="_model.YoutubeApiKey"
+                                  Label="YouTube API Key"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.OndemandVideo"
+                                  Variant="Variant.Outlined" />
+                </MudStack>
+            }
+
+            <!-- ── Step 6: Discord ────────────────────────────────────────── -->
+            @if (_step == 8)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Discord Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
+                    <MudSwitch @bind-Value="_model.DiscordEnabled" Color="Color.Primary" Label="Enable Discord integration" />
+
+                    @if (_model.DiscordEnabled)
+                    {
+                        <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                            <strong>How to create a Discord bot:</strong>
+                            <ol style="margin: 8px 0 0 16px; padding: 0;">
+                                <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
+                                <li>Click "New Application", give it a name</li>
+                                <li>Go to the "Bot" tab → copy the token below</li>
+                                <li>Enable "Server Members Intent" and "Message Content Intent"</li>
+                                <li>Invite the bot to your server via OAuth2 → URL Generator (scope: bot)</li>
+                            </ol>
+                        </MudAlert>
+                        <MudTextField @bind-Value="_model.DiscordToken"
+                                      Label="Bot Token"
+                                      InputType="InputType.Password"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
+                                      Variant="Variant.Outlined" />
+                        <MudAlert Severity="Severity.Info">
+                            Enable Developer Mode in Discord (Settings → Advanced → Developer Mode),
+                            then right-click any server/channel/role and choose "Copy ID".
+                        </MudAlert>
+                        <MudTextField @bind-Value="_model.DiscordServerId"
+                                      Label="Server ID"
+                                      HelperText="Right-click your server → Copy Server ID"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.DiscordBroadcastChannel"
+                                      Label="Broadcast Channel ID"
+                                      HelperText="Channel where the bot posts go-live announcements"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.DiscordPingRoleId"
+                                      Label="Live Ping Role ID"
+                                      HelperText="Role that gets pinged when you go live (leave 0 to disable)"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.DiscordMemberRoleId"
+                                      Label="Live Member Role ID"
+                                      HelperText="Role assigned to members while you are live (leave 0 to disable)"
+                                      Variant="Variant.Outlined" />
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 7: Weather ────────────────────────────────────────── -->
+            @if (_step == 9)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Weather Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
+                    <MudSwitch @bind-Value="_model.WeatherEnabled" Color="Color.Primary" Label="Enable weather commands" />
+
+                    @if (_model.WeatherEnabled)
+                    {
+                        <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                            Get a free API key at <MudLink Href="https://openweathermap.org/api" Target="_blank">openweathermap.org/api</MudLink>
+                            (the free "Current Weather Data" plan is sufficient).
+                        </MudAlert>
+                        <MudTextField @bind-Value="_model.WeatherApiKey"
+                                      Label="OpenWeatherMap API Key"
+                                      InputType="InputType.Password"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Cloud"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.WeatherDefaultLocation"
+                                      Label="Default Location"
+                                      HelperText="A ZIP code or city name (e.g. 85234)"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                      Variant="Variant.Outlined" />
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 8: OpenAI ─────────────────────────────────────────── -->
+            @if (_step == 10)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">OpenAI Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
+                    <MudSwitch @bind-Value="_model.OpenAiEnabled" Color="Color.Primary" Label="Enable AI-powered features" />
+
+                    @if (_model.OpenAiEnabled)
+                    {
+                        <MudText>Used for AI chat responses and automated shoutouts in chat.</MudText>
+                        <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                            Get an API key at <MudLink Href="https://platform.openai.com/api-keys" Target="_blank">platform.openai.com/api-keys</MudLink>.
+                            Usage is billed by token, so set spend limits in your OpenAI account.
+                        </MudAlert>
+                        <MudTextField @bind-Value="_model.OpenAiApiKey"
+                                      Label="OpenAI API Key"
+                                      InputType="InputType.Password"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Psychology"
+                                      Variant="Variant.Outlined" />
+                    }
+                </MudStack>
+            }
+
+            <!-- ── Step 11: Review & Save ──────────────────────────────────────────── -->
+            @if (_step == 11)
+            {
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6">Review &amp; Save</MudText>
+                    <MudText>Review your configuration below. Secrets are masked. Click <strong>Save</strong> when ready.</MudText>
+
+                    <MudSimpleTable Dense="true" Bordered="true">
+                        <thead>
+                            <tr><th>Setting</th><th>Value</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Bot Name</td><td>@_model.BotName</td></tr>
+                            <tr><td>Broadcaster</td><td>@_model.Broadcaster</td></tr>
+                            <tr><td>Twitch Client ID</td><td>@Mask(_model.TwitchClientId)</td></tr>
+                            <tr><td>Twitch Client Secret</td><td>@Mask(_model.TwitchClientSecret)</td></tr>
+                            <tr><td>Bot Client ID</td><td>@Mask(_model.TwitchBotClientId)</td></tr>
+                            <tr><td>Bot Client Secret</td><td>@Mask(_model.TwitchBotClientSecret)</td></tr>
+                            <tr><td>Database</td><td>@_model.DatabaseProvider</td></tr>
+                            @if (_model.DatabaseProvider == DatabaseProviderOption.Sqlite)
+                            {
+                                <tr><td>SQLite Path</td><td>@(string.IsNullOrWhiteSpace(_model.SqliteFilePath) ? "(default)" : _model.SqliteFilePath)</td></tr>
+                            }
+                            <tr><td>YouTube API</td><td>@(string.IsNullOrWhiteSpace(_model.YoutubeApiKey) ? "(not set)" : "****")</td></tr>
+                            <tr><td>Discord</td><td>@(_model.DiscordEnabled ? "Enabled" : "Disabled")</td></tr>
+                            @if (_model.DiscordEnabled)
+                            {
+                                <tr><td>Discord Token</td><td>@Mask(_model.DiscordToken)</td></tr>
+                                <tr><td>Server ID</td><td>@_model.DiscordServerId</td></tr>
+                                <tr><td>Broadcast Channel</td><td>@_model.DiscordBroadcastChannel</td></tr>
+                            }
+                            <tr><td>Weather</td><td>@(_model.WeatherEnabled ? "Enabled" : "Disabled")</td></tr>
+                            <tr><td>OpenAI</td><td>@(_model.OpenAiEnabled ? "Enabled" : "Disabled")</td></tr>
+                            <tr><td>Output file</td><td>@Path.GetFullPath(SetupSvc.SecretsFilePath)</td></tr>
+                            <tr><td>Web Auth Token</td><td>(auto-generated on save)</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+
+                    @if (_saving)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configuration…</MudText>
+                    }
+                </MudStack>
+            }
+        </MudPaper>
+
+        <!-- Navigation buttons -->
+        <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-4">
+            <MudButton Variant="Variant.Outlined"
+                       Disabled="_step == 0"
+                       OnClick="PreviousStep"
+                       StartIcon="@Icons.Material.Filled.ArrowBack">
+                Back
+            </MudButton>
+
+            <MudStack Row="true" Spacing="2">
+                @if (IsOptionalStep && _step < TotalSteps - 1)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="NextStep">
+                        Skip
+                    </MudButton>
+                }
+                @if (_step < TotalSteps - 1)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               OnClick="NextStep"
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Next
+                    </MudButton>
+                }
+                @if (_step == TotalSteps - 1)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success"
+                               Disabled="_saving"
+                               OnClick="SaveAsync"
+                               StartIcon="@Icons.Material.Filled.Save">
+                        Save Configuration
+                    </MudButton>
+                }
+            </MudStack>
+        </MudStack>
+    </MudContainer>
+}
+
+@code {
+    private const int TotalSteps = 12;
+
+    private readonly string[] _stepTitles =
+    [
+        "Welcome",
+        "Bot Identity",
+        "Twitch Streamer App",
+        "Twitch Bot App",
+        "Authorize Streamer Account",
+        "Get Bot Token",
+        "Database",
+        "YouTube API",
+        "Discord",
+        "Weather",
+        "OpenAI",
+        "Review & Save"
+    ];
+
+    private static readonly HashSet<int> OptionalSteps = [5, 7, 8, 9, 10];
+
+    private static readonly string[] Scopes =
+    [
+        "analytics:read:extensions", "user:edit", "user:read:email", "clips:edit", "bits:read",
+        "analytics:read:games", "user:edit:broadcast", "user:read:broadcast", "chat:read",
+        "chat:edit", "channel:moderate", "channel:read:subscriptions", "whispers:read",
+        "whispers:edit", "moderation:read", "channel:read:redemptions",
+        "channel:edit:commercial", "channel:read:hype_train", "channel:read:stream_key",
+        "channel:manage:extensions", "channel:manage:broadcast", "user:edit:follows",
+        "channel:manage:redemptions", "channel:read:editors", "channel:manage:videos",
+        "user:read:blocked_users", "user:manage:blocked_users", "user:read:subscriptions",
+        "user:read:follows", "channel:manage:polls", "channel:manage:predictions",
+        "channel:read:polls", "channel:read:predictions", "moderator:manage:automod",
+        "channel:manage:schedule", "channel:read:goals", "moderator:read:automod_settings",
+        "moderator:manage:automod_settings", "moderator:manage:banned_users",
+        "moderator:read:blocked_terms", "moderator:manage:blocked_terms",
+        "moderator:read:chat_settings", "moderator:manage:chat_settings",
+        "channel:manage:raids", "moderator:manage:announcements",
+        "moderator:manage:chat_messages", "user:manage:chat_color",
+        "channel:manage:moderators", "channel:read:vips", "channel:manage:vips",
+        "user:manage:whispers", "channel:read:charity", "moderator:read:chatters",
+        "moderator:read:shield_mode", "moderator:manage:shield_mode",
+        "moderator:read:shoutouts", "moderator:manage:shoutouts",
+        "moderator:read:followers", "channel:read:guest_star", "channel:manage:guest_star",
+        "moderator:read:guest_star", "moderator:manage:guest_star", "channel:bot", "user:bot",
+        "user:read:chat", "channel:manage:ads", "channel:read:ads", "user:write:chat",
+        "moderator:read:suspicious_users"
+    ];
+
+    private SetupWizardModel _model = new();
+    private int _step = 0;
+    private bool _done = false;
+    private bool _saving = false;
+    private bool _streamerAuthFailed = false;
+    private bool _fetchingBotToken = false;
+    private readonly List<string> _errors = [];
+
+    private string StepTitle => _stepTitles[_step];
+    private bool IsOptionalStep => OptionalSteps.Contains(_step);
+
+    protected override void OnInitialized()
+    {
+        if (SetupSvc.PendingModel != null)
+        {
+            _model = SetupSvc.PendingModel;
+            _step = SetupSvc.PendingStep;
+        }
+
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.ContainsKey("streamerAuthed"))
+            _step = 4;
+        else if (query.ContainsKey("streamerAuthFailed"))
+        {
+            _step = 4;
+            _streamerAuthFailed = true;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (_step > 0) _step--;
+        _errors.Clear();
+    }
+
+    private void NextStep()
+    {
+        if (!ValidateCurrentStep()) return;
+        if (_step < TotalSteps - 1) _step++;
+    }
+
+    private void OnBotUseSameAppChanged()
+    {
+        if (_model.BotUseSameApp)
+        {
+            _model.TwitchBotClientId = _model.TwitchClientId;
+            _model.TwitchBotClientSecret = _model.TwitchClientSecret;
+        }
+    }
+
+    private void BeginStreamerAuth()
+    {
+        _streamerAuthFailed = false;
+        SetupSvc.SavePendingModel(_model, 4);
+        var state = SetupSvc.BeginAuth();
+        var scopeStr = string.Join("+", Scopes);
+        var url = "https://id.twitch.tv/oauth2/authorize" +
+                  $"?client_id={Uri.EscapeDataString(_model.TwitchClientId)}" +
+                  $"&redirect_uri={Uri.EscapeDataString("http://localhost:5050/streamerredirect")}" +
+                  "&response_type=code" +
+                  $"&scope={scopeStr}" +
+                  $"&state={state}" +
+                  "&force_verify=true";
+        NavManager.NavigateTo(url, forceLoad: true);
+    }
+
+    private async Task FetchBotTokenAsync()
+    {
+        _fetchingBotToken = true;
+        _errors.Clear();
+        StateHasChanged();
+        try
+        {
+            var clientId = _model.BotUseSameApp ? _model.TwitchClientId : _model.TwitchBotClientId;
+            var clientSecret = _model.BotUseSameApp ? _model.TwitchClientSecret : _model.TwitchBotClientSecret;
+            using var http = new HttpClient();
+            var form = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["grant_type"] = "client_credentials"
+            });
+            var response = await http.PostAsync("https://id.twitch.tv/oauth2/token", form);
+            if (!response.IsSuccessStatusCode)
+            {
+                _errors.Add($"Failed to get bot token (HTTP {(int)response.StatusCode}). Check your bot client ID and secret.");
+                return;
+            }
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<TwitchClientCredResult>(json);
+            if (result != null)
+                SetupSvc.SetBotTokens(result.AccessToken, "", result.ExpiresIn);
+        }
+        catch (Exception ex)
+        {
+            _errors.Add($"Error fetching bot token: {ex.Message}");
+        }
+        finally
+        {
+            _fetchingBotToken = false;
+        }
+    }
+
+    private bool ValidateCurrentStep()
+    {
+        _errors.Clear();
+
+        if (_step == 1)
+        {
+            if (string.IsNullOrWhiteSpace(_model.BotName))
+                _errors.Add("Bot name is required.");
+            if (string.IsNullOrWhiteSpace(_model.Broadcaster))
+                _errors.Add("Broadcaster name is required.");
+        }
+        else if (_step == 2)
+        {
+            if (string.IsNullOrWhiteSpace(_model.TwitchClientId))
+                _errors.Add("Twitch Client ID is required.");
+            if (string.IsNullOrWhiteSpace(_model.TwitchClientSecret))
+                _errors.Add("Twitch Client Secret is required.");
+        }
+        else if (_step == 3)
+        {
+            if (!_model.BotUseSameApp)
+            {
+                if (string.IsNullOrWhiteSpace(_model.TwitchBotClientId))
+                    _errors.Add("Twitch Bot Client ID is required (or enable 'Use the same app').");
+                if (string.IsNullOrWhiteSpace(_model.TwitchBotClientSecret))
+                    _errors.Add("Twitch Bot Client Secret is required (or enable 'Use the same app').");
+            }
+        }
+        else if (_step == 4)
+        {
+            if (!SetupSvc.StreamerAuthed)
+                _errors.Add("You must authorize your streamer account before continuing.");
+        }
+        else if (_step == 6)
+        {
+            if (_model.DatabaseProvider == DatabaseProviderOption.MariaDb &&
+                string.IsNullOrWhiteSpace(_model.MariaDbConnectionString))
+                _errors.Add("A MariaDB connection string is required.");
+            if (_model.DatabaseProvider == DatabaseProviderOption.Postgres &&
+                string.IsNullOrWhiteSpace(_model.PostgresConnectionString))
+                _errors.Add("A PostgreSQL connection string is required.");
+        }
+
+        return _errors.Count == 0;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!ValidateCurrentStep()) return;
+        _saving = true;
+        StateHasChanged();
+
+        if (_model.BotUseSameApp)
+        {
+            _model.TwitchBotClientId = _model.TwitchClientId;
+            _model.TwitchBotClientSecret = _model.TwitchClientSecret;
+        }
+
+        await SetupSvc.SaveSetupAsync(_model);
+        _done = true;
+        _saving = false;
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        SetupSvc.SignalStop();
+    }
+
+    private static string Mask(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "(not set)" : "****";
+
+    private sealed record TwitchClientCredResult(
+        [property: JsonPropertyName("access_token")] string AccessToken,
+        [property: JsonPropertyName("expires_in")] int ExpiresIn);
+}
