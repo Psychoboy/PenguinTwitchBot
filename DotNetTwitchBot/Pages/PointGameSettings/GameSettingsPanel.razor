@@ -1,0 +1,214 @@
+@using DotNetTwitchBot.Pages.PointGameSettings
+@inject IServiceProvider ServiceProvider
+@inject ISnackbar Snackbar
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" Class="ma-4" />
+}
+else
+{
+    <MudStack Spacing="4">
+        @if (_validationError != null)
+        {
+            <MudAlert Severity="Severity.Error" ShowCloseIcon="true" CloseIconClicked="@(() => _validationError = null)">
+                @_validationError
+            </MudAlert>
+        }
+
+        @foreach (var section in Provider.GetSections())
+        {
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        @if (!string.IsNullOrEmpty(section.Icon))
+                        {
+                            <MudIcon Icon="@(section.Icon!)" Color="Color.Primary" />
+                        }
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h6">@(section.Title)</MudText>
+                            @if (!string.IsNullOrEmpty(section.Description))
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@(section.Description)</MudText>
+                            }
+                        </MudStack>
+                    </MudStack>
+                    <MudDivider />
+
+                    @if (section.Columns == 2)
+                    {
+                        <MudGrid Spacing="2">
+                            @foreach (var field in section.Fields)
+                            {
+                                var f = field;
+                                <MudItem xs="12" sm="6">
+                                    @((RenderFragment)(b => RenderField(f)(b)))
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            @foreach (var field in section.Fields)
+                            {
+                                var f = field;
+                                @((RenderFragment)(b => RenderField(f)(b)))
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SaveAsync" Disabled="_saving"
+                       StartIcon="@Icons.Material.Filled.Save">
+                @(_saving ? "Saving..." : "Save Settings")
+            </MudButton>
+            @{
+                var _extraActions = Provider.GetExtraActions();
+            }
+            @if (_extraActions != null)
+            {
+                @foreach (var action in _extraActions)
+                {
+                    var captured = action;
+                    <MudButton Variant="Variant.Outlined"
+                               Color="@captured.Color"
+                               StartIcon="@captured.Icon"
+                               OnClick="@(() => RunExtraActionAsync(captured.Handler))">
+                        @captured.Label
+                    </MudButton>
+                }
+            }
+        </MudStack>
+    </MudStack>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IGameSettingsFormProvider Provider { get; set; } = null!;
+
+    private Dictionary<string, object?> _values = new();
+    private string? _validationError;
+    private bool _saving;
+    private bool _loading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _values = new();
+        _validationError = null;
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _values = await Provider.LoadAsync(ServiceProvider);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _validationError = Provider.Validate(_values);
+        if (_validationError != null) return;
+
+        _saving = true;
+        try
+        {
+            await Provider.SaveAsync(ServiceProvider, _values);
+            Snackbar.Add($"{Provider.DisplayName} settings saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _validationError = $"Failed to save: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RunExtraActionAsync(Func<IServiceProvider, Task> handler)
+    {
+        try
+        {
+            await handler(ServiceProvider);
+        }
+        catch (Exception ex)
+        {
+            _validationError = $"Action failed: {ex.Message}";
+        }
+    }
+
+    private int GetInt(string key) =>
+        _values.TryGetValue(key, out var v) && v is int i ? i : 0;
+
+    private double GetDouble(string key) =>
+        _values.TryGetValue(key, out var v) && v is double d ? d : 0.0;
+
+    private string GetString(string key) =>
+        _values.TryGetValue(key, out var v) ? v as string ?? "" : "";
+
+    private bool GetBool(string key) =>
+        _values.TryGetValue(key, out var v) && v is bool b && b;
+
+    private void SetValue(string key, object? value) => _values[key] = value;
+
+    private RenderFragment RenderField(GameSettingField field) => builder =>
+    {
+        int seq = 0;
+        switch (field.FieldType)
+        {
+            case GameSettingFieldType.Int:
+                builder.OpenComponent<MudNumericField<int>>(seq++);
+                builder.AddAttribute(seq++, "Label", field.Label);
+                builder.AddAttribute(seq++, "Value", GetInt(field.Key));
+                builder.AddAttribute(seq++, "ValueChanged", EventCallback.Factory.Create<int>(this, v => SetValue(field.Key, v)));
+                builder.AddAttribute(seq++, "Variant", Variant.Outlined);
+                builder.AddAttribute(seq++, "Required", field.Required);
+                if (field.HelperText is not null) builder.AddAttribute(seq++, "HelperText", field.HelperText);
+                if (field.Min is int minI) builder.AddAttribute(seq++, "Min", minI);
+                if (field.Max is int maxI) builder.AddAttribute(seq++, "Max", maxI);
+                builder.CloseComponent();
+                break;
+
+            case GameSettingFieldType.Double:
+                builder.OpenComponent<MudNumericField<double>>(seq++);
+                builder.AddAttribute(seq++, "Label", field.Label);
+                builder.AddAttribute(seq++, "Value", GetDouble(field.Key));
+                builder.AddAttribute(seq++, "ValueChanged", EventCallback.Factory.Create<double>(this, v => SetValue(field.Key, v)));
+                builder.AddAttribute(seq++, "Variant", Variant.Outlined);
+                builder.AddAttribute(seq++, "Required", field.Required);
+                if (field.HelperText is not null) builder.AddAttribute(seq++, "HelperText", field.HelperText);
+                if (field.Min is double minD) builder.AddAttribute(seq++, "Min", minD);
+                if (field.Max is double maxD) builder.AddAttribute(seq++, "Max", maxD);
+                builder.CloseComponent();
+                break;
+
+            case GameSettingFieldType.String:
+                builder.OpenComponent<MudTextField<string>>(seq++);
+                builder.AddAttribute(seq++, "Label", field.Label);
+                builder.AddAttribute(seq++, "Value", GetString(field.Key));
+                builder.AddAttribute(seq++, "ValueChanged", EventCallback.Factory.Create<string>(this, v => SetValue(field.Key, v)));
+                builder.AddAttribute(seq++, "Variant", Variant.Outlined);
+                builder.AddAttribute(seq++, "Required", field.Required);
+                if (field.HelperText is not null) builder.AddAttribute(seq++, "HelperText", field.HelperText);
+                builder.CloseComponent();
+                break;
+
+            case GameSettingFieldType.Bool:
+                builder.OpenComponent<MudSwitch<bool>>(seq++);
+                builder.AddAttribute(seq++, "Label", field.Label);
+                builder.AddAttribute(seq++, "Value", GetBool(field.Key));
+                builder.AddAttribute(seq++, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => SetValue(field.Key, v)));
+                builder.AddAttribute(seq++, "Color", Color.Primary);
+                builder.CloseComponent();
+                break;
+        }
+    };
+}

@@ -1,78 +1,78 @@
 ﻿@page "/gamesettings"
-@using System.Text.RegularExpressions
+@using DotNetTwitchBot.Pages.PointGameSettings.Providers
 @attribute [Authorize(Roles = "Streamer, Editor")]
 <PageTitle>SPTV Twitch Bot - Game Settings</PageTitle>
 <CascadingAuthenticationState>
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>
-            <MudItem sm="12">
-                <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.h5">Game Settings</MudText>
-                <MudText>Most games have a cost outside of the command cost. So when setting costs for games set them here first. To choose which point
-                    type a game uses go to <MudLink Href="/pointsettings">Point Settings</MudLink>. Dynamic variables in messages are in format {Variable}
-                    so if you see something like {Cost} that is replaced with how much it costs or {PointType} that replaces with the name of the point. 
-                    These are just examples but there are more.
-                </MudText>
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.h5">Game Settings</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Configure each game's costs and messages. Dynamic variables like <code>{Cost}</code> and <code>{PointType}</code> are replaced at runtime.
+                            To assign which point type a game uses, visit <MudLink Href="/pointsettings">Point Settings</MudLink>.
+                        </MudText>
+                    </MudStack>
                 </MudPaper>
             </MudItem>
-            <MudItem sm="12">
-                <MudPaper Class="pa-4" Elevation="0">
-                <MudSelect Label="Select Game" @bind-Value="selectedType" ToStringFunc="@ConvertFunction">
-                    @foreach (var game in gameSettings)
-                    {
-                        <MudSelectItem Value="@game.Value"/>
-                    }
-                </MudSelect>
-                </MudPaper>
-               
-            </MudItem>
-             @if (selectedType != null)
+
+            @if (_selectedProvider == null)
+            {
+                @foreach (var provider in _providers)
                 {
-                    <MudItem sm="12">
-                        <DynamicComponent Type="selectedType" />
+                    var p = provider;
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudPaper Class="pa-3" Elevation="2" Style="cursor:pointer;" @onclick="() => _selectedProvider = p">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@p.Icon" Color="Color.Primary" Size="Size.Large" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.subtitle1"><b>@p.DisplayName</b></MudText>
+                                    @if (!string.IsNullOrEmpty(p.Description))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@p.Description</MudText>
+                                    }
+                                </MudStack>
+                                <MudSpacer />
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                            </MudStack>
+                        </MudPaper>
                     </MudItem>
                 }
+            }
+            else
+            {
+                <MudItem xs="12">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack"
+                                   OnClick="@(() => _selectedProvider = null)">
+                            All Games
+                        </MudButton>
+                        <MudIcon Icon="@_selectedProvider.Icon" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">@_selectedProvider.DisplayName</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12">
+                    <GameSettingsPanel Provider="@(_selectedProvider!)" />
+                </MudItem>
+            }
         </MudGrid>
     </MudContainer>
 </CascadingAuthenticationState>
 @code {
-    private readonly Dictionary<string, Type> gameSettings = new Dictionary<string, Type>
-    {
-        { "AddActive", typeof(AddActiveSettings) },
-        { "Defuse", typeof(DefuseSettings) },
-        { "FFA", typeof(FFASettings) },
-        { "Gamble", typeof(GambleSettings) },
-        { "Heist", typeof(HeistSettings) },
-        {"MarkovChat", typeof(MarkovSettings) },
-        { "ModSpam", typeof(ModSpamSettings) },
-        { "Roulette", typeof(RouletteSettings) },
-        { "Slots", typeof(SlotsSettings) },
-        {"Viewers in Chat Bonus", typeof(ViewersInChatBonus) },
-    };
-    private Type? selectedType;
+    private IGameSettingsFormProvider? _selectedProvider;
 
-    private void SelectGame(ChangeEventArgs e)
-    {
-        if (e.Value is string game)
-        {
-            selectedType = gameSettings[game];
-        } 
-        else
-        {
-            selectedType = null;
-        }
-    }
-
-    private string ConvertFunction(Type? kvp)
-    {
-        if (kvp == null)
-        {
-            return "";
-        }
-        return SplitCamelCase( kvp.Name);
-    }
-    private static string SplitCamelCase(string input)
-    {
-        return Regex.Replace(input, "(?<=[a-z])([A-Z])", " $1", RegexOptions.Compiled);
-    }
+    private readonly List<IGameSettingsFormProvider> _providers =
+    [
+        new AddActiveSettingsProvider(),
+        new DefuseSettingsProvider(),
+        new FFASettingsProvider(),
+        new GambleSettingsProvider(),
+        new HeistSettingsProvider(),
+        new MarkovSettingsProvider(),
+        new ModSpamSettingsProvider(),
+        new RouletteSettingsProvider(),
+        new SlotsSettingsProvider(),
+        new ViewersInChatBonusProvider(),
+    ];
 }
