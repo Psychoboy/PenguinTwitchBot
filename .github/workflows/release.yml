@@ -37,14 +37,14 @@ jobs:
 
     - name: Publish
       shell: pwsh
-      run: dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" -o staging
+      run: dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
 
     - name: Publish Setup
       shell: pwsh
-      run: dotnet publish DotNetTwitchBot.Setup/DotNetTwitchBot.Setup.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" -o staging
+      run: dotnet publish DotNetTwitchBot.Setup/DotNetTwitchBot.Setup.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
 
     - name: Zip publish output
-      run: Compress-Archive -Path staging/* -DestinationPath PenguinTwitchBot-${{ github.ref_name }}.zip
+      run: Compress-Archive -Path DotNetTwitchBot/bin/Release/net10.0/win-x64/publish/*, DotNetTwitchBot.Setup/bin/Release/net10.0/win-x64/publish/* -DestinationPath PenguinTwitchBot-${{ github.ref_name }}.zip
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
