@@ -61,8 +61,14 @@ internal class Program
         }
         builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: false);
         Activity.DefaultIdFormat = System.Diagnostics.ActivityIdFormat.W3C;
+        var readerOptions = new Serilog.Settings.Configuration.ConfigurationReaderOptions(
+            typeof(ConsoleLoggerConfigurationExtensions).Assembly,
+            typeof(Serilog.Expressions.SerilogExpression).Assembly,
+            typeof(Serilog.RollingInterval).Assembly,
+            typeof(Serilog.Sinks.OpenTelemetry.OtlpProtocol).Assembly
+        );
         var loggerConfiguration = new LoggerConfiguration()
-           .ReadFrom.Configuration(builder.Configuration)
+           .ReadFrom.Configuration(builder.Configuration, readerOptions)
            .Enrich.WithSpan()
            .Enrich.FromLogContext()
            .Filter.ByExcluding(logEvent =>
