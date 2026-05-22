@@ -13,6 +13,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
+@inject DotNetTwitchBot.Bot.Core.IServiceBackbone ServiceBackbone
 @implements IAsyncDisposable
 
 <PageTitle>SPTV Twitch Bot - Giveaway</PageTitle>
@@ -50,7 +51,7 @@
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Success" Size="Size.Large" />
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total Tickets Entered</MudText>
+                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total @pointTypeName Entered</MudText>
                             <MudText Typo="Typo.h3" Color="Color.Success">@entries</MudText>
                         </MudStack>
                     </MudStack>
@@ -61,7 +62,7 @@
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Large" />
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Your Available Tickets</MudText>
+                                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Your Available @pointTypeName</MudText>
                                 <MudText Typo="Typo.h3" Color="Color.Warning">@userTickets</MudText>
                             </MudStack>
                         </MudStack>
@@ -86,7 +87,7 @@
                                     <MudStack Spacing="2">
                                         <MudNumericField @bind-Value="model.EnterAmount" 
                                                          For="@(() => model.EnterAmount)" 
-                                                         Label="Number of Tickets to Enter"
+                                                         Label="@($"Number of {pointTypeName} to Enter")"
                                                          HelperText="@userEntriesText" 
                                                          Variant="Variant.Outlined"
                                                          Disabled="@isSubmitting"
@@ -111,14 +112,14 @@
                             <MudStack Spacing="1">
                                 <MudText Typo="Typo.body2">
                                     <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
-                                    <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Color="Color.Primary">
-                                        Subscribe today to earn even more tickets
+                                    <MudLink Href="@($"https://twitch.tv/subs/{ServiceBackbone.BroadcasterName}")" Target="_blank" Color="Color.Primary">
+                                        Subscribe today to earn even more @pointTypeName
                                     </MudLink>
                                 </MudText>
                                 <MudText Typo="Typo.body2">
                                     <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" Color="Color.Info" />
                                     <MudLink Href="/viewergiveaway#howtoearn" Color="Color.Primary">
-                                        How to earn tickets
+                                        How to earn @pointTypeName
                                     </MudLink>
                                 </MudText>
                             </MudStack>
@@ -142,14 +143,14 @@
                             <MudStack Spacing="1">
                                 <MudText Typo="Typo.body2" Align="Align.Center">
                                     <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
-                                    <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Color="Color.Primary">
-                                        Subscribe to earn more tickets
+                                    <MudLink Href="@($"https://twitch.tv/subs/{ServiceBackbone.BroadcasterName}")" Target="_blank" Color="Color.Primary">
+                                        Subscribe to earn more @pointTypeName
                                     </MudLink>
                                 </MudText>
                                 <MudText Typo="Typo.body2" Align="Align.Center">
                                     <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" Color="Color.Info" />
                                     <MudLink Href="/viewergiveaway#howtoearn" Color="Color.Primary">
-                                        How to earn tickets
+                                        How to earn @pointTypeName
                                     </MudLink>
                                 </MudText>
                             </MudStack>
@@ -199,45 +200,45 @@
                     <MudStack Spacing="3">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
-                            <MudText Typo="Typo.h5" class="mud-contrast-text">How to Earn Tickets</MudText>
+                            <MudText Typo="Typo.h5" class="mud-contrast-text">How to Earn @pointTypeName</MudText>
                         </MudStack>
                         <MudDivider />
                         <MudText Typo="Typo.h6" Color="Color.Primary">Instant Rewards</MudText>
                         <MudStack Spacing="2">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Subscriptions" Color="Color.Secondary" />
-                                <MudText><strong>@TicketsPerSub tickets</strong> for every subscription</MudText>
+                                <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every subscription</MudText>
                             </MudStack>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Color="Color.Secondary" />
-                                <MudText><strong>@TicketsPerSub tickets</strong> for every gifted sub</MudText>
+                                <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every gifted sub</MudText>
                             </MudStack>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Secondary" />
-                                <MudText><strong>@((int)@BitsPerPoint) tickets</strong> per 100 bits cheered</MudText>
+                                <MudText><strong>@((int)@BitsPerPoint) @pointTypeName</strong> per 100 bits cheered</MudText>
                             </MudStack>
                         </MudStack>
 
                         <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Passive Earnings (Every 5 Minutes)</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Default">Earn tickets automatically while watching the stream:</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Default">Earn @pointTypeName automatically while watching the stream:</MudText>
                         <MudStack Spacing="2">
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Info" />
-                                <MudText><strong>+@pointsForEveryone ticket</strong> - Everyone watching</MudText>
+                                <MudText><strong>+@pointsForEveryone @pointTypeName</strong> - Everyone watching</MudText>
                             </MudStack>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Forum" Color="Color.Success" />
-                                <MudText><strong>+@pointsForActive tickets</strong> - Active viewers (chatting recently)</MudText>
+                                <MudText><strong>+@pointsForActive @pointTypeName</strong> - Active viewers (chatting recently)</MudText>
                             </MudStack>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                 <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" />
-                                <MudText><strong>+@pointsForSubs tickets</strong> - Subscribers</MudText>
+                                <MudText><strong>+@pointsForSubs @pointTypeName</strong> - Subscribers</MudText>
                             </MudStack>
                         </MudStack>
 
                         <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.TrendingUp">
-                            <strong>Subscribers earn @(pointsForActive + pointsForEveryone + pointsForSubs) tickets every 5 minutes!</strong>
-                            <MudLink Href="https://twitch.tv/subs/SuperPenguinTV" Target="_blank" Style="color: white; text-decoration: underline;">
+                            <strong>Subscribers earn @(pointsForActive + pointsForEveryone + pointsForSubs) @pointTypeName every 5 minutes!</strong>
+                            <MudLink Href="@($"https://twitch.tv/subs/{ServiceBackbone.BroadcasterName}")" Target="_blank" Style="color: white; text-decoration: underline;">
                                 Subscribe today
                             </MudLink>
                         </MudAlert>
@@ -257,86 +258,19 @@
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway Rules</MudText>
                     </MudStack>
                     <MudDivider />
-                    <MudStack Spacing="2">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
-                            <MudText>Winners do <strong>NOT</strong> need to be present during the drawing</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Error" />
-                            <MudText>Multiple accounts (botting) will result in <strong>exclusion from all giveaways</strong></MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Error" />
-                            <MudText>Banned users (Discord or Twitch) are <strong>not eligible</strong></MudText>
-                        </MudStack>
-                    </MudStack>
-
-                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers & Cooldowns</MudText>
-                    <MudText Typo="Typo.body2">After winning, you'll have a cooldown before being eligible for standard giveaways again (special giveaways always eligible). For Star Citizen this is not melt value but normal purchase price.</MudText>
-                    <MudSimpleTable Dense="true" Hover="true" Style="background-color: rgba(255,255,255,0.03);">
-                        <thead>
-                            <tr>
-                                <th>Tier</th>
-                                <th>Prize Value</th>
-                                <th>Cooldown Period</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><MudText Color="Color.Success"><strong>Tier 1</strong></MudText></td>
-                                <td>Less than $75</td>
-                                <td>1 month or next giveaway</td>
-                            </tr>
-                            <tr>
-                                <td><MudText Color="Color.Warning"><strong>Tier 2</strong></MudText></td>
-                                <td>$75 - $115</td>
-                                <td>2 months or next 2 giveaways</td>
-                            </tr>
-                            <tr>
-                                <td><MudText Color="Color.Error"><strong>Tier 3</strong></MudText></td>
-                                <td>Greater than $115</td>
-                                <td>3 months or next 3 giveaways</td>
-                            </tr>
-                        </tbody>
-                    </MudSimpleTable>
+                    <MudMarkdown Value="@rules" />
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers &amp; Cooldowns</MudText>
+                    <MudMarkdown Value="@cooldowns" />
                 </MudStack>
             </MudPaper>
             <MudPaper Class="pa-5 mb-3" Elevation="3">
                 <MudStack Spacing="3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Large" />
-                        <MudText Typo="Typo.h5" class="mud-contrast-text">Terms & Conditions</MudText>
+                        <MudText Typo="Typo.h5" class="mud-contrast-text">Terms &amp; Conditions</MudText>
                     </MudStack>
                     <MudDivider />
-                    <MudStack Spacing="2">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" />
-                            <MudText>Winners have <strong>48 hours</strong> to whisper SuperPenguinTV on Twitch to claim their prize</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Info" />
-                            <MudText>Winners announced live on stream and in 
-                            <MudLink Href="https://discord.gg/4zVq4DyBFS" Target="_blank" Color="Color.Primary">Discord</MudLink> 
-                            (#giveaway-winners channel)</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Success" />
-                            <MudText><strong>Subscribers</strong> auto-claim and will be whispered directly</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Default" />
-                            <MudText>SuperPenguinTV reserves the right to change giveaways at any time</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
-                            <MudText>Must be <strong>18+</strong> to participate</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Public" Color="Color.Default" />
-                            <MudText>Void where prohibited by law</MudText>
-                        </MudStack>
-                    </MudStack>
+                    <MudMarkdown Value="@terms" />
                 </MudStack>
             </MudPaper>
         </MudItem>
@@ -367,6 +301,10 @@
     private int pointsForSubs { get; set; }
 
     private bool isClosed { get; set; } = false;
+    private string pointTypeName = "Tickets";
+    private string rules = "";
+    private string cooldowns = "";
+    private string terms = "";
 
     private EnterTicketsForm model = new();
 
@@ -378,6 +316,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var pointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
+        pointTypeName = pointType?.Name ?? "Tickets";
+
         var authState = await AuthenticationStateProvider
            .GetAuthenticationStateAsync();
         var user = authState.User;
@@ -387,7 +328,7 @@
             Username = user.Identity.Name;
             userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
-            userEntriesText = $"You are participating with {userEntries} tickets.";
+            userEntriesText = $"You are participating with {userEntries} {pointTypeName}.";
         }
         prize = await GiveawayFeature.GetPrize();
         imageUrl = await GiveawayFeature.GetImageUrl();
@@ -399,6 +340,9 @@
         pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
         pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
         pointsForSubs = await ticketsFeature.GetPointsForSubs();
+        rules = await GiveawayFeature.GetRules();
+        cooldowns = await GiveawayFeature.GetCooldowns();
+        terms = await GiveawayFeature.GetTerms();
         isClosed = GiveawayFeature.IsClosed();
         if (BitsPerPoint > 0) BitsPerPoint = 100 * BitsPerPoint;
     }
@@ -441,7 +385,7 @@
         {
             entries = curEntries;
             entrants = curEntrants;
-            userEntriesText = $"You are participating with {userEntries} tickets.";
+            userEntriesText = $"You are participating with {userEntries} {pointTypeName}.";
             InvokeAsync(StateHasChanged);
         });
         hubConnection.On<bool>("GiveawayIsClosed", (isClosed) =>
@@ -475,7 +419,7 @@
             AlertSeverity = Severity.Success;
             userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
             userEntries = await GiveawayFeature.GetEntriesCount(Username);
-            userEntriesText = $"You are participating with {userEntries} tickets.";
+            userEntriesText = $"You are participating with {userEntries} {pointTypeName}.";
         } catch (SkipCooldownException ex)
         {
             AlertText = ex.Message;

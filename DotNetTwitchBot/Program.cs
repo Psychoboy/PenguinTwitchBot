@@ -52,11 +52,25 @@ internal class Program
         server.Start();
         var builder = WebApplication.CreateBuilder(args);
         var section = builder.Configuration.GetSection("Secrets");
-        var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? throw new Exception("Invalid file configuration");
-        builder.Configuration.AddJsonFile(secretsFileLocation);
+        var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? "appsettings.secrets.json";
+        if (!File.Exists(secretsFileLocation))
+        {
+            PrintSetupRequiredBanner(secretsFileLocation);
+            if (!Console.IsInputRedirected)
+                Console.ReadKey(intercept: true);
+            Environment.ExitCode = 1;
+            return;
+        }
+        builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: false);
         Activity.DefaultIdFormat = System.Diagnostics.ActivityIdFormat.W3C;
+        var readerOptions = new Serilog.Settings.Configuration.ConfigurationReaderOptions(
+            typeof(ConsoleLoggerConfigurationExtensions).Assembly,
+            typeof(Serilog.Expressions.SerilogExpression).Assembly,
+            typeof(Serilog.RollingInterval).Assembly,
+            typeof(Serilog.Sinks.OpenTelemetry.OtlpProtocol).Assembly
+        );
         var loggerConfiguration = new LoggerConfiguration()
-           .ReadFrom.Configuration(builder.Configuration)
+           .ReadFrom.Configuration(builder.Configuration, readerOptions)
            .Enrich.WithSpan()
            .Enrich.FromLogContext()
            .Filter.ByExcluding(logEvent =>
@@ -139,6 +153,7 @@ internal class Program
             config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
         });
         builder.Services.AddMudMarkdownServices();
+
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddTwitchLibEventSubWebsockets();
@@ -222,30 +237,33 @@ internal class Program
 
         builder.Services.AddSignalR();
 
+        // Always register circuit services — MainLayout injects these and Blazor's SSR
+        // prerender instantiates it even when the page specifies its own layout.
+        builder.Services.AddSingleton<DotNetTwitchBot.Circuit.IpLog>();
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
         builder.Services.AddScoped<CircuitHandler>((sp) =>
             new CircuitHandlerService(
-                sp.GetRequiredService<ICircuitUserService>(), 
+                sp.GetRequiredService<ICircuitUserService>(),
                 sp.GetRequiredService<ILogger<CircuitHandlerService>>()));
 
-
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
-        var openAiConf = builder.Configuration.GetRequiredSection("OpenAI").Get<OpenAiSettings>();
-        if(openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
-        {
-            builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
-            {
-               return new OpenAIClient(openAiConf.ApiKey);
-            });
-            builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IStarCitizenAI, DotNetTwitchBot.Bot.Ai.StarCitizenAI>();
-            builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IShoutoutAi, DotNetTwitchBot.Bot.Ai.ShoutoutAi>();
-        }
 
-        builder.Services.AddHealthChecks()
-            .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
-            .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
-            .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
-            .ForwardToPrometheus();
+        var openAiConf = builder.Configuration.GetRequiredSection("OpenAI").Get<OpenAiSettings>();
+            if (openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
+            {
+                builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
+                {
+                    return new OpenAIClient(openAiConf.ApiKey);
+                });
+                builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IStarCitizenAI, DotNetTwitchBot.Bot.Ai.StarCitizenAI>();
+                builder.Services.AddScoped<DotNetTwitchBot.Bot.Ai.IShoutoutAi, DotNetTwitchBot.Bot.Ai.ShoutoutAi>();
+            }
+
+            builder.Services.AddHealthChecks()
+                .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
+                .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
+                .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
+                .ForwardToPrometheus();
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<DotNetTwitchBot.Services.ImageProcessingService>();
@@ -265,13 +283,25 @@ internal class Program
         app.UseAuthorization();
         app.UseForwardedHeaders();
 
-        if (!app.Environment.IsDevelopment())
+        // Always migrate — for SQLite this creates the database file and schema on first run.
+        // For MariaDB/Postgres the server must be reachable before starting the app.
         {
             using var scope = app.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var dbPath = dbContext.Database.GetConnectionString();
+            if (dbPath != null)
+            {
+                // Extract the file path from the connection string (e.g. "Data Source=Data/foo.sqlite")
+                var match = System.Text.RegularExpressions.Regex.Match(dbPath, @"Data Source=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    var dir = Path.GetDirectoryName(match.Groups[1].Value);
+                    if (!string.IsNullOrEmpty(dir))
+                        Directory.CreateDirectory(dir);
+                }
+            }
             dbContext.Database.Migrate();
         }
-
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
 
@@ -321,45 +351,48 @@ internal class Program
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
-            logger?.LogInformation("Application Starting");
+            var url = app.Configuration["BaseUrl"] ?? "http://localhost:5000";
+            logger?.LogInformation("Bot Started");
+            logger?.LogInformation("Connect to the bot at {Url}", url);
         });
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<DotNetTwitchBot.Bot.Notifications.IWebSocketMessenger>();
         var wsEventHandler = app.Services.GetRequiredService<DotNetTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
         lifetime.ApplicationStopping.Register(() =>
-        {
-            logger?.LogInformation("Application trying to stop.");
-            // Fire-and-forget: don't block the shutdown thread. A blocked synchronous wait
-            // ties up a thread-pool thread and can itself cause starvation during shutdown.
-            _ = Task.Run(async () =>
             {
-                try
+                logger?.LogInformation("Application trying to stop.");
+                // Fire-and-forget: don't block the shutdown thread. A blocked synchronous wait
+                // ties up a thread-pool thread and can itself cause starvation during shutdown.
+                _ = Task.Run(async () =>
                 {
-                    var closeTask = Task.WhenAll(
-                        websocketMessenger.CloseAllSockets(),
-                        wsEventHandler.CloseAllSockets()
-                    );
-                    if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
+                    try
                     {
-                        logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                        var closeTask = Task.WhenAll(
+                            websocketMessenger.CloseAllSockets(),
+                            wsEventHandler.CloseAllSockets()
+                        );
+                        if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
+                        {
+                            logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
+                        }
+                        else
+                        {
+                            await closeTask; // propagate any exceptions from the close tasks
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        await closeTask; // propagate any exceptions from the close tasks
+                        logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
                     }
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Error while closing websocket resources during shutdown.");
-                }
+                });
             });
-        });
 
         app.MapHub<DotNetTwitchBot.Bot.Commands.Music.YtHub>("/ythub");
         app.MapHub<DotNetTwitchBot.Bot.Hubs.MainHub>("/mainhub");
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
+
         try
         {
             if (!File.Exists("yt-dlp.exe"))
@@ -425,8 +458,24 @@ internal class Program
         };
     }
 
-    private static bool IsExpectedBackgroundConnectionRefusal(Exception exception)
+    private static void PrintSetupRequiredBanner(string secretsPath)
     {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine();
+        Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+        Console.WriteLine("║          DOTNET TWITCHBOT — SETUP REQUIRED           ║");
+        Console.WriteLine("╠══════════════════════════════════════════════════════╣");
+        Console.WriteLine($"║  Config file not found: {secretsPath,-29}║");
+        Console.WriteLine("║                                                      ║");
+        Console.WriteLine("║  Run DotNetTwitchBot.Setup.exe first to create       ║");
+        Console.WriteLine("║  your configuration file, then restart the bot.      ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        Console.ResetColor();
+        Console.Write("Press any key to exit...");
+    }
+
+    private static bool IsExpectedBackgroundConnectionRefusal(Exception exception)    {
         var aggregate = exception as AggregateException;
         var all = aggregate?.Flatten().InnerExceptions ?? [exception];
 
@@ -501,7 +550,7 @@ internal class Program
         var provider = configuration.GetValue<string>("Database:Provider")?.Trim().ToLowerInvariant();
         return provider switch
         {
-            null or "" => "mariadb",
+            null or "" => "sqlite",
             "mariadb" => "mariadb",
             "mysql" => "mariadb",
             "postgres" => "postgres",

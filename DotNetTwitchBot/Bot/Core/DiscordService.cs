@@ -20,6 +20,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DiscordSettings _settings;
+        private readonly string _broadcaster;
         private bool isReady = false;
 
         public DiscordService(
@@ -41,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Core
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
+            _broadcaster = configuration["broadcaster"] ?? "";
             var config = new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
@@ -100,10 +102,10 @@ namespace DotNetTwitchBot.Bot.Core
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
                     .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
-                    .WithTitle("SuperPenguinTV has just went live on Twitch!")
+                    .WithTitle($"{_broadcaster} has just went live on Twitch!")
                     .AddField("Now Playing", await _twitchService.GetCurrentGame())
                     .AddField("Stream Title", await _twitchService.GetStreamTitle())
-                    .WithUrl("https://twitch.tv/SuperPenguinTV")
+                    .WithUrl($"https://twitch.tv/{_broadcaster}")
                     .WithImageUrl(imageUrl)
                     .WithCurrentTimestamp()
                     .WithFooter("Twitch").Build();
@@ -126,12 +128,20 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents()
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return Task.FromResult<IReadOnlyCollection<IGuildScheduledEvent>>([]);
+            }
             IGuild guild = GetGuild();
             return guild.GetEventsAsync();
         }
 
-        public Task<IGuildScheduledEvent> GetEvent(ulong id)
+        public Task<IGuildScheduledEvent?> GetEvent(ulong id)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return Task.FromResult<IGuildScheduledEvent?>(null);
+            }
             IGuild guild = GetGuild();
             return guild.GetEventAsync(id);
         }
@@ -143,6 +153,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 await evt.ModifyAsync(x =>
@@ -160,14 +174,21 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task DeleteEvent(IGuildScheduledEvent evt)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             await evt.DeleteAsync();
         }
 
         public async Task<ulong> CreateScheduledEvent(ScheduledStream scheduledStream)
         {
-            //1033836361653964851
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return 0;
+            }
             IGuild guild = GetGuild();
-            var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: "https://twitch.tv/superpenguintv");
+            var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: $"https://twitch.tv/{_broadcaster}");
             scheduledStream.DiscordEventId = evt.Id;
             return evt.Id;
         }
@@ -188,6 +209,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task DeletePostedScheduled(ulong id)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 IGuild guild = GetGuild();
@@ -201,6 +226,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 IGuild guild = GetGuild();
@@ -241,6 +270,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return 0;
+            }
             IGuild guild = GetGuild();
             var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             var embed = await GenerateScheduleEmbed(scheduledStreams);
@@ -623,6 +656,12 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                _logger.LogInformation("Discord token is not configured — Discord service will not start.");
+                return;
+            }
+
             _logger.LogInformation("Starting Discord Service.");
             
             _client.Connected += Connected;
@@ -647,6 +686,9 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+                return;
+
             _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
             _client.Ready -= OnReady;

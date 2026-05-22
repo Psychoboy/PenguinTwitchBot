@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: 'Create as draft release'
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout with submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Pack TwitchLib local packages
+      run: pack-twitchlib.bat
+      shell: cmd
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Publish
+      shell: pwsh
+      run: dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
+
+    - name: Publish Setup
+      shell: pwsh
+      run: dotnet publish DotNetTwitchBot.Setup/DotNetTwitchBot.Setup.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
+
+    - name: Zip publish output
+      run: Compress-Archive -Path DotNetTwitchBot/bin/Release/net10.0/win-x64/publish/*, DotNetTwitchBot.Setup/bin/Release/net10.0/win-x64/publish/* -DestinationPath PenguinTwitchBot-${{ github.ref_name }}.zip
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: PenguinTwitchBot-${{ github.ref_name }}.zip
+        draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
