@@ -470,7 +470,108 @@
             filters.Add($"Reward IDs: {config.CustomPowerUpRewardIds.Count}");
         }
 
-        return filters.Count > 0 ? string.Join(" â€¢ ", filters) : "No filters";
+        if (config.NoticeTypes.Count > 0)
+        {
+            var noticeDisplay = config.NoticeTypes.Select(t => t switch
+            {
+                "sub" => "Sub",
+                "resub" => "Resub",
+                "sub_gift" => "Gift Sub",
+                "community_sub_gift" => "Community Gift",
+                "gift_paid_upgrade" => "Gift Upgrade",
+                "prime_paid_upgrade" => "Prime Upgrade",
+                "raid" => "Raid",
+                "unraid" => "Unraid",
+                "pay_it_forward" => "Pay It Forward",
+                "announcement" => "Announcement",
+                "bits_badge_tier" => "Bits Badge",
+                "charity_donation" => "Charity",
+                "watch_streak" => "Watch Streak",
+                _ => t
+            }).ToList();
+            filters.Add($"Notice: {string.Join(", ", noticeDisplay.Take(3))}{(noticeDisplay.Count > 3 ? "..." : "")}");
+        }
+
+        if (config.SubTiers.Count > 0)
+        {
+            var tierNames = config.SubTiers.Select(t => t switch
+            {
+                "1000" => "T1",
+                "2000" => "T2",
+                "3000" => "T3",
+                _ => t
+            }).ToList();
+            filters.Add($"Sub Tiers: {string.Join(", ", tierNames)}");
+        }
+
+        if (config.MinWatchStreak.HasValue || config.MaxWatchStreak.HasValue)
+        {
+            if (config.MinWatchStreak.HasValue && config.MaxWatchStreak.HasValue)
+                filters.Add($"Streak: {config.MinWatchStreak}-{config.MaxWatchStreak}");
+            else if (config.MinWatchStreak.HasValue)
+                filters.Add($"Streak: {config.MinWatchStreak}+");
+            else
+                filters.Add($"Streak: up to {config.MaxWatchStreak}");
+        }
+
+        if (config.MinRaidViewers.HasValue || config.MaxRaidViewers.HasValue)
+        {
+            if (config.MinRaidViewers.HasValue && config.MaxRaidViewers.HasValue)
+                filters.Add($"Raid viewers: {config.MinRaidViewers}-{config.MaxRaidViewers}");
+            else if (config.MinRaidViewers.HasValue)
+                filters.Add($"Raid viewers: {config.MinRaidViewers}+");
+            else
+                filters.Add($"Raid viewers: up to {config.MaxRaidViewers}");
+        }
+
+        if (config.MinCumulativeMonths.HasValue || config.MaxCumulativeMonths.HasValue)
+        {
+            if (config.MinCumulativeMonths.HasValue && config.MaxCumulativeMonths.HasValue)
+                filters.Add($"Months: {config.MinCumulativeMonths}-{config.MaxCumulativeMonths}");
+            else if (config.MinCumulativeMonths.HasValue)
+                filters.Add($"Months: {config.MinCumulativeMonths}+");
+            else
+                filters.Add($"Months: up to {config.MaxCumulativeMonths}");
+        }
+
+        if (config.MinCommunityGiftCount.HasValue || config.MaxCommunityGiftCount.HasValue)
+        {
+            if (config.MinCommunityGiftCount.HasValue && config.MaxCommunityGiftCount.HasValue)
+                filters.Add($"Gift count: {config.MinCommunityGiftCount}-{config.MaxCommunityGiftCount}");
+            else if (config.MinCommunityGiftCount.HasValue)
+                filters.Add($"Gift count: {config.MinCommunityGiftCount}+");
+            else
+                filters.Add($"Gift count: up to {config.MaxCommunityGiftCount}");
+        }
+
+        if (config.MinCharityAmount.HasValue || config.MaxCharityAmount.HasValue)
+        {
+            var minFormatted = config.MinCharityAmount.HasValue ? $"${config.MinCharityAmount.Value / 100.0:F2}" : null;
+            var maxFormatted = config.MaxCharityAmount.HasValue ? $"${config.MaxCharityAmount.Value / 100.0:F2}" : null;
+            if (minFormatted != null && maxFormatted != null)
+                filters.Add($"Charity: {minFormatted}-{maxFormatted}");
+            else if (minFormatted != null)
+                filters.Add($"Charity: {minFormatted}+");
+            else
+                filters.Add($"Charity: up to {maxFormatted}");
+        }
+
+        if (config.MinBitsBadgeTier.HasValue || config.MaxBitsBadgeTier.HasValue)
+        {
+            if (config.MinBitsBadgeTier.HasValue && config.MaxBitsBadgeTier.HasValue)
+                filters.Add($"Badge tier: {config.MinBitsBadgeTier}-{config.MaxBitsBadgeTier}");
+            else if (config.MinBitsBadgeTier.HasValue)
+                filters.Add($"Badge tier: {config.MinBitsBadgeTier}+");
+            else
+                filters.Add($"Badge tier: up to {config.MaxBitsBadgeTier}");
+        }
+
+        if (config.AnnouncementColors.Count > 0)
+        {
+            filters.Add($"Colors: {string.Join(", ", config.AnnouncementColors)}");
+        }
+
+        return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";
     }
 
     private string GetDefaultCommandEventSummary(string configurationJson)
