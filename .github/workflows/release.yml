@@ -39,14 +39,14 @@ jobs:
       run: >
         dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj
         -c Release
-        -r win10-x64
+        -r win-x64
         --self-contained true
         /consoleloggerparameters:NoSummary
 
     - name: Zip publish output
       run: >
         Compress-Archive
-        -Path DotNetTwitchBot/bin/Release/net10.0/win10-x64/publish/*
+        -Path DotNetTwitchBot/bin/Release/net10.0/win-x64/publish/*
         -DestinationPath PenguinTwitchBot-${{ github.ref_name }}.zip
 
     - name: Create GitHub Release
