@@ -457,6 +457,321 @@ public class ChatNotificationTriggerTests
 
         Assert.False(cfg.Matches(Vars(("NoticeType", "sub"), ("WatchStreak.StreakCount", "10"))));
     }
+
+    [Fact]
+    public void SubTiers_SwitchCaseInsensitive_Passes()
+    {
+        // Verify the switch is normalized to lowercase so "SUB" doesn't produce a null key
+        var cfg = Config("sub");
+        cfg.SubTiers.Add("1000");
+        Assert.True(cfg.Matches(Vars(("NoticeType", "SUB"), ("Sub.SubTier", "1000"))));
+    }
+}
+
+/// <summary>
+/// Tests for TwitchEventTriggerConfig.Matches() covering ChannelBitsUse filter logic:
+/// BitsTypes, PowerUpTypes, CustomPowerUpTitles, CustomPowerUpRewardIds.
+/// </summary>
+public class ChannelBitsUseTriggerTests
+{
+    private static ConcurrentDictionary<string, string> Vars(params (string key, string value)[] pairs)
+    {
+        var dict = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in pairs)
+            dict[key] = value;
+        return dict;
+    }
+
+    private static TwitchEventTriggerConfig BitsConfig() =>
+        new TwitchEventTriggerConfig { EventName = "ChannelBitsUse" };
+
+    // -----------------------------------------------------------------------
+    // BitsTypes filter
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void BitsTypes_MatchingType_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("cheer");
+        Assert.True(cfg.Matches(Vars(("Type", "cheer"))));
+    }
+
+    [Fact]
+    public void BitsTypes_NonMatchingType_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("cheer");
+        Assert.False(cfg.Matches(Vars(("Type", "power_up"))));
+    }
+
+    [Fact]
+    public void BitsTypes_CaseInsensitive_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("cheer");
+        Assert.True(cfg.Matches(Vars(("Type", "CHEER"))));
+    }
+
+    [Fact]
+    public void BitsTypes_Multiple_AnyMatches()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.AddRange(["cheer", "power_up"]);
+        Assert.True(cfg.Matches(Vars(("Type", "cheer"))));
+        Assert.True(cfg.Matches(Vars(("Type", "power_up"))));
+        Assert.False(cfg.Matches(Vars(("Type", "unknown"))));
+    }
+
+    [Fact]
+    public void BitsTypes_MissingVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("cheer");
+        Assert.False(cfg.Matches(Vars())); // No "Type" key
+    }
+
+    [Fact]
+    public void BitsTypes_Empty_NoFilter()
+    {
+        var cfg = BitsConfig();
+        // No types configured — any type passes
+        Assert.True(cfg.Matches(Vars(("Type", "power_up"))));
+    }
+
+    // -----------------------------------------------------------------------
+    // PowerUpTypes filter
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void PowerUpTypes_MatchingType_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.Add("message_effect");
+        Assert.True(cfg.Matches(Vars(("PowerUpType", "message_effect"))));
+    }
+
+    [Fact]
+    public void PowerUpTypes_NonMatchingType_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.Add("message_effect");
+        Assert.False(cfg.Matches(Vars(("PowerUpType", "celebration"))));
+    }
+
+    [Fact]
+    public void PowerUpTypes_CaseInsensitive_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.Add("message_effect");
+        Assert.True(cfg.Matches(Vars(("PowerUpType", "MESSAGE_EFFECT"))));
+    }
+
+    [Fact]
+    public void PowerUpTypes_Multiple_AnyMatches()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.AddRange(["message_effect", "celebration", "gigantify_an_emote"]);
+        Assert.True(cfg.Matches(Vars(("PowerUpType", "celebration"))));
+        Assert.False(cfg.Matches(Vars(("PowerUpType", "unknown_type"))));
+    }
+
+    [Fact]
+    public void PowerUpTypes_MissingVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.Add("message_effect");
+        Assert.False(cfg.Matches(Vars())); // No "PowerUpType" key
+    }
+
+    [Fact]
+    public void PowerUpTypes_EmptyStringVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.PowerUpTypes.Add("message_effect");
+        Assert.False(cfg.Matches(Vars(("PowerUpType", "")))); // empty string treated as missing
+    }
+
+    [Fact]
+    public void PowerUpTypes_Empty_NoFilter()
+    {
+        var cfg = BitsConfig();
+        Assert.True(cfg.Matches(Vars(("PowerUpType", "celebration"))));
+    }
+
+    // -----------------------------------------------------------------------
+    // CustomPowerUpTitles filter
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void CustomPowerUpTitles_MatchingTitle_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpTitles.Add("My Custom Power");
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpTitle", "My Custom Power"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpTitles_NonMatchingTitle_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpTitles.Add("My Custom Power");
+        Assert.False(cfg.Matches(Vars(("CustomPowerUpTitle", "Other Power"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpTitles_CaseInsensitive_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpTitles.Add("My Custom Power");
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpTitle", "MY CUSTOM POWER"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpTitles_MissingVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpTitles.Add("My Custom Power");
+        Assert.False(cfg.Matches(Vars())); // No "CustomPowerUpTitle" key
+    }
+
+    [Fact]
+    public void CustomPowerUpTitles_EmptyStringVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpTitles.Add("My Custom Power");
+        Assert.False(cfg.Matches(Vars(("CustomPowerUpTitle", "")))); // empty string treated as missing
+    }
+
+    [Fact]
+    public void CustomPowerUpTitles_Empty_NoFilter()
+    {
+        var cfg = BitsConfig();
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpTitle", "Anything"))));
+    }
+
+    // -----------------------------------------------------------------------
+    // CustomPowerUpRewardIds filter
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void CustomPowerUpRewardIds_MatchingId_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpRewardIds.Add("abc-123");
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpRewardId", "abc-123"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpRewardIds_NonMatchingId_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpRewardIds.Add("abc-123");
+        Assert.False(cfg.Matches(Vars(("CustomPowerUpRewardId", "xyz-999"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpRewardIds_CaseInsensitive_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpRewardIds.Add("abc-123");
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpRewardId", "ABC-123"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpRewardIds_Multiple_AnyMatches()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpRewardIds.AddRange(["abc-123", "def-456"]);
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpRewardId", "abc-123"))));
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpRewardId", "def-456"))));
+        Assert.False(cfg.Matches(Vars(("CustomPowerUpRewardId", "ghi-789"))));
+    }
+
+    [Fact]
+    public void CustomPowerUpRewardIds_MissingVariable_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.CustomPowerUpRewardIds.Add("abc-123");
+        Assert.False(cfg.Matches(Vars())); // No "CustomPowerUpRewardId" key
+    }
+
+    [Fact]
+    public void CustomPowerUpRewardIds_Empty_NoFilter()
+    {
+        var cfg = BitsConfig();
+        Assert.True(cfg.Matches(Vars(("CustomPowerUpRewardId", "any-id"))));
+    }
+
+    // -----------------------------------------------------------------------
+    // Combined BitsUse filters
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void Combined_TypeAndPowerUp_BothMatch_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("power_up");
+        cfg.PowerUpTypes.Add("message_effect");
+
+        Assert.True(cfg.Matches(Vars(("Type", "power_up"), ("PowerUpType", "message_effect"))));
+    }
+
+    [Fact]
+    public void Combined_TypeAndPowerUp_TypeFails_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("power_up");
+        cfg.PowerUpTypes.Add("message_effect");
+
+        Assert.False(cfg.Matches(Vars(("Type", "cheer"), ("PowerUpType", "message_effect"))));
+    }
+
+    [Fact]
+    public void Combined_TypeAndCustomTitle_BothMatch_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("power_up");
+        cfg.CustomPowerUpTitles.Add("My Power");
+
+        Assert.True(cfg.Matches(Vars(("Type", "power_up"), ("CustomPowerUpTitle", "My Power"))));
+    }
+
+    [Fact]
+    public void Combined_AllFourFilters_AllMatch_Passes()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("power_up");
+        cfg.PowerUpTypes.Add("message_effect");
+        cfg.CustomPowerUpTitles.Add("My Power");
+        cfg.CustomPowerUpRewardIds.Add("reward-1");
+
+        var vars = Vars(
+            ("Type", "power_up"),
+            ("PowerUpType", "message_effect"),
+            ("CustomPowerUpTitle", "My Power"),
+            ("CustomPowerUpRewardId", "reward-1"));
+
+        Assert.True(cfg.Matches(vars));
+    }
+
+    [Fact]
+    public void Combined_AllFourFilters_OneMissing_Fails()
+    {
+        var cfg = BitsConfig();
+        cfg.BitsTypes.Add("power_up");
+        cfg.PowerUpTypes.Add("message_effect");
+        cfg.CustomPowerUpTitles.Add("My Power");
+        cfg.CustomPowerUpRewardIds.Add("reward-1");
+
+        // Missing CustomPowerUpRewardId
+        var vars = Vars(
+            ("Type", "power_up"),
+            ("PowerUpType", "message_effect"),
+            ("CustomPowerUpTitle", "My Power"));
+
+        Assert.False(cfg.Matches(vars));
+    }
 }
 
 /// <summary>

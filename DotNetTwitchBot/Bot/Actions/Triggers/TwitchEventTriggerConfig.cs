@@ -100,7 +100,7 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         /// For ChannelChatNotification - filter by specific notice type(s):
         /// sub, resub, sub_gift, community_sub_gift, gift_paid_upgrade, prime_paid_upgrade,
         /// raid, unraid, pay_it_forward, announcement, bits_badge_tier, charity_donation, watch_streak.
-        /// Empty means ANY notice type.
+        /// At least one notice type must be specified for ChannelChatNotification — an empty list means the trigger will never fire.
         /// </summary>
         public List<string> NoticeTypes { get; set; } = new();
 
@@ -481,7 +481,7 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
             // Check sub tier filter (for sub/resub/sub_gift/community_sub_gift/prime_paid_upgrade)
             if (SubTiers.Count > 0)
             {
-                var noticeType = eventVariables.TryGetValue("NoticeType", out var nt) ? nt : string.Empty;
+                var noticeType = (eventVariables.TryGetValue("NoticeType", out var nt) ? nt : string.Empty).ToLowerInvariant();
                 var subTierKey = noticeType switch
                 {
                     "sub" => "Sub.SubTier",

@@ -202,21 +202,21 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                         "Sub.SubTier", "Sub.DurationMonths", "Sub.IsPrime",
                         // Resub
                         "Resub.CumulativeMonths", "Resub.DurationMonths", "Resub.StreakMonths", "Resub.SubTier",
-                        "Resub.IsPrime", "Resub.IsGift", "Resub.GifterIsAnonymous", "Resub.GifterUserName",
+                        "Resub.IsPrime", "Resub.IsGift", "Resub.GifterIsAnonymous", "Resub.GifterUserId", "Resub.GifterUserName", "Resub.GifterUserLogin",
                         // SubGift
                         "SubGift.SubTier", "SubGift.DurationMonths", "SubGift.CumulativeTotal",
-                        "SubGift.RecipientUserId", "SubGift.RecipientUserName", "SubGift.RecipientUserLogin",
+                        "SubGift.RecipientUserId", "SubGift.RecipientUserName", "SubGift.RecipientUserLogin", "SubGift.CommunityGiftId",
                         // CommunitySubGift
-                        "CommunitySubGift.SubTier", "CommunitySubGift.Total", "CommunitySubGift.CumulativeTotal",
+                        "CommunitySubGift.Id", "CommunitySubGift.SubTier", "CommunitySubGift.Total", "CommunitySubGift.CumulativeTotal",
                         // GiftPaidUpgrade
-                        "GiftPaidUpgrade.GifterIsAnonymous", "GiftPaidUpgrade.GifterUserName",
+                        "GiftPaidUpgrade.GifterIsAnonymous", "GiftPaidUpgrade.GifterUserId", "GiftPaidUpgrade.GifterUserName", "GiftPaidUpgrade.GifterUserLogin",
                         // PrimePaidUpgrade
                         "PrimePaidUpgrade.SubTier",
                         // Raid
                         "Raid.UserId", "Raid.UserName", "Raid.UserLogin", "Raid.ViewerCount", "Raid.ProfileImageUrl",
                         // PayItForward
-                        "PayItForward.GifterIsAnonymous", "PayItForward.GifterUserName",
-                        "PayItForward.RecipientUserId", "PayItForward.RecipientUserName",
+                        "PayItForward.GifterIsAnonymous", "PayItForward.GifterUserId", "PayItForward.GifterUserName", "PayItForward.GifterUserLogin",
+                        "PayItForward.RecipientUserId", "PayItForward.RecipientUserName", "PayItForward.RecipientUserLogin",
                         // Announcement
                         "Announcement.Color",
                         // CharityDonation
