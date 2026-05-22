@@ -56,7 +56,9 @@ internal class Program
         if (!File.Exists(secretsFileLocation))
         {
             PrintSetupRequiredBanner(secretsFileLocation);
-            Console.ReadKey(intercept: true);
+            if (!Console.IsInputRedirected)
+                Console.ReadKey(intercept: true);
+            Environment.ExitCode = 1;
             return;
         }
         builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: false);

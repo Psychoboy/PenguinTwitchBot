@@ -91,6 +91,11 @@ else
                                   HelperText="Your Twitch channel name — the channel the bot monitors"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tv"
                                   Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_model.BaseUrl"
+                                  Label="Base URL"
+                                  HelperText="The URL this bot is accessible at. Use the default for local installs; change for production (e.g. https://bot.example.com)"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Variant="Variant.Outlined" />
                     <MudAlert Severity="Severity.Info">
                         The bot and broadcaster can be the same Twitch account if you prefer.
                     </MudAlert>
@@ -128,7 +133,7 @@ else
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
                                   Variant="Variant.Outlined" />
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        You will authorize your Twitch account after the bot starts — not right now.
+                        You will authorize your Twitch streamer account in Step 4 of this wizard.
                     </MudText>
                 </MudStack>
             }
@@ -419,6 +424,7 @@ else
                         <tbody>
                             <tr><td>Bot Name</td><td>@_model.BotName</td></tr>
                             <tr><td>Broadcaster</td><td>@_model.Broadcaster</td></tr>
+                            <tr><td>Base URL</td><td>@_model.BaseUrl</td></tr>
                             <tr><td>Twitch Client ID</td><td>@Mask(_model.TwitchClientId)</td></tr>
                             <tr><td>Twitch Client Secret</td><td>@Mask(_model.TwitchClientSecret)</td></tr>
                             <tr><td>Bot Client ID</td><td>@Mask(_model.TwitchBotClientId)</td></tr>

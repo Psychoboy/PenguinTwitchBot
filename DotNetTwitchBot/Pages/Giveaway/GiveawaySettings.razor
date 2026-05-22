@@ -157,7 +157,7 @@
         Snackbar.Add("Terms saved.", Severity.Success);
     }
 
-    public async void Reset()
+    public async Task Reset()
     {
         await DatabaseTools.Backup();
         await GiveawayFeature.Reset();

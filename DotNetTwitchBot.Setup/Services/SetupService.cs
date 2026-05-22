@@ -89,9 +89,10 @@ namespace DotNetTwitchBot.Setup.Services
                 {
                     ["Provider"] = providerString
                 },
+                ["BaseUrl"] = model.BaseUrl.Trim(),
                 ["ConnectionStrings"] = new Dictionary<string, object?>
                 {
-                    ["SqliteConnection"] = model.SqliteFilePath.Trim(),
+                    ["SqliteConnection"] = ToSqliteConnectionString(model.SqliteFilePath.Trim()),
                     ["MariaDbConnection"] = model.MariaDbConnectionString.Trim(),
                     ["PostgresConnection"] = model.PostgresConnectionString.Trim()
                 },
@@ -122,6 +123,11 @@ namespace DotNetTwitchBot.Setup.Services
         }
 
         public void SignalStop() => lifetime.StopApplication();
+
+        private static string ToSqliteConnectionString(string path) =>
+            string.IsNullOrEmpty(path) ? "" :
+            path.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase) ? path :
+            $"Data Source={path}";
 
         private static ulong ParseUlong(string? value) =>
             ulong.TryParse(value?.Trim(), out var result) ? result : 0;

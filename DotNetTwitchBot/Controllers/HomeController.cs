@@ -32,6 +32,8 @@ namespace DotNetTwitchBot.Controllers
             return View();
         }
 
+        private string NormalizedBaseUrl => (configuration["BaseUrl"] ?? "").TrimEnd('/');
+
         public IActionResult YtPlayer()
         {
             return View();
@@ -48,7 +50,7 @@ namespace DotNetTwitchBot.Controllers
         public IActionResult StreamerSignin()
         {
             logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
-            var url = GetBotScopeUrl($"{configuration["BaseUrl"]}/streamerredirect", configuration["twitchClientId"]);
+            var url = GetBotScopeUrl($"{NormalizedBaseUrl}/streamerredirect", configuration["twitchClientId"]);
             return Redirect(url);
         }
         [HttpGet("streamerredirect")]
@@ -65,7 +67,7 @@ namespace DotNetTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{configuration["BaseUrl"]}/streamerredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/streamerredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -134,7 +136,7 @@ namespace DotNetTwitchBot.Controllers
 
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchBotClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{configuration["BaseUrl"]}/botredirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{NormalizedBaseUrl}/botredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -155,7 +157,7 @@ namespace DotNetTwitchBot.Controllers
         {
             logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
             var safeRedirect = NormalizeLocalRedirect(redirect);
-            var url = GetAuthorizationCodeUrl($"{configuration["BaseUrl"]}/redirect", safeRedirect);
+            var url = GetAuthorizationCodeUrl($"{NormalizedBaseUrl}/redirect", safeRedirect);
             return Redirect(url);
         }
 
@@ -175,7 +177,7 @@ namespace DotNetTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{configuration["BaseUrl"]}/redirect");
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/redirect");
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {
