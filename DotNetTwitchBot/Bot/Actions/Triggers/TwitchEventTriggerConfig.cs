@@ -97,6 +97,86 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         public List<string> CustomPowerUpRewardIds { get; set; } = new();
 
         /// <summary>
+        /// For ChannelChatNotification - filter by specific notice type(s):
+        /// sub, resub, sub_gift, community_sub_gift, gift_paid_upgrade, prime_paid_upgrade,
+        /// raid, unraid, pay_it_forward, announcement, bits_badge_tier, charity_donation, watch_streak.
+        /// Empty means ANY notice type.
+        /// </summary>
+        public List<string> NoticeTypes { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelChatNotification (watch_streak) - minimum consecutive streams watched.
+        /// </summary>
+        public int? MinWatchStreak { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (watch_streak) - maximum consecutive streams watched.
+        /// </summary>
+        public int? MaxWatchStreak { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (raid) - minimum viewer count in the raid.
+        /// </summary>
+        public int? MinRaidViewers { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (raid) - maximum viewer count in the raid.
+        /// </summary>
+        public int? MaxRaidViewers { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (sub/resub/sub_gift/community_sub_gift/prime_paid_upgrade) -
+        /// filter by sub tier. Values: "1000" (T1), "2000" (T2), "3000" (T3). Empty = any tier.
+        /// </summary>
+        public List<string> SubTiers { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelChatNotification (resub) - minimum cumulative months subscribed.
+        /// </summary>
+        public int? MinCumulativeMonths { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (resub) - maximum cumulative months subscribed.
+        /// </summary>
+        public int? MaxCumulativeMonths { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (community_sub_gift) - minimum number of subs gifted.
+        /// </summary>
+        public int? MinCommunityGiftCount { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (community_sub_gift) - maximum number of subs gifted.
+        /// </summary>
+        public int? MaxCommunityGiftCount { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (charity_donation) - minimum donation amount in minor units (e.g. 500 = $5.00).
+        /// </summary>
+        public int? MinCharityAmount { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (charity_donation) - maximum donation amount in minor units.
+        /// </summary>
+        public int? MaxCharityAmount { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (bits_badge_tier) - minimum tier threshold (e.g. 100, 1000, 10000).
+        /// </summary>
+        public int? MinBitsBadgeTier { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (bits_badge_tier) - maximum tier threshold.
+        /// </summary>
+        public int? MaxBitsBadgeTier { get; set; }
+
+        /// <summary>
+        /// For ChannelChatNotification (announcement) - filter by color.
+        /// Values: "blue", "green", "orange", "purple", "primary". Empty = any color.
+        /// </summary>
+        public List<string> AnnouncementColors { get; set; } = new();
+
+        /// <summary>
         /// Deserialize from JSON string
         /// </summary>
         public static TwitchEventTriggerConfig FromJson(string json)
@@ -331,6 +411,166 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                 }
 
                 if (!CustomPowerUpRewardIds.Any(r => r.Equals(rewardId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check notice type (for ChannelChatNotification)
+            // Require at least one notice type to be configured — without one the trigger would fire for every notice.
+            if (EventName.Equals("ChannelChatNotification", StringComparison.OrdinalIgnoreCase) &&
+                NoticeTypes.Count == 0)
+            {
+                return false;
+            }
+
+            if (NoticeTypes.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("NoticeType", out var noticeType) ||
+                    string.IsNullOrEmpty(noticeType))
+                {
+                    return false;
+                }
+
+                if (!NoticeTypes.Any(nt => nt.Equals(noticeType, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check watch streak range (for ChannelChatNotification watch_streak)
+            if (MinWatchStreak.HasValue || MaxWatchStreak.HasValue)
+            {
+                if (!eventVariables.TryGetValue("WatchStreak.StreakCount", out var streakStr) ||
+                    !int.TryParse(streakStr, out var streakCount))
+                {
+                    return false;
+                }
+
+                if (MinWatchStreak.HasValue && streakCount < MinWatchStreak.Value)
+                {
+                    return false;
+                }
+
+                if (MaxWatchStreak.HasValue && streakCount > MaxWatchStreak.Value)
+                {
+                    return false;
+                }
+            }
+
+            // Check raid viewer count range (for ChannelChatNotification raid)
+            if (MinRaidViewers.HasValue || MaxRaidViewers.HasValue)
+            {
+                if (!eventVariables.TryGetValue("Raid.ViewerCount", out var viewerStr) ||
+                    !int.TryParse(viewerStr, out var viewerCount))
+                {
+                    return false;
+                }
+
+                if (MinRaidViewers.HasValue && viewerCount < MinRaidViewers.Value)
+                {
+                    return false;
+                }
+
+                if (MaxRaidViewers.HasValue && viewerCount > MaxRaidViewers.Value)
+                {
+                    return false;
+                }
+            }
+
+            // Check sub tier filter (for sub/resub/sub_gift/community_sub_gift/prime_paid_upgrade)
+            if (SubTiers.Count > 0)
+            {
+                var noticeType = eventVariables.TryGetValue("NoticeType", out var nt) ? nt : string.Empty;
+                var subTierKey = noticeType switch
+                {
+                    "sub" => "Sub.SubTier",
+                    "resub" => "Resub.SubTier",
+                    "sub_gift" => "SubGift.SubTier",
+                    "community_sub_gift" => "CommunitySubGift.SubTier",
+                    "prime_paid_upgrade" => "PrimePaidUpgrade.SubTier",
+                    _ => null
+                };
+
+                if (subTierKey == null ||
+                    !eventVariables.TryGetValue(subTierKey, out var subTier) ||
+                    string.IsNullOrEmpty(subTier) ||
+                    !SubTiers.Any(t => t.Equals(subTier, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check cumulative months range (for resub)
+            if (MinCumulativeMonths.HasValue || MaxCumulativeMonths.HasValue)
+            {
+                if (!eventVariables.TryGetValue("Resub.CumulativeMonths", out var monthsStr) ||
+                    !int.TryParse(monthsStr, out var months))
+                {
+                    return false;
+                }
+
+                if (MinCumulativeMonths.HasValue && months < MinCumulativeMonths.Value)
+                    return false;
+
+                if (MaxCumulativeMonths.HasValue && months > MaxCumulativeMonths.Value)
+                    return false;
+            }
+
+            // Check community gift count range (for community_sub_gift)
+            if (MinCommunityGiftCount.HasValue || MaxCommunityGiftCount.HasValue)
+            {
+                if (!eventVariables.TryGetValue("CommunitySubGift.Total", out var totalStr) ||
+                    !int.TryParse(totalStr, out var total))
+                {
+                    return false;
+                }
+
+                if (MinCommunityGiftCount.HasValue && total < MinCommunityGiftCount.Value)
+                    return false;
+
+                if (MaxCommunityGiftCount.HasValue && total > MaxCommunityGiftCount.Value)
+                    return false;
+            }
+
+            // Check charity donation amount range (for charity_donation, amount in minor units)
+            if (MinCharityAmount.HasValue || MaxCharityAmount.HasValue)
+            {
+                if (!eventVariables.TryGetValue("CharityDonation.AmountValue", out var amountStr) ||
+                    !int.TryParse(amountStr, out var amount))
+                {
+                    return false;
+                }
+
+                if (MinCharityAmount.HasValue && amount < MinCharityAmount.Value)
+                    return false;
+
+                if (MaxCharityAmount.HasValue && amount > MaxCharityAmount.Value)
+                    return false;
+            }
+
+            // Check bits badge tier range (for bits_badge_tier)
+            if (MinBitsBadgeTier.HasValue || MaxBitsBadgeTier.HasValue)
+            {
+                if (!eventVariables.TryGetValue("BitsBadgeTier.Tier", out var tierStr) ||
+                    !int.TryParse(tierStr, out var tier))
+                {
+                    return false;
+                }
+
+                if (MinBitsBadgeTier.HasValue && tier < MinBitsBadgeTier.Value)
+                    return false;
+
+                if (MaxBitsBadgeTier.HasValue && tier > MaxBitsBadgeTier.Value)
+                    return false;
+            }
+
+            // Check announcement color filter (for announcement)
+            if (AnnouncementColors.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("Announcement.Color", out var color) ||
+                    string.IsNullOrEmpty(color) ||
+                    !AnnouncementColors.Any(c => c.Equals(color, StringComparison.OrdinalIgnoreCase)))
                 {
                     return false;
                 }

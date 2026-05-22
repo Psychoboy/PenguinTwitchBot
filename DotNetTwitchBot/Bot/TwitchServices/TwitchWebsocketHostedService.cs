@@ -76,6 +76,121 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             }
         }
 
+        
+        private async Task OnChannelChatNotification(object? sender, ChannelChatNotificationArgs args)
+        {
+            if (messageIdTracker.IsSelfMessage(args.Payload.Event.MessageId)) return;
+            if (DidProcessMessage(args.Metadata)) return;
+
+            try
+            {
+                var e = args.Payload.Event;
+                logger.LogInformation("ChatNotification: {NoticeType} from {User}", e.NoticeType, e.ChatterUserName);
+
+                var eventArgs = new Events.ChatNotificationEventArgs
+                {
+                    UserId = e.ChatterUserId,
+                    Name = e.ChatterUserLogin,
+                    DisplayName = e.ChatterUserName,
+                    IsAnonymous = e.ChatterIsAnonymous,
+                    NoticeType = e.NoticeType,
+                    SystemMessage = e.SystemMessage,
+                    Message = e.Message?.Text,
+                    Sub = e.Sub == null ? null : new Events.ChatNotificationSubInfo
+                    {
+                        SubTier = e.Sub.SubTier,
+                        DurationMonths = e.Sub.DurationMonths,
+                        IsPrime = e.Sub.IsPrime,
+                    },
+                    Resub = e.Resub == null ? null : new Events.ChatNotificationResubInfo
+                    {
+                        CumulativeMonths = e.Resub.CumulativeMonths,
+                        DurationMonths = e.Resub.DurationMonths,
+                        StreakMonths = e.Resub.StreakMonths,
+                        SubTier = e.Resub.SubTier,
+                        IsPrime = e.Resub.IsPrime,
+                        IsGift = e.Resub.IsGift,
+                        GifterIsAnonymous = e.Resub.GifterIsAnonymous,
+                        GifterUserId = e.Resub.GifterUserId,
+                        GifterUserName = e.Resub.GifterUserName,
+                        GifterUserLogin = e.Resub.GifterUserLogin,
+                    },
+                    SubGift = e.SubGift == null ? null : new Events.ChatNotificationSubGiftInfo
+                    {
+                        DurationMonths = e.SubGift.DurationMonths,
+                        CumulativeTotal = e.SubGift.CumulativeTotal,
+                        RecipientUserId = e.SubGift.RecipientUserId,
+                        RecipientUserName = e.SubGift.RecipientUserName,
+                        RecipientUserLogin = e.SubGift.RecipientUserLogin,
+                        SubTier = e.SubGift.SubTier,
+                        CommunityGiftId = e.SubGift.CommunityGiftId,
+                    },
+                    CommunitySubGift = e.CommunitySubGift == null ? null : new Events.ChatNotificationCommunitySubGiftInfo
+                    {
+                        Id = e.CommunitySubGift.Id,
+                        Total = e.CommunitySubGift.Total,
+                        SubTier = e.CommunitySubGift.SubTier,
+                        CumulativeTotal = e.CommunitySubGift.CumulativeTotal,
+                    },
+                    GiftPaidUpgrade = e.GiftPaidUpgrade == null ? null : new Events.ChatNotificationGiftPaidUpgradeInfo
+                    {
+                        GifterIsAnonymous = e.GiftPaidUpgrade.GifterIsAnonymous,
+                        GifterUserId = e.GiftPaidUpgrade.GifterUserId,
+                        GifterUserName = e.GiftPaidUpgrade.GifterUserName,
+                        GifterUserLogin = e.GiftPaidUpgrade.GifterUserLogin,
+                    },
+                    PrimePaidUpgrade = e.PrimePaidUpgrade == null ? null : new Events.ChatNotificationPrimePaidUpgradeInfo
+                    {
+                        SubTier = e.PrimePaidUpgrade.SubTier,
+                    },
+                    Raid = e.Raid == null ? null : new Events.ChatNotificationRaidInfo
+                    {
+                        UserId = e.Raid.UserId,
+                        UserName = e.Raid.UserName,
+                        UserLogin = e.Raid.UserLogin,
+                        ViewerCount = e.Raid.ViewerCount,
+                        ProfileImageUrl = e.Raid.ProfileImageUrl,
+                    },
+                    PayItForward = e.PayItForward == null ? null : new Events.ChatNotificationPayItForwardInfo
+                    {
+                        GifterIsAnonymous = e.PayItForward.GifterIsAnonymous,
+                        GifterUserId = e.PayItForward.GifterUserId,
+                        GifterUserName = e.PayItForward.GifterUserName,
+                        GifterUserLogin = e.PayItForward.GifterUserLogin,
+                        RecipientUserId = e.PayItForward.RecipientUserId,
+                        RecipientUserName = e.PayItForward.RecipientUserName,
+                        RecipientUserLogin = e.PayItForward.RecipientUserLogin,
+                    },
+                    Announcement = e.Announcement == null ? null : new Events.ChatNotificationAnnouncementInfo
+                    {
+                        Color = e.Announcement.Color,
+                    },
+                    CharityDonation = e.CharityDonation == null ? null : new Events.ChatNotificationCharityDonationInfo
+                    {
+                        CharityName = e.CharityDonation.Name,
+                        AmountValue = e.CharityDonation.Amount.Value,
+                        AmountDecimalPlaces = e.CharityDonation.Amount.DecimalPlaces,
+                        AmountCurrency = e.CharityDonation.Amount.Currency,
+                    },
+                    BitsBadgeTier = e.BitsBadgeTier == null ? null : new Events.ChatNotificationBitsBadgeTierInfo
+                    {
+                        Tier = e.BitsBadgeTier.Tier,
+                    },
+                    WatchStreak = e.WatchStreak == null ? null : new Events.ChatNotificationWatchStreakInfo
+                    {
+                        StreakCount = e.WatchStreak.StreakCount,
+                        ChannelPointsAwarded = e.WatchStreak.ChannelPointsAwarded,
+                    },
+                };
+
+                await twitchEventActionHandler.HandleChatNotificationAsync(eventArgs);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error processing chat notification");
+            }
+        }
+
         private Task ChannelChatMessageDelete(object? sender, ChannelChatMessageDeleteArgs args)
         {
             logger.LogInformation("CHATMSG DELETE: MessageId: {messageId} User: {userName}", args.Payload.Event.MessageId, args.Payload.Event.TargetUserName);
@@ -774,12 +889,14 @@ namespace DotNetTwitchBot.Bot.TwitchServices
 
             eventSubWebsocketClient.ChannelAdBreakBegin += ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage += ChannelChatMessage;
+            eventSubWebsocketClient.ChannelChatNotification += OnChannelChatNotification;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage += ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete += ChannelChatMessageDelete;
             eventSubWebsocketClient.MessageReceived += MessageReceived;
             eventService.IsOnline = await twitchService.IsStreamOnline();
             await Connect();
         }
+
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
@@ -807,6 +924,7 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelBitsUse -= OnChannelBitsUse;
             eventSubWebsocketClient.ChannelAdBreakBegin -= ChannelAdBreakBegin;
             eventSubWebsocketClient.ChannelChatMessage -= ChannelChatMessage;
+            eventSubWebsocketClient.ChannelChatNotification -= OnChannelChatNotification;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage -= ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete -= ChannelChatMessageDelete;
         }

@@ -175,6 +175,58 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                         "IsPowerUp", "PowerUpType", "IsCustomPowerUp", "CustomPowerUpTitle",
                         "CustomPowerUpRewardId", "HasBitsMessage"
                     }
+                },
+                new TwitchEventInfo
+                {
+                    Name = "ChannelChatNotification",
+                    DisplayName = "Channel Chat Notification",
+                    Description = "Triggers on chat notification events (sub, resub, raid, watch streak, announcement, etc.)",
+                    SupportsFiltering = true,
+                    FilterOptions = new List<string>
+                    {
+                        "NoticeTypes",
+                        "SubTiers",
+                        "MinWatchStreak", "MaxWatchStreak",
+                        "MinRaidViewers", "MaxRaidViewers",
+                        "MinCumulativeMonths", "MaxCumulativeMonths",
+                        "MinCommunityGiftCount", "MaxCommunityGiftCount",
+                        "MinCharityAmount", "MaxCharityAmount",
+                        "MinBitsBadgeTier", "MaxBitsBadgeTier",
+                        "AnnouncementColors"
+                    },
+                    AvailableVariables = new List<string>
+                    {
+                        // Common
+                        "UserId", "Name", "DisplayName", "User", "IsAnonymous", "NoticeType", "SystemMessage", "Message",
+                        // Sub
+                        "Sub.SubTier", "Sub.DurationMonths", "Sub.IsPrime",
+                        // Resub
+                        "Resub.CumulativeMonths", "Resub.DurationMonths", "Resub.StreakMonths", "Resub.SubTier",
+                        "Resub.IsPrime", "Resub.IsGift", "Resub.GifterIsAnonymous", "Resub.GifterUserName",
+                        // SubGift
+                        "SubGift.SubTier", "SubGift.DurationMonths", "SubGift.CumulativeTotal",
+                        "SubGift.RecipientUserId", "SubGift.RecipientUserName", "SubGift.RecipientUserLogin",
+                        // CommunitySubGift
+                        "CommunitySubGift.SubTier", "CommunitySubGift.Total", "CommunitySubGift.CumulativeTotal",
+                        // GiftPaidUpgrade
+                        "GiftPaidUpgrade.GifterIsAnonymous", "GiftPaidUpgrade.GifterUserName",
+                        // PrimePaidUpgrade
+                        "PrimePaidUpgrade.SubTier",
+                        // Raid
+                        "Raid.UserId", "Raid.UserName", "Raid.UserLogin", "Raid.ViewerCount", "Raid.ProfileImageUrl",
+                        // PayItForward
+                        "PayItForward.GifterIsAnonymous", "PayItForward.GifterUserName",
+                        "PayItForward.RecipientUserId", "PayItForward.RecipientUserName",
+                        // Announcement
+                        "Announcement.Color",
+                        // CharityDonation
+                        "CharityDonation.CharityName", "CharityDonation.AmountValue",
+                        "CharityDonation.AmountDecimalPlaces", "CharityDonation.AmountCurrency",
+                        // BitsBadgeTier
+                        "BitsBadgeTier.Tier",
+                        // WatchStreak
+                        "WatchStreak.StreakCount", "WatchStreak.ChannelPointsAwarded"
+                    }
                 }
             };
 
