@@ -128,12 +128,20 @@ namespace DotNetTwitchBot.Bot.Core
 
         public Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents()
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return Task.FromResult<IReadOnlyCollection<IGuildScheduledEvent>>([]);
+            }
             IGuild guild = GetGuild();
             return guild.GetEventsAsync();
         }
 
-        public Task<IGuildScheduledEvent> GetEvent(ulong id)
+        public Task<IGuildScheduledEvent?> GetEvent(ulong id)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return Task.FromResult<IGuildScheduledEvent?>(null);
+            }
             IGuild guild = GetGuild();
             return guild.GetEventAsync(id);
         }
@@ -145,6 +153,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 await evt.ModifyAsync(x =>
@@ -162,12 +174,19 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task DeleteEvent(IGuildScheduledEvent evt)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             await evt.DeleteAsync();
         }
 
         public async Task<ulong> CreateScheduledEvent(ScheduledStream scheduledStream)
         {
-            //1033836361653964851
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return 0;
+            }
             IGuild guild = GetGuild();
             var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: $"https://twitch.tv/{_broadcaster}");
             scheduledStream.DiscordEventId = evt.Id;
@@ -190,6 +209,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task DeletePostedScheduled(ulong id)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 IGuild guild = GetGuild();
@@ -203,6 +226,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task UpdatePostedSchedule(ulong id, List<ScheduledStream> scheduledStreams)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return;
+            }
             try
             {
                 IGuild guild = GetGuild();
@@ -243,6 +270,10 @@ namespace DotNetTwitchBot.Bot.Core
 
         public async Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams)
         {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+            {
+                return 0;
+            }
             IGuild guild = GetGuild();
             var channel = (IMessageChannel)await guild.GetChannelAsync(1033836361653964851);
             var embed = await GenerateScheduleEmbed(scheduledStreams);

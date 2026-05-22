@@ -132,6 +132,7 @@ namespace DotNetTwitchBot.Bot.StreamSchedule
         {
             var streams = (await GetNextStreams()).FindAll(x => x.End < DateTime.UtcNow.AddDays(7));
             var id = await discordService.PostSchedule(streams);
+            if(id == 0) return;
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var lastSchedule = await db.Settings.Find(x => x.Name.Equals(LastPostedSchedule)).FirstOrDefaultAsync();
