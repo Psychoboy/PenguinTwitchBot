@@ -189,6 +189,106 @@
                                          HelperText="Maximum ad duration" />
                     </MudStack>
                 }
+
+                @* Bits Use Type Filter *@
+                @if (eventInfo.FilterOptions.Contains("BitsTypes"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Bits Use Type</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY type</MudText>
+                        <MudStack Row="true" Spacing="2">
+                            <MudCheckBox T="bool" Value="_cheerSelected"
+                                         Label="Cheer"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnBitsTypeChanged("cheer", val))" />
+                            <MudCheckBox T="bool" Value="_powerUpSelected"
+                                         Label="Power Up"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnBitsTypeChanged("power_up", val))" />
+                            <MudCheckBox T="bool" Value="_customPowerUpSelected"
+                                         Label="Custom Power Up"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnBitsTypeChanged("custom_power_up", val))" />
+                        </MudStack>
+                    </MudStack>
+                }
+
+                @* Power Up Type Filter *@
+                @if (eventInfo.FilterOptions.Contains("PowerUpTypes"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Power Up Type</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY power-up type</MudText>
+                        <MudStack Row="true" Spacing="2">
+                            <MudCheckBox T="bool" Value="_messageEffectSelected"
+                                         Label="Message Effect"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnPowerUpTypeChanged("message_effect", val))" />
+                            <MudCheckBox T="bool" Value="_celebrationSelected"
+                                         Label="Celebration"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnPowerUpTypeChanged("celebration", val))" />
+                            <MudCheckBox T="bool" Value="_gigantifySelected"
+                                         Label="Gigantify Emote"
+                                         Color="Color.Primary"
+                                         ValueChanged="@((bool val) => OnPowerUpTypeChanged("gigantify_an_emote", val))" />
+                        </MudStack>
+                    </MudStack>
+                }
+
+                @* Custom Power Up Titles Filter *@
+                @if (eventInfo.FilterOptions.Contains("CustomPowerUpTitles"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Custom Power Up Titles</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY custom power-up. Add multiple to match any of them.</MudText>
+                        @foreach (var (title, index) in Config.CustomPowerUpTitles.Select((t, i) => (t, i)))
+                        {
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                <MudTextField @bind-Value="Config.CustomPowerUpTitles[index]"
+                                              Label="@($"Title {index + 1}")"
+                                              Variant="Variant.Outlined"
+                                              Style="flex: 1" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemoveCustomPowerUpTitle(index))" />
+                            </MudStack>
+                        }
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddCustomPowerUpTitle">
+                            Add Title
+                        </MudButton>
+                    </MudStack>
+                }
+
+                @* Custom Power Up Reward IDs Filter *@
+                @if (eventInfo.FilterOptions.Contains("CustomPowerUpRewardIds"))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Custom Power Up Reward IDs</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Leave empty for ANY reward ID. Add multiple to match any of them.</MudText>
+                        @foreach (var (rewardId, index) in Config.CustomPowerUpRewardIds.Select((r, i) => (r, i)))
+                        {
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                <MudTextField @bind-Value="Config.CustomPowerUpRewardIds[index]"
+                                              Label="@($"Reward ID {index + 1}")"
+                                              Variant="Variant.Outlined"
+                                              Style="flex: 1" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemoveCustomPowerUpRewardId(index))" />
+                            </MudStack>
+                        }
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddCustomPowerUpRewardId">
+                            Add Reward ID
+                        </MudButton>
+                    </MudStack>
+                }
             }
 
             @* Show available variables *@
@@ -226,6 +326,12 @@
     private bool _tier1Selected;
     private bool _tier2Selected;
     private bool _tier3Selected;
+    private bool _cheerSelected;
+    private bool _powerUpSelected;
+    private bool _customPowerUpSelected;
+    private bool _messageEffectSelected;
+    private bool _celebrationSelected;
+    private bool _gigantifySelected;
 
     protected override async Task OnInitializedAsync()
     {
@@ -244,6 +350,8 @@
     {
         // Fix: Update tier selections when Config is replaced via parameters
         UpdateTierSelections();
+        UpdateBitsTypeSelections();
+        UpdatePowerUpTypeSelections();
 
         // Update selected event info when SelectedEventName changes
         if (!string.IsNullOrEmpty(SelectedEventName))
@@ -310,6 +418,8 @@
         // Reset config when event type changes
         Config = new TwitchEventConfig { EventName = eventName };
         UpdateTierSelections(); // Fix: Recalculate tier checkbox state
+        UpdateBitsTypeSelections();
+        UpdatePowerUpTypeSelections();
         await ConfigChanged.InvokeAsync(Config);
     }
 
@@ -361,5 +471,77 @@
         _tier1Selected = Config.SubscriptionTiers.Contains("1000");
         _tier2Selected = Config.SubscriptionTiers.Contains("2000");
         _tier3Selected = Config.SubscriptionTiers.Contains("3000");
+    }
+
+    private void UpdateBitsTypeSelections()
+    {
+        _cheerSelected = Config.BitsTypes.Contains("cheer");
+        _powerUpSelected = Config.BitsTypes.Contains("power_up");
+        _customPowerUpSelected = Config.BitsTypes.Contains("custom_power_up");
+    }
+
+    private void UpdatePowerUpTypeSelections()
+    {
+        _messageEffectSelected = Config.PowerUpTypes.Contains("message_effect");
+        _celebrationSelected = Config.PowerUpTypes.Contains("celebration");
+        _gigantifySelected = Config.PowerUpTypes.Contains("gigantify_an_emote");
+    }
+
+    private async Task OnBitsTypeChanged(string type, bool selected)
+    {
+        if (selected && !Config.BitsTypes.Contains(type))
+            Config.BitsTypes.Add(type);
+        else if (!selected && Config.BitsTypes.Contains(type))
+            Config.BitsTypes.Remove(type);
+
+        UpdateBitsTypeSelections();
+        await ConfigChanged.InvokeAsync(Config);
+        StateHasChanged();
+    }
+
+    private async Task OnPowerUpTypeChanged(string type, bool selected)
+    {
+        if (selected && !Config.PowerUpTypes.Contains(type))
+            Config.PowerUpTypes.Add(type);
+        else if (!selected && Config.PowerUpTypes.Contains(type))
+            Config.PowerUpTypes.Remove(type);
+
+        UpdatePowerUpTypeSelections();
+        await ConfigChanged.InvokeAsync(Config);
+        StateHasChanged();
+    }
+
+    private async Task AddCustomPowerUpTitle()
+    {
+        Config.CustomPowerUpTitles.Add("");
+        await ConfigChanged.InvokeAsync(Config);
+        StateHasChanged();
+    }
+
+    private async Task RemoveCustomPowerUpTitle(int index)
+    {
+        if (index >= 0 && index < Config.CustomPowerUpTitles.Count)
+        {
+            Config.CustomPowerUpTitles.RemoveAt(index);
+            await ConfigChanged.InvokeAsync(Config);
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddCustomPowerUpRewardId()
+    {
+        Config.CustomPowerUpRewardIds.Add("");
+        await ConfigChanged.InvokeAsync(Config);
+        StateHasChanged();
+    }
+
+    private async Task RemoveCustomPowerUpRewardId(int index)
+    {
+        if (index >= 0 && index < Config.CustomPowerUpRewardIds.Count)
+        {
+            Config.CustomPowerUpRewardIds.RemoveAt(index);
+            await ConfigChanged.InvokeAsync(Config);
+            StateHasChanged();
+        }
     }
 }

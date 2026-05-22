@@ -161,6 +161,20 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                     {
                         "Length", "Automatic", "StartedAt"
                     }
+                },
+                new TwitchEventInfo
+                {
+                    Name = "ChannelBitsUse",
+                    DisplayName = "Channel Bits Use",
+                    Description = "Triggers when someone uses Bits (cheer, power-up, or custom power-up)",
+                    SupportsFiltering = true,
+                    FilterOptions = new List<string> { "MinAmount", "MaxAmount", "BitsTypes", "PowerUpTypes", "CustomPowerUpTitles", "CustomPowerUpRewardIds" },
+                    AvailableVariables = new List<string>
+                    {
+                        "UserId", "Name", "DisplayName", "User", "Amount", "Bits", "Message", "Type",
+                        "IsPowerUp", "PowerUpType", "IsCustomPowerUp", "CustomPowerUpTitle",
+                        "CustomPowerUpRewardId", "HasBitsMessage"
+                    }
                 }
             };
 

@@ -72,6 +72,31 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
         public int? MaxAdDuration { get; set; }
 
         /// <summary>
+        /// For ChannelBitsUse - filter by bits use type(s): cheer, power_up, custom_power_up.
+        /// Empty or null means ANY type.
+        /// </summary>
+        public List<string> BitsTypes { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelBitsUse (power_up) - filter by standard Power-Up type(s):
+        /// message_effect, celebration, gigantify_an_emote.
+        /// Empty or null means ANY power-up type.
+        /// </summary>
+        public List<string> PowerUpTypes { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelBitsUse (custom_power_up) - filter by specific custom Power-Up title(s).
+        /// Empty or null means ANY custom power-up title.
+        /// </summary>
+        public List<string> CustomPowerUpTitles { get; set; } = new();
+
+        /// <summary>
+        /// For ChannelBitsUse (custom_power_up) - filter by specific custom Power-Up reward ID(s).
+        /// Empty or null means ANY custom power-up reward.
+        /// </summary>
+        public List<string> CustomPowerUpRewardIds { get; set; } = new();
+
+        /// <summary>
         /// Deserialize from JSON string
         /// </summary>
         public static TwitchEventTriggerConfig FromJson(string json)
@@ -247,6 +272,65 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                 }
 
                 if (MaxAdDuration.HasValue && length > MaxAdDuration.Value)
+                {
+                    return false;
+                }
+            }
+
+            // Check bits use type (for channel bits use)
+            if (BitsTypes.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("Type", out var bitsType))
+                {
+                    return false;
+                }
+
+                if (!BitsTypes.Any(bt => bt.Equals(bitsType, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check standard Power-Up type (message_effect, celebration, gigantify_an_emote)
+            if (PowerUpTypes.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("PowerUpType", out var powerUpType) ||
+                    string.IsNullOrEmpty(powerUpType))
+                {
+                    return false;
+                }
+
+                if (!PowerUpTypes.Any(pt => pt.Equals(powerUpType, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check custom Power-Up title
+            if (CustomPowerUpTitles.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("CustomPowerUpTitle", out var customTitle) ||
+                    string.IsNullOrEmpty(customTitle))
+                {
+                    return false;
+                }
+
+                if (!CustomPowerUpTitles.Any(t => t.Equals(customTitle, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            // Check custom Power-Up reward ID
+            if (CustomPowerUpRewardIds.Count > 0)
+            {
+                if (!eventVariables.TryGetValue("CustomPowerUpRewardId", out var rewardId) ||
+                    string.IsNullOrEmpty(rewardId))
+                {
+                    return false;
+                }
+
+                if (!CustomPowerUpRewardIds.Any(r => r.Equals(rewardId, StringComparison.OrdinalIgnoreCase)))
                 {
                     return false;
                 }

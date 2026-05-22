@@ -200,6 +200,35 @@ namespace DotNetTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
+        public static ConcurrentDictionary<string, string> ToDictionary(BitsUseEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Amount"] = eventArgs.Amount.ToString(),
+                ["Bits"] = eventArgs.Amount.ToString(),
+                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Type"] = eventArgs.Type,
+                ["IsPowerUp"] = eventArgs.IsPowerUp.ToString(),
+                ["PowerUpType"] = eventArgs.PowerUp?.Type ?? string.Empty,
+                ["IsCustomPowerUp"] = eventArgs.IsCustomPowerUp.ToString(),
+                ["CustomPowerUpTitle"] = eventArgs.CustomPowerUp?.Title ?? string.Empty,
+                ["CustomPowerUpRewardId"] = eventArgs.CustomPowerUp?.RewardId ?? string.Empty,
+                ["HasBitsMessage"] = eventArgs.HasBitsMessage.ToString(),
+                ["BitsUseEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
         public static ConcurrentDictionary<string, string> StreamOnlineVariables()
         {
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)

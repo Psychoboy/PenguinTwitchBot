@@ -77,6 +77,11 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             await ExecuteActionsForEventAsync("ChannelAdBreakBegin", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
+        public async Task HandleBitsUseAsync(BitsUseEventArgs eventArgs)
+        {
+            await ExecuteActionsForEventAsync("ChannelBitsUse", TwitchEventArgsConverter.ToDictionary(eventArgs));
+        }
+
         private async Task ExecuteActionsForEventAsync(string triggerName, ConcurrentDictionary<string, string> variables)
         {
             try
@@ -167,5 +172,6 @@ namespace DotNetTwitchBot.Bot.TwitchServices
         Task HandleChannelBanAsync(BanEventArgs eventArgs);
         Task HandleChannelUnbanAsync(BanEventArgs eventArgs);
         Task HandleAdBreakBeginAsync(AdBreakStartEventArgs eventArgs);
+        Task HandleBitsUseAsync(BitsUseEventArgs eventArgs);
     }
 }
