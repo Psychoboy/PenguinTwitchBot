@@ -1,0 +1,28 @@
+﻿using PenguinTwitchBot.Bot.Events.Chat;
+
+namespace PenguinTwitchBot.Bot.Commands.Features
+{
+    public interface IViewerFeature
+    {
+        List<string> GetActiveViewers();
+        List<string> GetCurrentViewers();
+        Task<string> GetDisplayNameByUsername(string username);
+        Task<Follower?> GetFollowerAsync(string username);
+        Task<string> GetNameWithTitle(string username);
+        Task<DateTime?> GetUserCreatedAsync(string username);
+        Task<Viewer?> GetViewerById(int id);
+        Task<Viewer?> GetViewerByUserName(string username);
+        Task<Viewer?> GetViewerByUserId(string userId);
+        Task<string?> GetViewerId(string username);
+        Task<Viewer?> GetViewerByUserIdOrName(string userId, string username);
+        Task<bool> IsFollowerByUsername(string username);
+        Task<bool> IsModerator(string username);
+        Task<bool> IsSubscriber(string username);
+        Task OnChatMessage(ChatMessageEventArgs e);
+        Task OnCommand(object? sender, CommandEventArgs e);
+        Task Register();
+        Task SaveViewer(Viewer viewer);
+        Task<List<Viewer>> SearchForViewer(string name);
+        Task UpdateEditors();
+    }
+}

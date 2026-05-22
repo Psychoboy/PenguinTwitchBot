@@ -1,0 +1,44 @@
+﻿@page "/botauth"
+@attribute [Authorize(Roles = "Streamer")]
+@using System.ComponentModel.DataAnnotations
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchService twitchService;
+@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchChatBot twitchChatBot;
+@inject ISnackbar Snackbar
+
+<PageTitle>SPTV Twitch Bot - Bot Signin</PageTitle>
+<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    <MudPaper>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => RefreshBotAuth()">Bot Auth Streamer</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => TestAlert()">Test Alert</MudButton>
+        @if(twitchService.IsServiceUp())
+        {
+            <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>
+        } 
+        else
+        {
+            <MudAlert Severity="Severity.Error">Streamer Account is NOT Connected</MudAlert>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private void TestAlert()
+    {
+        Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
+    }
+
+    private async Task RefreshBotAuth()
+    {
+        var result = await twitchChatBot.RefreshAccessToken();
+        if (result)
+        {
+            Snackbar.Add("Bot access token refreshed successfully.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Failed to refresh bot access token. Please try again.", Severity.Error);
+        }
+    }
+}

@@ -1,4 +1,4 @@
-{
+﻿{
     "version": "0.2.0",
     "configurations": [
         {
@@ -9,10 +9,10 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/DotNetTwitchBot/bin/Debug/net10.0/DotNetTwitchBot.dll",
+            "program": "${workspaceFolder}/PenguinTwitchBot/bin/Debug/net10.0/PenguinTwitchBot.dll",
             "console": "integratedTerminal",
             "args": [],
-            "cwd": "${workspaceFolder}/DotNetTwitchBot",
+            "cwd": "${workspaceFolder}/PenguinTwitchBot",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
@@ -32,10 +32,10 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/DotNetTwitchBot/bin/Debug/net10.0/DotNetTwitchBot.dll",
+            "program": "${workspaceFolder}/PenguinTwitchBot/bin/Debug/net10.0/PenguinTwitchBot.dll",
             "console": "integratedTerminal",
             "args": [],
-            "cwd": "${workspaceFolder}/DotNetTwitchBot",
+            "cwd": "${workspaceFolder}/PenguinTwitchBot",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
@@ -56,10 +56,10 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/DotNetTwitchBot/bin/Debug/net10.0/DotNetTwitchBot.dll",
+            "program": "${workspaceFolder}/PenguinTwitchBot/bin/Debug/net10.0/PenguinTwitchBot.dll",
             "console": "integratedTerminal",
             "args": [],
-            "cwd": "${workspaceFolder}/DotNetTwitchBot",
+            "cwd": "${workspaceFolder}/PenguinTwitchBot",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
@@ -80,10 +80,10 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/DotNetTwitchBot/bin/Debug/net10.0/DotNetTwitchBot.dll",
+            "program": "${workspaceFolder}/PenguinTwitchBot/bin/Debug/net10.0/PenguinTwitchBot.dll",
             "console": "integratedTerminal",
             "args": [],
-            "cwd": "${workspaceFolder}/DotNetTwitchBot",
+            "cwd": "${workspaceFolder}/PenguinTwitchBot",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
@@ -100,14 +100,14 @@
             }
         },
         {
-            "name": "DotNetTwitchBot.Setup",
+            "name": "PenguinTwitchBot.Setup",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/DotNetTwitchBot.Setup/bin/Debug/net10.0/DotNetTwitchBot.Setup.dll",
+            "program": "${workspaceFolder}/PenguinTwitchBot.Setup/bin/Debug/net10.0/PenguinTwitchBot.Setup.dll",
             "console": "integratedTerminal",
             "args": [],
-            "cwd": "${workspaceFolder}/DotNetTwitchBot.Setup",
+            "cwd": "${workspaceFolder}/PenguinTwitchBot.Setup",
             "stopAtEntry": false,
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"

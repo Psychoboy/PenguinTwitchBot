@@ -1,0 +1,68 @@
+﻿@page "/blacklist/{id:int}"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+@using System.ComponentModel.DataAnnotations
+@using PenguinTwitchBot.Bot.Models;
+@inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist Blacklist
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>SPTV Twitch Bot - Edit Word Filter</PageTitle>
+@if (wordFilter == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+
+    <MudCard>
+        <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudCardContent>
+                <MudTextField Label="Phrase" Required="true" RequiredError="Phrase is required"
+                @bind-Value="wordFilter.Phrase" />
+                <MudCheckBox @bind-Value="@wordFilter.IsRegex" Label="Is Regex?"></MudCheckBox>
+                <MudTextField Label="Message" Required="true" RequiredError="Message is required"
+                @bind-Value="wordFilter.Message" />
+                <MudTextField Label="Ban Reason" Required="true" RequiredError="Ban Reason is required"
+                @bind-Value="wordFilter.BanReason" />
+                <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length" Variant="Variant.Text">
+                </MudNumericField>
+                <MudCheckBox @bind-Value="@wordFilter.PermaBan" Label="Perma Ban?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@wordFilter.ExcludeVips" Label="Exclude Vips?"></MudCheckBox>
+
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private WordFilter? wordFilter { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        if (id == 0)
+        {
+            wordFilter = new();
+        }
+        else
+        {
+            wordFilter = await Blacklist.GetWordFilter(id);
+        }
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (wordFilter == null) return;
+        await Blacklist.UpdateBlacklist(wordFilter);
+        navigationManager.NavigateTo($"/blacklist");
+    }
+}

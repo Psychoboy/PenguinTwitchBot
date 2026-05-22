@@ -1,0 +1,14 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+
+namespace PenguinTwitchBot.Bot.Models.Commands
+{
+    [Index(nameof(CommandName))]
+    public class AudioCommand : BaseCommandProperties
+    {
+        public string AudioFile { get; set; } = null!;
+    }
+}

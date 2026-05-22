@@ -1,0 +1,28 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+
+namespace PenguinTwitchBot.Bot.Models
+{
+    public class RaidHistoryEntry
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
+        public int? Id { get; set; }
+        public string UserId { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string DisplayName { get; set; } = null!;
+        public int TotalIncomingRaids { get; set; }
+        public int TotalIncomingRaidViewers { get; set; }
+        public int TotalOutgoingRaids { get; set; }
+        public int TotalOutGoingRaidViewers { get; set; }
+        public bool IsOnline { get; set; } = false;
+        public DateTime LastIncomingRaid { get; set; } = DateTime.UtcNow;
+        public DateTime LastOutgoingRaid { get; set; } = DateTime.UtcNow;
+        public DateTime LastCheckOnline { get; set; } = DateTime.MinValue;
+        public string LastGame { get; set; } = string.Empty;
+    }
+}

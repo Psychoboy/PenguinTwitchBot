@@ -1,0 +1,107 @@
+﻿@using PenguinTwitchBot.Helpers
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject ILogger<LastPlayedSongs> logger
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-4" Elevation="3">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6">Recently Played Songs</MudText>
+        </MudStack>
+        <MudDivider />
+        @if (isLoading)
+        {
+            <MudStack Spacing="1">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="90%" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="95%" />
+            </MudStack>
+        }
+        else if (recentlyPlayedSongs.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                No recently played songs.
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@recentlyPlayedSongs" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Requested By</MudTh>
+                    <MudTh>Duration</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Title">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" />
+                            <MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank">@context.Title</MudLink>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                    <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
+    private List<Song> recentlyPlayedSongs = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        recentlyPlayedSongs = await YtPlayer.GetRecentlyPlayedSongs();
+        isLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+
+        _hubConnectionCts = new CancellationTokenSource();
+
+        // Configure SignalR with automatic reconnect and retry policy
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
+
+        hubConnection.On<List<Song>>("LastPlayedSongs", (songs) =>
+        {
+            recentlyPlayedSongs = songs.ToList();
+            recentlyPlayedSongs.Reverse();
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, cancellationToken: _hubConnectionCts.Token);
+
+        StateHasChanged();
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _hubConnectionCts?.Cancel();
+
+        await hubConnection.DisposeGracefullyAsync(logger);
+
+        _hubConnectionCts?.Dispose();
+    }
+}

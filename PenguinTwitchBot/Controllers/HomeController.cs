@@ -1,0 +1,379 @@
+﻿using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.TwitchServices;
+using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
+using PenguinTwitchBot.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using System.Diagnostics;
+using System.Security.Claims;
+using System.Threading.Tasks;
+
+namespace PenguinTwitchBot.Controllers
+{
+    public class HomeController(
+        IConfiguration configuration,
+        ILogger<HomeController> logger,
+        SettingsFileManager settingsFileManager,
+        IViewerFeature viewerFeature,
+        IMemoryCache stateCache,
+        ITwitchChatBot twitchChatBot,
+        ITwitchService twitchService) : Controller
+    {
+        public IActionResult Index()
+        {
+            return View();
+        }
+
+        public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        private string NormalizedBaseUrl => (configuration["BaseUrl"] ?? "").TrimEnd('/');
+
+        public IActionResult YtPlayer()
+        {
+            return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+
+        [HttpGet("/streamersignin")]
+        [Authorize(Roles = "Streamer")]
+        public IActionResult StreamerSignin()
+        {
+            logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
+            var url = GetBotScopeUrl($"{NormalizedBaseUrl}/streamerredirect", configuration["twitchClientId"]);
+            return Redirect(url);
+        }
+        [HttpGet("streamerredirect")]
+        public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /streamerredirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out var val))
+            {
+                stateCache.Remove(state);
+            }
+            else
+            {
+                return Redirect("/");
+            }
+            var api = new TwitchLib.Api.TwitchAPI();
+            api.Settings.ClientId = configuration["twitchClientId"];
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/streamerredirect");
+
+            if (resp == null) { return Redirect("/"); }
+
+            configuration["twitchAccessToken"] = resp.AccessToken;
+            configuration["expiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchRefreshToken"] = resp.RefreshToken;
+            twitchService.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
+
+            return Redirect("/botauth");
+        }
+
+        [HttpGet("/botsignin")]
+        [Authorize(Roles = "Streamer")]
+        public async Task<IActionResult> BotSignin()
+        {
+            logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
+            //#if DEBUG
+            //            var url = GetBotScopeUrl("https://localhost:7293/botredirect", configuration["twitchBotClientId"]);
+            //#else
+            //            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", configuration["twitchBotClientId"]);
+            //#endif
+            //            return Redirect(url);
+            //var url = "https://id.twitch.tv/oauth2/token";
+            //var formData = new List<KeyValuePair<string, string>>
+            //{
+            //    new KeyValuePair<string, string>("client_id", configuration["twitchBotClientId"]),
+            //    new KeyValuePair<string, string>("client_secret", configuration["twitchBotClientSecret"]),
+            //    new KeyValuePair<string, string>("grant_type", "client_credentials"),
+            //};
+            //var encodedContent = new FormUrlEncodedContent(formData);
+            //using (var client = new HttpClient())
+            //{
+            //    try
+            //    {
+            //        var response = await client.PostAsync(url, encodedContent);
+            //        if(response.IsSuccessStatusCode)
+            //        {
+            //            logger.LogInformation("Successfully requested bot access token");
+            //            var content = await response.Content.ReadAsStringAsync();
+            //            var tokenResponse = System.Text.Json.JsonSerializer.Deserialize<TwitchTokenResponse>(content);
+            //        }
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        logger.LogError(ex, "Error requesting bot access token");
+            //    }
+            //}
+            return Redirect("/botauth");
+        }
+        [HttpGet("botredirect")]
+        public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /botredirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out var val))
+            {
+                stateCache.Remove(state);
+            }
+            else
+            {
+                return Redirect("/");
+            }
+
+            var api = new TwitchLib.Api.TwitchAPI();
+            api.Settings.ClientId = configuration["twitchBotClientId"];
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{NormalizedBaseUrl}/botredirect");
+
+            if (resp == null) { return Redirect("/"); }
+
+            configuration["twitchBotAccessToken"] = resp.AccessToken;
+            configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchBotRefreshToken"] = resp.RefreshToken;
+            twitchChatBot.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
+
+            return Redirect("/botauth");
+        }
+
+        [HttpGet("/signin")]
+        public IActionResult Signin([FromQuery(Name = "r")] string? redirect)
+        {
+            logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
+            var safeRedirect = NormalizeLocalRedirect(redirect);
+            var url = GetAuthorizationCodeUrl($"{NormalizedBaseUrl}/redirect", safeRedirect);
+            return Redirect(url);
+        }
+
+
+
+        [HttpGet("/redirect")]
+        public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        {
+            logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
+            if (stateCache.TryGetValue(state, out string? redirect))
+            {
+                stateCache.Remove(state);
+            }
+            else
+            {
+                return Redirect("/");
+            }
+            var api = new TwitchLib.Api.TwitchAPI();
+            api.Settings.ClientId = configuration["twitchClientId"];
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/redirect");
+            var broadcaster = configuration["broadcaster"];
+            if (broadcaster == null)
+            {
+                logger.LogError("Broadcaster is not set.");
+                return Redirect("/");
+            }
+
+            var botName = configuration["botName"];
+            if (botName == null)
+            {
+                logger.LogError("Botname is not set.");
+                return Redirect("/");
+            }
+
+            api.Settings.AccessToken = resp.AccessToken;
+            var users = await api.Helix.Users.GetUsersAsync();
+            if (users.Users.Length > 0)
+            {
+                var user = users.Users[0];
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.Login),
+                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login, StringComparison.OrdinalIgnoreCase) || botName.Equals(user.Login, StringComparison.OrdinalIgnoreCase) ? "Streamer": "Viewer"),
+                    new Claim("ProfilePicture", user.ProfileImageUrl),
+                    new Claim("DisplayName", user.DisplayName),
+                    new Claim("UserId", user.Id),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id)
+                };
+
+
+                if (await viewerFeature.IsFollowerByUsername(user.Login))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Follower"));
+                }
+                var viewer = await viewerFeature.GetViewerByUserId(user.Id);
+                if (viewer != null)
+                {
+                    if (viewer.isMod)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Moderator"));
+                    }
+
+                    if (viewer.isSub)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Subscriber"));
+                    }
+
+                    if (viewer.isVip)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "VIP"));
+                    }
+
+                    if(viewer.isEditor)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Editor"));
+                    }
+                }
+
+                var claimsIdentity = new ClaimsIdentity(
+                    claims, CookieAuthenticationDefaults.AuthenticationScheme
+                );
+
+                var authProperties = new AuthenticationProperties
+                {
+
+                };
+
+
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity),
+                    authProperties
+                );
+                logger.LogInformation("{login} logged in to web interface", user.Login);
+            }
+            var redirectTarget = NormalizeLocalRedirect(redirect);
+            return LocalRedirect(redirectTarget);
+        }
+
+        [HttpGet("/signout")]
+        public async Task<IActionResult> Signout()
+        {
+            logger.LogInformation("{ipAddress} accessed /signout.", HttpContext.Connection?.RemoteIpAddress);
+            // Clear the existing external cookie
+            await HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme);
+            return Redirect("/");
+        }
+
+        private string GetAuthorizationCodeUrl(string redirectUri, string? redirect)
+        {
+            var stateString = Guid.NewGuid().ToString();
+            var safeRedirect = NormalizeLocalRedirect(redirect);
+            stateCache.Set(stateString, safeRedirect, DateTimeOffset.Now.AddMinutes(60));
+            return "https://id.twitch.tv/oauth2/authorize?" +
+                   $"client_id={configuration["twitchClientId"]}&" +
+                   $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
+                   $"state={stateString}&" +
+                   "response_type=code&" +
+                   $"scope=";
+        }
+
+        private string NormalizeLocalRedirect(string? redirect)
+        {
+            if (string.IsNullOrWhiteSpace(redirect))
+            {
+                return "/";
+            }
+
+            var candidate = redirect.Trim();
+            return Url.IsLocalUrl(candidate) ? candidate : "/";
+        }
+
+        private string GetBotScopeUrl(string redirectUri, string? clientId)
+        {
+            var scopes = new List<string>()
+            {
+                "analytics:read:extensions",
+                "user:edit",
+                "user:read:email",
+                "clips:edit",
+                "bits:read",
+                "analytics:read:games",
+                "user:edit:broadcast",
+                "user:read:broadcast",
+                "chat:read",
+                "chat:edit",
+                "channel:moderate",
+                "channel:read:subscriptions",
+                "whispers:read",
+                "whispers:edit",
+                "moderation:read",
+                "channel:read:redemptions",
+                "channel:edit:commercial",
+                "channel:read:hype_train",
+                "channel:read:stream_key",
+                "channel:manage:extensions",
+                "channel:manage:broadcast",
+                "user:edit:follows",
+                "channel:manage:redemptions",
+                "channel:read:editors",
+                "channel:manage:videos",
+                "user:read:blocked_users",
+                "user:manage:blocked_users",
+                "user:read:subscriptions",
+                "user:read:follows",
+                "channel:manage:polls",
+                "channel:manage:predictions",
+                "channel:read:polls",
+                "channel:read:predictions",
+                "moderator:manage:automod",
+                "channel:manage:schedule",
+                "channel:read:goals",
+                "moderator:read:automod_settings",
+                "moderator:manage:automod_settings",
+                "moderator:manage:banned_users",
+                "moderator:read:blocked_terms",
+                "moderator:manage:blocked_terms",
+                "moderator:read:chat_settings",
+                "moderator:manage:chat_settings",
+                "channel:manage:raids",
+                "moderator:manage:announcements",
+                "moderator:manage:chat_messages",
+                "user:manage:chat_color",
+                "channel:manage:moderators",
+                "channel:read:vips",
+                "channel:manage:vips",
+                "user:manage:whispers",
+                "channel:read:charity",
+                "moderator:read:chatters",
+                "moderator:read:shield_mode",
+                "moderator:manage:shield_mode",
+                "moderator:read:shoutouts",
+                "moderator:manage:shoutouts",
+                "moderator:read:followers",
+                "channel:read:guest_star",
+                "channel:manage:guest_star",
+                "moderator:read:guest_star",
+                "moderator:manage:guest_star",
+                "channel:bot",
+                "user:bot",
+                "user:read:chat",
+                "channel:manage:ads",
+                "channel:read:ads",
+                "user:write:chat",
+                "moderator:read:suspicious_users"
+            };
+            var scopeStr = String.Join("+", scopes);
+            var stateString = Guid.NewGuid().ToString();
+            stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
+            return "https://id.twitch.tv/oauth2/authorize?" +
+                   $"client_id={clientId}&" +
+                   $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
+                   $"state={stateString}&" +
+                   "response_type=code&" +
+                   $"scope={scopeStr}&" + "force_verify=true";
+        }
+    }
+}

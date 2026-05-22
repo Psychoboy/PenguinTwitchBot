@@ -1,0 +1,169 @@
+﻿@page "/defaultcommands/{id:int}"
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Bot.Models.Commands
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using System.ComponentModel.DataAnnotations
+@using PenguinTwitchBot.Bot.Models.Points
+@inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
+<PageTitle>SPTV Twitch Bot - Edit Default Command</PageTitle>
+<style type="text/css">
+    .white-text {
+        color: white;
+
+    }
+</style>
+
+@if (defaultCommand == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudCard>
+        <EditForm Model="defaultCommand" OnSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle1">
+                    Module: @defaultCommand.ModuleName
+                </MudText>
+                <MudText Typo="Typo.subtitle1">
+                    Default Command: @defaultCommand.CommandName
+                </MudText>
+                <MudText Typo="Typo.caption">Default command is system default command. If custom command is defined
+                    differently, it will use that instead.</MudText>
+                <MudTextField Label="Custom Command Name" Required="true" RequiredError="Custom Command Name is required"
+                @bind-Value="defaultCommand.CustomCommandName" />
+                <MudTextField Label="Category"
+                @bind-Value="defaultCommand.Category" />
+
+                <MudTextField Label="Description"
+                @bind-Value="defaultCommand.Description" />
+                <MudStack Row="true" Spacing="2">
+                    <MudNumericField @bind-Value="@defaultCommand.UserCooldown" Label="User Min (sec)" Variant="Variant.Text" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@defaultCommand.UserCooldownMax" Label="User Max (sec)" Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@defaultCommand.GlobalCooldown" Label="Global Min (sec)"
+                        Variant="Variant.Text" Style="max-width: 150px;">
+                    </MudNumericField>
+                    <MudNumericField @bind-Value="@defaultCommand.GlobalCooldownMax" Label="Global Max (sec)"
+                        Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                    </MudNumericField>
+                </MudStack>
+                <MudNumericField @bind-Value="@defaultCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
+                <MudSelect Required="@(defaultCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="defaultCommand.PointType" ToStringFunc="@ConvertFunction">
+                    @foreach (var pointType in PointTypes)
+                    {
+                        <MudSelectItem Value="@pointType" />
+                    }
+                </MudSelect>
+                <MudCheckBox @bind-Value="@defaultCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@defaultCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@defaultCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                <MudCheckBox @bind-Value="@defaultCommand.ExcludeFromUi" Label="Exclude from web interface?" />
+                <MudCheckBox @bind-Value="@defaultCommand.SourceOnly" Label="Reply to Source Only (for Stream Together)" />
+                <MudSelect @bind-Value="@defaultCommand.MinimumRank" Label="Minimum Rank">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField Label="Specific User Only" @bind-Value="defaultCommand.SpecificUserOnly" />
+                <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
+                <MudTable Items="@defaultCommand.SpecificUsersOnly" Context="specificUsersContext">
+                    <HeaderContent>
+                        <MudTh>Specific Users</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@specificUsersContext</MudTd>
+                        <MudTd>
+                            <MudFab Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveUser(specificUsersContext)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+                <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
+                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                    {
+                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDivider />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
+}
+
+@code
+{
+    [Parameter]
+    public int id { get; set; }
+    private DefaultCommand? defaultCommand;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    IReadOnlyCollection<Rank> ranks = [];
+    [Inject] IPointsSystem pointSystem { get; set; } = default!;
+    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private string SpecificUsersOnly { get; set; } = "";
+    protected override async void OnParametersSet()
+    {
+        defaultCommand = await CommandHandler.GetDefaultCommandById(id);
+        ranks = defaultCommand != null ? defaultCommand.SpecificRanks : new HashSet<Rank>();
+        PointTypes = await pointSystem.GetPointTypes();
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (defaultCommand == null) return;
+        var originalCommand = await CommandHandler.GetDefaultCommandById(id);
+        if (originalCommand != null)
+        {
+            if (!originalCommand.CustomCommandName.Equals(defaultCommand.CommandName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await CommandHelper.CommandExists(defaultCommand.CommandName))
+                {
+                    bool? result = await DialogService.ShowMessageBoxAsync(
+                   "Warning",
+                   "This command already exists, continue?",
+                   yesText: "Yes!", cancelText: "Cancel");
+                    if (result == null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+        defaultCommand.SpecificRanks = ranks.ToList();
+        ranks = new HashSet<Rank>();
+        await CommandHandler.UpdateDefaultCommand(defaultCommand);
+        navigationManager.NavigateTo($"/defaultcommands");
+    }
+
+    private string ConvertFunction(PointType? pointType)
+    {
+        if (pointType != null)
+        {
+            return pointType.Name;
+        }
+        return "";
+    }
+
+    private void AddSpecificUser()
+    {
+        if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
+        {
+            defaultCommand?.SpecificUsersOnly.Add(SpecificUsersOnly);
+            SpecificUsersOnly = "";
+        }
+    }
+
+    private void RemoveUser(string user)
+    {
+        defaultCommand?.SpecificUsersOnly.Remove(user);
+    }
+}

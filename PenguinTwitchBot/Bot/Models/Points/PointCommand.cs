@@ -1,0 +1,26 @@
+﻿using PenguinTwitchBot.Bot.Models.Commands;
+using System.Text.Json.Serialization;
+
+namespace PenguinTwitchBot.Bot.Models.Points
+{
+    public enum PointCommandType
+    {
+        Add,
+        Remove,
+        Get,
+        Set,
+        AddActive
+    }
+    public class PointCommand : BaseCommandProperties
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [JsonIgnore]
+        public new int? Id { get; set; }
+        [JsonIgnore]
+        public new int PointTypeId { get; set; }
+        [JsonIgnore]
+        public new PointType PointType { get; set; } = null!;
+        public PointCommandType CommandType { get; set; }
+    }
+}

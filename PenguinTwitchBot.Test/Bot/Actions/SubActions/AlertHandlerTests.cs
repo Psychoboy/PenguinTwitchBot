@@ -1,0 +1,56 @@
+﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using NSubstitute;
+using System.Collections.Concurrent;
+
+namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
+{
+    public class AlertHandlerTests
+    {
+        [Fact]
+        public async Task ValidAlertType_PublishesQueueAlert()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var handler = new AlertHandler(dispatcher);
+
+            var alertType = new AlertType
+            {
+                Text = "%user% followed!",
+                File = "alert.png",
+                Duration = 5,
+                Volume = 0.8f,
+                CSS = "color: red;"
+            };
+
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "NewFollower" };
+
+            // Act
+            await handler.ExecuteAsync(alertType, variables);
+
+            // Assert
+            await dispatcher.Received(1).Publish(Arg.Is<QueueAlert>(q =>
+                q.Alert.Contains("NewFollower followed!")));
+            Assert.Equal("NewFollower followed!", alertType.Text);
+            Assert.Equal(5, alertType.Duration);
+        }
+
+        [Fact]
+        public async Task WrongType_ThrowsException()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var handler = new AlertHandler(dispatcher);
+
+            var wrongType = new SendMessageType();  
+            var variables = new ConcurrentDictionary<string, string>();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<SubActionHandlerException>(
+                () => handler.ExecuteAsync(wrongType, variables));
+
+            Assert.Contains("is not of AlertType class", exception.Message);
+        }
+    }
+}

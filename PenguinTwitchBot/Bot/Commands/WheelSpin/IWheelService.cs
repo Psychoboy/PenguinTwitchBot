@@ -1,0 +1,21 @@
+﻿using PenguinTwitchBot.Bot.Models.Wheel;
+
+namespace PenguinTwitchBot.Bot.Commands.WheelSpin
+{
+    public interface IWheelService
+    {
+        Task AddWheel(Wheel wheel);
+        Task DeleteProperties(List<WheelProperty> properties);
+        Task DeleteWheel(Wheel wheel);
+        Task<List<Wheel>> GetWheels();
+        void HideWheel();
+        Task SaveWheel(Wheel wheel);
+        Task OpenNameWheel();
+        void ShowNameWheel();
+        void ShowWheel(Wheel wheel);
+        void SpinWheel();
+        Task ValidateAndProcessWinner(int index);
+        void SpinNameWheel();
+        void CloseNameWheel();
+    }
+}

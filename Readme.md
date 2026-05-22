@@ -1,11 +1,11 @@
-[![.NET Linux](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml)
+﻿[![.NET Linux](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml)
 [![.NET Windows](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet-win.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet-win.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/psychoboy/penguintwitchbot/badge)](https://www.codefactor.io/repository/github/psychoboy/penguintwitchbot)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3e4574fdb5b9423fb850c40b5d4a14aa)](https://app.codacy.com/gh/Psychoboy/PenguinTwitchBot/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 # PenguinTwitchBot
 
-A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross-platform — runs on Windows, Linux, and macOS.
+A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross-platform â€” runs on Windows, Linux, and macOS.
 
 > **Early Testing Notice:** This project is currently in early testing. Bugs are expected. Please report any issues you encounter on the [GitHub Issues](https://github.com/Psychoboy/PenguinTwitchBot/issues) page.
 
@@ -36,42 +36,42 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 ## Features
 
 ### Chat & Viewer Engagement
-- **Custom Commands** — Create, edit, and manage chat commands with cooldowns, aliases, and per-user/global limits
-- **Loyalty Points** — Viewers automatically earn points for watching; points are used as currency across features
-- **Ticket System** — A separate currency used for games and raffles
-- **Quote System** — Save and recall memorable quotes from chat
-- **Shoutout System** — Automated and manual shoutouts for raiders and friends
-- **Raid Tracker** — Tracks incoming raids and raider history
-- **Last Seen** — Tracks when viewers were last active in chat
-- **Death Counters & Daily Counters** — Stream counters manageable from chat or the dashboard
-- **Top Lists** — Display top viewers by points, watch time, and more
-- **Auto Timers** — Send periodic messages to chat on a schedule
-- **Markov Chain Chat** — AI-style chat generation based on your channel's chat history
-- **Blacklist / Moderation** — Word and phrase blacklisting with configurable actions
+- **Custom Commands** â€” Create, edit, and manage chat commands with cooldowns, aliases, and per-user/global limits
+- **Loyalty Points** â€” Viewers automatically earn points for watching; points are used as currency across features
+- **Ticket System** â€” A separate currency used for games and raffles
+- **Quote System** â€” Save and recall memorable quotes from chat
+- **Shoutout System** â€” Automated and manual shoutouts for raiders and friends
+- **Raid Tracker** â€” Tracks incoming raids and raider history
+- **Last Seen** â€” Tracks when viewers were last active in chat
+- **Death Counters & Daily Counters** â€” Stream counters manageable from chat or the dashboard
+- **Top Lists** â€” Display top viewers by points, watch time, and more
+- **Auto Timers** â€” Send periodic messages to chat on a schedule
+- **Markov Chain Chat** â€” AI-style chat generation based on your channel's chat history
+- **Blacklist / Moderation** â€” Word and phrase blacklisting with configurable actions
 
 ### Games & Gambling
-- **Fishing Game** — A full-featured fishing minigame with an inventory system, a shop, a leaderboard, multiple fish tiers, and analytics
-- **Duels** — Viewer-vs-viewer point duels
-- **Roulette** — Bet your points on roulette
-- **Gamble** — Classic point gambling
-- **Heist** — Cooperative group heist game
-- **Slots** — Slot machine game
-- **Steal** — Steal points from other viewers
-- **Raffles** — Multiple raffle types (Bacon, Pancake, Waffle) with ticket-based entry
-- **Giveaways** — Run giveaways for your community
-- **Wheel Spin** — Spin a configurable prize wheel
-- **Defuse** — A bomb-defusing minigame
-- **Free For All (FFA)** — Everyone-against-everyone game mode
+- **Fishing Game** â€” A full-featured fishing minigame with an inventory system, a shop, a leaderboard, multiple fish tiers, and analytics
+- **Duels** â€” Viewer-vs-viewer point duels
+- **Roulette** â€” Bet your points on roulette
+- **Gamble** â€” Classic point gambling
+- **Heist** â€” Cooperative group heist game
+- **Slots** â€” Slot machine game
+- **Steal** â€” Steal points from other viewers
+- **Raffles** â€” Multiple raffle types (Bacon, Pancake, Waffle) with ticket-based entry
+- **Giveaways** â€” Run giveaways for your community
+- **Wheel Spin** â€” Spin a configurable prize wheel
+- **Defuse** â€” A bomb-defusing minigame
+- **Free For All (FFA)** â€” Everyone-against-everyone game mode
 
 ### Media & Integrations
-- **Song Requests** — YouTube-based song request queue; viewers can request songs with points
-- **Text-to-Speech (TTS)** — Read chat messages or channel point redemptions aloud
-- **OBS Integration** — Connect to OBS for scene control and alerts
-- **Discord Integration** *(optional)* — Go-live announcements, live member role assignment, and chat bridge
-- **Weather Commands** *(optional)* — `!weather` command powered by OpenWeatherMap
-- **AI Chat Responses** *(optional)* — OpenAI-powered chat responses and automated shoutouts
-- **Channel Point Redeems** — Handle Twitch channel point redemptions with custom actions
-- **Clip Tracking** — Automatically downloads and plays back Twitch clips using `yt-dlp` (bundled)
+- **Song Requests** â€” YouTube-based song request queue; viewers can request songs with points
+- **Text-to-Speech (TTS)** â€” Read chat messages or channel point redemptions aloud
+- **OBS Integration** â€” Connect to OBS for scene control and alerts
+- **Discord Integration** *(optional)* â€” Go-live announcements, live member role assignment, and chat bridge
+- **Weather Commands** *(optional)* â€” `!weather` command powered by OpenWeatherMap
+- **AI Chat Responses** *(optional)* â€” OpenAI-powered chat responses and automated shoutouts
+- **Channel Point Redeems** â€” Handle Twitch channel point redemptions with custom actions
+- **Clip Tracking** â€” Automatically downloads and plays back Twitch clips using `yt-dlp` (bundled)
 
 ---
 
@@ -80,7 +80,7 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - A computer to host the bot (Windows, Linux, or macOS)
 - A Twitch account for the **bot** (can be the same as your streamer account)
 - A Twitch Developer Application ([dev.twitch.tv](https://dev.twitch.tv/console))
-- .NET 10 Runtime — only needed if running from the compiled DLL; the self-contained Windows release bundles the runtime
+- .NET 10 Runtime â€” only needed if running from the compiled DLL; the self-contained Windows release bundles the runtime
 
 ---
 
@@ -90,7 +90,7 @@ Download the latest release from the [Releases page](https://github.com/Psychobo
 
 ### Step 1: Run the Setup Wizard
 
-Run **`DotNetTwitchBot.Setup.exe`** (Windows) or `DotNetTwitchBot.Setup` (Linux/macOS).
+Run **`PenguinTwitchBot.Setup.exe`** (Windows) or `PenguinTwitchBot.Setup` (Linux/macOS).
 
 The setup wizard is a browser-based application that walks you through every required and optional setting. It will open a browser window automatically. If it does not, navigate to `http://localhost:5000`.
 
@@ -98,18 +98,18 @@ The wizard covers the following steps:
 
 | Step | Description |
 |------|-------------|
-| 1 | **Welcome** — overview of what you need |
-| 2 | **Bot Identity** — your bot's Twitch username and your channel name |
-| 3 | **Twitch Streamer App** — Client ID and Secret from [dev.twitch.tv](https://dev.twitch.tv/console/apps/create) |
-| 4 | **Twitch Bot App** — can reuse the streamer app or use a separate one |
-| 5 | **Authorize Streamer Account** — OAuth authorization via your browser |
-| 6 | **Bot Token** *(optional)* — test and fetch the bot's access token |
-| 7 | **Database** — choose SQLite, MariaDB, or PostgreSQL (see [Database Support](#database-support)) |
-| 8 | **YouTube API** *(optional)* — enables the song request feature |
-| 9 | **Discord Integration** *(optional)* — bot token, server ID, and channel IDs |
-| 10 | **Weather** *(optional)* — OpenWeatherMap API key and default location |
-| 11 | **OpenAI** *(optional)* — API key for AI-powered chat features |
-| 12 | **Review & Save** — review all settings (secrets masked) and write `appsettings.secrets.json` |
+| 1 | **Welcome** â€” overview of what you need |
+| 2 | **Bot Identity** â€” your bot's Twitch username and your channel name |
+| 3 | **Twitch Streamer App** â€” Client ID and Secret from [dev.twitch.tv](https://dev.twitch.tv/console/apps/create) |
+| 4 | **Twitch Bot App** â€” can reuse the streamer app or use a separate one |
+| 5 | **Authorize Streamer Account** â€” OAuth authorization via your browser |
+| 6 | **Bot Token** *(optional)* â€” test and fetch the bot's access token |
+| 7 | **Database** â€” choose SQLite, MariaDB, or PostgreSQL (see [Database Support](#database-support)) |
+| 8 | **YouTube API** *(optional)* â€” enables the song request feature |
+| 9 | **Discord Integration** *(optional)* â€” bot token, server ID, and channel IDs |
+| 10 | **Weather** *(optional)* â€” OpenWeatherMap API key and default location |
+| 11 | **OpenAI** *(optional)* â€” API key for AI-powered chat features |
+| 12 | **Review & Save** â€” review all settings (secrets masked) and write `appsettings.secrets.json` |
 
 When the wizard finishes, it saves your configuration to `appsettings.secrets.json` in the bot's directory and shuts itself down automatically.
 
@@ -125,14 +125,14 @@ When the wizard finishes, it saves your configuration to `appsettings.secrets.js
    > **Running on a different host or port?** See [Configuring BaseUrl](#configuring-baseurl) below and substitute your actual URL above.
 
 4. Set the category to **Chat Bot** and click **Create**.
-5. Click **Manage** → **New Secret** to generate your Client Secret.
+5. Click **Manage** â†’ **New Secret** to generate your Client Secret.
 6. Copy the **Client ID** and **Client Secret** into the setup wizard.
 
 ---
 
 ### Step 2: Run the Bot
 
-Once setup is complete, run **`DotNetTwitchBot.exe`** (Windows) or `DotNetTwitchBot` (Linux/macOS).
+Once setup is complete, run **`PenguinTwitchBot.exe`** (Windows) or `PenguinTwitchBot` (Linux/macOS).
 
 The bot starts a web server. Open your browser to `http://localhost:5000` (or the port shown in the console) to access the **web dashboard**.
 
@@ -163,7 +163,7 @@ The bot supports three database backends. You select your preference during the 
 
 | Database | Notes |
 |----------|-------|
-| **SQLite** *(default)* | No external server required. Stores everything in a single file (`Data/dotnettwitchbot.sqlite`). Recommended for most users. |
+| **SQLite** *(default)* | No external server required. Stores everything in a single file (`Data/PenguinTwitchBot.sqlite`). Recommended for most users. |
 | **MariaDB / MySQL** | Requires a running MariaDB or MySQL server. Provide a connection string in the wizard. |
 | **PostgreSQL** | Requires a running PostgreSQL server. Provide a connection string in the wizard. |
 
@@ -188,7 +188,7 @@ Requires a **Discord bot token** from [discord.com/developers](https://discord.c
 Requires a free **OpenWeatherMap API key** from [openweathermap.org/api](https://openweathermap.org/api). Enables the `!weather` command in chat.
 
 ### OpenAI
-Requires an **OpenAI API key** from [platform.openai.com](https://platform.openai.com/api-keys). Enables AI-powered chat responses and automated shoutouts. Usage is billed by token — set spend limits in your OpenAI account dashboard.
+Requires an **OpenAI API key** from [platform.openai.com](https://platform.openai.com/api-keys). Enables AI-powered chat responses and automated shoutouts. Usage is billed by token â€” set spend limits in your OpenAI account dashboard.
 
 ---
 
@@ -212,12 +212,12 @@ The bot includes a web-based dashboard accessible at `http://localhost:5000` (de
 
 ## OBS Browser Sources
 
-The bot serves several overlay pages designed to be added as **Browser Sources** in OBS (or any other streaming software that supports browser sources). All URLs are relative to the bot's address — `http://localhost:5000` by default.
+The bot serves several overlay pages designed to be added as **Browser Sources** in OBS (or any other streaming software that supports browser sources). All URLs are relative to the bot's address â€” `http://localhost:5000` by default.
 
 To add any of these in OBS:
-1. In a Scene, click **+** under Sources → **Browser**.
+1. In a Scene, click **+** under Sources â†’ **Browser**.
 2. Paste the URL from the table below.
-3. Set the width/height to match your canvas (typically 1920×1080).
+3. Set the width/height to match your canvas (typically 1920Ã—1080).
 4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"** as needed.
 5. Check **"Use custom frame rate"** only if you need to match a specific frame rate.
 
@@ -229,23 +229,23 @@ To add any of these in OBS:
 |---------|-----|-------------|
 | **Alerts** | `http://localhost:5000/alerts.html` | Displays follow, sub, raid, cheer, and channel point redemption alerts with images, sounds, and text animations. |
 | **Clips** | `http://localhost:5000/clips.html` | Plays back Twitch clips downloaded by the bot. Shows the clip video along with the clipper's name and game info. |
-| **Fishing** | `http://localhost:5000/fishing.html` | Shows a real-time fishing game overlay — displays catch notifications, fish details, and leaderboard updates as viewers fish in chat. |
+| **Fishing** | `http://localhost:5000/fishing.html` | Shows a real-time fishing game overlay â€” displays catch notifications, fish details, and leaderboard updates as viewers fish in chat. |
 | **Wheel Spin** | `http://localhost:5000/wheel.html` | Renders the interactive prize wheel. Animates and displays the result whenever a wheel spin is triggered. |
 
 ### Recommended OBS Settings per Source
 
 | Overlay | Width | Height | Notes |
 |---------|-------|--------|-------|
-| Alerts | 1920 | 1080 | Transparent background — place on top of other sources. |
+| Alerts | 1920 | 1080 | Transparent background â€” place on top of other sources. |
 | Clips | 1920 | 1080 | Has its own background; layer accordingly. |
-| Fishing | 1920 | 1080 | Transparent background — place on top of other sources. |
+| Fishing | 1920 | 1080 | Transparent background â€” place on top of other sources. |
 | Wheel Spin | 800 | 800 | Resize to taste; no transparency by default. |
 
 ---
 
 ## REST API & Stream Deck Integration
 
-The bot exposes a small REST API that lets you trigger any chat command externally — from a Stream Deck button, a macro pad, a script, or any tool that can make HTTP requests.
+The bot exposes a small REST API that lets you trigger any chat command externally â€” from a Stream Deck button, a macro pad, a script, or any tool that can make HTTP requests.
 
 ### Endpoint
 
@@ -284,17 +284,17 @@ curl -X PUT http://localhost:5000/commands -H "webauth: YOUR_WEBAUTH_TOKEN" -H "
 
 Stream Deck does not natively support PUT requests, but there are two easy approaches:
 
-#### Option A — Script + Open action (built-in, no plugins needed)
+#### Option A â€” Script + Open action (built-in, no plugins needed)
 
 1. Create a script file in a convenient location.
 
-   **Windows — `increment-death.bat`:**
+   **Windows â€” `increment-death.bat`:**
    ```bat
    @echo off
    curl -X PUT http://localhost:5000/commands -H "webauth: YOUR_WEBAUTH_TOKEN" -H "user: yourchannelname" -H "message: !death +"
    ```
 
-   **Linux / macOS — `increment-death.sh`:**
+   **Linux / macOS â€” `increment-death.sh`:**
    ```bash
    #!/bin/bash
    curl -X PUT http://localhost:5000/commands \
@@ -305,12 +305,12 @@ Stream Deck does not natively support PUT requests, but there are two easy appro
    On Linux/macOS run `chmod +x increment-death.sh` once to make it executable.
 
 2. In Stream Deck, add a **System: Open** action (Windows) or **System: Website** action and point it at your script file.
-   - On Windows you can also use **System: Run** → `cmd /c "C:\path\to\increment-death.bat"`
+   - On Windows you can also use **System: Run** â†’ `cmd /c "C:\path\to\increment-death.bat"`
    - On macOS use **System: Open** and select the `.sh` file.
 
-3. Give the button an icon and label, and you're done — pressing it will trigger the command in your Twitch chat.
+3. Give the button an icon and label, and you're done â€” pressing it will trigger the command in your Twitch chat.
 
-#### Option B — HTTP Request plugin (Elgato Marketplace)
+#### Option B â€” HTTP Request plugin (Elgato Marketplace)
 
 The [Elgato Marketplace](https://marketplace.elgato.com/stream-deck) has several community plugins that can send arbitrary HTTP requests directly (search for *"webhook"* or *"HTTP request"*). If you use one of these:
 
@@ -339,50 +339,50 @@ git clone https://github.com/Psychoboy/PenguinTwitchBot.git
 cd PenguinTwitchBot
 
 # Restore and build
-dotnet build DotNetTwitchBot/DotNetTwitchBot.csproj
+dotnet build PenguinTwitchBot/PenguinTwitchBot.csproj
 
 # Run the setup wizard
-dotnet run --project DotNetTwitchBot.Setup/DotNetTwitchBot.Setup.csproj
+dotnet run --project PenguinTwitchBot.Setup/PenguinTwitchBot.Setup.csproj
 
 # Run the bot
-dotnet run --project DotNetTwitchBot/DotNetTwitchBot.csproj
+dotnet run --project PenguinTwitchBot/PenguinTwitchBot.csproj
 ```
 
 ### Publish (Self-Contained)
 
 ```bash
 # Windows x64
-dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r win-x64 --self-contained true
+dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r win-x64 --self-contained true
 
 # Linux x64
-dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r linux-x64 --self-contained true
+dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r linux-x64 --self-contained true
 
 # macOS arm64 (Apple Silicon)
-dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj -c Release -r osx-arm64 --self-contained true
+dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r osx-arm64 --self-contained true
 ```
 
 ### Project Structure
 
 | Project | Description |
 |---------|-------------|
-| `DotNetTwitchBot/` | Main bot and web dashboard |
-| `DotNetTwitchBot.Setup/` | First-time setup wizard |
-| `DotNetTwitchBot.Migrations.MariaDb/` | EF Core migrations for MariaDB/MySQL |
-| `DotNetTwitchBot.Migrations.Postgres/` | EF Core migrations for PostgreSQL |
-| `DotNetTwitchBot.Test/` | Unit tests |
+| `PenguinTwitchBot/` | Main bot and web dashboard |
+| `PenguinTwitchBot.Setup/` | First-time setup wizard |
+| `PenguinTwitchBot.Migrations.MariaDb/` | EF Core migrations for MariaDB/MySQL |
+| `PenguinTwitchBot.Migrations.Postgres/` | EF Core migrations for PostgreSQL |
+| `PenguinTwitchBot.Test/` | Unit tests |
 
 ### Running Tests
 
 ```bash
-dotnet test DotNetTwitchBot.Test/DotNetTwitchBot.Test.csproj
+dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj
 ```
 
 ### Docker
 
-A `Dockerfile` is included in the `DotNetTwitchBot/` directory for containerized deployments.
+A `Dockerfile` is included in the `PenguinTwitchBot/` directory for containerized deployments.
 
 ```bash
-docker build -f DotNetTwitchBot/Dockerfile -t penguintwitchbot .
+docker build -f PenguinTwitchBot/Dockerfile -t penguintwitchbot .
 docker run -p 5000:5000 -v ./data:/app/Data penguintwitchbot
 ```
 

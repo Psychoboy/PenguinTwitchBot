@@ -1,0 +1,193 @@
+﻿@page "/audiocommands"
+@using PenguinTwitchBot.Bot.Models.Commands
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
+
+<PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+
+        @if (audioCommands != null)
+        {
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@audioCommands">
+                        <HeaderContent>
+                            <MudTh>Commands</MudTh>
+                            <MudTh>Audio File</MudTh>
+                            <MudTh>Disabled</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Command">!@context.Key</MudTd>
+                            <MudTd DataLabel="AudioFile">@context.Value.AudioFile</MudTd>
+                            <MudTd DataLabel="Disabled">@context.Value.Disabled</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit"
+                                        @onclick="() => Edit(context.Value)" />
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudFab Color="Color.Secondary" StartIcon="@Icons.Material.Filled.DeleteForever"
+                                        @onclick="() => Delete(context.Value)" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (audioCommand != null && audioFiles != null)
+        {
+            <MudItem xs="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@audioCommand" OnValidSubmit="OnSubmit">
+                        <DataAnnotationsValidator />
+                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
+                        @bind-Value="audioCommand.CommandName" />
+                        <MudSelect @bind-Value="@audioCommand.AudioFile" Required="true" Label="Audio File"
+                            RequiredError="Audio File is required">
+                            @foreach (string file in audioFiles)
+                            {
+                                <MudSelectItem Value="@file">@file</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField Label="Category"
+                        @bind-Value="audioCommand.Category" />
+
+                        <MudTextField Label="Description"
+                        @bind-Value="audioCommand.Description" />
+                        <MudStack Row="true" Spacing="2">
+                            <MudNumericField @bind-Value="@audioCommand.UserCooldown" Label="User Min (sec)"
+                                Variant="Variant.Text" Style="max-width: 150px;">
+                            </MudNumericField>
+                            <MudNumericField @bind-Value="@audioCommand.UserCooldownMax" Label="User Max (sec)"
+                                Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                            </MudNumericField>
+                            <MudNumericField @bind-Value="@audioCommand.GlobalCooldown" Label="Global Min (sec)"
+                                Variant="Variant.Text" Style="max-width: 150px;">
+                            </MudNumericField>
+                            <MudNumericField @bind-Value="@audioCommand.GlobalCooldownMax" Label="Global Max (sec)"
+                                Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
+                            </MudNumericField>
+                        </MudStack>
+                        <MudNumericField @bind-Value="@audioCommand.Cost" Label="Cost" Variant="Variant.Text">
+                        </MudNumericField>
+                        <MudCheckBox @bind-Value="@audioCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
+                        <MudCheckBox @bind-Value="@audioCommand.SayRankRequirement" Label="Say Rank Requirement?">
+                        </MudCheckBox>
+                        <MudCheckBox @bind-Value="@audioCommand.Disabled" Label="Disabled?"></MudCheckBox>
+                        <MudSelect @bind-Value="@audioCommand.MinimumRank" Label="Minimum Rank">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField Label="Specific User Only" @bind-Value="audioCommand.SpecificUserOnly" />
+                        <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
+                        <MudTable Items="@audioCommand.SpecificUsersOnly" Context="specificUsersContext">
+                            <HeaderContent>
+                                <MudTh>Specific Users</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@specificUsersContext</MudTd>
+                                <MudTd>
+                                    <MudFab Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveUser(specificUsersContext)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                        <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
+                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                            {
+                                <MudSelectItem Value="@item">@item</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDivider />
+
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                            Class="ml-auto">
+                            Submit
+                        </MudButton>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private Dictionary<string, AudioCommand>? audioCommands;
+    private List<string>? audioFiles;
+    private AudioCommand? audioCommand { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    IReadOnlyCollection<Rank> ranks = [];
+    private string SpecificUsersOnly { get; set; } = "";
+    protected override Task OnInitializedAsync()
+    {
+        audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
+        audioFiles = AudioCommand.GetAudioFiles();
+        return Task.CompletedTask;
+    }
+
+    private void ReloadCommands()
+    {
+        audioCommands = AudioCommand.GetAudioCommands().OrderBy(x => x.Key).ToDictionary();
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (audioCommand == null) return;
+        if (await CommandHelper.CommandExists(audioCommand.CommandName))
+        {
+            bool? result = await DialogService.ShowMessageBoxAsync(
+               "Warning",
+               "This command already exists, continue?",
+               yesText: "Yes!", cancelText: "Cancel");
+            if (result == null)
+            {
+                return;
+            }
+        }
+        audioCommand.SpecificRanks = ranks.ToList();
+        ranks = new HashSet<Rank>();
+        await AudioCommand.SaveAudioCommand(audioCommand);
+        audioCommand = new();
+        ReloadCommands();
+    }
+
+    private void Edit(AudioCommand item)
+    {
+        navigationManager.NavigateTo($"/audiocommands/{item.Id}");
+    }
+
+    private async void Delete(AudioCommand item)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+       "Warning",
+       "Deleting can not be undone!",
+       yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await AudioCommand.DeleteAudioCommand(item);
+            ReloadCommands();
+        }            
+    }
+
+    private void AddSpecificUser()
+    {
+        if (!string.IsNullOrWhiteSpace(SpecificUsersOnly))
+        {
+            audioCommand?.SpecificUsersOnly.Add(SpecificUsersOnly);
+            SpecificUsersOnly = "";
+        }
+    }
+
+    private void RemoveUser(string user)
+    {
+        audioCommand?.SpecificUsersOnly.Remove(user);
+    }
+}

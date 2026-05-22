@@ -1,0 +1,372 @@
+﻿@page "/commands"
+@using System.Security.Claims;
+@using PenguinTwitchBot.Bot.Commands;
+@using PenguinTwitchBot.Bot.Commands.Alias;
+@using PenguinTwitchBot.Bot.Models.Points;
+@inject AuthenticationStateProvider AuthenticationStateProvider;
+@inject ICommandHandler CommandHandler;
+@inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem;
+@inject PenguinTwitchBot.Bot.Commands.IActionCommandService ActionCommandService;
+
+<PageTitle>SPTV Twitch Bot - Commands</PageTitle>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.ChatBubble" Class="mr-2" />
+            Chat Commands
+        </MudText>
+
+        <MudPaper Elevation="3">
+            @if(!dataLoaded)
+            {
+                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6">Loading commands...</MudText>
+                    </MudStack>
+                </MudOverlay>
+            }
+
+            <MudTable Items="@originalCommands" Filter="new Func<CommandModel,bool>(FilterFunc1)" Dense="true" Hover="true">
+                <ToolBarContent>
+                    <MudIcon Icon="@Icons.Material.Filled.ChatBubble" Color="Color.Primary" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Available Commands</MudText>
+                    <MudSpacer />
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudSelect T="string" Label="Category" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="selectedCategory" Clearable="true" Style="min-width: 200px;" AdornmentIcon="@Icons.Material.Filled.Category" Adornment="Adornment.Start">
+                            @foreach (var category in availableCategories)
+                            {
+                                <MudSelectItem Value="@category">@category</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudCheckBox @bind-Value="includeAliases" Label="Include Aliases" Color="Color.Primary"></MudCheckBox>
+                        <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Command</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Cost</MudTh>
+                    <MudTh>User Cooldown</MudTh>
+                    <MudTh>Global Cooldown</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Command">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Small" Color="Color.Primary" />
+                            <MudText><strong>@context.Command</strong></MudText>
+                            @if (context.isAlias)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Info">(Alias)</MudText>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        <MudText>@context.Category</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == Rank.Viewer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Success" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Subscriber)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Size="Size.Small" Color="Color.Secondary" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Vip)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarHalf" Size="Size.Small" Color="Color.Info" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Moderator)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Streamer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Error" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText>@context.Rank</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Cost">
+                        @if (context.Cost > 0)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Money" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Cost</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success">Free</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="UserCooldown">
+                        @if (context.UserCooldown > 0)
+                        {
+                            <MudText>@context.UserCooldown s</MudText>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success">None</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="GlobalCooldown">
+                        @if (context.GlobalCooldown > 0)
+                        {
+                            <MudText>@context.GlobalCooldown s</MudText>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success">None</MudText>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SearchOff">
+                        No commands found matching your filters. Try adjusting your search or category filter.
+                    </MudAlert>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+
+@code {
+    private List<CommandModel> originalCommands = new();
+    private List<CommandModel> commands = new();
+    private string searchString1 = "";
+    private string? selectedCategory = null;
+    private bool includeAliases = false;
+    private List<string> availableCategories = new();
+    private bool dataLoaded = false;
+
+    public class CommandModel
+    {
+        public string Command { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int GlobalCooldown { get; set; }
+        public Rank Rank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public bool isAlias { get; set; } = false;
+        public string? SpecificUser { get; set; } = "";
+        public List<string> SpecificUsers { get; set; } = new List<string>();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        var defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
+        var tempCommands = new List<CommandModel>();
+        foreach(var command in defaultCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+        {            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CustomCommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = string.IsNullOrWhiteSpace(command.Description) ? SplitModuleName(command.ModuleName) : command.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Category) ? SplitModuleName(command.ModuleName) : command.Category,
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
+                });
+        }
+
+        var pointTypes = await PointsSystem.GetPointTypes();
+        foreach (var pointType in pointTypes)
+        {
+            var pointCommands = pointType.PointCommands;
+            var pointName = pointType.Name;
+            foreach (var command in pointCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+            {
+                var pointCommand = new CommandModel
+                    {
+                        Command = "!" + command.CommandName,
+                        UserCooldown = command.UserCooldown,
+                        GlobalCooldown = command.GlobalCooldown,
+                        Rank = command.MinimumRank,
+                        Cost = command.Cost,
+                        Description = "",
+                        Category = pointName,
+                        SpecificUser = command.SpecificUserOnly,
+                        SpecificUsers = command.SpecificUsersOnly
+                    };
+                switch(command.CommandType)
+                {
+                    case PointCommandType.Set:
+                        pointCommand.Description = $"Sets {pointName} to a specific amount for a viewer.";
+                        break;
+                    case PointCommandType.Add:
+                        pointCommand.Description = $"Adds a specific amount of {pointName} for a viewer.";
+                        break;
+                    case PointCommandType.Remove:
+                        pointCommand.Description = $"Removes a specific amount of {pointName} from a viewer.";
+                        break;
+                    case PointCommandType.Get:
+                        pointCommand.Description = $"Checks your {pointName} balance.";
+                        break;
+                    case PointCommandType.AddActive:
+                        pointCommand.Description = $"Adds a specific amount of {pointName} to all active viewers.";
+                        break;
+                }
+                tempCommands.Add(pointCommand);
+            }
+        }
+
+        // var audioCommands = AudioCommands.GetAudioCommands();
+        // foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
+        // {
+        //     tempCommands.Add(new CommandModel
+        //         {
+        //             Command = "!" + command.Value.CommandName,
+        //             UserCooldown = command.Value.UserCooldown,
+        //             GlobalCooldown = command.Value.GlobalCooldown,
+        //             Rank = command.Value.MinimumRank,
+        //             Cost = command.Value.Cost,
+        //             Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+        //             Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
+        //         });
+        // }
+
+        var externalCommands = await CommandHandler.GetExternalCommands();
+        foreach (var command in externalCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = command.Description,
+                    Category = command.Category,
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
+                });
+        }
+
+        var aliases = await Aliases.GetAliasesAsync();
+        foreach(var command in aliases)
+        {
+            var tempCommand = tempCommands.Where(x => x.Command.Equals("!" + command.CommandName)).FirstOrDefault();
+            if (tempCommand == null) continue;
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.AliasName,
+                    UserCooldown = tempCommand.UserCooldown,
+                    GlobalCooldown = tempCommand.GlobalCooldown,
+                    Rank = tempCommand.Rank,
+                    Cost = tempCommand.Cost,
+                    Description = tempCommand.Description,
+                    Category = tempCommand.Category,
+                    SpecificUser = tempCommand.SpecificUser,
+                    SpecificUsers = tempCommand.SpecificUsers,
+                    isAlias = true
+                });
+        }
+        var actionCommands = await ActionCommandService.GetAllAsync();
+        foreach(var command in actionCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.CommandName,
+                    UserCooldown = command.UserCooldown,
+                    GlobalCooldown = command.GlobalCooldown,
+                    Rank = command.MinimumRank,
+                    Cost = command.Cost,
+                    Description = command.Description,
+                    Category = command.Category,
+                    SpecificUser = command.SpecificUserOnly,
+                    SpecificUsers = command.SpecificUsersOnly
+                });
+        };
+
+        // Filter out commands that are not applicable to the user
+        if(user.Identity is not null)
+        {
+            tempCommands = tempCommands.Where(x =>
+                 (string.IsNullOrWhiteSpace(x.SpecificUser) && x.SpecificUsers.Count == 0) ||
+                    (x.SpecificUser != null &&
+                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+                    ||
+                    x.SpecificUsers.Any(s => s.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+        else
+        {
+            tempCommands = tempCommands.Where(x => string.IsNullOrWhiteSpace(x.SpecificUser) || x.SpecificUsers.Count == 0).ToList();
+        }
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
+        {
+            commands = tempCommands.OrderBy(x => x.Command).ToList();
+        } else
+        {
+            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
+        }
+
+        originalCommands = commands.DistinctBy(x => x.Command).ToList();
+        availableCategories = originalCommands.Select(x => x.Category).Distinct().OrderBy(x => x).ToList();
+        dataLoaded = true;
+    }
+
+    private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
+
+    private bool FilterFunc(CommandModel element, string searchString)
+    {
+        if (!includeAliases && element.isAlias)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(selectedCategory) && !element.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Rank.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SplitModuleName(string moduleName)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
+    }
+
+    }

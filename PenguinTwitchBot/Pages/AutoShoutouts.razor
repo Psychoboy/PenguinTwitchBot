@@ -1,0 +1,124 @@
+﻿@page "/autoshoutouts"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<PageTitle>SPTV Twitch Bot - Auto Shoutouts</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False">
+    @if (autoShoutouts == null)
+    {
+        <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="8">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@autoShoutouts">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Response</MudTh>
+                            <MudTh>Last Shoutout</MudTh>
+                            <MudTh>Auto Clip</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Name</MudTd>
+                            <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
+                            <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
+                            <MudTd DataLabel="Auto Clip">@context.AutoPlayClip</MudTd>
+                            <MudTd DataLabel="Edit">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
+                                    Edit
+                                </MudButton>
+                            </MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">
+                                    Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            @if (autoShoutout != null)
+            {
+                <MudItem xs="4">
+                    <MudCard>
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+                                <MudCardContent>
+                                    <MudTextField Label="Name" Required="true" RequiredError="Name is required"
+                                    @bind-Value="autoShoutout.Name" />
+                                    <MudTextField Label="Message" Lines="3" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                                    <MudSwitch Label="Auto Play Clip" @bind-Value="autoShoutout.AutoPlayClip" />
+                                    <MudSwitch Label="User Ai?" @bind-Value="autoShoutout.UseAi" />
+                                    <MudTextField Label="Additional Prompt" Lines="3" Required="false" @bind-Value="autoShoutout.AdditionalPrompt" />
+                                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                        Class="ml-auto">
+                                        Submit
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => autoShoutout = new()">
+                                        Reset</MudButton>
+                                </MudCardContent>
+                            </EditForm>
+                        </MudPaper>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+@code {
+    private List<PenguinTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
+    private PenguinTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
+    }
+
+    private async Task ReloadShoutouts()
+    {
+        autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (autoShoutout == null) return;
+        if(autoShoutouts == null)
+        {
+            autoShoutouts = new List<PenguinTwitchBot.Bot.Models.AutoShoutout>();
+        }
+        if(autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)) && autoShoutout.Id == 0)
+        {
+            await DialogService.ShowMessageBoxAsync("Error", "A shoutout with that name already exists!");
+            return;
+        }
+        
+        await ShoutoutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+        autoShoutout = new();
+        await ReloadShoutouts();
+    }
+    private async Task Delete(AutoShoutout autoShoutout)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);
+            await ReloadShoutouts();
+        }
+    }
+
+    private void Edit(PenguinTwitchBot.Bot.Models.AutoShoutout shoutout)
+    {
+        // navigationManager.NavigateTo($"/autoshoutouts/{id}");
+        autoShoutout = shoutout;
+    }
+}

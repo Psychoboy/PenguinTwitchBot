@@ -1,0 +1,17 @@
+﻿using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Models;
+
+namespace PenguinTwitchBot.Bot.Commands.Fishing
+{
+    public interface IFishingAnalyticsService
+    {
+        Task<FishingSimulationResult> SimulateFishing(int iterations, List<int> shopItemIds);
+        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(List<int> shopItemIds);
+        Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+        Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
+        Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null);
+        Task<double> CalculateBaselineExpectedGold();
+        Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26);
+        Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26);
+    }
+}
