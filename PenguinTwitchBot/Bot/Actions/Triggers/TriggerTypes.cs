@@ -1,0 +1,12 @@
+﻿namespace PenguinTwitchBot.Bot.Models.Actions.Triggers
+{
+    public enum TriggerTypes
+    {
+        Command,
+        TwitchEvent,
+        Timer,
+        Manual,
+        DefaultCommand,
+        Keyword
+    }
+}

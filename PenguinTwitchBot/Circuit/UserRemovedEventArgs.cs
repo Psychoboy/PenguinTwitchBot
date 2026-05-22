@@ -1,0 +1,7 @@
+﻿namespace PenguinTwitchBot.Circuit
+{
+    public class UserRemovedEventArgs
+    {
+        public string UserId { get; set; } = "";
+    }
+}

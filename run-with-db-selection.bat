@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal enabledelayedexpansion
 
 :menu
@@ -37,7 +37,7 @@ echo Starting application with !DATABASE_PROVIDER! provider...
 echo.
 
 REM Launch Visual Studio or dotnet with the selected provider
-cd DotNetTwitchBot
+cd PenguinTwitchBot
 dotnet run
 cd ..
 

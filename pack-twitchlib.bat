@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 
 set SCRIPT_DIR=%~dp0
@@ -74,4 +74,4 @@ for /d %%P in ("%USERPROFILE%\.nuget\packages\twitchlib.*") do (
 echo.
 echo All packages packed successfully to: %OUTPUT%
 echo Global NuGet cache cleared for TwitchLib.* packages.
-echo You can now build DotNetTwitchBot normally.
+echo You can now build PenguinTwitchBot normally.

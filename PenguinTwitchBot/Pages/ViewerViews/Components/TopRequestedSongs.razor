@@ -1,0 +1,131 @@
+﻿@using PenguinTwitchBot.Models
+@inject PenguinTwitchBot.Bot.Core.Leaderboards leaderBoards
+@inject ISnackbar Snackbar
+@inject ILogger<SongRequests> logger
+
+<MudPaper Class="pa-5" Elevation="3">
+    @if(!dataLoaded)
+    {
+        <MudSkeleton Height="200px" />
+        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </MudOverlay>
+    } else {
+        <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
+            <ToolBarContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">@Title</MudText>
+                </MudStack>
+                <MudSpacer />
+                @if (!IsPreview)
+                {
+                    <MudSelect T="int" ValueChanged="@(s=>OnMonthsChanged(s))"
+                        Label="Months" Value="@numberOfMonths" Variant="Variant.Outlined">
+                        <MudSelectItem Value=1>1 Month</MudSelectItem>
+                        <MudSelectItem Value=3>3 Months</MudSelectItem>
+                        <MudSelectItem Value=6>6 Months</MudSelectItem>
+                        <MudSelectItem Value=12>12 Months</MudSelectItem>
+                        <MudSelectItem Value=0>All</MudSelectItem>
+                    </MudSelect>
+                } else
+                {
+                    <MudButton Href="songRequests" 
+                               Variant="Variant.Text" 
+                               Color="Color.Primary" 
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        View All
+                    </MudButton>
+                }
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Rank</MudTh>
+                <MudTh>Title</MudTh>
+                <MudTh>Length</MudTh>
+                <MudTh>Times Requested</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Ranking">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        @if (context.Ranking == 1)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                        }
+                        else if (context.Ranking == 2)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Default" Size="Size.Small" />
+                        }
+                        else if (context.Ranking == 3)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Error" Size="Size.Small" />
+                        }
+                        <MudText><strong>#@context.Ranking</strong></MudText>
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="Title"><MudLink Href="@GetYoutubeLink(context.SongId)" Target="_blank" Color="Color.Primary">@context.Title</MudLink></MudTd>
+                <MudTd DataLabel="Duration">@context.Duration</MudTd>
+                <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.MusicOff">
+                    No song requests found for this time period.
+                </MudAlert>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </LoadingContent>
+            <PagerContent>
+                @if (!IsPreview)
+                {
+                    <MudTablePager />
+                }
+            </PagerContent>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
+    private int numberOfMonths = 3;
+
+    [Parameter]
+    public bool IsPreview { get; set; } = false;
+
+    [Parameter]
+    public string Title { get; set; } = "Top Requested Songs";
+
+    private bool dataLoaded = false;
+
+
+    private async Task<TableData<Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
+    {
+        var pageFilter = new PaginationFilter();
+        pageFilter.Page = IsPreview ? 0 : state.Page;
+        pageFilter.Count = IsPreview ? 5 : state.PageSize;
+        var response = await leaderBoards.GetSongs(numberOfMonths, pageFilter);
+        return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
+    }
+
+
+    private void OnMonthsChanged(int months)
+    {
+        numberOfMonths = months;
+        if (historyTable != null)
+        {
+            historyTable.ReloadServerData();
+        }
+    }
+
+    private string GetYoutubeLink(string songId)
+    {
+        return $"https://youtu.be/{songId}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+        dataLoaded = true;
+        await InvokeAsync(StateHasChanged);
+    }
+}

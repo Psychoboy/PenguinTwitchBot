@@ -1,4 +1,4 @@
-# Database Migration & Debug Helpers
+﻿# Database Migration & Debug Helpers
 
 This folder contains batch scripts to simplify database management across all three database providers (MariaDB, PostgreSQL, SQLite).
 
@@ -14,9 +14,9 @@ add-migration.bat CreateProductTable
 ```
 
 This automatically generates migrations in:
-- `DotNetTwitchBot.Migrations.MariaDb/Migrations/`
-- `DotNetTwitchBot.Migrations.Postgres/Migrations/`
-- `DotNetTwitchBot.Migrations.Sqlite/Migrations/`
+- `PenguinTwitchBot.Migrations.MariaDb/Migrations/`
+- `PenguinTwitchBot.Migrations.Postgres/Migrations/`
+- `PenguinTwitchBot.Migrations.Sqlite/Migrations/`
 
 ### `remove-migration.bat`
 Removes the last migration from all 3 database providers.
@@ -26,7 +26,7 @@ Removes the last migration from all 3 database providers.
 remove-migration.bat
 ```
 
-⚠️ Use with caution - this removes pending migrations from all providers.
+âš ï¸ Use with caution - this removes pending migrations from all providers.
 
 ### `update-database.bat`
 Applies all pending migrations to all 3 database providers.
@@ -61,12 +61,12 @@ Navigate using numbered options (1-5).
 ### Launch Profiles in VS Code
 When running in debug mode with F5, you can now select which database provider to use:
 
-1. **DotNetTwitchBot** - Uses config file provider (default: MariaDB)
-2. **DotNetTwitchBot (MariaDB)** - Forces MariaDB
-3. **DotNetTwitchBot (PostgreSQL)** - Forces PostgreSQL
-4. **DotNetTwitchBot (SQLite)** - Forces SQLite
+1. **PenguinTwitchBot** - Uses config file provider (default: MariaDB)
+2. **PenguinTwitchBot (MariaDB)** - Forces MariaDB
+3. **PenguinTwitchBot (PostgreSQL)** - Forces PostgreSQL
+4. **PenguinTwitchBot (SQLite)** - Forces SQLite
 
-These profiles are configured in `DotNetTwitchBot/Properties/launchSettings.json`.
+These profiles are configured in `PenguinTwitchBot/Properties/launchSettings.json`.
 
 ### Command Line Startup
 ```batch
@@ -79,7 +79,7 @@ You can also set the `DATABASE_PROVIDER` environment variable directly:
 
 ```batch
 set DATABASE_PROVIDER=postgres
-dotnet run --project DotNetTwitchBot
+dotnet run --project PenguinTwitchBot
 ```
 
 Valid values: `mariadb`, `mysql`, `postgres`, `postgresql`, `sqlite`
@@ -110,7 +110,7 @@ remove-migration.bat
 
 ## Configuration
 
-The primary database provider is defined in `DotNetTwitchBot/appsettings.secrets.json`:
+The primary database provider is defined in `PenguinTwitchBot/appsettings.secrets.json`:
 ```json
 {
   "Database": {

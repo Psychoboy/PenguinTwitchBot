@@ -1,0 +1,527 @@
+﻿@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.Triggers
+@using PenguinTwitchBot.Bot.Actions.Triggers.Configurations
+@using TwitchEventConfig = PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
+@using PenguinTwitchBot.Pages.Actions
+@using System.Text.Json
+@inject IActionManagementService ActionService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject PenguinTwitchBot.Bot.Commands.Misc.AutoTimers TimersService
+@inject PenguinTwitchBot.Bot.Validation.IValidationService ValidationService
+@inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
+
+<MudPaper Class="pa-4 mb-4">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h6">Triggers (@ActionTriggers.Count)</MudText>
+            <MudStack Row="true" Spacing="2">
+                <MudButton StartIcon="@Icons.Material.Filled.BugReport" Color="Color.Secondary" Size="Size.Small" 
+                           OnClick="RunValidationCheck" Variant="Variant.Outlined">
+                    Validate
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                           OnClick="OpenAddTriggerDialog" Variant="Variant.Filled">
+                    Add Trigger
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        @if (ActionTriggers.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                No triggers configured. Click "Add Trigger" to get started.
+            </MudText>
+        }
+        else
+        {
+            <MudTable Items="@ActionTriggers" Dense="true" Hover="true" T="TriggerType">
+                <HeaderContent>
+                    <MudTh>Trigger Name</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Enabled</MudTh>
+                    <MudTh Style="text-align: right;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Trigger Name">
+                        @if (context.Type == TriggerTypes.Timer && context.Name.StartsWith("TimerGroup_"))
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Timer Trigger</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.TwitchEvent)
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@GetTwitchEventDisplayName(context.Name)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTwitchEventFilterSummary(context.Configuration)</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.Command && context.CommandId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Command Trigger</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.Keyword && context.KeywordId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@context.Name</MudLink>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Keyword Trigger</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.DefaultCommand && context.DefaultCommandId.HasValue)
+                        {
+                            <MudStack Spacing="0">
+                                <MudText>@context.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandEventSummary(context.Configuration)</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            @context.Name
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Type)">
+                            @context.Type.ToString()
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Enabled">
+                        <MudSwitch T="bool" Value="@context.Enabled" ValueChanged="@((bool val) => ToggleTriggerEnabled(context, val))" 
+                                   Color="Color.Success" />
+                    </MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align: right;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                       OnClick="@(() => RemoveTrigger(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public List<TriggerType> ActionTriggers { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<TriggerType>> ActionTriggersChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; } = false;
+
+    private Dictionary<int, string> _timerGroupNames = new();
+    private int? _previousActionId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        bool actionIdChanged = ActionId != _previousActionId;
+        _previousActionId = ActionId;
+
+        if (ActionId.HasValue && actionIdChanged && ActionTriggers.Count == 0)
+        {
+            await LoadTriggers();
+        }
+        else
+        {
+            await LoadTimerGroupNames();
+        }
+    }
+
+    private async Task LoadTimerGroupNames()
+    {
+        _timerGroupNames.Clear();
+        var timerTriggers = ActionTriggers.Where(t => t.Type == TriggerTypes.Timer && t.Name.StartsWith("TimerGroup_")).ToList();
+        if (timerTriggers.Count == 0)
+        {
+            return;
+        }
+        var timerGroups = await TimersService.GetTimerGroupsAsync();
+        foreach (var trigger in timerTriggers)
+        {
+            var timerGroupId = ExtractTimerGroupId(trigger.Name);
+            if (timerGroupId.HasValue && !_timerGroupNames.ContainsKey(timerGroupId.Value))
+            {
+                var timerGroup = timerGroups.FirstOrDefault(tg => tg.Id == timerGroupId.Value);
+                if (timerGroup != null)
+                {
+                    _timerGroupNames[timerGroupId.Value] = timerGroup.Name;
+                }
+            }
+        }
+    }
+
+    private int? ExtractTimerGroupId(string triggerName)
+    {
+        if (triggerName.StartsWith("TimerGroup_"))
+        {
+            var idPart = triggerName.Substring("TimerGroup_".Length);
+            if (int.TryParse(idPart, out var id))
+            {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    private string GetTimerGroupDisplayName(string triggerName)
+    {
+        var timerGroupId = ExtractTimerGroupId(triggerName);
+        if (timerGroupId.HasValue && _timerGroupNames.TryGetValue(timerGroupId.Value, out var name))
+        {
+            return name;
+        }
+        return triggerName;
+    }
+
+    private async Task LoadTriggers()
+    {
+        if (ActionId.HasValue)
+        {
+            var triggers = await ActionService.GetTriggersForActionAsync(ActionId.Value);
+            ActionTriggers = triggers;
+            await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            await LoadTimerGroupNames();
+        }
+    }
+
+    private async Task OpenAddTriggerDialog()
+    {
+        var parameters = new DialogParameters<AddTriggerDialog>();
+
+        if (ActionId.HasValue)
+        {
+            parameters.Add(x => x.ActionId, ActionId.Value);
+        }
+
+        var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Add Trigger", parameters, new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true 
+        });
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data != null)
+        {
+            try
+            {
+                dynamic data = result.Data;
+                string triggerName = data.TriggerName;
+                TriggerTypes triggerType = data.TriggerType;
+                string configuration = data.Configuration;
+
+                // Create a new trigger
+                var newTrigger = new TriggerType
+                {
+                    Name = triggerName,
+                    Type = triggerType,
+                    Configuration = configuration,
+                    Enabled = true
+                };
+
+                // Populate reference columns based on trigger type for efficient querying
+                if (triggerType == TriggerTypes.Command && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("CommandId", out var commandIdElement))
+                        {
+                            newTrigger.CommandId = commandIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+                else if (triggerType == TriggerTypes.Keyword && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("KeywordId", out var keywordIdElement))
+                        {
+                            newTrigger.KeywordId = keywordIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+                else if (triggerType == TriggerTypes.Timer && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(configuration);
+                        if (config.TryGetProperty("TimerGroupId", out var timerGroupIdElement))
+                        {
+                            newTrigger.TimerGroupId = timerGroupIdElement.GetInt32();
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+                else if (triggerType == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(configuration))
+                {
+                    try
+                    {
+                        var config = System.Text.Json.JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
+                        if (config != null && !string.IsNullOrEmpty(config.DefaultCommandName))
+                        {
+                            // Look up the default command by name to get the ID
+                            var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(config.DefaultCommandName);
+                            if (defaultCommand?.Id.HasValue == true)
+                            {
+                                newTrigger.DefaultCommandId = defaultCommand.Id.Value;
+                            }
+                        }
+                    }
+                    catch { /* Ignore JSON parsing errors */ }
+                }
+
+                // If we have an ActionId, save the trigger immediately
+                // Otherwise, just add to local list and it will be saved when the action is created
+                if (ActionId.HasValue)
+                {
+                    newTrigger.ActionId = ActionId.Value;
+                    var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
+                    ActionTriggers.Add(createdTrigger);
+                    await LoadTimerGroupNames();
+                    Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
+                }
+                else
+                {
+                    // For new actions, just add to the list - will be saved with the action
+                    ActionTriggers.Add(newTrigger);
+                    await LoadTimerGroupNames();
+                    Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
+                }
+
+                await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error adding trigger: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RunValidationCheck()
+    {
+        var dialog = await DialogService.ShowAsync<ValidationResultsDialog>("Validation Check", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true
+        });
+
+        await dialog.Result;
+    }
+
+    private async Task ToggleTriggerEnabled(TriggerType trigger, bool enabled)
+    {
+        trigger.Enabled = enabled;
+        await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+        // Note: This will be saved when the parent action is saved
+    }
+
+    private async Task RemoveTrigger(TriggerType trigger)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Remove Trigger",
+            $"Are you sure you want to remove the trigger '{trigger.Name}' from this action?",
+            yesText: "Remove",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            // Only delete from database if it has been saved (Id > 0)
+            if (trigger.Id > 0)
+            {
+                await ActionService.DeleteTriggerAsync(trigger.Id);
+            }
+            ActionTriggers.Remove(trigger);
+            await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            Snackbar.Add("Trigger removed", Severity.Success);
+        }
+    }
+
+    private Color GetTriggerTypeColor(TriggerTypes type)
+    {
+        return type switch
+        {
+            TriggerTypes.Command => Color.Primary,
+            TriggerTypes.TwitchEvent => Color.Secondary,
+            TriggerTypes.Timer => Color.Info,
+            TriggerTypes.Manual => Color.Default,
+            TriggerTypes.DefaultCommand => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private string GetTwitchEventDisplayName(string triggerName)
+    {
+        var eventInfo = TwitchEventTypeInfo.GetEventInfo(triggerName);
+        return eventInfo?.DisplayName ?? triggerName;
+    }
+
+    private string GetTwitchEventFilterSummary(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return "No filters (triggers on all events)";
+        }
+
+        // Fix: Use TryFromJson to properly detect invalid JSON
+        if (!TwitchEventConfig.TryFromJson(configurationJson, out var config) || config == null)
+        {
+            return "Invalid configuration";
+        }
+
+        var filters = new List<string>();
+
+        if (config.MinAmount.HasValue || config.MaxAmount.HasValue)
+        {
+            if (config.MinAmount.HasValue && config.MaxAmount.HasValue)
+                filters.Add($"Bits: {config.MinAmount}-{config.MaxAmount}");
+            else if (config.MinAmount.HasValue)
+                filters.Add($"Bits: {config.MinAmount}+");
+            else
+                filters.Add($"Bits: up to {config.MaxAmount}");
+        }
+
+        if (config.MinViewers.HasValue || config.MaxViewers.HasValue)
+        {
+            if (config.MinViewers.HasValue && config.MaxViewers.HasValue)
+                filters.Add($"Viewers: {config.MinViewers}-{config.MaxViewers}");
+            else if (config.MinViewers.HasValue)
+                filters.Add($"Viewers: {config.MinViewers}+");
+            else
+                filters.Add($"Viewers: up to {config.MaxViewers}");
+        }
+
+        if (config.MinGiftAmount.HasValue || config.MaxGiftAmount.HasValue)
+        {
+            if (config.MinGiftAmount.HasValue && config.MaxGiftAmount.HasValue)
+                filters.Add($"Gifts: {config.MinGiftAmount}-{config.MaxGiftAmount}");
+            else if (config.MinGiftAmount.HasValue)
+                filters.Add($"Gifts: {config.MinGiftAmount}+");
+            else
+                filters.Add($"Gifts: up to {config.MaxGiftAmount}");
+        }
+
+        if (config.RewardTitles.Count > 0)
+        {
+            if (config.RewardTitles.Count == 1)
+                filters.Add($"Reward: {config.RewardTitles[0]}");
+            else
+                filters.Add($"Rewards: {string.Join(", ", config.RewardTitles.Take(2))}{(config.RewardTitles.Count > 2 ? "..." : "")}");
+        }
+
+        if (config.SubscriptionTiers.Count > 0)
+        {
+            var tierNames = config.SubscriptionTiers.Select(t => t switch
+            {
+                "1000" => "T1",
+                "2000" => "T2",
+                "3000" => "T3",
+                _ => t
+            }).ToList();
+            filters.Add($"Tiers: {string.Join(", ", tierNames)}");
+        }
+
+        if (config.IsAutomatic.HasValue)
+        {
+            filters.Add(config.IsAutomatic.Value ? "Automatic ads" : "Manual ads");
+        }
+
+        if (config.MinAdDuration.HasValue || config.MaxAdDuration.HasValue)
+        {
+            if (config.MinAdDuration.HasValue && config.MaxAdDuration.HasValue)
+                filters.Add($"Duration: {config.MinAdDuration}-{config.MaxAdDuration}s");
+            else if (config.MinAdDuration.HasValue)
+                filters.Add($"Duration: {config.MinAdDuration}s+");
+            else
+                filters.Add($"Duration: up to {config.MaxAdDuration}s");
+        }
+
+        if (config.BitsTypes.Count > 0)
+        {
+            filters.Add($"Type: {string.Join(", ", config.BitsTypes)}");
+        }
+
+        if (config.PowerUpTypes.Count > 0)
+        {
+            filters.Add($"Power-up: {string.Join(", ", config.PowerUpTypes)}");
+        }
+
+        if (config.CustomPowerUpTitles.Count > 0)
+        {
+            if (config.CustomPowerUpTitles.Count == 1)
+                filters.Add($"Power-up title: {config.CustomPowerUpTitles[0]}");
+            else
+                filters.Add($"Power-up titles: {string.Join(", ", config.CustomPowerUpTitles.Take(2))}{(config.CustomPowerUpTitles.Count > 2 ? "..." : "")}");
+        }
+
+        if (config.CustomPowerUpRewardIds.Count > 0)
+        {
+            filters.Add($"Reward IDs: {config.CustomPowerUpRewardIds.Count}");
+        }
+
+        return filters.Count > 0 ? string.Join(" â€¢ ", filters) : "No filters";
+    }
+
+    private string GetDefaultCommandEventSummary(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return "No configuration";
+        }
+
+        try
+        {
+            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configurationJson);
+            if (config == null)
+            {
+                return "Invalid configuration";
+            }
+
+            var eventDisplayName = config.EventType switch
+            {
+                DefaultCommandEventTypes.GambleJackpotWin => "Jackpot Win",
+                DefaultCommandEventTypes.GambleWin => "Win",
+                DefaultCommandEventTypes.GambleLose => "Lose",
+                DefaultCommandEventTypes.DefuseSuccess => "Success",
+                DefaultCommandEventTypes.DefuseFailure => "Failure",
+                DefaultCommandEventTypes.RollDoubles => "Doubles",
+                DefaultCommandEventTypes.RollSnakeEyes => "Snake Eyes",
+                DefaultCommandEventTypes.RollBoxcars => "Boxcars",
+                DefaultCommandEventTypes.RollLose => "Lose",
+                DefaultCommandEventTypes.SlotsThreeOfAKind => "3 of a Kind",
+                DefaultCommandEventTypes.SlotsTwoOfAKind => "2 of a Kind",
+                DefaultCommandEventTypes.SlotsLose => "Lose",
+                DefaultCommandEventTypes.StealSuccess => "Success",
+                DefaultCommandEventTypes.StealFailed => "Failed",
+                DefaultCommandEventTypes.StealToPoor => "Target Too Poor",
+                DefaultCommandEventTypes.HeistStarted => "Heist Started",
+                DefaultCommandEventTypes.HeistUserSurvived => "User Survived",
+                DefaultCommandEventTypes.HeistUserCaught => "User Caught",
+                DefaultCommandEventTypes.HeistEnded => "Heist Ended",
+                DefaultCommandEventTypes.DeathIncremented => "Death Added (+)",
+                DefaultCommandEventTypes.DeathDecremented => "Death Removed (-)",
+                DefaultCommandEventTypes.DeathReset => "Death Reset",
+                DefaultCommandEventTypes.DeathSet => "Death Set",
+                DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
+                _ => config.EventType
+            };
+
+            return $"Event: {eventDisplayName}";
+        }
+        catch
+        {
+            return "Invalid configuration";
+        }
+    }
+}

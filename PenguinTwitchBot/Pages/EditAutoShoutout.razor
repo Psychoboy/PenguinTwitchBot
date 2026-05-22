@@ -1,0 +1,46 @@
+﻿@page "/autoshoutouts/{id:int}"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+
+@using System.ComponentModel.DataAnnotations
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
+
+<PageTitle>SPTV Twitch Bot - Edit Shoutout</PageTitle>
+@if (autoShoutout == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudCard>
+        <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+            <MudCardContent>
+                <MudTextField Label="Name" Required="true" RequiredError="Name is required"
+                @bind-Value="autoShoutout.Name" />
+                <MudTextField Label="Message" Required="false" @bind-Value="autoShoutout.CustomMessage" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Submit
+                </MudButton>
+            </MudCardContent>
+        </EditForm>
+    </MudCard>
+}
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private PenguinTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; }
+
+    protected override async void OnParametersSet()
+    {
+        autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
+        StateHasChanged();
+    }
+
+    public async void OnSubmit()
+    {
+        if (autoShoutout == null) return;
+        await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+        navigationManager.NavigateTo($"/autoshoutouts");
+    }
+}

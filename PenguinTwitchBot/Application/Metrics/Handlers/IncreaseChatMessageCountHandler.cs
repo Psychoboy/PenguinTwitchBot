@@ -1,0 +1,20 @@
+﻿using PenguinTwitchBot.Application.ChatMessage.Notifications;
+using PenguinTwitchBot.Bot.Core;
+using Prometheus;
+
+namespace PenguinTwitchBot.Application.Metrics.Handlers
+{
+    public class IncreaseChatMessageCountHandler(IServiceBackbone serviceBackbone) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
+    {
+        private readonly ICollector<ICounter> ChatMessagesCounter = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(1)).CreateCounter("chat_messages", "Counter of how many chat messages came in.", ["viewer"]).WithExtendLifetimeOnUse();
+        public Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
+        {
+            var name = notification.EventArgs.Name;
+            if (string.IsNullOrWhiteSpace(name) == false && serviceBackbone.IsKnownBot(name) == false)
+            {
+                ChatMessagesCounter.WithLabels(notification.EventArgs.Name).Inc();
+            }
+            return Task.CompletedTask;
+        }
+    }
+}

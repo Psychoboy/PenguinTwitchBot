@@ -1,0 +1,91 @@
+﻿@page "/knownbots"
+@attribute [Authorize(Roles = "Streamer, Moderator")]
+@using PenguinTwitchBot.Bot.Models;
+@inject PenguinTwitchBot.Bot.Commands.Moderation.IKnownBots KnownBotsApi
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<PageTitle>SPTV Twitch Bot - Known Bots</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False">
+    <MudGrid>
+        @if (knownBots != null)
+        {
+            <MudItem xs="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@knownBots">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">@context.Username</MudTd>
+                            <MudTd DataLabel="Delete">
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                @onclick="() => Delete(context)">Delete
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+
+        }
+        @if (knownBot != null)
+        {
+            <MudItem xs="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@knownBot" OnValidSubmit="OnSubmit">
+                        <MudCardContent>
+                            <MudTextField Label="Username" Required="true" RequiredError="Username is required"
+                            @bind-Value="knownBot.Username" />
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                Class="ml-auto">
+                                Submit
+                            </MudButton>
+                        </MudCardContent>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<KnownBot>? knownBots;
+    private KnownBot? knownBot { get; set; } = new();
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    protected override Task OnInitializedAsync()
+    {
+        knownBots = KnownBotsApi.GetKnownBots();
+        return Task.CompletedTask;
+    }
+
+    public async void OnSubmit()
+    {
+        if (knownBot == null) return;
+        await KnownBotsApi.AddKnownBot(knownBot);
+        knownBots = KnownBotsApi.GetKnownBots();
+        knownBot = new();
+        StateHasChanged();
+    }
+    public async Task Delete(KnownBot item)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await KnownBotsApi.RemoveKnownBot(item);
+            knownBots = KnownBotsApi.GetKnownBots();
+            StateHasChanged();
+        }
+    }
+
+    public void CreateFilter()
+    {
+        navigationManager.NavigateTo($"/createknownbot");
+    }
+}

@@ -1,0 +1,17 @@
+﻿using System.Collections.Concurrent;
+
+namespace PenguinTwitchBot.Extensions
+{
+    public static class BlockingCollectionExtensions
+    {
+        public static void Clear<T>(this BlockingCollection<T> blockingCollection)
+        {
+            ArgumentNullException.ThrowIfNull(blockingCollection);
+
+            while (blockingCollection.Count > 0)
+            {
+                blockingCollection.TryTake(out _);
+            }
+        }
+    }
+}

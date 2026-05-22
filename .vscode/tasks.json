@@ -1,4 +1,4 @@
-{
+﻿{
     "version": "2.0.0",
     "tasks": [
         {
@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/DotNetTwitchBot/DotNetTwitchBot.csproj",
+                "${workspaceFolder}/PenguinTwitchBot/PenguinTwitchBot.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/DotNetTwitchBot/DotNetTwitchBot.csproj",
+                "${workspaceFolder}/PenguinTwitchBot/PenguinTwitchBot.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary",
                 "-c","Release",
@@ -36,7 +36,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/DotNetTwitchBot/DotNetTwitchBot.csproj"
+                "${workspaceFolder}/PenguinTwitchBot/PenguinTwitchBot.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

@@ -1,0 +1,413 @@
+﻿@page "/keywords"
+@page "/actions/keywords"
+@using PenguinTwitchBot.Bot.Models.Commands
+@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Pages.Components
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@implements IDisposable
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IActionKeywordService KeywordService
+@inject IActionManagementService ActionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>SPTV Twitch Bot - Action Keywords</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Action Keywords</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Manage action keywords for the bot.</MudText>
+
+    <MudGrid>
+        <!-- Left Panel - Keywords List -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Keywords (@_keywords.Count)</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                                       OnClick="CreateNewKeyword" />
+                    </MudStack>
+
+                    <MudTextField @bind-Value="_searchString" Placeholder="Search keywords" 
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                  IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
+                                  OnDebounceIntervalElapsed="FilterKeywords" />
+
+                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
+                        <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
+                        @foreach (var category in _categories)
+                        {
+                            <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudDivider />
+
+                    @if (_filteredKeywords.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                            No keywords found
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudList T="ActionKeyword" @bind-SelectedValue="_selectedKeyword" Dense="true">
+                            @foreach (var category in _filteredKeywords.Select(a => (a.Category).Trim()).Distinct().Order())
+                            {
+                                <MudListItem Text="@(string.IsNullOrWhiteSpace(category) ? None : category)" Expanded="@(string.IsNullOrWhiteSpace(category) ? _keywordCategory == None : _keywordCategory == category)">
+                                    <NestedList>
+                                        @foreach (var keyword in _filteredKeywords.Where(k => (k.Category ?? string.Empty).Trim() == category))
+                                        {
+                                            <MudListItem T="ActionKeyword" Value="@keyword" OnClick="@(() => OnKeywordSelected(keyword))">
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.body1">@keyword.CommandName</MudText>
+                                                    <MudStack Row="true" Spacing="1">
+                                                        <MudChip T="string" Size="Size.Small" Color="@(keyword.Disabled ? Color.Error : Color.Success)">
+                                                            @(keyword.Disabled ? "Disabled" : "Enabled")
+                                                        </MudChip>
+                                                        @if (keyword.IsRegex)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Regex</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                </MudStack>
+                                            </MudListItem>
+                                            <MudDivider />
+                                        }
+                                    </NestedList>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Right Panel - Keyword Details -->
+        <MudItem xs="12" md="8">
+            @if (_isLoading)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading keywords...</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else if (_selectedKeyword == null)
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">Select a keyword to view details</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Or create a new keyword to get started</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <MudStack Spacing="3">
+                        @if (!_isNewKeyword && _selectedKeyword?.Id.HasValue == true)
+                        {
+                            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.h6">
+                                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Class="mr-2" />
+                                        Actions Triggered by This Keyword
+                                    </MudText>
+
+                                    @if (_triggeredActions == null)
+                                    {
+                                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                                    }
+                                    else if (_triggeredActions.Count == 0)
+                                    {
+                                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                                            This keyword does not trigger any actions yet. 
+                                            You can associate actions with this keyword by adding Keyword triggers in Action Management.
+                                        </MudAlert>
+                                    }
+                                    else
+                                    {
+                                        <MudList T="ActionType" Dense="true">
+                                            @foreach (var action in _triggeredActions)
+                                            {
+                                                <MudListItem T="ActionType">
+                                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                                        <MudStack Spacing="0">
+                                                            <MudLink Href="@($"/actions/manage?actionId={action.Id}")">
+                                                                <MudText Typo="Typo.body1">@action.Name</MudText>
+                                                            </MudLink>
+                                                            @if (!string.IsNullOrEmpty(action.Group))
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Group: @action.Group</MudText>
+                                                            }
+                                                        </MudStack>
+                                                        <MudStack Row="true" Spacing="1">
+                                                            <MudChip T="string" Size="Size.Small" Color="@(action.Enabled ? Color.Success : Color.Error)">
+                                                                @(action.Enabled ? "Enabled" : "Disabled")
+                                                            </MudChip>
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                                @action.SubActions.Count SubActions
+                                                            </MudChip>
+                                                        </MudStack>
+                                                    </MudStack>
+                                                </MudListItem>
+                                                <MudDivider />
+                                            }
+                                        </MudList>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudDivider />
+                        }
+
+                        <KeywordEditor Keyword="_selectedKeyword"
+                                       OnSave="SaveKeyword"
+                                       OnCancel="CancelEdit"
+                                       OnDelete="DeleteKeyword"
+                                       IsNewKeyword="_isNewKeyword"
+                                       ShowActions="true" />
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "keywordId")]
+    public int? KeywordIdFromQuery { get; set; }
+    public string None => "None";
+
+    private List<ActionKeyword> _keywords = new();
+    private List<ActionKeyword> _filteredKeywords = new();
+    private List<string> _categories = new();
+    private ActionKeyword? _selectedKeyword;
+    private bool _isNewKeyword = false;
+    private bool _isLoading = true;
+    private bool _isNavigating = false;
+    private string _searchString = "";
+    private string _filterCategory = "";
+    public string? _keywordCategory = null;
+    private List<ActionType>? _triggeredActions = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to location changes for browser back/forward button support
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await LoadKeywords();
+
+        // Check if a keyword was specified in the query string
+        if (KeywordIdFromQuery.HasValue)
+        {
+            var keyword = _keywords.FirstOrDefault(k => k.Id == KeywordIdFromQuery.Value);
+            if (keyword != null)
+            {
+                await OnKeywordSelected(keyword);
+            }
+        }
+
+        _isLoading = false;
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_isNavigating) return;
+
+        var uri = new Uri(e.Location);
+        var queryString = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryString.TryGetValue("keywordId", out var keywordIdString) && int.TryParse(keywordIdString, out var keywordId))
+        {
+            var keyword = _keywords.FirstOrDefault(k => k.Id == keywordId);
+            if (keyword != null && keyword != _selectedKeyword)
+            {
+                await InvokeAsync(async () =>
+                {
+                    await OnKeywordSelected(keyword);
+                    StateHasChanged();
+                });
+            }
+        }
+    }
+
+    private async Task LoadKeywords()
+    {
+        _keywords = await KeywordService.GetAllAsync();
+        _categories = _keywords.Select(k => k.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList();
+        FilterKeywords();
+    }
+
+    private void FilterKeywords()
+    {
+        _filteredKeywords = _keywords.Where(k =>
+        {
+            var matchesSearch = string.IsNullOrWhiteSpace(_searchString) ||
+                               k.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                               k.Description.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+
+            var matchesCategory = string.IsNullOrWhiteSpace(_filterCategory) ||
+                                 k.Category == _filterCategory;
+
+            return matchesSearch && matchesCategory;
+        }).ToList();
+
+        _keywordCategory = _filteredKeywords.Select(k => (k.Category ?? string.Empty).Trim()).FirstOrDefault();
+    }
+
+    private void OnCategoryFilterChanged(string category)
+    {
+        _filterCategory = category;
+        FilterKeywords();
+    }
+
+    private async Task OnKeywordSelected(ActionKeyword keyword)
+    {
+        _selectedKeyword = keyword;
+        _isNewKeyword = false;
+
+        // Update URL to include keywordId
+        if (keyword.Id.HasValue)
+        {
+            _isNavigating = true;
+            NavigationManager.NavigateTo($"/actions/keywords?keywordId={keyword.Id.Value}", false);
+            _isNavigating = false;
+
+            // Load triggered actions
+            await LoadTriggeredActions(keyword.Id.Value);
+        }
+    }
+
+    private async Task LoadTriggeredActions(int keywordId)
+    {
+        _triggeredActions = null; // Show loading
+        try
+        {
+            var keyword = await KeywordService.GetByIdAsync(keywordId);
+            if (keyword != null)
+            {
+                _triggeredActions = await ActionService.GetActionsByTriggerTypeAndNameAsync(
+                    TriggerTypes.Keyword,
+                    keyword.CommandName);
+            }
+            else
+            {
+                _triggeredActions = new List<ActionType>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading triggered actions: {ex.Message}", Severity.Error);
+            _triggeredActions = new List<ActionType>();
+        }
+    }
+
+    private void CreateNewKeyword()
+    {
+        _selectedKeyword = new ActionKeyword
+        {
+            Category = string.Empty,
+            Description = string.Empty,
+            SayCooldown = true,
+            SourceOnly = true
+        };
+        _isNewKeyword = true;
+        _triggeredActions = new List<ActionType>();
+
+        // Navigate to new keyword URL
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/keywords", false);
+        _isNavigating = false;
+    }
+
+    private async Task SaveKeyword(ActionKeyword keyword)
+    {
+        try
+        {
+            if (_isNewKeyword)
+            {
+                // Check if keyword already exists
+                if (await KeywordService.KeywordExistsAsync(keyword.CommandName))
+                {
+                    Snackbar.Add($"Keyword '{keyword.CommandName}' already exists", Severity.Error);
+                    return;
+                }
+
+                var created = await KeywordService.AddAsync(keyword);
+                Snackbar.Add($"Keyword '{created.CommandName}' created successfully", Severity.Success);
+                _isNewKeyword = false;
+            }
+            else
+            {
+                var updated = await KeywordService.UpdateAsync(keyword);
+                Snackbar.Add($"Keyword '{updated.CommandName}' updated successfully", Severity.Success);
+            }
+
+            await LoadKeywords();
+
+            // Clear selection and URL after save
+            _selectedKeyword = null;
+            _triggeredActions = null;
+            _isNavigating = true;
+            NavigationManager.NavigateTo("/actions/keywords", false);
+            _isNavigating = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving keyword: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteKeyword(ActionKeyword keyword)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Keyword",
+            $"Are you sure you want to delete the keyword '{keyword.CommandName}'? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true && keyword.Id.HasValue)
+        {
+            try
+            {
+                await KeywordService.DeleteAsync(keyword.Id.Value);
+                Snackbar.Add($"Keyword '{keyword.CommandName}' deleted successfully", Severity.Success);
+
+                await LoadKeywords();
+                _selectedKeyword = null;
+                _isNewKeyword = false;
+                _triggeredActions = null;
+
+                _isNavigating = true;
+                NavigationManager.NavigateTo("/actions/keywords", false);
+                _isNavigating = false;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting keyword: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _selectedKeyword = null;
+        _isNewKeyword = false;
+        _triggeredActions = null;
+
+        // Clear URL when canceling
+        _isNavigating = true;
+        NavigationManager.NavigateTo("/actions/keywords", false);
+        _isNavigating = false;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

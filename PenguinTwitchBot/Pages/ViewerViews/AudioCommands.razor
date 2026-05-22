@@ -1,0 +1,219 @@
+﻿@page "/acommands"
+@inject AuthenticationStateProvider AuthenticationStateProvider;
+@inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
+
+<PageTitle>SPTV Twitch Bot - Audio Commands</PageTitle>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.AudioFile" Class="mr-2" />
+            Audio Commands
+        </MudText>
+
+        <MudPaper Elevation="3">
+            @if (!dataLoaded)
+            {
+                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.h6">Loading audio commands...</MudText>
+                    </MudStack>
+                </MudOverlay>
+            }
+
+            <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)" Dense="true" Hover="true">
+                <ToolBarContent>
+                    <MudIcon Icon="@Icons.Material.Filled.AudioFile" Color="Color.Primary" Class="mr-2" />
+                    <MudText Typo="Typo.h6">Available Audio Commands</MudText>
+                    <MudSpacer />
+                    <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Command</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Rank</MudTh>
+                    <MudTh>Cost</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Command">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText><strong>@context.Command</strong></MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        <MudText>@context.Category</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Rank">
+                        @if (context.Rank == Rank.Viewer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Success" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Subscriber)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarBorder" Size="Size.Small" Color="Color.Secondary" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Vip)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.StarHalf" Size="Size.Small" Color="Color.Info" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Moderator)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Rank == Rank.Streamer)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Error" />
+                                <MudText>@context.Rank</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText>@context.Rank</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Cost">
+                        @if (context.Cost > 0)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Money" Size="Size.Small" Color="Color.Warning" />
+                                <MudText>@context.Cost</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success">Free</MudText>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SearchOff">
+                        No audio commands found matching your search.
+                    </MudAlert>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+@code {
+    private List<CommandModel> commands = new();
+    private string searchString1 = "";
+    private bool dataLoaded = false;
+
+    [Inject]
+    private PenguinTwitchBot.Bot.Commands.AudioCommand.AudioCommands AudioCommandService { get; set; } = default!;
+
+    public class CommandModel
+    {
+        public string Command { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int GlobalCooldown { get; set; }
+        public Rank Rank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string? SpecificUser { get; set; } = "";
+        public List<string> SpecificUsers { get; set; } = new List<string>();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider
+           .GetAuthenticationStateAsync();
+        var user = authState.User;
+        var tempCommands = new List<CommandModel>();
+        var audioCommands = AudioCommandService.GetAudioCommands();
+        foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
+        {
+            tempCommands.Add(new CommandModel
+                {
+                    Command = "!" + command.Value.CommandName,
+                    UserCooldown = command.Value.UserCooldown,
+                    GlobalCooldown = command.Value.GlobalCooldown,
+                    Rank = command.Value.MinimumRank,
+                    Cost = command.Value.Cost,
+                    Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
+                    Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
+                });
+        }
+
+        var aliases = await Aliases.GetAliasesAsync();
+        foreach (var command in aliases)
+        {
+            var tempCommand = tempCommands.Where(x => x.Command.Equals("!" + command.CommandName)).FirstOrDefault();
+            if (tempCommand == null) continue;
+            tempCommands.Add(new CommandModel
+            {
+                Command = "!" + command.AliasName,
+                UserCooldown = tempCommand.UserCooldown,
+                GlobalCooldown = tempCommand.GlobalCooldown,
+                Rank = tempCommand.Rank,
+                Cost = tempCommand.Cost,
+                Description = tempCommand.Description,
+                Category = tempCommand.Category,
+                SpecificUser = tempCommand.SpecificUser,
+                SpecificUsers = tempCommand.SpecificUsers
+            });
+        }
+
+        if (user.Identity is not null)
+        {
+            tempCommands = tempCommands.Where(x =>
+                 string.IsNullOrWhiteSpace(x.SpecificUser) ||
+                    x.SpecificUser.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase) ||
+                    x.SpecificUsers.Any(s => s.Equals(user.Identity.Name, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+        else
+        {
+            tempCommands = tempCommands.Where(x => string.IsNullOrWhiteSpace(x.SpecificUser) || x.SpecificUsers.Count == 0).ToList();
+        }
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && (user.IsInRole("Moderator") || user.IsInRole("Streamer")))
+        {
+            commands = tempCommands.OrderBy(x => x.Command).ToList();
+        }
+        else
+        {
+            commands = tempCommands.Where(x => x.Rank < Rank.Moderator).OrderBy(x => x.Command).ToList();
+        }
+
+        commands = commands.DistinctBy(x => x.Command).ToList();
+        dataLoaded = true;
+    }
+
+    private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
+
+    private bool FilterFunc(CommandModel element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Command.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    }

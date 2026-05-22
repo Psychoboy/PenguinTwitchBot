@@ -1,0 +1,20 @@
+﻿using PenguinTwitchBot.Bot.Actions;
+using System.Collections.Concurrent;
+
+namespace PenguinTwitchBot.Bot.Queues
+{
+    public interface IActionQueue
+    {
+        string Name { get; }
+        bool IsBlocking { get; }
+        bool IsEnabled { get; set; }
+        int MaxConcurrentActions { get; }
+        int PendingCount { get; }
+        long CompletedCount { get; }
+        int CurrentlyExecuting { get; }
+
+        Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null);
+        Task StartAsync(CancellationToken cancellationToken);
+        Task StopAsync();
+    }
+}

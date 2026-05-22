@@ -1,0 +1,22 @@
+﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Bot.Queues;
+using System.Collections.Concurrent;
+
+namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
+{
+    public class CurrentTimeHandler() : ISubActionHandler
+    {
+        public SubActionTypes SupportedType => SubActionTypes.CurrentTime;
+
+        public Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
+        {
+            if (subAction is not CurrentTimeType)
+            {
+                throw new SubActionHandlerException(subAction, "SubAction with type CurrentTime is not of CurrentTimeType class");
+            }
+            var time = DateTime.Now.ToString("h:mm:ss tt");
+            variables["current_time"] = time;
+            return Task.CompletedTask;
+        }
+    }
+}

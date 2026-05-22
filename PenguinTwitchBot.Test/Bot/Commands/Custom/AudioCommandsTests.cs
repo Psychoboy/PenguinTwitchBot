@@ -1,0 +1,375 @@
+﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands.AudioCommand;
+using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Moderation;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Repository;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MockQueryable.NSubstitute;
+using NSubstitute;
+using NSubstitute.ReceivedExtensions;
+using System.Collections.Concurrent;
+
+namespace PenguinTwitchBot.Tests
+{
+    public class AudioCommandsTests
+    {
+        private readonly Language _langage;
+
+        public AudioCommandsTests()
+        {
+            _langage = new Language();
+            _langage.LoadLanguage();
+        }
+        [Fact]
+        public async Task AddAudioCommand_ShouldAddCommandToDatabase()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var knownBots = Substitute.For<IKnownBots>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
+                _langage, Substitute.For<ICommandHandler>());
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand" };
+            // Act
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            // Assert
+            await dbContext.AudioCommands.Received(1).AddAsync(audioCommand);
+            await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task AddAudioCommand_ShouldNotAddCommandToDatabase()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            var audioCommand = new AudioCommand { CommandName = "testCommand" };
+            var queryable = new List<AudioCommand> { audioCommand }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
+                _langage, Substitute.For<ICommandHandler>());
+
+            // Act
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            // Assert
+            await dbContext.AudioCommands.Received(0).AddAsync(audioCommand);
+            await dbContext.Received(0).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task SaveAudioCommand_ShouldSave()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
+                _langage, Substitute.For<ICommandHandler>());
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand" };
+            // Act
+            await audioCommands.SaveAudioCommand(audioCommand);
+
+            // Assert
+            dbContext.AudioCommands.Received(1).Update(audioCommand);
+            await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task GetAudioCommand_ShouldGet()
+        {
+            // Arrange
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var audiCommand = new AudioCommand { Id = 1, CommandName = "TestCommand" };
+            var queryable = new List<AudioCommand> { audiCommand }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), Substitute.For<IServiceBackbone>(),
+                _langage, Substitute.For<ICommandHandler>());
+
+
+            // Act
+            var testAudioCommand = await audioCommands.GetAudioCommand(1);
+
+            // Assert
+            Assert.Equal(audiCommand, testAudioCommand);
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotFollower()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                _langage, commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Follower };
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            viewerFeature.IsFollowerByUsername(Arg.Any<string>()).Returns(false);
+
+            // Act
+
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await dispatcher.Received(0).Publish(Arg.Any<QueueAlert>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotSubscriber()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                _langage, commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Subscriber };
+            viewerFeature.IsSubscriber(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await dispatcher.Received(0).Publish(Arg.Any<QueueAlert>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNotModerator()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                _langage, commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Moderator };
+            viewerFeature.IsModerator(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await dispatcher.Received(0).Publish(Arg.Any<QueueAlert>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldFailForNoStreamer()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                _langage, commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Streamer };
+            serviceBackbone.IsBroadcasterOrBot(Arg.Any<string>()).Returns(false);
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await dispatcher.Received(0).Publish(Arg.Any<QueueAlert>());
+        }
+
+        [Fact]
+        public async Task RunCommand_ShouldSucceedForAll()
+        {
+            // Arrange
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            var actionManagement = Substitute.For<PenguinTwitchBot.Bot.Actions.IActionManagementService>();
+            var actionService = Substitute.For<PenguinTwitchBot.Bot.Actions.IAction>();
+
+            scopeFactory.CreateScope().Returns(scope);
+
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+            serviceProvider.GetService(typeof(PenguinTwitchBot.Bot.Actions.IActionManagementService)).Returns(actionManagement);
+            serviceProvider.GetService(typeof(PenguinTwitchBot.Bot.Actions.IAction)).Returns(actionService);
+
+            var queryable = new List<AudioCommand> { }.BuildMockDbSet().AsQueryable();
+            dbContext.AudioCommands.Find(x => true).ReturnsForAnyArgs(queryable);
+
+
+            var audioCommands = new AudioCommands(dispatcher, scopeFactory,
+                Substitute.For<ILogger<AudioCommands>>(), serviceBackbone,
+                _langage, commandHandler);
+
+
+            var audioCommand = new AudioCommand { CommandName = "testCommand", Disabled = false, MinimumRank = Rank.Viewer, GlobalCooldown = 5, UserCooldown = 5 };
+            var testResult = new List<AudioCommand> { audioCommand };
+            dbContext.AudioCommands.GetAllAsync().Returns(testResult);
+            await audioCommands.AddAudioCommand(audioCommand);
+
+            commandHandler.IsCoolDownExpiredWithMessage(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+            commandHandler.CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>()).Returns(true);
+
+            // Act
+            await audioCommands.RunCommand(new() { Command = "testCommand" });
+
+            // Assert
+            await actionService.Received(1).EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<PenguinTwitchBot.Bot.Actions.ActionType>());
+        }
+    }
+}

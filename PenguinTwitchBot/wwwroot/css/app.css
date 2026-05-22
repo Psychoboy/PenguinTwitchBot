@@ -1,0 +1,19 @@
+﻿:root {
+    --mud-palette-table-striped: rgba(255,255,255,0.075) !important;
+}
+
+#components-reconnect-modal > div {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show > .show {
+    display: block;
+}
+
+#components-reconnect-modal.components-reconnect-failed > .failed {
+    display: block;
+}
+
+#components-reconnect-modal.components-reconnect-rejected > .rejected {
+    display: block;
+}

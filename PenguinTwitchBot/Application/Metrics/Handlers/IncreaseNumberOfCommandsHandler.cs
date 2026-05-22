@@ -1,0 +1,30 @@
+﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Notifications;
+using Prometheus;
+
+namespace PenguinTwitchBot.Application.Metrics.Handlers
+{
+    public class IncreaseNumberOfCommandsHandler : Application.Notifications.INotificationHandler<RunCommandNotification>, Application.Notifications.INotificationHandler<StreamStartedNotification>
+    {
+        private static readonly Gauge NumberOfCommands = Prometheus.Metrics.CreateGauge("number_of_commands", "Number of commands used since last restart", labelNames: ["command", "viewer"]);
+        public Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
+        {
+            var eventArgs = notification.EventArgs;
+            if (eventArgs != null)
+            {
+                NumberOfCommands.WithLabels(eventArgs.Command, eventArgs.Name).Inc();
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task Handle(StreamStartedNotification notification, CancellationToken cancellationToken)
+        {
+            var labels = NumberOfCommands.GetAllLabelValues();
+            foreach (var label in labels)
+            {
+                NumberOfCommands.RemoveLabelled(label);
+            }
+            return Task.CompletedTask;
+        }
+    }
+}
