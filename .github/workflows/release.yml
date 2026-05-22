@@ -1,4 +1,4 @@
-name: Test My Action
+name: Release
 on:
   workflow_dispatch: # This must be here to register the manual trigger
 jobs:
