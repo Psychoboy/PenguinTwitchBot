@@ -20,6 +20,7 @@ namespace DotNetTwitchBot.Bot.Core
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DiscordSettings _settings;
+        private readonly string _broadcaster;
         private bool isReady = false;
 
         public DiscordService(
@@ -41,6 +42,7 @@ namespace DotNetTwitchBot.Bot.Core
 
             var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
             _settings = settings;
+            _broadcaster = configuration["broadcaster"] ?? "";
             var config = new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
@@ -100,10 +102,10 @@ namespace DotNetTwitchBot.Bot.Core
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
                     .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
-                    .WithTitle("SuperPenguinTV has just went live on Twitch!")
+                    .WithTitle($"{_broadcaster} has just went live on Twitch!")
                     .AddField("Now Playing", await _twitchService.GetCurrentGame())
                     .AddField("Stream Title", await _twitchService.GetStreamTitle())
-                    .WithUrl("https://twitch.tv/SuperPenguinTV")
+                    .WithUrl($"https://twitch.tv/{_broadcaster}")
                     .WithImageUrl(imageUrl)
                     .WithCurrentTimestamp()
                     .WithFooter("Twitch").Build();
@@ -167,7 +169,7 @@ namespace DotNetTwitchBot.Bot.Core
         {
             //1033836361653964851
             IGuild guild = GetGuild();
-            var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: "https://twitch.tv/superpenguintv");
+            var evt = await guild.CreateEventAsync(scheduledStream.Title, scheduledStream.Start, GuildScheduledEventType.External, GuildScheduledEventPrivacyLevel.Private, endTime: scheduledStream.End, location: $"https://twitch.tv/{_broadcaster}");
             scheduledStream.DiscordEventId = evt.Id;
             return evt.Id;
         }

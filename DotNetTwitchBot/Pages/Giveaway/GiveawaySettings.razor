@@ -6,36 +6,117 @@
 @inject DotNetTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
 @inject DotNetTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>SPTV Twitch Bot - Giveaway Settings</PageTitle>
 
-<MudCard>
-    <MudCardContent>
-        <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" />
-        <MudTextField Label="Image Url" Required="false" @bind-Value="@Image" />
-        <MudTextField Label="Prize Tier" Required="false" @bind-Value="@PrizeTier" />
-        <MudTextField Label="Additional Details" Required="false" @bind-Value="@PrizeAdditionalDetails" Lines="3" />
-        @if (!string.IsNullOrEmpty(PrizeAdditionalDetails))
-        {
-            <MudDivider />
-            <MudText Typo="Typo.h6" Class="mt-4">Markdown Preview</MudText>
-            <MudMarkdown Value="@PrizeAdditionalDetails" />
-        }
-        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto"
-            OnClick="OnPrizeSubmit">
-            Submit
-        </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Reset">Reset</MudButton>
-    </MudCardContent>
-</MudCard>
+<MudStack Spacing="4" Class="pa-4">
 
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Current Giveaway</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" Variant="Variant.Outlined" />
+                <MudTextField Label="Image Url" @bind-Value="@Image" Variant="Variant.Outlined" />
+                <MudTextField Label="Prize Tier" @bind-Value="@PrizeTier" Variant="Variant.Outlined" />
+                <MudTextField Label="Additional Details (Markdown)" @bind-Value="@PrizeAdditionalDetails" Lines="4" Variant="Variant.Outlined" />
+                @if (!string.IsNullOrEmpty(PrizeAdditionalDetails))
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
+                    <MudMarkdown Value="@PrizeAdditionalDetails" />
+                }
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnPrizeSubmit" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">Reset Giveaway</MudButton>
+        </MudCardActions>
+    </MudCard>
 
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Giveaway Rules</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown. Shown on the viewer giveaway page.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudTextField Label="Rules (Markdown)" @bind-Value="@Rules" Lines="6" Variant="Variant.Outlined" />
+                @if (!string.IsNullOrEmpty(Rules))
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
+                    <MudMarkdown Value="@Rules" />
+                }
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveRules" StartIcon="@Icons.Material.Filled.Save">Save Rules</MudButton>
+        </MudCardActions>
+    </MudCard>
+
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Prize Tiers &amp; Cooldowns</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown including tables. Shown under Giveaway Rules on the viewer page.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudTextField Label="Cooldowns (Markdown)" @bind-Value="@Cooldowns" Lines="8" Variant="Variant.Outlined" />
+                @if (!string.IsNullOrEmpty(Cooldowns))
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
+                    <MudMarkdown Value="@Cooldowns" />
+                }
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCooldowns" StartIcon="@Icons.Material.Filled.Save">Save Cooldowns</MudButton>
+        </MudCardActions>
+    </MudCard>
+
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Terms &amp; Conditions</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown including links. Shown on the viewer giveaway page.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudTextField Label="Terms (Markdown)" @bind-Value="@Terms" Lines="8" Variant="Variant.Outlined" />
+                @if (!string.IsNullOrEmpty(Terms))
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
+                    <MudMarkdown Value="@Terms" />
+                }
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTerms" StartIcon="@Icons.Material.Filled.Save">Save Terms</MudButton>
+        </MudCardActions>
+    </MudCard>
+
+</MudStack>
 
 @code {
     private string? Prize { get; set; }
     private string? Image { get; set; }
     private string? PrizeTier { get; set; }
     public string? PrizeAdditionalDetails { get; set; }
+    private string Rules { get; set; } = "";
+    private string Cooldowns { get; set; } = "";
+    private string Terms { get; set; } = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,22 +124,44 @@
         Image = await GiveawayFeature.GetImageUrl();
         PrizeTier = await GiveawayFeature.GetPrizeTier();
         PrizeAdditionalDetails = await GiveawayFeature.GetPrizeAdditionalDetails();
+        Rules = await GiveawayFeature.GetRules();
+        Cooldowns = await GiveawayFeature.GetCooldowns();
+        Terms = await GiveawayFeature.GetTerms();
     }
 
-    public async void OnPrizeSubmit()
+    public async Task OnPrizeSubmit()
     {
         if (Prize == null) return;
         await GiveawayFeature.SetPrize(Prize);
         await GiveawayFeature.SetImageUrl(Image);
         await GiveawayFeature.SetPrizeTier(PrizeTier);
         await GiveawayFeature.SetPrizeAdditionalDetails(PrizeAdditionalDetails);
+        Snackbar.Add("Giveaway saved.", Severity.Success);
+    }
+
+    public async Task SaveRules()
+    {
+        await GiveawayFeature.SetRules(Rules);
+        Snackbar.Add("Rules saved.", Severity.Success);
+    }
+
+    public async Task SaveCooldowns()
+    {
+        await GiveawayFeature.SetCooldowns(Cooldowns);
+        Snackbar.Add("Cooldowns saved.", Severity.Success);
+    }
+
+    public async Task SaveTerms()
+    {
+        await GiveawayFeature.SetTerms(Terms);
+        Snackbar.Add("Terms saved.", Severity.Success);
     }
 
     public async void Reset()
     {
         await DatabaseTools.Backup();
         await GiveawayFeature.Reset();
-        // await TicketsFeature.ResetAllPoints();
         await PointSystem.RemoveAllPointsForGame("GiveawayFeature");
+        Snackbar.Add("Giveaway reset.", Severity.Info);
     }
 }

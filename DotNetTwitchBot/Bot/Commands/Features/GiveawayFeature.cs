@@ -30,6 +30,31 @@ namespace DotNetTwitchBot.Bot.Commands.Features
         private readonly string ImageSettingName = "GiveawayPrizeImage";
         private readonly string PrizeTierName = "GiveawayPrizeTier";
         private readonly string GiveawayAdditionalDetailsSettingName = "GiveawayAdditionalDetails";
+        private readonly string GiveawayRulesSettingName = "GiveawayRules";
+        private readonly string GiveawayCooldownsSettingName = "GiveawayCooldowns";
+        private readonly string GiveawayTermsSettingName = "GiveawayTerms";
+
+        private static readonly string DefaultRulesMarkdown =
+            "- Winners do **NOT** need to be present during the drawing\n" +
+            "- Multiple accounts (botting) will result in **exclusion from all giveaways**\n" +
+            "- Banned users (Discord or Twitch) are **not eligible**";
+
+        private static readonly string DefaultCooldownsMarkdown =
+            "After winning, you'll have a cooldown before being eligible for standard giveaways again " +
+            "(special giveaways always eligible).\n\n" +
+            "| Tier | Prize Value | Cooldown Period |\n" +
+            "|------|-------------|-----------------|\n" +
+            "| **Tier 1** | Less than $75 | 1 month or next giveaway |\n" +
+            "| **Tier 2** | $75 \u2013 $115 | 2 months or next 2 giveaways |\n" +
+            "| **Tier 3** | Greater than $115 | 3 months or next 3 giveaways |";
+
+        private static readonly string DefaultTermsMarkdown =
+            "- Winners have **48 hours** to whisper the streamer on Twitch to claim their prize\n" +
+            "- Winners announced live on stream and in [Discord](https://discord.gg/4zVq4DyBFS) (#giveaway-winners channel)\n" +
+            "- **Subscribers** auto-claim and will be whispered directly\n" +
+            "- The streamer reserves the right to change giveaways at any time\n" +
+            "- Must be **18+** to participate\n" +
+            "- Void where prohibited by law";
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
@@ -239,6 +264,36 @@ namespace DotNetTwitchBot.Bot.Commands.Features
             prize.StringSetting = arg ?? "";
             await AddOrUpdatePrize(prize);
             await hubContext.Clients.All.SendAsync("PrizeAdditionalDetails", arg);
+        }
+
+        public async Task<string> GetRules()
+        {
+            return await gameSettingsService.GetStringSetting(ModuleName, GiveawayRulesSettingName, DefaultRulesMarkdown);
+        }
+
+        public async Task SetRules(string value)
+        {
+            await gameSettingsService.SetStringSetting(ModuleName, GiveawayRulesSettingName, value);
+        }
+
+        public async Task<string> GetCooldowns()
+        {
+            return await gameSettingsService.GetStringSetting(ModuleName, GiveawayCooldownsSettingName, DefaultCooldownsMarkdown);
+        }
+
+        public async Task SetCooldowns(string value)
+        {
+            await gameSettingsService.SetStringSetting(ModuleName, GiveawayCooldownsSettingName, value);
+        }
+
+        public async Task<string> GetTerms()
+        {
+            return await gameSettingsService.GetStringSetting(ModuleName, GiveawayTermsSettingName, DefaultTermsMarkdown);
+        }
+
+        public async Task SetTerms(string value)
+        {
+            await gameSettingsService.SetStringSetting(ModuleName, GiveawayTermsSettingName, value);
         }
 
         public async Task SetPrizeTier(string? arg)
