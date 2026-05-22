@@ -37,7 +37,6 @@ jobs:
 
     - name: Publish
       run: dotnet publish DotNetTwitchBot/DotNetTwitchBot.csproj /p:PublishProfile=FolderProfile
-      working-directory: DotNetTwitchBot
 
     - name: Zip publish output
       run: >
