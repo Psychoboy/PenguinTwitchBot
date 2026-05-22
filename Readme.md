@@ -125,7 +125,7 @@ When the wizard finishes, it saves your configuration to `appsettings.secrets.js
    > **Running on a different host or port?** See [Configuring BaseUrl](#configuring-baseurl) below and substitute your actual URL above.
 
 4. Set the category to **Chat Bot** and click **Create**.
-5. Click **Manage** â†’ **New Secret** to generate your Client Secret.
+5. Click **Manage** → **New Secret** to generate your Client Secret.
 6. Copy the **Client ID** and **Client Secret** into the setup wizard.
 
 ---
@@ -215,9 +215,9 @@ The bot includes a web-based dashboard accessible at `http://localhost:5000` (de
 The bot serves several overlay pages designed to be added as **Browser Sources** in OBS (or any other streaming software that supports browser sources). All URLs are relative to the bot's address - `http://localhost:5000` by default.
 
 To add any of these in OBS:
-1. In a Scene, click **+** under Sources â†’ **Browser**.
+1. In a Scene, click **+** under Sources → **Browser**.
 2. Paste the URL from the table below.
-3. Set the width/height to match your canvas (typically 1920Ã—1080).
+3. Set the width/height to match your canvas (typically 1920×1080).
 4. Enable **"Shutdown source when not visible"** and **"Refresh browser when scene becomes active"** as needed.
 5. Check **"Use custom frame rate"** only if you need to match a specific frame rate.
 
@@ -305,7 +305,7 @@ Stream Deck does not natively support PUT requests, but there are two easy appro
    On Linux/macOS run `chmod +x increment-death.sh` once to make it executable.
 
 2. In Stream Deck, add a **System: Open** action (Windows) or **System: Website** action and point it at your script file.
-   - On Windows you can also use **System: Run** â†’ `cmd /c "C:\path\to\increment-death.bat"`
+   - On Windows you can also use **System: Run** → `cmd /c "C:\path\to\increment-death.bat"`
    - On macOS use **System: Open** and select the `.sh` file.
 
 3. Give the button an icon and label, and you're done - pressing it will trigger the command in your Twitch chat.
