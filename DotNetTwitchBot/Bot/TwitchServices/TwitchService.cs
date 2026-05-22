@@ -1143,6 +1143,15 @@ namespace DotNetTwitchBot.Bot.TwitchServices
             ValidateEventSubscription(response, "channel.cheer");
 
             response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.bits.use", "1",
+                new Dictionary<string, string>{{"broadcaster_user_id", userId},
+                },
+                EventSubTransportMethod.Websocket,
+                sessionId, accessToken: _configuration["twitchAccessToken"]
+            );
+            ValidateEventSubscription(response, "channel.bits.use");
+
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",
                 new Dictionary<string, string>{{"broadcaster_user_id", userId},

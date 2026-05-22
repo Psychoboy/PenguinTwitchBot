@@ -118,15 +118,21 @@
     public bool ReadOnly { get; set; } = false;
 
     private Dictionary<int, string> _timerGroupNames = new();
+    private int? _previousActionId;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (ActionId.HasValue && ActionTriggers.Count == 0)
+        bool actionIdChanged = ActionId != _previousActionId;
+        _previousActionId = ActionId;
+
+        if (ActionId.HasValue && actionIdChanged && ActionTriggers.Count == 0)
         {
             await LoadTriggers();
         }
-
-        await LoadTimerGroupNames();
+        else
+        {
+            await LoadTimerGroupNames();
+        }
     }
 
     private async Task LoadTimerGroupNames()
@@ -439,6 +445,29 @@
                 filters.Add($"Duration: {config.MinAdDuration}s+");
             else
                 filters.Add($"Duration: up to {config.MaxAdDuration}s");
+        }
+
+        if (config.BitsTypes.Count > 0)
+        {
+            filters.Add($"Type: {string.Join(", ", config.BitsTypes)}");
+        }
+
+        if (config.PowerUpTypes.Count > 0)
+        {
+            filters.Add($"Power-up: {string.Join(", ", config.PowerUpTypes)}");
+        }
+
+        if (config.CustomPowerUpTitles.Count > 0)
+        {
+            if (config.CustomPowerUpTitles.Count == 1)
+                filters.Add($"Power-up title: {config.CustomPowerUpTitles[0]}");
+            else
+                filters.Add($"Power-up titles: {string.Join(", ", config.CustomPowerUpTitles.Take(2))}{(config.CustomPowerUpTitles.Count > 2 ? "..." : "")}");
+        }
+
+        if (config.CustomPowerUpRewardIds.Count > 0)
+        {
+            filters.Add($"Reward IDs: {config.CustomPowerUpRewardIds.Count}");
         }
 
         return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";

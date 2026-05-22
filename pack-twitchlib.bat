@@ -61,6 +61,17 @@ dotnet pack "%SCRIPT_DIR%TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websoc
     -o "%OUTPUT%" -c Release
 if %ERRORLEVEL% neq 0 (echo FAILED & exit /b %ERRORLEVEL%)
 
+rem -----------------------------------------------------------------------
+rem Clear stale TwitchLib entries from the global NuGet packages cache so
+rem the freshly-packed versions are used on the next restore/build.
+rem -----------------------------------------------------------------------
+echo Clearing TwitchLib entries from global NuGet cache...
+for /d %%P in ("%USERPROFILE%\.nuget\packages\twitchlib.*") do (
+    echo   Removing %%P
+    rd /s /q "%%P"
+)
+
 echo.
 echo All packages packed successfully to: %OUTPUT%
+echo Global NuGet cache cleared for TwitchLib.* packages.
 echo You can now build DotNetTwitchBot normally.

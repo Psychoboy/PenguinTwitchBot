@@ -161,6 +161,72 @@ namespace DotNetTwitchBot.Bot.Actions.Triggers
                     {
                         "Length", "Automatic", "StartedAt"
                     }
+                },
+                new TwitchEventInfo
+                {
+                    Name = "ChannelBitsUse",
+                    DisplayName = "Channel Bits Use",
+                    Description = "Triggers when someone uses Bits (cheer, power-up, or custom power-up)",
+                    SupportsFiltering = true,
+                    FilterOptions = new List<string> { "MinAmount", "MaxAmount", "BitsTypes", "PowerUpTypes", "CustomPowerUpTitles", "CustomPowerUpRewardIds" },
+                    AvailableVariables = new List<string>
+                    {
+                        "UserId", "Name", "DisplayName", "User", "Amount", "Bits", "Message", "Type",
+                        "IsPowerUp", "PowerUpType", "IsCustomPowerUp", "CustomPowerUpTitle",
+                        "CustomPowerUpRewardId", "HasBitsMessage"
+                    }
+                },
+                new TwitchEventInfo
+                {
+                    Name = "ChannelChatNotification",
+                    DisplayName = "Channel Chat Notification",
+                    Description = "Triggers on chat notification events (sub, resub, raid, watch streak, announcement, etc.)",
+                    SupportsFiltering = true,
+                    FilterOptions = new List<string>
+                    {
+                        "NoticeTypes",
+                        "SubTiers",
+                        "MinWatchStreak", "MaxWatchStreak",
+                        "MinRaidViewers", "MaxRaidViewers",
+                        "MinCumulativeMonths", "MaxCumulativeMonths",
+                        "MinCommunityGiftCount", "MaxCommunityGiftCount",
+                        "MinCharityAmount", "MaxCharityAmount",
+                        "MinBitsBadgeTier", "MaxBitsBadgeTier",
+                        "AnnouncementColors"
+                    },
+                    AvailableVariables = new List<string>
+                    {
+                        // Common
+                        "UserId", "Name", "DisplayName", "User", "IsAnonymous", "NoticeType", "SystemMessage", "Message",
+                        // Sub
+                        "Sub.SubTier", "Sub.DurationMonths", "Sub.IsPrime",
+                        // Resub
+                        "Resub.CumulativeMonths", "Resub.DurationMonths", "Resub.StreakMonths", "Resub.SubTier",
+                        "Resub.IsPrime", "Resub.IsGift", "Resub.GifterIsAnonymous", "Resub.GifterUserId", "Resub.GifterUserName", "Resub.GifterUserLogin",
+                        // SubGift
+                        "SubGift.SubTier", "SubGift.DurationMonths", "SubGift.CumulativeTotal",
+                        "SubGift.RecipientUserId", "SubGift.RecipientUserName", "SubGift.RecipientUserLogin", "SubGift.CommunityGiftId",
+                        // CommunitySubGift
+                        "CommunitySubGift.Id", "CommunitySubGift.SubTier", "CommunitySubGift.Total", "CommunitySubGift.CumulativeTotal",
+                        // GiftPaidUpgrade
+                        "GiftPaidUpgrade.GifterIsAnonymous", "GiftPaidUpgrade.GifterUserId", "GiftPaidUpgrade.GifterUserName", "GiftPaidUpgrade.GifterUserLogin",
+                        // PrimePaidUpgrade
+                        "PrimePaidUpgrade.SubTier",
+                        // Raid
+                        "Raid.UserId", "Raid.UserName", "Raid.UserLogin", "Raid.ViewerCount", "Raid.ProfileImageUrl",
+                        // PayItForward
+                        "PayItForward.GifterIsAnonymous", "PayItForward.GifterUserId", "PayItForward.GifterUserName", "PayItForward.GifterUserLogin",
+                        "PayItForward.RecipientUserId", "PayItForward.RecipientUserName", "PayItForward.RecipientUserLogin",
+                        // Announcement
+                        "Announcement.Color",
+                        // CharityDonation
+                        "CharityDonation.CharityName", "CharityDonation.AmountValue",
+                        "CharityDonation.AmountDecimalPlaces", "CharityDonation.AmountCurrency",
+                        // BitsBadgeTier
+                        "BitsBadgeTier.Tier",
+                        // WatchStreak
+                        "WatchStreak.StreakCount", "WatchStreak.ChannelPointsAwarded"
+                    }
                 }
             };
 
