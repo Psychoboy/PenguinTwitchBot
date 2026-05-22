@@ -286,6 +286,18 @@ internal class Program
         {
             using var scope = app.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var dbPath = dbContext.Database.GetConnectionString();
+            if (dbPath != null)
+            {
+                // Extract the file path from the connection string (e.g. "Data Source=Data/foo.sqlite")
+                var match = System.Text.RegularExpressions.Regex.Match(dbPath, @"Data Source=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    var dir = Path.GetDirectoryName(match.Groups[1].Value);
+                    if (!string.IsNullOrEmpty(dir))
+                        Directory.CreateDirectory(dir);
+                }
+            }
             dbContext.Database.Migrate();
         }
 
@@ -337,7 +349,9 @@ internal class Program
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
-            logger?.LogInformation("Application Starting");
+            var url = app.Configuration["BaseUrl"] ?? "http://localhost:5000";
+            logger?.LogInformation("Bot Started");
+            logger?.LogInformation("Connect to the bot at {Url}", url);
         });
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 

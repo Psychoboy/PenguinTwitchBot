@@ -16,7 +16,7 @@
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
-                "pattern": "Application Starting",
+                "pattern": "Bot Started",
                 "uriFormat": "http://localhost:5000"
             },
             "env": {
@@ -39,7 +39,7 @@
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
-                "pattern": "Application Starting",
+                "pattern": "Bot Started",
                 "uriFormat": "http://localhost:5000"
             },
             "env": {
@@ -63,7 +63,7 @@
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
-                "pattern": "Application Starting",
+                "pattern": "Bot Started",
                 "uriFormat": "http://localhost:5000"
             },
             "env": {
@@ -87,7 +87,7 @@
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
-                "pattern": "Application Starting",
+                "pattern": "Bot Started",
                 "uriFormat": "http://localhost:5000"
             },
             "env": {
