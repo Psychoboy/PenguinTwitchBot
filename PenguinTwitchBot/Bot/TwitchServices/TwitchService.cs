@@ -1245,6 +1245,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 );
             ValidateEventSubscription(response, "channel.chat.message_delete");
 
+            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.notification",
+                "1",
+                new Dictionary<string, string>{
+                    {"broadcaster_user_id", userId},
+                     {"user_id", userId}
+                },
+                EventSubTransportMethod.Websocket,
+               sessionId, accessToken: _configuration["twitchAccessToken"]
+                );
+            ValidateEventSubscription(response, "channel.chat.notification");
+
             return true;
         }
 
