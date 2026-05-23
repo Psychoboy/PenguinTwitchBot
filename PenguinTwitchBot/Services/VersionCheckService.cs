@@ -48,9 +48,19 @@ public class VersionCheckService : IVersionCheckService, IHostedService, IDispos
         try
         {
             var client = _httpClientFactory.CreateClient("GitHubRelease");
-            var release = await client.GetFromJsonAsync<GitHubRelease>(
-                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases/latest");
+            var response = await client.GetAsync(
+                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases?per_page=1");
 
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // No releases published yet — not an error
+                return;
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            var releases = await response.Content.ReadFromJsonAsync<GitHubRelease[]>();
+            var release = releases?.FirstOrDefault();
             if (release?.TagName is not null)
             {
                 LatestVersion = release.TagName.TrimStart('v');
