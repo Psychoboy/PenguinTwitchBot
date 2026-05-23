@@ -220,32 +220,56 @@ else
             @if (_step == 5)
             {
                 <MudStack Spacing="3">
-                    <MudText Typo="Typo.h6">Get Bot Token <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
-                    <MudText>
-                        The bot fetches its own access token automatically at startup using the credentials
-                        you provided. Click <strong>Test &amp; Fetch</strong> to verify the credentials now,
-                        or skip this step â€” the bot handles it on first launch.
-                    </MudText>
+                    <MudText Typo="Typo.h6">Authorize Bot Account <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
                     @if (SetupSvc.BotAuthed)
                     {
                         <MudAlert Severity="Severity.Success">
-                            Bot token fetched successfully!
+                            Bot account authorized successfully! Click <strong>Next</strong> to continue.
                         </MudAlert>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                               Disabled="_fetchingBotToken"
-                               StartIcon="@Icons.Material.Filled.SmartToy"
-                               OnClick="FetchBotTokenAsync">
-                        @(_fetchingBotToken ? "Fetchingâ€¦" : "Test & Fetch Bot Token")
-                    </MudButton>
-                    @if (_fetchingBotToken)
+                    else
                     {
-                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                        <MudText>
+                            Authorize Twitch as your <strong>bot account</strong> to grant the required chat scopes
+                            (<code>user:write:chat</code>, <code>user:bot</code>, etc.).
+                            If your bot account is different from your streamer account, use <strong>Copy Auth URL</strong>
+                            and open it in a browser where you are signed in as the bot account.
+                        </MudText>
+                        <MudAlert Severity="Severity.Warning">
+                            Make sure <code>http://localhost:5000/botredirect</code> is listed as an
+                            OAuth Redirect URL in your Twitch bot application (configured in Step 3).
+                        </MudAlert>
+                        @if (_botAuthFailed)
+                        {
+                            <MudAlert Severity="Severity.Error">
+                                Authorization failed or was denied. Please try again.
+                            </MudAlert>
+                        }
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.OpenInBrowser"
+                                       OnClick="BeginBotAuth">
+                                Open Auth Page in Browser
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                                       OnClick="PrepareBotAuthUrl">
+                                Copy Auth URL
+                            </MudButton>
+                        </MudStack>
+                        @if (_botAuthUrl != null)
+                        {
+                            <MudTextField Value="@_botAuthUrl" ReadOnly="true"
+                                          Label="Auth URL — copy and open in the browser where your bot account is logged in"
+                                          Variant="Variant.Outlined"
+                                          Lines="3" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                This URL includes a one-time state token. Generate a new one each time you need it.
+                            </MudText>
+                        }
                     }
                 </MudStack>
             }
-
-            <!-- â”€â”€ Step 6: Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
             @if (_step == 6)
             {
                 <MudStack Spacing="3">
@@ -506,7 +530,7 @@ else
         "Twitch Streamer App",
         "Twitch Bot App",
         "Authorize Streamer Account",
-        "Get Bot Token",
+        "Authorize Bot Account",
         "Database",
         "YouTube API",
         "Discord",
@@ -545,12 +569,21 @@ else
         "moderator:read:suspicious_users"
     ];
 
+    private static readonly string[] BotScopes =
+    [
+        "chat:read", "chat:edit", "user:read:chat", "user:write:chat",
+        "user:bot", "channel:bot", "whispers:read", "whispers:edit",
+        "user:manage:whispers", "moderator:manage:chat_messages",
+        "moderator:manage:banned_users"
+    ];
+
     private SetupWizardModel _model = new();
     private int _step = 0;
     private bool _done = false;
     private bool _saving = false;
     private bool _streamerAuthFailed = false;
-    private bool _fetchingBotToken = false;
+    private bool _botAuthFailed = false;
+    private string? _botAuthUrl;
     private readonly List<string> _errors = [];
 
     private string StepTitle => _stepTitles[_step];
@@ -563,6 +596,10 @@ else
             _model = SetupSvc.PendingModel;
             _step = SetupSvc.PendingStep;
         }
+        else
+        {
+            _model = SetupSvc.TryLoadExistingConfig() ?? new SetupWizardModel();
+        }
 
         var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
         var query = QueryHelpers.ParseQuery(uri.Query);
@@ -574,11 +611,19 @@ else
             _step = 4;
             _streamerAuthFailed = true;
         }
+        else if (query.ContainsKey("botAuthed"))
+            _step = 5;
+        else if (query.ContainsKey("botAuthFailed"))
+        {
+            _step = 5;
+            _botAuthFailed = true;
+        }
     }
 
     private void PreviousStep()
     {
         if (_step > 0) _step--;
+        _botAuthUrl = null;
         _errors.Clear();
     }
 
@@ -613,41 +658,27 @@ else
         NavManager.NavigateTo(url, forceLoad: true);
     }
 
-    private async Task FetchBotTokenAsync()
+    private void BeginBotAuth()
     {
-        _fetchingBotToken = true;
-        _errors.Clear();
-        StateHasChanged();
-        try
-        {
-            var clientId = _model.BotUseSameApp ? _model.TwitchClientId : _model.TwitchBotClientId;
-            var clientSecret = _model.BotUseSameApp ? _model.TwitchClientSecret : _model.TwitchBotClientSecret;
-            using var http = new HttpClient();
-            var form = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["client_id"] = clientId,
-                ["client_secret"] = clientSecret,
-                ["grant_type"] = "client_credentials"
-            });
-            var response = await http.PostAsync("https://id.twitch.tv/oauth2/token", form);
-            if (!response.IsSuccessStatusCode)
-            {
-                _errors.Add($"Failed to get bot token (HTTP {(int)response.StatusCode}). Check your bot client ID and secret.");
-                return;
-            }
-            var json = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<TwitchClientCredResult>(json);
-            if (result != null)
-                SetupSvc.SetBotTokens(result.AccessToken, "", result.ExpiresIn);
-        }
-        catch (Exception ex)
-        {
-            _errors.Add($"Error fetching bot token: {ex.Message}");
-        }
-        finally
-        {
-            _fetchingBotToken = false;
-        }
+        if (_botAuthUrl == null) PrepareBotAuthUrl();
+        NavManager.NavigateTo(_botAuthUrl!, forceLoad: true);
+    }
+
+    private void PrepareBotAuthUrl()
+    {
+        _botAuthFailed = false;
+        SetupSvc.SavePendingModel(_model, 5);
+        var state = SetupSvc.BeginAuth();
+        var clientId = _model.BotUseSameApp ? _model.TwitchClientId : _model.TwitchBotClientId;
+        var scopeStr = string.Join("+", BotScopes);
+        const string botRedirect = "http://localhost:5000/botredirect";
+        _botAuthUrl = "https://id.twitch.tv/oauth2/authorize" +
+                  $"?client_id={Uri.EscapeDataString(clientId)}" +
+                  $"&redirect_uri={Uri.EscapeDataString(botRedirect)}" +
+                  "&response_type=code" +
+                  $"&scope={scopeStr}" +
+                  $"&state={state}" +
+                  "&force_verify=true";
     }
 
     private bool ValidateCurrentStep()
@@ -719,8 +750,4 @@ else
 
     private static string Mask(string value) =>
         string.IsNullOrWhiteSpace(value) ? "(not set)" : "****";
-
-    private sealed record TwitchClientCredResult(
-        [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("expires_in")] int ExpiresIn);
 }
