@@ -103,7 +103,7 @@ The wizard covers the following steps:
 | 3 | **Twitch Streamer App** - Client ID and Secret from [dev.twitch.tv](https://dev.twitch.tv/console/apps/create) |
 | 4 | **Twitch Bot App** - can reuse the streamer app or use a separate one |
 | 5 | **Authorize Streamer Account** - OAuth authorization via your browser |
-| 6 | **Bot Token** *(optional)* - test and fetch the bot's access token |
+| 6 | **Authorize Bot Account** *(optional)* - OAuth authorization for your bot account; grants `user:write:chat` and `user:bot` scopes required for sending chat messages |
 | 7 | **Database** - choose SQLite, MariaDB, or PostgreSQL (see [Database Support](#database-support)) |
 | 8 | **YouTube API** *(optional)* - enables the song request feature |
 | 9 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
@@ -112,6 +112,17 @@ The wizard covers the following steps:
 | 12 | **Review & Save** - review all settings (secrets masked) and write `appsettings.secrets.json` |
 
 When the wizard finishes, it saves your configuration to `appsettings.secrets.json` in the bot's directory and shuts itself down automatically.
+
+#### Authorizing the bot account (Step 6)
+
+The bot account requires a **user access token** with the `user:write:chat` and `user:bot` scopes — a plain app token is not sufficient.
+
+Step 6 provides two options:
+
+- **Open Auth Page in Browser** — opens the Twitch authorization page directly. Twitch will show a sign-in prompt (forced by `force_verify=true`) so you can switch accounts if needed.
+- **Copy Auth URL** — generates the authorization URL and displays it in a text field so you can copy and paste it into a different browser or incognito window where your bot account is already signed in.
+
+> **Tip:** If your bot and streamer accounts are different Twitch accounts, use **Copy Auth URL** and paste it into a browser session where the bot account is logged in.
 
 #### Creating a Twitch Developer Application
 
@@ -138,7 +149,7 @@ The bot starts a web server. Open your browser to `http://localhost:5000` (or th
 
 On first launch, the database will be automatically created and migrated. The bot will then connect to Twitch and begin operating.
 
-> **Tip:** If you skipped the OAuth authorization steps in the setup wizard, navigate to `/streamersignin` and `/botsignin` in the dashboard to authorize your Twitch accounts before using all features.
+> **Tip:** If you skipped the bot account authorization in the setup wizard, navigate to `/botsignin` in the dashboard to authorize your bot account after the bot starts.
 
 ### Configuring BaseUrl
 

@@ -9,6 +9,7 @@ namespace PenguinTwitchBot.Setup.Controllers;
 public class AuthController(SetupService setupService, ILogger<AuthController> logger) : ControllerBase
 {
     private const string StreamerRedirectUri = "http://localhost:5000/streamerredirect";
+    private const string BotRedirectUri = "http://localhost:5000/botredirect";
 
     [HttpGet("/streamerredirect")]
     public async Task<IActionResult> StreamerRedirect(
@@ -45,6 +46,43 @@ public class AuthController(SetupService setupService, ILogger<AuthController> l
         setupService.SetStreamerTokens(tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn);
         logger.LogInformation("Streamer account authorized successfully");
         return Redirect("/?streamerAuthed=1");
+    }
+
+    [HttpGet("/botredirect")]
+    public async Task<IActionResult> BotRedirect(
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromQuery] string? error)
+    {
+        if (!string.IsNullOrEmpty(error))
+        {
+            var safeError = error.Replace("\r", "").Replace("\n", "");
+            logger.LogWarning("Bot auth denied by user: {Error}", safeError);
+            return Redirect("/?botAuthFailed=1");
+        }
+
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
+            return Redirect("/");
+
+        if (!setupService.ValidateAndConsumeState(state))
+        {
+            logger.LogWarning("Invalid or expired OAuth state token in bot redirect");
+            return Redirect("/?botAuthFailed=1");
+        }
+
+        var clientId = setupService.PendingModel?.TwitchBotClientId ?? setupService.PendingModel?.TwitchClientId ?? "";
+        var clientSecret = setupService.PendingModel?.TwitchBotClientSecret ?? setupService.PendingModel?.TwitchClientSecret ?? "";
+
+        var tokens = await ExchangeCodeAsync(code, clientId, clientSecret, BotRedirectUri);
+        if (tokens == null)
+        {
+            logger.LogError("Failed to exchange bot auth code for tokens");
+            return Redirect("/?botAuthFailed=1");
+        }
+
+        setupService.SetBotTokens(tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn);
+        logger.LogInformation("Bot account authorized successfully");
+        return Redirect("/?botAuthed=1");
     }
 
     private static async Task<TwitchTokenResult?> ExchangeCodeAsync(

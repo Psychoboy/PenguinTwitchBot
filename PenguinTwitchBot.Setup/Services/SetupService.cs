@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using PenguinTwitchBot.Setup.Models;
 
 namespace PenguinTwitchBot.Setup.Services
@@ -42,6 +43,7 @@ namespace PenguinTwitchBot.Setup.Services
         public bool StreamerAuthed => !string.IsNullOrEmpty(TwitchAccessToken);
 
         public string? TwitchBotAccessToken { get; private set; }
+        public string? TwitchBotRefreshToken { get; private set; }
         public int TwitchBotExpiresIn { get; private set; }
         public bool BotAuthed => !string.IsNullOrEmpty(TwitchBotAccessToken);
 
@@ -55,6 +57,7 @@ namespace PenguinTwitchBot.Setup.Services
         public void SetBotTokens(string accessToken, string refreshToken, int expiresIn)
         {
             TwitchBotAccessToken = accessToken;
+            TwitchBotRefreshToken = refreshToken;
             TwitchBotExpiresIn = expiresIn;
         }
 
@@ -80,7 +83,7 @@ namespace PenguinTwitchBot.Setup.Services
                 ["twitchBotClientId"] = model.TwitchBotClientId.Trim(),
                 ["twitchBotClientSecret"] = model.TwitchBotClientSecret.Trim(),
                 ["twitchBotAccessToken"] = TwitchBotAccessToken ?? "",
-                ["twitchBotRefreshToken"] = "",
+                ["twitchBotRefreshToken"] = TwitchBotRefreshToken ?? "",
                 ["botExpiresIn"] = (object)TwitchBotExpiresIn,
                 ["expiresIn"] = (object)TwitchExpiresIn,
                 ["youtubeApi"] = model.YoutubeApiKey.Trim(),
@@ -123,6 +126,64 @@ namespace PenguinTwitchBot.Setup.Services
         }
 
         public void SignalStop() => lifetime.StopApplication();
+
+        public SetupWizardModel? TryLoadExistingConfig()
+        {
+            try
+            {
+                if (!File.Exists(secretsFilePath)) return null;
+                var json = File.ReadAllText(secretsFilePath);
+                var node = JsonNode.Parse(json);
+                if (node == null) return null;
+
+                var model = new SetupWizardModel
+                {
+                    BotName = node["botName"]?.GetValue<string>() ?? "",
+                    Broadcaster = node["broadcaster"]?.GetValue<string>() ?? "",
+                    BaseUrl = node["BaseUrl"]?.GetValue<string>() ?? "http://localhost:5000",
+                    TwitchClientId = node["twitchClientId"]?.GetValue<string>() ?? "",
+                    TwitchClientSecret = node["twitchClientSecret"]?.GetValue<string>() ?? "",
+                    TwitchBotClientId = node["twitchBotClientId"]?.GetValue<string>() ?? "",
+                    TwitchBotClientSecret = node["twitchBotClientSecret"]?.GetValue<string>() ?? "",
+                    YoutubeApiKey = node["youtubeApi"]?.GetValue<string>() ?? "",
+                    SqliteFilePath = node["ConnectionStrings"]?["SqliteConnection"]?.GetValue<string>() ?? "",
+                    MariaDbConnectionString = node["ConnectionStrings"]?["MariaDbConnection"]?.GetValue<string>() ?? "",
+                    PostgresConnectionString = node["ConnectionStrings"]?["PostgresConnection"]?.GetValue<string>() ?? "",
+                    DiscordToken = node["Discord"]?["discordToken"]?.GetValue<string>() ?? "",
+                    DiscordServerId = node["Discord"]?["DiscordServerId"]?.ToString() ?? "",
+                    DiscordBroadcastChannel = node["Discord"]?["BroadcastChannel"]?.ToString() ?? "",
+                    DiscordPingRoleId = node["Discord"]?["PingRoleWhenLive"]?.ToString() ?? "",
+                    DiscordMemberRoleId = node["Discord"]?["RoleIdToAssignMemberWhenLive"]?.ToString() ?? "",
+                    WeatherApiKey = node["Weather"]?["ApiKey"]?.GetValue<string>() ?? "",
+                    WeatherDefaultLocation = node["Weather"]?["DefaultLocation"]?.GetValue<string>() ?? "",
+                    OpenAiApiKey = node["OpenAI"]?["ApiKey"]?.GetValue<string>() ?? "",
+                };
+
+                var providerStr = node["Database"]?["Provider"]?.GetValue<string>() ?? "sqlite";
+                model.DatabaseProvider = providerStr switch
+                {
+                    "mariadb" => DatabaseProviderOption.MariaDb,
+                    "postgres" => DatabaseProviderOption.Postgres,
+                    _ => DatabaseProviderOption.Sqlite
+                };
+
+                model.BotUseSameApp = model.TwitchBotClientId == model.TwitchClientId &&
+                                      model.TwitchBotClientSecret == model.TwitchClientSecret &&
+                                      !string.IsNullOrEmpty(model.TwitchClientId);
+
+                model.DiscordEnabled = !string.IsNullOrEmpty(model.DiscordToken);
+                model.WeatherEnabled = !string.IsNullOrEmpty(model.WeatherApiKey);
+                model.OpenAiEnabled = !string.IsNullOrEmpty(model.OpenAiApiKey);
+
+                logger.LogInformation("Loaded existing configuration from {Path}", secretsFilePath);
+                return model;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not load existing config from {Path}", secretsFilePath);
+                return null;
+            }
+        }
 
         private static string ToSqliteConnectionString(string path) =>
             string.IsNullOrEmpty(path) ? "" :
