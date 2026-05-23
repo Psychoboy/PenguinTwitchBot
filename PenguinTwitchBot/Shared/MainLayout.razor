@@ -13,6 +13,8 @@
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<MainLayout> logger
+@inject PenguinTwitchBot.Services.IVersionCheckService VersionCheckService
+
 
 <PageTitle>SPTV Twitch Bot</PageTitle>
 <MudThemeProvider IsDarkMode=true />
@@ -57,6 +59,14 @@
                 </div>
             </div>
             <MudSpacer />
+            <AuthorizeView Roles="Streamer">
+                @if (!VersionCheckService.IsUpToDate)
+                {
+                    <MudTooltip Text="@($"Current: {VersionCheckService.CurrentVersion} | Latest: {VersionCheckService.LatestVersion}")">
+                        <MudAlert Severity="Severity.Warning" NoIcon="true">Update available: v@(VersionCheckService.LatestVersion)</MudAlert>
+                    </MudTooltip>
+                }
+            </AuthorizeView>
             <AuthorizeView>
                 <Authorized Context="Auth">
                     <MudImage Width="48" Src="@ProfileImage" />
