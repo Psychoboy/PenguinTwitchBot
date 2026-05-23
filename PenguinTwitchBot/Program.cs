@@ -271,8 +271,11 @@ internal class Program
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot");
         });
-        builder.Services.AddSingleton<PenguinTwitchBot.Services.IVersionCheckService, PenguinTwitchBot.Services.VersionCheckService>();
-        builder.Services.AddHostedService(sp => (PenguinTwitchBot.Services.VersionCheckService)sp.GetRequiredService<PenguinTwitchBot.Services.IVersionCheckService>());
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.VersionCheckService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.IVersionCheckService>(sp =>
+            sp.GetRequiredService<PenguinTwitchBot.Services.VersionCheckService>());
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<PenguinTwitchBot.Services.VersionCheckService>());
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {

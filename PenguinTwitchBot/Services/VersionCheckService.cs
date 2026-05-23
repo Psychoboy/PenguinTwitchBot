@@ -10,11 +10,10 @@ public interface IVersionCheckService
     bool IsUpToDate { get; }
 }
 
-public class VersionCheckService : IVersionCheckService, IHostedService, IDisposable
+public class VersionCheckService : BackgroundService, IVersionCheckService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<VersionCheckService> _logger;
-    private Timer? _timer;
 
     public string CurrentVersion { get; } =
         Assembly.GetEntryAssembly()
@@ -36,20 +35,25 @@ public class VersionCheckService : IVersionCheckService, IHostedService, IDispos
         _logger = logger;
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Check immediately, then every 6 hours
-        _timer = new Timer(async _ => await CheckAsync(), null, TimeSpan.Zero, TimeSpan.FromHours(6));
-        return Task.CompletedTask;
+        // Check immediately on startup, then every 6 hours
+        await CheckAsync(stoppingToken);
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(6));
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            await CheckAsync(stoppingToken);
+        }
     }
 
-    private async Task CheckAsync()
+    private async Task CheckAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var client = _httpClientFactory.CreateClient("GitHubRelease");
             var response = await client.GetAsync(
-                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases?per_page=1");
+                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases?per_page=1",
+                cancellationToken);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -73,14 +77,6 @@ public class VersionCheckService : IVersionCheckService, IHostedService, IDispos
             _logger.LogWarning(ex, "Failed to check latest version from GitHub.");
         }
     }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _timer?.Change(Timeout.Infinite, 0);
-        return Task.CompletedTask;
-    }
-
-    public void Dispose() => _timer?.Dispose();
 
     private sealed class GitHubRelease
     {
