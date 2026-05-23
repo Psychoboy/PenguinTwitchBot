@@ -35,13 +35,21 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
+    - name: Set version from tag
+      id: version
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref_name }}"
+        $version = $tag -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
     - name: Publish
       shell: pwsh
-      run: dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
+      run: dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=${{ steps.version.outputs.VERSION }}" "-p:InformationalVersion=${{ steps.version.outputs.VERSION }}"
 
     - name: Publish Setup
       shell: pwsh
-      run: dotnet publish PenguinTwitchBot.Setup/PenguinTwitchBot.Setup.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true"
+      run: dotnet publish PenguinTwitchBot.Setup/PenguinTwitchBot.Setup.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=${{ steps.version.outputs.VERSION }}" "-p:InformationalVersion=${{ steps.version.outputs.VERSION }}"
 
     - name: Zip publish output
       run: Compress-Archive -Path PenguinTwitchBot/bin/Release/net10.0/win-x64/publish/*, PenguinTwitchBot.Setup/bin/Release/net10.0/win-x64/publish/* -DestinationPath PenguinTwitchBot-${{ github.ref_name }}.zip

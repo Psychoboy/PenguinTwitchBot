@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>73bf1384-587d-47a0-8ac0-8c78e49d0458</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <!-- Default version for local builds; overridden by -p:Version= in CI from the git tag -->
+    <Version>0.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

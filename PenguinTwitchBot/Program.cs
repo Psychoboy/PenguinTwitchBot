@@ -267,6 +267,12 @@ internal class Program
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
+        builder.Services.AddHttpClient("GitHubRelease", c =>
+        {
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot");
+        });
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.IVersionCheckService, PenguinTwitchBot.Services.VersionCheckService>();
+        builder.Services.AddHostedService(sp => (PenguinTwitchBot.Services.VersionCheckService)sp.GetRequiredService<PenguinTwitchBot.Services.IVersionCheckService>());
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
