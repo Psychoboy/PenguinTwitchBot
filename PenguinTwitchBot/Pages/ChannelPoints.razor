@@ -4,79 +4,284 @@
 @using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward
 @using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
 @inject PenguinTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
+@inject ISnackbar Snackbar
 
 <PageTitle>SPTV Twitch Bot - Channel Points</PageTitle>
 
-<MudContainer>
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Channel Points</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Create and manage rewards available in your channel.</MudText>
+
     <MudGrid>
-        <MudItem xs="8">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudTable Items="@ChannelRewards">
-                    <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Channel Rewards</MudText>
-                    </ToolBarContent>
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Cost</MudTh>
-                        <MudTh>Enabled</MudTh>
-                        <MudTh>Paused</MudTh>
-                        <MudTh>Is Owned</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Reward.Title</MudTd>
-                        <MudTd>@context.Reward.Cost</MudTd>
-                        <MudTd>@context.Reward.IsEnabled</MudTd>
-                        <MudTd>@context.Reward.IsPaused</MudTd>
-                        <MudTd>@context.IsOwned</MudTd>
-                            <MudTd>
-                                @if (context.IsOwned == true)
-                                {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                    @onclick="() => EditChannelReward(context)">
-                                        Edit
-                                    </MudButton>
-                                }
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                           @onclick="() => DeleteChannelReward(context)">
-                                    Delete
-                                </MudButton>
-                            </MudTd>
-                    </RowTemplate>
-                </MudTable>
-             </MudPaper>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Rewards (@FilteredChannelRewards.Count)</MudText>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="StartCreateReward" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="RefreshRewards" />
+                        </MudStack>
+                    </MudStack>
+
+                    <MudTextField @bind-Value="SearchString"
+                                  Placeholder="Search rewards"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  IconSize="Size.Medium"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  OnDebounceIntervalElapsed="ApplyFilter" />
+
+                    <MudDivider />
+
+                    @if (IsLoading)
+                    {
+                        <MudStack AlignItems="AlignItems.Center" Class="mt-6" Spacing="2">
+                            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Loading rewards...</MudText>
+                        </MudStack>
+                    }
+                    else if (FilteredChannelRewards.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-6">
+                            No rewards found
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudList T="ChannelPoint" Dense="true" @bind-SelectedValue="SelectedChannelReward">
+                            @foreach (var channelPoint in FilteredChannelRewards)
+                            {
+                                <MudListItem T="ChannelPoint" Value="@channelPoint" OnClick="() => SelectReward(channelPoint)">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="w-100">
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1">@channelPoint.Reward.Title</MudText>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@channelPoint.Reward.Cost</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="@(channelPoint.Reward.IsEnabled ? Color.Success : Color.Warning)">
+                                                    @(channelPoint.Reward.IsEnabled ? "Enabled" : "Disabled")
+                                                </MudChip>
+                                                @if (channelPoint.Reward.IsPaused)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Paused</MudChip>
+                                                }
+                                                @if (!channelPoint.IsOwned)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">External</MudChip>
+                                                }
+                                            </MudStack>
+                                        </MudStack>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       OnClick="@(async (MouseEventArgs _) => await DeleteChannelReward(channelPoint))" />
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    }
+                </MudStack>
+            </MudPaper>
         </MudItem>
-            <MudItem xs="4">
-                <MudCard>
-                    <MudPaper Elevation="2" Class="pa-4">
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                <MudStack Spacing="3">
+                    @if (IsCreatingReward)
+                    {
                         <EditForm Model="@CreateCustomReward" OnValidSubmit="OnCreate">
-                            <MudText Class="pa-4" Typo="Typo.h6">Create Channel Reward</MudText>
-                            <MudTextField Label="Name" Required="true" @bind-Value="CreateCustomReward.Title" MaxLength="45"/>
-                            <MudNumericField Label="Cost" Required="true" @bind-Value="CreateCustomReward.Cost" Min="1" />
-                            <MudCheckBox Label="Is Enabled" @bind-Value="CreateCustomReward.IsEnabled" />
-                            <MudCheckBox Label="User input required?" @bind-Value="CreateCustomReward.IsUserInputRequired" />
-                            <MudTextField Label="Prompt" @bind-Value="CreateCustomReward.Prompt" MaxLength="200" />
-                        <MudColorPicker Label="Background Color" @bind-Text="CreateCustomReward.BackgroundColor" Required="true" Style="@($"mix-blend-mode: normal;background-color: {CreateCustomReward.BackgroundColor};")" ShowAlpha="false" ColorPickerMode="ColorPickerMode.RGB" />
-                            <MudCheckBox Label="Skips Queue" @bind-Value="CreateCustomReward.ShouldRedemptionsSkipRequestQueue" />
-                            <MudCheckBox Label="Max per Stream?" @bind-Value="CreateCustomReward.IsMaxPerStreamEnabled" />
-                            <MudNumericField Label="Max Per Stream" @bind-Value="CreateCustomReward.MaxPerStream"/>
-                            <MudCheckBox Label="Max per user per Stream?" @bind-Value="CreateCustomReward.IsMaxPerUserPerStreamEnabled" />
-                            <MudNumericField Label="Max Per user per Stream" @bind-Value="CreateCustomReward.MaxPerUserPerStream" />
-                            <MudCheckBox Label="Global Cooldown?" @bind-Value="CreateCustomReward.IsGlobalCooldownEnabled" />
-                            <MudNumericField Label="Global Cooldown (seconds)" @bind-Value="CreateCustomReward.GlobalCooldownSeconds" />
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                   Class="ml-auto">
-                            Submit
-                        </MudButton>
-                    </EditForm>
-                </MudPaper>
-            </MudCard>
+                            <MudPaper Class="pa-4" Outlined="true" Elevation="0">
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h6">Create Reward</MudText>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelCreateReward">
+                                                Cancel
+                                            </MudButton>
+                                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                                                Create Reward
+                                            </MudButton>
+                                        </MudStack>
+                                    </MudStack>
+
+                                    <MudTextField Label="Name" Required="true" @bind-Value="CreateCustomReward.Title" MaxLength="45" />
+                                    <MudNumericField Label="Cost" Required="true" @bind-Value="CreateCustomReward.Cost" Min="1" />
+                                    <MudTextField Label="Prompt" @bind-Value="CreateCustomReward.Prompt" MaxLength="200" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="Enabled" @bind-Value="CreateCustomReward.IsEnabled" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="User input required" @bind-Value="CreateCustomReward.IsUserInputRequired" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="Skip queue" @bind-Value="CreateCustomReward.ShouldRedemptionsSkipRequestQueue" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="Max per stream enabled" @bind-Value="CreateCustomReward.IsMaxPerStreamEnabled" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField Label="Max per stream" @bind-Value="CreateCustomReward.MaxPerStream" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="Max per user/stream enabled" @bind-Value="CreateCustomReward.IsMaxPerUserPerStreamEnabled" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField Label="Max per user/stream" @bind-Value="CreateCustomReward.MaxPerUserPerStream" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox Label="Global cooldown enabled" @bind-Value="CreateCustomReward.IsGlobalCooldownEnabled" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField Label="Global cooldown (seconds)" @bind-Value="CreateCustomReward.GlobalCooldownSeconds" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudColorPicker Label="Background Color"
+                                                            @bind-Text="CreateCustomReward.BackgroundColor"
+                                                            Required="true"
+                                                            Style="@($"mix-blend-mode: normal; background-color: {CreateCustomReward.BackgroundColor};")"
+                                                            ShowAlpha="false"
+                                                            ColorPickerMode="ColorPickerMode.RGB" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+                        </EditForm>
+                    }
+                    else if (SelectedChannelReward == null)
+                    {
+                        <MudPaper Class="pa-4" Outlined="true" Elevation="0" Style="min-height: 160px; display: flex; align-items: center; justify-content: center;">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Color="Color.Secondary" />
+                                <MudText Typo="Typo.h6" Color="Color.Secondary">Select a reward to edit</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Owned rewards can be updated inline here</MudText>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="StartCreateReward">
+                                    Create Reward
+                                </MudButton>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <MudPaper Class="pa-4" Outlined="true" Elevation="0">
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.h6">Selected Reward</MudText>
+                                <MudText Typo="Typo.body1">@SelectedChannelReward.Reward.Title</MudText>
+                                @if (!string.IsNullOrWhiteSpace(SelectedChannelReward.Reward.Prompt))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SelectedChannelReward.Reward.Prompt</MudText>
+                                }
+                                <MudStack Row="true" Spacing="1">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">Cost: @SelectedChannelReward.Reward.Cost</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@(SelectedChannelReward.Reward.IsEnabled ? Color.Success : Color.Warning)">
+                                        @(SelectedChannelReward.Reward.IsEnabled ? "Enabled" : "Disabled")
+                                    </MudChip>
+                                    @if (SelectedChannelReward.Reward.IsPaused)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Paused</MudChip>
+                                    }
+                                    <MudChip T="string" Size="Size.Small" Color="@(SelectedChannelReward.IsOwned ? Color.Success : Color.Info)">
+                                        @(SelectedChannelReward.IsOwned ? "Owned" : "Not Owned")
+                                    </MudChip>
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+
+                        @if (SelectedChannelReward.IsOwned)
+                        {
+                            <EditForm Model="@EditCustomReward" OnValidSubmit="OnUpdate">
+                                <MudPaper Class="pa-4" Outlined="true" Elevation="0">
+                                    <MudStack Spacing="2">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                            <MudText Typo="Typo.h6">Edit Reward</MudText>
+                                            <MudButton ButtonType="ButtonType.Submit"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       Disabled="IsSavingEdit">
+                                                Save Changes
+                                            </MudButton>
+                                        </MudStack>
+
+                                        <MudTextField Label="Name" Required="true" @bind-Value="EditCustomReward.Title" MaxLength="45" />
+                                        <MudNumericField Label="Cost" Required="true" @bind-Value="EditCustomReward.Cost" Min="1" />
+                                        <MudTextField Label="Prompt" @bind-Value="EditCustomReward.Prompt" MaxLength="200" />
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Enabled" @bind-Value="EditCustomReward.IsEnabled" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Paused" @bind-Value="EditCustomReward.IsPaused" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="User input required" @bind-Value="EditCustomReward.IsUserInputRequired" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Skip queue" @bind-Value="EditCustomReward.ShouldRedemptionsSkipRequestQueue" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Max per stream enabled" @bind-Value="EditCustomReward.IsMaxPerStreamEnabled" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField Label="Max per stream" @bind-Value="EditCustomReward.MaxPerStream" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Max per user/stream enabled" @bind-Value="EditCustomReward.IsMaxPerUserPerStreamEnabled" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField Label="Max per user/stream" @bind-Value="EditCustomReward.MaxPerUserPerStream" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCheckBox Label="Global cooldown enabled" @bind-Value="EditCustomReward.IsGlobalCooldownEnabled" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField Label="Global cooldown (seconds)" @bind-Value="EditCustomReward.GlobalCooldownSeconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudColorPicker Label="Background Color"
+                                                                @bind-Text="EditCustomReward.BackgroundColor"
+                                                                Required="true"
+                                                                Style="@($"mix-blend-mode: normal; background-color: {EditCustomReward.BackgroundColor};")"
+                                                                ShowAlpha="false"
+                                                                ColorPickerMode="ColorPickerMode.RGB" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudStack>
+                                </MudPaper>
+                            </EditForm>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                                This reward is not owned by the bot account and cannot be edited.
+                            </MudAlert>
+                        }
+                    }
+
+                </MudStack>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
 @code {
     private List<ChannelPoint> ChannelRewards { get; set; } = new();
+    private List<ChannelPoint> FilteredChannelRewards { get; set; } = new();
+    private ChannelPoint? SelectedChannelReward { get; set; }
+    private bool IsCreatingReward { get; set; }
+    private UpdateCustomRewardRequest EditCustomReward { get; set; } = new();
+    private string SearchString { get; set; } = string.Empty;
+    private bool IsLoading { get; set; }
+    private bool IsSavingEdit { get; set; }
     private CreateCustomRewardsRequest CreateCustomReward { get; set; } = new(){IsEnabled = true};
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
@@ -88,7 +293,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        ChannelRewards = await GetAllChannelPoints();
+        await LoadRewards();
         await base.OnInitializedAsync();
     }
 
@@ -98,48 +303,125 @@
         {
             await CP.CreateChannelPointReward(CreateCustomReward);
             CreateCustomReward = new() { IsEnabled = true };
-            ChannelRewards = await GetAllChannelPoints();
+            IsCreatingReward = false;
+            SelectedChannelReward = null;
+            Snackbar.Add("Reward created.", Severity.Success);
+            await LoadRewards();
             StateHasChanged();
-        }catch(Exception){}
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create reward: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnUpdate()
+    {
+        if (SelectedChannelReward == null || !SelectedChannelReward.IsOwned)
+        {
+            Snackbar.Add("Only owned rewards can be updated.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            IsSavingEdit = true;
+            await CP.UpdateChannelPointReward(SelectedChannelReward.Reward.Id, EditCustomReward);
+            Snackbar.Add("Reward updated.", Severity.Success);
+            await LoadRewards(SelectedChannelReward.Reward.Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update reward: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSavingEdit = false;
+        }
     }
 
     private async Task DeleteChannelReward(ChannelPoint channelPoint)
     {
+        bool? shouldDelete = await DialogService.ShowMessageBoxAsync(
+            "Delete Reward",
+            $"Delete '{channelPoint.Reward.Title}'? This cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (shouldDelete != true) return;
+
         await CP.DeleteChannelPointReward(channelPoint.Reward.Id);
-        ChannelRewards = await GetAllChannelPoints();
+        Snackbar.Add("Reward deleted.", Severity.Success);
+        await LoadRewards();
         StateHasChanged();
     }
 
-    private async Task EditChannelReward(ChannelPoint channelPoint)
+    private void SelectReward(ChannelPoint channelPoint)
     {
-        var reward = channelPoint.Reward;
-        var updateChannelPoint = new UpdateCustomRewardRequest
-            {
-                Title = reward.Title,
-                Prompt = reward.Prompt,
-                Cost = reward.Cost,
-                BackgroundColor = reward.BackgroundColor,
-                IsEnabled = reward.IsEnabled,
-                IsUserInputRequired = reward.IsUserInputRequired,
-                IsMaxPerStreamEnabled = reward.MaxPerStreamSetting.IsEnabled,
-                MaxPerStream = reward.MaxPerStreamSetting.MaxPerStream,
-                IsMaxPerUserPerStreamEnabled = reward.MaxPerUserPerStreamSetting.IsEnabled,
-                MaxPerUserPerStream = reward.MaxPerUserPerStreamSetting.MaxPerUserPerStream,
-                IsGlobalCooldownEnabled = reward.GlobalCooldownSetting.IsEnabled,
-                GlobalCooldownSeconds = reward.GlobalCooldownSetting.GlobalCooldownSeconds,
-                IsPaused = reward.IsPaused,
-                ShouldRedemptionsSkipRequestQueue = reward.ShouldRedemptionsSkipQueue
-            };
-        var parameter = new DialogParameters<ChannelPointsEdit>();
-        parameter.Add(x => x.Reward, updateChannelPoint);
-        parameter.Add(x => x.RewardId, reward.Id);
-        var dialog = await DialogService.ShowAsync<ChannelPointsEdit>($"Edit {reward.Title}", parameter);
-        var result = await dialog.Result;
-        if (result == null) return;
-        if(!result.Canceled)
+        IsCreatingReward = false;
+        SelectedChannelReward = channelPoint;
+        EditCustomReward = MapToUpdateRequest(channelPoint.Reward);
+    }
+
+    private void StartCreateReward()
+    {
+        IsCreatingReward = true;
+        SelectedChannelReward = null;
+        CreateCustomReward = new() { IsEnabled = true };
+    }
+
+    private void CancelCreateReward()
+    {
+        IsCreatingReward = false;
+        CreateCustomReward = new() { IsEnabled = true };
+        SelectedChannelReward = null;
+    }
+
+    private void ApplyFilter(string _)
+    {
+        FilteredChannelRewards = ChannelRewards
+            .Where(x => string.IsNullOrWhiteSpace(SearchString)
+                        || x.Reward.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase)
+                        || (x.Reward.Prompt?.Contains(SearchString, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(x => x.Reward.Title)
+            .ToList();
+    }
+
+    private async Task RefreshRewards()
+    {
+        await LoadRewards(SelectedChannelReward?.Reward.Id);
+    }
+
+    private async Task LoadRewards(string? selectedRewardId = null)
+    {
+        IsLoading = true;
+        try
         {
             ChannelRewards = await GetAllChannelPoints();
-            StateHasChanged();
+            ApplyFilter(string.Empty);
+            var targetRewardId = selectedRewardId ?? SelectedChannelReward?.Reward.Id;
+            SelectedChannelReward = targetRewardId == null
+                ? null
+                : FilteredChannelRewards.FirstOrDefault(x => x.Reward.Id == targetRewardId);
+
+            if (SelectedChannelReward != null)
+            {
+                EditCustomReward = MapToUpdateRequest(SelectedChannelReward.Reward);
+            }
+
+            if (!IsCreatingReward && SelectedChannelReward == null)
+            {
+                IsCreatingReward = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load rewards: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -149,5 +431,26 @@
         channelPoints.AddRange((await CP.GetOwnedChannelPoints()).Select(x => new ChannelPoint{Reward = x, IsOwned = true}));
         channelPoints.AddRange((await CP.GetAllChannelPoints()).Where(x => channelPoints.Any(y => y.Reward.Id.Equals(x.Id)) == false).Select(x => new ChannelPoint { Reward = x, IsOwned = false }));
         return channelPoints.OrderBy(x => x.Reward.Title).ToList();
+    }
+
+    private static UpdateCustomRewardRequest MapToUpdateRequest(CustomReward reward)
+    {
+        return new UpdateCustomRewardRequest
+        {
+            Title = reward.Title,
+            Cost = reward.Cost,
+            Prompt = reward.Prompt,
+            IsEnabled = reward.IsEnabled,
+            IsPaused = reward.IsPaused,
+            IsUserInputRequired = reward.IsUserInputRequired,
+            BackgroundColor = reward.BackgroundColor,
+            ShouldRedemptionsSkipRequestQueue = reward.ShouldRedemptionsSkipQueue,
+            IsMaxPerStreamEnabled = reward.MaxPerStreamSetting?.IsEnabled,
+            MaxPerStream = reward.MaxPerStreamSetting?.MaxPerStream,
+            IsMaxPerUserPerStreamEnabled = reward.MaxPerUserPerStreamSetting?.IsEnabled,
+            MaxPerUserPerStream = reward.MaxPerUserPerStreamSetting?.MaxPerUserPerStream,
+            IsGlobalCooldownEnabled = reward.GlobalCooldownSetting?.IsEnabled,
+            GlobalCooldownSeconds = reward.GlobalCooldownSetting?.GlobalCooldownSeconds
+        };
     }
 }
