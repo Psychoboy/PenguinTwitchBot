@@ -1,4 +1,6 @@
-﻿namespace PenguinTwitchBot.Repository
+﻿using Microsoft.EntityFrameworkCore.Storage;
+
+namespace PenguinTwitchBot.Repository
 {
     public interface IUnitOfWork : IDisposable
     {
@@ -43,6 +45,7 @@
 
         int SaveChanges();
         Task<int> SaveChangesAsync();
+        Task<IDbContextTransaction> BeginTransactionAsync();
         IPointTypesRepository PointTypes { get; }
         IUserPointsRepository UserPoints { get; }
         IPointCommandsRepository PointCommands { get; }

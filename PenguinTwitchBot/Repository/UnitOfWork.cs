@@ -1,4 +1,5 @@
 ﻿using PenguinTwitchBot.Repository.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace PenguinTwitchBot.Repository
 {
@@ -136,6 +137,11 @@ namespace PenguinTwitchBot.Repository
         public Task<int> SaveChangesAsync()
         {
             return _context.SaveChangesAsync();
+        }
+
+        public Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return _context.Database.BeginTransactionAsync();
         }
     }
 }

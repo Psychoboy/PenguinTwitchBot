@@ -185,6 +185,10 @@
 
             _errors.AddRange(result.Errors);
         }
+        catch (Exception)
+        {
+            _errors.Add("An unexpected error occurred while creating the raffle setup.");
+        }
         finally
         {
             _isSaving = false;

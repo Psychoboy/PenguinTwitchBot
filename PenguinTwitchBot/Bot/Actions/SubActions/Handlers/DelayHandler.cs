@@ -19,7 +19,18 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (int.TryParse(durationStr, out var duration))
             {
                 context?.LogMessage(subActionIndex, $"Delaying for {duration}ms");
-                await Task.Delay(duration);
+                if (duration > 0)
+                {
+                    context?.BeginIntentionalDelay(TimeSpan.FromMilliseconds(duration));
+                    try
+                    {
+                        await Task.Delay(duration);
+                    }
+                    finally
+                    {
+                        context?.EndIntentionalDelay();
+                    }
+                }
             }
             else
             {

@@ -33,6 +33,19 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             var winnerCount = Math.Max(1, request.WinnerCount);
             var totalAward = Math.Max(0, request.TotalAward);
 
+            await pointsSystem.RegisterDefaultPointForGame(pointGameName);
+            var pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
+            var pointTypeName = string.IsNullOrWhiteSpace(pointType.Name) ? pointGameName : pointType.Name;
+
+            var raffle = new ActiveRaffle(
+                raffleKey,
+                raffleName,
+                joinCommand,
+                pointGameName,
+                pointTypeName,
+                winnerCount,
+                totalAward);
+
             await _lock.WaitAsync();
             try
             {
@@ -40,19 +53,6 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 {
                     return CreateResult(_raffles[raffleKey], "already_running", success: false);
                 }
-
-                await pointsSystem.RegisterDefaultPointForGame(pointGameName);
-                var pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
-                var pointTypeName = string.IsNullOrWhiteSpace(pointType.Name) ? pointGameName : pointType.Name;
-
-                var raffle = new ActiveRaffle(
-                    raffleKey,
-                    raffleName,
-                    joinCommand,
-                    pointGameName,
-                    pointTypeName,
-                    winnerCount,
-                    totalAward);
 
                 _raffles[raffleKey] = raffle;
                 return CreateResult(raffle, "started");
@@ -78,6 +78,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                     return RaffleOperationResult.NotRunning(raffleKey.Trim());
                 }
 
+                if (raffle.IsEnding)
+                {
+                    return CreateResult(raffle, "ending_in_progress", success: false);
+                }
+
                 if (!raffle.Entries.Add(username.Trim()))
                 {
                     return CreateResult(raffle, "already_entered", success: false, username: username.Trim(), alreadyEntered: true);
@@ -98,50 +103,128 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 return RaffleOperationResult.NotFound(string.Empty);
             }
 
-            ActiveRaffle? raffle;
-            List<string> winners = [];
+            ActiveRaffle raffle;
+            List<string> winners;
+            long eachAward;
+            var trimmedKey = raffleKey.Trim();
 
             await _lock.WaitAsync();
             try
             {
-                if (!_raffles.TryRemove(raffleKey.Trim(), out raffle))
+                if (!_raffles.TryGetValue(trimmedKey, out var raffleValue) || raffleValue is null)
                 {
-                    return RaffleOperationResult.NotRunning(raffleKey.Trim());
+                    return RaffleOperationResult.NotRunning(trimmedKey);
+                }
+
+                raffle = raffleValue;
+
+                if (raffle.IsEnding)
+                {
+                    return CreateResult(raffle, "ending_in_progress", success: false);
                 }
 
                 if (raffle.Entries.Count == 0)
                 {
+                    _raffles.TryRemove(trimmedKey, out _);
                     return CreateResult(raffle, "no_entries", success: false, isActive: false);
                 }
 
-                winners = PickWinners(raffle.Entries, raffle.WinnerCount);
+                raffle.IsEnding = true;
+                if (raffle.PendingWinners.Count == 0)
+                {
+                    winners = PickWinners(raffle.Entries, raffle.WinnerCount);
+                    var resolvedWinnerCount = Math.Max(1, winners.Count);
+                    eachAward = resolvedWinnerCount == 0
+                        ? 0
+                        : (long)Math.Ceiling((double)raffle.TotalAward / resolvedWinnerCount);
+
+                    raffle.PendingWinners = winners;
+                    raffle.PendingEachAward = eachAward;
+                }
+
+                winners = [.. raffle.PendingWinners];
+                eachAward = raffle.PendingEachAward;
             }
             finally
             {
                 _lock.Release();
             }
 
-            var resolvedWinnerCount = Math.Max(1, winners.Count);
-            var eachAward = resolvedWinnerCount == 0
-                ? 0
-                : (long)Math.Ceiling((double)raffle.TotalAward / resolvedWinnerCount);
-
-            foreach (var winner in winners)
+            try
             {
-                if (eachAward > 0)
+                foreach (var winner in winners)
                 {
+                    var shouldAward = false;
+
+                    await _lock.WaitAsync();
+                    try
+                    {
+                        shouldAward = !raffle.AwardedWinners.Contains(winner);
+                    }
+                    finally
+                    {
+                        _lock.Release();
+                    }
+
+                    if (!shouldAward || eachAward <= 0)
+                    {
+                        continue;
+                    }
+
                     await pointsSystem.AddPointsByUsernameAndGame(winner, raffle.PointGameName, eachAward);
+
+                    await _lock.WaitAsync();
+                    try
+                    {
+                        raffle.AwardedWinners.Add(winner);
+                    }
+                    finally
+                    {
+                        _lock.Release();
+                    }
                 }
+            }
+            catch
+            {
+                await _lock.WaitAsync();
+                try
+                {
+                    raffle.IsEnding = false;
+                }
+                finally
+                {
+                    _lock.Release();
+                }
+
+                return CreateResult(
+                    raffle,
+                    "payout_failed",
+                    success: false,
+                    isActive: true,
+                    winners: raffle.PendingWinners,
+                    eachAward: eachAward,
+                    awardedTotal: eachAward * raffle.AwardedWinners.Count,
+                    resolvedWinnerCount: raffle.PendingWinners.Count);
+            }
+
+            await _lock.WaitAsync();
+            try
+            {
+                _raffles.TryRemove(trimmedKey, out _);
+            }
+            finally
+            {
+                _lock.Release();
             }
 
             return CreateResult(
                 raffle,
                 "ended",
                 isActive: false,
-                winners: winners,
+                winners: raffle.PendingWinners,
                 eachAward: eachAward,
-                awardedTotal: eachAward * winners.Count,
-                resolvedWinnerCount: winners.Count);
+                awardedTotal: eachAward * raffle.AwardedWinners.Count,
+                resolvedWinnerCount: raffle.PendingWinners.Count);
         }
 
         public async Task<RaffleOperationResult> SetWinnerCountAsync(string raffleKey, int winnerCount)
@@ -157,6 +240,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 if (!_raffles.TryGetValue(raffleKey.Trim(), out var raffle))
                 {
                     return RaffleOperationResult.NotRunning(raffleKey.Trim());
+                }
+
+                if (raffle.IsEnding)
+                {
+                    return CreateResult(raffle, "ending_in_progress", success: false);
                 }
 
                 raffle.WinnerCount = Math.Max(1, winnerCount);
@@ -181,6 +269,11 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 if (!_raffles.TryGetValue(raffleKey.Trim(), out var raffle))
                 {
                     return RaffleOperationResult.NotRunning(raffleKey.Trim());
+                }
+
+                if (raffle.IsEnding)
+                {
+                    return CreateResult(raffle, "ending_in_progress", success: false);
                 }
 
                 raffle.TotalAward = Math.Max(0, totalAward);
@@ -284,6 +377,10 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             public int WinnerCount { get; set; } = winnerCount;
             public long TotalAward { get; set; } = totalAward;
             public HashSet<string> Entries { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public bool IsEnding { get; set; }
+            public List<string> PendingWinners { get; set; } = [];
+            public long PendingEachAward { get; set; }
+            public HashSet<string> AwardedWinners { get; } = new(StringComparer.OrdinalIgnoreCase);
         }
     }
 

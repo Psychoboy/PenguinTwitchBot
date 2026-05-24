@@ -22,15 +22,20 @@ namespace PenguinTwitchBot.Bot.Actions
     {
         public async Task<RaffleSetupResult> CreateAsync(RaffleSetupRequest request)
         {
-            var normalized = NormalizeRequest(request);
-            var errors = await ValidateAsync(normalized);
-            if (errors.Count > 0)
-            {
-                return RaffleSetupResult.Failure(errors);
-            }
-
             try
             {
+                if (request is null)
+                {
+                    return RaffleSetupResult.Failure(["Request is required."]);
+                }
+
+                var normalized = NormalizeRequest(request);
+                var errors = await ValidateAsync(normalized);
+                if (errors.Count > 0)
+                {
+                    return RaffleSetupResult.Failure(errors);
+                }
+
                 var joinCommand = CreateCommand(
                     normalized.JoinCommandName,
                     $"Join the {normalized.RaffleName} raffle",
@@ -46,33 +51,53 @@ namespace PenguinTwitchBot.Bot.Actions
                     $"End the {normalized.RaffleName} raffle",
                     Rank.Moderator);
 
-                await unitOfWork.ActionCommands.AddAsync(joinCommand);
-                await unitOfWork.ActionCommands.AddAsync(startCommand);
-                await unitOfWork.ActionCommands.AddAsync(endCommand);
-                await unitOfWork.SaveChangesAsync();
+                int? joinActionId;
+                int? startActionId;
+                int? endActionId;
 
-                if (normalized.PointTypeId.HasValue)
+                await using (var transaction = await unitOfWork.BeginTransactionAsync())
                 {
-                    await pointsSystem.SetPointTypeForGame(normalized.RaffleKey, normalized.PointTypeId.Value);
-                }
-                else
-                {
-                    await pointsSystem.RegisterDefaultPointForGame(normalized.RaffleKey);
+                    await unitOfWork.ActionCommands.AddAsync(joinCommand);
+                    await unitOfWork.ActionCommands.AddAsync(startCommand);
+                    await unitOfWork.ActionCommands.AddAsync(endCommand);
+                    await unitOfWork.SaveChangesAsync();
+
+                    var joinAction = await unitOfWork.Actions.CreateActionAsync(CreateJoinAction(normalized, joinCommand));
+                    var startAction = await unitOfWork.Actions.CreateActionAsync(CreateStartAction(normalized, startCommand));
+                    var endAction = await unitOfWork.Actions.CreateActionAsync(CreateEndAction(normalized, endCommand));
+
+                    joinActionId = joinAction.Id;
+                    startActionId = startAction.Id;
+                    endActionId = endAction.Id;
+
+                    await transaction.CommitAsync();
                 }
 
-                var joinAction = await unitOfWork.Actions.CreateActionAsync(CreateJoinAction(normalized, joinCommand));
-                var startAction = await unitOfWork.Actions.CreateActionAsync(CreateStartAction(normalized, startCommand));
-                var endAction = await unitOfWork.Actions.CreateActionAsync(CreateEndAction(normalized, endCommand));
+                try
+                {
+                    if (normalized.PointTypeId.HasValue)
+                    {
+                        await pointsSystem.SetPointTypeForGame(normalized.RaffleKey, normalized.PointTypeId.Value);
+                    }
+                    else
+                    {
+                        await pointsSystem.RegisterDefaultPointForGame(normalized.RaffleKey);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Raffle setup created but point mapping failed for {RaffleKey}", normalized.RaffleKey);
+                }
 
                 return RaffleSetupResult.SuccessResult(
                     normalized,
-                    joinAction.Id,
-                    startAction.Id,
-                    endAction.Id);
+                    joinActionId,
+                    startActionId,
+                    endActionId);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error creating raffle setup for {RaffleKey}", normalized.RaffleKey);
+                logger.LogError(ex, "Error creating raffle setup");
                 return RaffleSetupResult.Failure(["An error occurred while creating the raffle setup. Check logs for details."]);
             }
         }
@@ -146,9 +171,9 @@ namespace PenguinTwitchBot.Bot.Actions
         {
             return new RaffleSetupRequest
             {
-                RaffleName = request.RaffleName.Trim(),
-                RaffleKey = request.RaffleKey.Trim(),
-                Group = request.Group.Trim(),
+                RaffleName = NormalizeText(request.RaffleName),
+                RaffleKey = NormalizeText(request.RaffleKey),
+                Group = NormalizeText(request.Group),
                 QueueName = string.IsNullOrWhiteSpace(request.QueueName) ? "Default" : request.QueueName.Trim(),
                 JoinCommandName = NormalizeCommandName(request.JoinCommandName),
                 StartCommandName = NormalizeCommandName(request.StartCommandName),
@@ -160,7 +185,8 @@ namespace PenguinTwitchBot.Bot.Actions
             };
         }
 
-        private static string NormalizeCommandName(string commandName) => commandName.Trim().TrimStart('!');
+        private static string NormalizeCommandName(string? commandName) => NormalizeText(commandName).TrimStart('!');
+        private static string NormalizeText(string? value) => value?.Trim() ?? string.Empty;
 
         private static ActionCommand CreateCommand(string commandName, string description, Rank minimumRank)
         {
