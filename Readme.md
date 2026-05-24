@@ -26,6 +26,7 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - [Database Support](#database-support)
 - [Optional Integrations](#optional-integrations)
 - [Web Dashboard](#web-dashboard)
+- [Raffles](#raffles)
 - [OBS Browser Sources](#obs-browser-sources)
 - [REST API & Stream Deck Integration](#rest-api--stream-deck-integration)
 - [Contributing / Building From Source](#contributing--building-from-source)
@@ -57,7 +58,7 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - **Heist** - Cooperative group heist game
 - **Slots** - Slot machine game
 - **Steal** - Steal points from other viewers
-- **Raffles** - Multiple raffle types (Bacon, Pancake, Waffle) with ticket-based entry
+- **Raffles** - Configurable SubAction-based raffles with custom start, join, end, winner count, and total award flows
 - **Giveaways** - Run giveaways for your community
 - **Wheel Spin** - Spin a configurable prize wheel
 - **Defuse** - A bomb-defusing minigame
@@ -218,6 +219,18 @@ The bot includes a web-based dashboard accessible at `http://localhost:5000` (de
 - View and manage clips
 - Configure Discord, TTS, and other integrations
 - Access administrative tools
+
+---
+
+## Raffles
+
+Raffles are now built from the same Action and SubAction system used elsewhere in the bot.
+
+- Create fully custom raffle flows with `Raffle Start`, `Raffle Enter`, `Raffle End`, and the related raffle subactions.
+- Run multiple raffles at the same time by giving each raffle its own key and commands.
+- Use the `Create Raffle` button in Action Management to scaffold a full raffle setup quickly.
+
+Full setup guide: [PenguinTwitchBot/Docs/Raffles.md](PenguinTwitchBot/Docs/Raffles.md)
 
 ---
 
