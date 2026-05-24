@@ -2,8 +2,10 @@
 @using PenguinTwitchBot.Setup.Models
 @inject SetupService SetupSvc
 @inject NavigationManager NavManager
+@using PenguinTwitchBot.Setup.Services
+@inject DiscordLookupService DiscordLookupSvc
 
-<PageTitle>PenguinTwitchBot â€” First-Time Setup</PageTitle>
+<PageTitle>PenguinTwitchBot — First-Time Setup</PageTitle>
 
 @if (_done)
 {
@@ -31,7 +33,7 @@ else
     <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6 mb-6">
 
         <!-- Header -->
-        <MudText Typo="Typo.h4" Class="mb-1">PenguinTwitchBot â€” First-Time Setup</MudText>
+        <MudText Typo="Typo.h4" Class="mb-1">PenguinTwitchBot — First-Time Setup</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
             Step @(_step + 1) of @TotalSteps &mdash; @StepTitle
         </MudText>
@@ -49,14 +51,14 @@ else
                 </MudAlert>
             }
 
-            <!-- â”€â”€ Step 0: Welcome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 0: Welcome ------------------------------------------- -->
             @if (_step == 0)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Welcome!</MudText>
                     <MudText>
                         This wizard will guide you through configuring PenguinTwitchBot for the first time.
-                        It takes about 5â€“10 minutes and creates the <code>appsettings.secrets.json</code> file
+                        It takes about 5–10 minutes and creates the <code>appsettings.secrets.json</code> file
                         that the bot reads on every startup.
                     </MudText>
                     <MudText Typo="Typo.subtitle2">You will need:</MudText>
@@ -72,7 +74,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 1: Bot Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 1: Bot Identity -------------------------------------- -->
             @if (_step == 1)
             {
                 <MudStack Spacing="3">
@@ -88,7 +90,7 @@ else
                                   Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_model.Broadcaster"
                                   Label="Broadcaster / Channel Name"
-                                  HelperText="Your Twitch channel name â€” the channel the bot monitors"
+                                  HelperText="Your Twitch channel name — the channel the bot monitors"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tv"
                                   Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_model.BaseUrl"
@@ -102,7 +104,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 2: Twitch Streamer App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 2: Twitch Streamer App ------------------------------ -->
             @if (_step == 2)
             {
                 <MudStack Spacing="3">
@@ -138,7 +140,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 3: Twitch Bot App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 3: Twitch Bot App ----------------------------------- -->
             @if (_step == 3)
             {
                 <MudStack Spacing="3">
@@ -156,7 +158,7 @@ else
                         <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
                             Create a second application at
                             <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink>
-                            â€” this time log in with your <strong>bot</strong> account and add redirect URL
+                            — this time log in with your <strong>bot</strong> account and add redirect URL
                             <code>http://localhost:5000/botredirect</code>.
                         </MudAlert>
                         <MudTextField @bind-Value="_model.TwitchBotClientId"
@@ -180,7 +182,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 4: Authorize Streamer Account â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 4: Authorize Streamer Account ---------------------- -->
             @if (_step == 4)
             {
                 <MudStack Spacing="3">
@@ -216,7 +218,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 5: Get Bot Token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 5: Get Bot Token ------------------------------------ -->
             @if (_step == 5)
             {
                 <MudStack Spacing="3">
@@ -281,7 +283,7 @@ else
                     <MudSelect T="DatabaseProviderOption" @bind-Value="_model.DatabaseProvider"
                                Label="Database Provider" Variant="Variant.Outlined"
                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
-                        <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended â€” no server needed)</MudSelectItem>
+                        <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended — no server needed)</MudSelectItem>
                         <MudSelectItem Value="DatabaseProviderOption.MariaDb">MariaDB / MySQL</MudSelectItem>
                         <MudSelectItem Value="DatabaseProviderOption.Postgres">PostgreSQL</MudSelectItem>
                     </MudSelect>
@@ -311,7 +313,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 7: YouTube API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 7: YouTube API ---------------------------------------------- -->
             @if (_step == 7)
             {
                 <MudStack Spacing="3">
@@ -323,7 +325,7 @@ else
                     <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
                         <strong>How to get a YouTube Data API v3 key:</strong>
                         <ol style="margin: 8px 0 0 16px; padding: 0;">
-                            <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console â€” YouTube Data API v3</MudLink></li>
+                            <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console — YouTube Data API v3</MudLink></li>
                             <li>Enable the API for your project</li>
                             <li>Go to Credentials â†’ Create Credentials â†’ API Key</li>
                         </ol>
@@ -336,7 +338,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 6: Discord â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 6: Discord ------------------------------------------ -->
             @if (_step == 8)
             {
                 <MudStack Spacing="3">
@@ -350,41 +352,119 @@ else
                             <ol style="margin: 8px 0 0 16px; padding: 0;">
                                 <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
                                 <li>Click "New Application", give it a name</li>
-                                <li>Go to the "Bot" tab â†’ copy the token below</li>
+                                <li>Go to the "Bot" tab &rarr; copy the token below</li>
                                 <li>Enable "Server Members Intent" and "Message Content Intent"</li>
-                                <li>Invite the bot to your server via OAuth2 â†’ URL Generator (scope: bot)</li>
+                                <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scope: bot)</li>
                             </ol>
                         </MudAlert>
+
                         <MudTextField @bind-Value="_model.DiscordToken"
                                       Label="Bot Token"
                                       InputType="InputType.Password"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
                                       Variant="Variant.Outlined" />
-                        <MudAlert Severity="Severity.Info">
-                            Enable Developer Mode in Discord (Settings â†’ Advanced â†’ Developer Mode),
-                            then right-click any server/channel/role and choose "Copy ID".
-                        </MudAlert>
-                        <MudTextField @bind-Value="_model.DiscordServerId"
-                                      Label="Server ID"
-                                      HelperText="Right-click your server â†’ Copy Server ID"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_model.DiscordBroadcastChannel"
-                                      Label="Broadcast Channel ID"
-                                      HelperText="Channel where the bot posts go-live announcements"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_model.DiscordPingRoleId"
-                                      Label="Live Ping Role ID"
-                                      HelperText="Role that gets pinged when you go live (leave 0 to disable)"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_model.DiscordMemberRoleId"
-                                      Label="Live Member Role ID"
-                                      HelperText="Role assigned to members while you are live (leave 0 to disable)"
-                                      Variant="Variant.Outlined" />
+
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.CloudDownload"
+                                       Disabled="@(_discordFetching || string.IsNullOrWhiteSpace(_model.DiscordToken))"
+                                       OnClick="FetchDiscordGuildsAsync">
+                                Connect to Discord
+                            </MudButton>
+                            @if (_discordFetching)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                            }
+                        </MudStack>
+
+                        @if (_discordFetchError != null)
+                        {
+                            <MudAlert Severity="Severity.Error">@_discordFetchError</MudAlert>
+                        }
+
+                        @if (_discordGuilds.Count > 0)
+                        {
+                            <MudSelect T="string" @bind-Value="_discordSelectedGuildId"
+                                       Label="Server"
+                                       Variant="Variant.Outlined"
+                                       @bind-Value:after="OnDiscordServerChangedAsync"
+                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
+                                @foreach (var g in _discordGuilds)
+                                {
+                                    <MudSelectItem Value="g.Id">@g.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            @if (_discordChannels.Count > 0)
+                            {
+                                <MudSelect T="string" @bind-Value="_model.DiscordBroadcastChannel"
+                                           Label="Broadcast Channel"
+                                           HelperText="Channel where the bot posts go-live announcements"
+                                           Variant="Variant.Outlined"
+                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tag">
+                                    @foreach (var c in _discordChannels)
+                                    {
+                                        <MudSelectItem Value="c.Id">#@c.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudSelect T="string" @bind-Value="_model.DiscordPingRoleId"
+                                           Label="Live Ping Role"
+                                           HelperText="Role pinged when you go live (select None to disable)"
+                                           Variant="Variant.Outlined"
+                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NotificationsActive">
+                                    <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                    @foreach (var r in _discordRoles)
+                                    {
+                                        <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudSelect T="string" @bind-Value="_model.DiscordMemberRoleId"
+                                           Label="Live Member Role"
+                                           HelperText="Role assigned to members while live (select None to disable)"
+                                           Variant="Variant.Outlined"
+                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Group">
+                                    <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                    @foreach (var r in _discordRoles)
+                                    {
+                                        <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else if (!_discordFetching)
+                            {
+                                <MudAlert Severity="Severity.Info">Select a server above to load its channels and roles.</MudAlert>
+                            }
+                        }
+                        else if (!_discordFetching)
+                        {
+                            <MudAlert Severity="Severity.Info">
+                                Enter your bot token above and click <strong>Connect to Discord</strong> to choose your server, channels, and roles from dropdowns.
+                                Or enter IDs manually below.
+                            </MudAlert>
+                            <MudTextField @bind-Value="_model.DiscordServerId"
+                                          Label="Server ID"
+                                          HelperText="Right-click your server &rarr; Copy Server ID"
+                                          Variant="Variant.Outlined" />
+                            <MudTextField @bind-Value="_model.DiscordBroadcastChannel"
+                                          Label="Broadcast Channel ID"
+                                          HelperText="Channel where the bot posts go-live announcements"
+                                          Variant="Variant.Outlined" />
+                            <MudTextField @bind-Value="_model.DiscordPingRoleId"
+                                          Label="Live Ping Role ID"
+                                          HelperText="Role that gets pinged when you go live (leave 0 to disable)"
+                                          Variant="Variant.Outlined" />
+                            <MudTextField @bind-Value="_model.DiscordMemberRoleId"
+                                          Label="Live Member Role ID"
+                                          HelperText="Role assigned to members while you are live (leave 0 to disable)"
+                                          Variant="Variant.Outlined" />
+                        }
                     }
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 7: Weather â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 7: Weather ------------------------------------------ -->
             @if (_step == 9)
             {
                 <MudStack Spacing="3">
@@ -411,7 +491,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 8: OpenAI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 8: OpenAI ------------------------------------------- -->
             @if (_step == 10)
             {
                 <MudStack Spacing="3">
@@ -434,7 +514,7 @@ else
                 </MudStack>
             }
 
-            <!-- â”€â”€ Step 11: Review & Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+            <!-- -- Step 11: Review & Save -------------------------------------------- -->
             @if (_step == 11)
             {
                 <MudStack Spacing="3">
@@ -476,7 +556,7 @@ else
                     @if (_saving)
                     {
                         <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configurationâ€¦</MudText>
+                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configurationâ¦</MudText>
                     }
                 </MudStack>
             }
@@ -586,6 +666,14 @@ else
     private string? _botAuthUrl;
     private readonly List<string> _errors = [];
 
+    // Discord dropdown state
+    private bool _discordFetching = false;
+    private string? _discordFetchError;
+    private string _discordSelectedGuildId = "";
+    private List<(string Id, string Name)> _discordGuilds = [];
+    private List<(string Id, string Name)> _discordChannels = [];
+    private List<(string Id, string Name)> _discordRoles = [];
+
     private string StepTitle => _stepTitles[_step];
     private bool IsOptionalStep => OptionalSteps.Contains(_step);
 
@@ -618,6 +706,56 @@ else
             _step = 5;
             _botAuthFailed = true;
         }
+    }
+
+    private async Task FetchDiscordGuildsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_model.DiscordToken)) return;
+        _discordFetching = true;
+        _discordFetchError = null;
+        _discordChannels = [];
+        _discordRoles = [];
+        try
+        {
+            _discordGuilds = await DiscordLookupSvc.GetGuildsAsync(_model.DiscordToken);
+            if (!string.IsNullOrEmpty(_discordSelectedGuildId)
+                && _discordGuilds.Any(g => g.Id == _discordSelectedGuildId))
+            {
+                await LoadDiscordServerDataAsync(_discordSelectedGuildId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _discordFetchError = $"Failed to connect to Discord: {ex.Message}";
+        }
+        _discordFetching = false;
+    }
+
+    private async Task OnDiscordServerChangedAsync()
+    {
+        _model.DiscordServerId = _discordSelectedGuildId;
+        _discordChannels = [];
+        _discordRoles = [];
+        if (string.IsNullOrEmpty(_discordSelectedGuildId)) return;
+        await LoadDiscordServerDataAsync(_discordSelectedGuildId);
+    }
+
+    private async Task LoadDiscordServerDataAsync(string guildId)
+    {
+        _discordFetching = true;
+        try
+        {
+            var channelsTask = DiscordLookupSvc.GetTextChannelsAsync(_model.DiscordToken, guildId);
+            var rolesTask = DiscordLookupSvc.GetRolesAsync(_model.DiscordToken, guildId);
+            await Task.WhenAll(channelsTask, rolesTask);
+            _discordChannels = channelsTask.Result;
+            _discordRoles = rolesTask.Result;
+        }
+        catch (Exception ex)
+        {
+            _discordFetchError = $"Failed to load server data: {ex.Message}";
+        }
+        _discordFetching = false;
     }
 
     private void PreviousStep()

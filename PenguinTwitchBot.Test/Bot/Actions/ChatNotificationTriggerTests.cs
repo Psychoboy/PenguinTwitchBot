@@ -127,7 +127,7 @@ public class ChatNotificationTriggerTests
     public void WatchStreak_NoRange_NoFilter()
     {
         var cfg = Config("watch_streak");
-        // No min/max set â€” any streak value passes
+        // No min/max set — any streak value passes
         Assert.True(cfg.Matches(Vars(("NoticeType", "watch_streak"), ("WatchStreak.StreakCount", "1"))));
     }
 
@@ -222,7 +222,7 @@ public class ChatNotificationTriggerTests
     public void SubTiers_Empty_NoFilter()
     {
         var cfg = Config("sub");
-        // No tiers configured â€” any tier passes
+        // No tiers configured — any tier passes
         Assert.True(cfg.Matches(Vars(("NoticeType", "sub"), ("Sub.SubTier", "3000"))));
     }
 
@@ -386,7 +386,7 @@ public class ChatNotificationTriggerTests
     public void AnnouncementColor_Empty_NoFilter()
     {
         var cfg = Config("announcement");
-        // No colors configured â€” any color passes
+        // No colors configured — any color passes
         Assert.True(cfg.Matches(Vars(("NoticeType", "announcement"), ("Announcement.Color", "purple"))));
     }
 
@@ -451,7 +451,7 @@ public class ChatNotificationTriggerTests
     [Fact]
     public void Combined_WatchStreakAndNoticeType_WrongType_Fails()
     {
-        // Config for watch_streak with a streak range â€” a "sub" event should not match
+        // Config for watch_streak with a streak range — a "sub" event should not match
         var cfg = Config("watch_streak");
         cfg.MinWatchStreak = 5;
 
@@ -535,7 +535,7 @@ public class ChannelBitsUseTriggerTests
     public void BitsTypes_Empty_NoFilter()
     {
         var cfg = BitsConfig();
-        // No types configured â€” any type passes
+        // No types configured — any type passes
         Assert.True(cfg.Matches(Vars(("Type", "power_up"))));
     }
 
@@ -775,7 +775,7 @@ public class ChannelBitsUseTriggerTests
 }
 
 /// <summary>
-/// Tests for TwitchEventArgsConverter.ToDictionary(ChatNotificationEventArgs) â€” verifies that all
+/// Tests for TwitchEventArgsConverter.ToDictionary(ChatNotificationEventArgs) — verifies that all
 /// expected dot-notation keys are produced and null sub-objects emit empty strings (not exceptions).
 /// </summary>
 public class ChatNotificationConverterTests

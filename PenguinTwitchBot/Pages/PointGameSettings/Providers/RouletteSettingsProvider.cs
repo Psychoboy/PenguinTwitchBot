@@ -72,7 +72,7 @@ public class RouletteSettingsProvider : IGameSettingsFormProvider
             Columns = 2,
             Fields =
             [
-                new() { Key = Roulette.MUST_BEAT, Label = "Must Beat (1â€“99)", FieldType = GameSettingFieldType.Int, Min = 1, Max = 99, HelperText = "Roll above this to win" },
+                new() { Key = Roulette.MUST_BEAT, Label = "Must Beat (1–99)", FieldType = GameSettingFieldType.Int, Min = 1, Max = 99, HelperText = "Roll above this to win" },
                 new() { Key = Roulette.MAX_PER_BET, Label = "Max Per Bet", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Maximum bet per attempt" },
                 new() { Key = Roulette.MAX_AMOUNT, Label = "Per-Stream Limit", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Total a viewer can roulette per stream" },
                 new() { Key = Roulette.ONLINE_ONLY, Label = "Live Only", FieldType = GameSettingFieldType.Bool, HelperText = "Restrict to when stream is live" },

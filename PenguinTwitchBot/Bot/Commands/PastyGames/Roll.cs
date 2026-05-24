@@ -212,7 +212,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 "Hey! Don\'t worry about it! You know... being bad and all!",
                 "The tragedy of all losers is that they think they were on the verge of victory.",
                 "Hm! You should go back to playing puzzle games!",
-                "The past is the past man. If you are a loser now, then youâ€™re a loser period.",
+                "The past is the past man. If you are a loser now, then you’re a loser period.",
                 "The reason you lost is quite simple: you\'re bad!",
                 "Remember that one time during the game when it looked like you might actually win? No? Me neither.",
                 "Is that all you can do? You wouldn\'t have gone very far with that anyway.",

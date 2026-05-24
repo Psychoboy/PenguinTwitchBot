@@ -295,7 +295,7 @@
                 {
                     <MudStack Spacing="2">
                         <MudText Typo="Typo.body2">Notice Type</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Select at least one notice type â€” leaving empty means the trigger will never fire</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Select at least one notice type — leaving empty means the trigger will never fire</MudText>
                         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
                             <MudCheckBox T="bool" Value="_subNoticeSelected"
                                          Label="Sub"
@@ -357,7 +357,7 @@
                 @if (eventInfo.FilterOptions.Contains("NoticeTypes") && Config.NoticeTypes.Count == 0)
                 {
                     <MudAlert Severity="Severity.Warning" Dense="true">
-                        At least one notice type must be selected â€” without a selection this trigger will never fire.
+                        At least one notice type must be selected — without a selection this trigger will never fire.
                     </MudAlert>
                 }
 

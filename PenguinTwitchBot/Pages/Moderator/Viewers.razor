@@ -144,7 +144,7 @@
                 })
             .ToList();
 
-        // Only show a pair if at least one user is new â€” skip pairs where both users
+        // Only show a pair if at least one user is new — skip pairs where both users
         // already appeared in an earlier pair (redundant connections).
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         data = data.Where(x =>

@@ -156,9 +156,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             
             section.GoldRangePerStar = new Dictionary<int, string>
             {
-                { 3, "1.25â€“1.41x gold multiplier (3-star)" },
-                { 2, "1.0â€“1.25x gold multiplier (2-star)" },
-                { 1, "0.75â€“1.0x gold multiplier (1-star)" }
+                { 3, "1.25–1.41x gold multiplier (3-star)" },
+                { 2, "1.0–1.25x gold multiplier (2-star)" },
+                { 1, "0.75–1.0x gold multiplier (1-star)" }
             };
 
             section.WeightMultiplierNote = "Final gold = fish base gold Ã— star multiplier Ã— weight multiplier. " +
@@ -182,14 +182,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             // Equipment slot descriptions
             section.SlotDescriptions = new Dictionary<string, string>
             {
-                { "Rod", "Main fishing rod â€” provides general rarity boost" },
-                { "Reel", "Fishing reel â€” provides star boost" },
-                { "Line", "Fishing line â€” provides weight boost" },
-                { "Hook", "Fish hook â€” provides star boost" },
-                { "Bait", "Consumable bait â€” targets specific fish types" },
-                { "Lure", "Consumable lure â€” targets specific fish + boosts rarity" },
-                { "TackleBox", "Permanent accessory â€” multiple small boosts" },
-                { "Net", "Permanent accessory â€” weight bonus" },
+                { "Rod", "Main fishing rod — provides general rarity boost" },
+                { "Reel", "Fishing reel — provides star boost" },
+                { "Line", "Fishing line — provides weight boost" },
+                { "Hook", "Fish hook — provides star boost" },
+                { "Bait", "Consumable bait — targets specific fish types" },
+                { "Lure", "Consumable lure — targets specific fish + boosts rarity" },
+                { "TackleBox", "Permanent accessory — multiple small boosts" },
+                { "Net", "Permanent accessory — weight bonus" },
                 { "Special", "Reserved for special event items" }
             };
 

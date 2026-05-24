@@ -100,7 +100,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
         /// For ChannelChatNotification - filter by specific notice type(s):
         /// sub, resub, sub_gift, community_sub_gift, gift_paid_upgrade, prime_paid_upgrade,
         /// raid, unraid, pay_it_forward, announcement, bits_badge_tier, charity_donation, watch_streak.
-        /// At least one notice type must be specified for ChannelChatNotification â€” an empty list means the trigger will never fire.
+        /// At least one notice type must be specified for ChannelChatNotification — an empty list means the trigger will never fire.
         /// </summary>
         public List<string> NoticeTypes { get; set; } = new();
 
@@ -417,7 +417,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             }
 
             // Check notice type (for ChannelChatNotification)
-            // Require at least one notice type to be configured â€” without one the trigger would fire for every notice.
+            // Require at least one notice type to be configured — without one the trigger would fire for every notice.
             if (EventName.Equals("ChannelChatNotification", StringComparison.OrdinalIgnoreCase) &&
                 NoticeTypes.Count == 0)
             {

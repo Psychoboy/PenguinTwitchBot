@@ -133,14 +133,14 @@ namespace PenguinTwitchBot.Bot.Core.Database
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
 
-            // Alias name is a chat command identifier â€” always looked up as lowercase
+            // Alias name is a chat command identifier — always looked up as lowercase
             modelBuilder.Entity<AliasModel>()
                 .Property(a => a.AliasName)
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
 
-            // TTS registered voice usernames â€” admin may enter mixed-case but lookup uses Twitch login (lowercase)
+            // TTS registered voice usernames — admin may enter mixed-case but lookup uses Twitch login (lowercase)
             modelBuilder.Entity<UserRegisteredVoice>()
                 .Property(u => u.Username)
                 .HasConversion(

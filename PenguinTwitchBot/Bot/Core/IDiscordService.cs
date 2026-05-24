@@ -1,4 +1,5 @@
 ﻿using Discord;
+using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.StreamSchedule;
 
 namespace PenguinTwitchBot.Bot.Core
@@ -11,6 +12,9 @@ namespace PenguinTwitchBot.Bot.Core
         ulong GetConnectedAsId();
         Task<IGuildScheduledEvent?> GetEvent(ulong id);
         Task<IReadOnlyCollection<IGuildScheduledEvent>> GetEvents();
+        IReadOnlyList<DiscordGuildInfo> GetCachedGuilds();
+        IReadOnlyList<DiscordChannelInfo> GetCachedTextChannels(ulong guildId);
+        IReadOnlyList<DiscordRoleInfo> GetCachedRoles(ulong guildId);
         Task LogAsync(LogMessage message);
         Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams);
         ConnectionState ServiceStatus();

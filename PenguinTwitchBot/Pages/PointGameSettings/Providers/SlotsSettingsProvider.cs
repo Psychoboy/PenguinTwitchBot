@@ -69,7 +69,7 @@ public class SlotsSettingsProvider : IGameSettingsFormProvider
             Icon = Icons.Material.Filled.EmojiEmotions,
             Fields =
             [
-                new() { Key = Slots.GAMESETTING_EMOTES, Label = "Emotes", FieldType = GameSettingFieldType.String, Required = true, HelperText = "Comma-separated, 3â€“12 emotes" },
+                new() { Key = Slots.GAMESETTING_EMOTES, Label = "Emotes", FieldType = GameSettingFieldType.String, Required = true, HelperText = "Comma-separated, 3–12 emotes" },
             ]
         },
     ];

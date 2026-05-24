@@ -80,7 +80,7 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
         new()
         {
             Title = "Game Stages",
-            Description = "Narrative messages shown as the heist progresses â€” Variables: {Caught}, {Survivors}, {Payouts}, {SurvivorsCount}, {CaughtCount}",
+            Description = "Narrative messages shown as the heist progresses — Variables: {Caught}, {Survivors}, {Payouts}, {SurvivorsCount}, {CaughtCount}",
             Icon = Icons.Material.Filled.TheaterComedy,
             Fields =
             [
