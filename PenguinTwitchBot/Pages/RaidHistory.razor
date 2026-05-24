@@ -6,41 +6,123 @@
 
 @if (raidHistory != null)
 {
-    <MudTable Items="@(GetFilteredContent())">
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh><MudCheckBox @bind-Value="OnlineOnly">Online?</MudCheckBox></MudTh>
-            <MudTh>Game</MudTh>
-            <MudTh>Incoming Raids</MudTh>
-            <MudTh>Avg. Per</MudTh>
-            <MudTh>Last Incoming</MudTh>
-            <MudTh>Outgoing</MudTh>
-            <MudTh>Avg. Per</MudTh>
-            <MudTh>Last Outgoing</MudTh>
-            <MudTh>Raid</MudTh>
-            <MudTh>Remove</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name"><MudLink Href=@LinkBuilder(context.DisplayName) Target="_blank">@context.DisplayName</MudLink></MudTd>
-            <MudTd DataLabel="Is Online">@context.IsOnline</MudTd>
-            <MudTd DataLabel="Game">@context.LastGame</MudTd>
-            <MudTd DataLabel="Incoming">@context.TotalIncomingRaids</MudTd>
-            <MudTd DataLabel="Avg. Incoming"> @(context.TotalIncomingRaids > 0 ? context.TotalIncomingRaidViewers /
-            context.TotalIncomingRaids : 0) </MudTd>
-            <MudTd DataLabel="Last Incoming">@context.LastIncomingRaid.ToShortDateString()</MudTd>
-            <MudTd DataLabel="Outgoing">@context.TotalOutgoingRaids</MudTd>
-            <MudTd DataLabel="Avg. Per"> @(context.TotalOutgoingRaids > 0 ? context.TotalOutGoingRaidViewers /
-            context.TotalOutgoingRaids : 0)</MudTd>
-            <MudTd DataLabel="Last Outgoing">@context.LastOutgoingRaid.ToShortDateString()</MudTd>
-                <MudTd DataLabel="Edit">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Raid(context)">Raid</MudButton>
-                
-                </MudTd>
-                <MudTd DataLabel="Remove">
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => Remove(context)">Remove</MudButton>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+<MudContainer Class="pa-2 pa-md-3" MaxWidth="MaxWidth.ExtraExtraLarge">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudText Typo="Typo.h5">Raid History</MudText>
+            <MudSpacer />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetFilteredContent()?.Count creator(s)</MudText>
+        </MudStack>
+        <MudPaper Elevation="1">
+            <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true" Height="65vh">
+                <ToolBarContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2">
+                        <MudText Typo="Typo.subtitle1">Raid Statistics</MudText>
+                        <MudSpacer />
+                        <MudCheckBox @bind-Value="OnlineOnly" Label="Online only" Color="Color.Primary" Dense="true" />
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.DisplayName)">
+                            Name
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        Online
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastGame ?? string.Empty)">
+                            Game
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids)" InitialDirection="SortDirection.Descending">
+                            Incoming
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids > 0 ? x.TotalIncomingRaidViewers / x.TotalIncomingRaids : 0)" InitialDirection="SortDirection.Descending">
+                            Avg In.
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastIncomingRaid)" InitialDirection="SortDirection.Descending">
+                            Last In.
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids)" InitialDirection="SortDirection.Descending">
+                            Outgoing
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids > 0 ? x.TotalOutGoingRaidViewers / x.TotalOutgoingRaids : 0)" InitialDirection="SortDirection.Descending">
+                            Avg Out.
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastOutgoingRaid)" InitialDirection="SortDirection.Descending">
+                            Last Out.
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        Actions
+                    </MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudLink Href=@LinkBuilder(context.DisplayName) Target="_blank">
+                            <strong>@context.DisplayName</strong>
+                        </MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Online">
+                        @if (context.IsOnline)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Online</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small">Offline</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Game">
+                        @context.LastGame
+                    </MudTd>
+                    <MudTd DataLabel="Incoming">
+                        <strong>@context.TotalIncomingRaids</strong>
+                    </MudTd>
+                    <MudTd DataLabel="Avg In.">
+                        @(context.TotalIncomingRaids > 0 ? (context.TotalIncomingRaidViewers / context.TotalIncomingRaids).ToString("N0") : "0")
+                    </MudTd>
+                    <MudTd DataLabel="Last In.">
+                        @context.LastIncomingRaid.ToString("yyyy-MM-dd")
+                    </MudTd>
+                    <MudTd DataLabel="Outgoing">
+                        <strong>@context.TotalOutgoingRaids</strong>
+                    </MudTd>
+                    <MudTd DataLabel="Avg Out.">
+                        @(context.TotalOutgoingRaids > 0 ? (context.TotalOutGoingRaidViewers / context.TotalOutgoingRaids).ToString("N0") : "0")
+                    </MudTd>
+                    <MudTd DataLabel="Last Out.">
+                        @context.LastOutgoingRaid.ToString("yyyy-MM-dd")
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudStack Row="true" Spacing="1">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" @onclick="() => Raid(context)">Raid</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" @onclick="() => Remove(context)">Remove</MudButton>
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
+                        No raid history available
+                    </MudAlert>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
 }
 
 @code {
