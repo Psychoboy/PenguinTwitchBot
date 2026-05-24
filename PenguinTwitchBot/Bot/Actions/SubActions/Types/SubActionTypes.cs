@@ -47,6 +47,12 @@
         ObsSetMediaSourceFile,
         ObsSetMediaState,
         ObsSetSourceAudioTrackState,
-        ObsSetSourceFilterState
+        ObsSetSourceFilterState,
+        RaffleStart,
+        RaffleEnter,
+        RaffleEnd,
+        RaffleSetWinnerCount,
+        RaffleSetTotalAward,
+        RaffleGetEntryCount
     }
 }

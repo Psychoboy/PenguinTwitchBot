@@ -51,6 +51,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
             services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
+            services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
             services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
@@ -64,12 +65,10 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Alerts.AlertImage>();
 
             services.AddSingleton<IBonusTickets, BonusTickets>();
+            services.AddSingleton<IRaffleRuntimeService, RaffleRuntimeService>();
 
 
             services.AddHostedApiService<GiveawayFeature>();
-            services.AddHostedApiService<WaffleRaffle>();
-            services.AddHostedApiService<PancakeRaffle>();
-            services.AddHostedApiService<BaconRaffle>();
             services.AddHostedApiService<Roulette>();
             services.AddHostedApiService<DuelGame>();
             services.AddHostedApiService<ModSpam>();
