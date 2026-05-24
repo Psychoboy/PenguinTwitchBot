@@ -42,12 +42,15 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 }
 
                 await pointsSystem.RegisterDefaultPointForGame(pointGameName);
+                var pointType = await pointsSystem.GetPointTypeForGame(pointGameName);
+                var pointTypeName = string.IsNullOrWhiteSpace(pointType.Name) ? pointGameName : pointType.Name;
 
                 var raffle = new ActiveRaffle(
                     raffleKey,
                     raffleName,
                     joinCommand,
                     pointGameName,
+                    pointTypeName,
                     winnerCount,
                     totalAward);
 
@@ -249,6 +252,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 RaffleName = raffle.RaffleName,
                 JoinCommand = raffle.JoinCommand,
                 PointGameName = raffle.PointGameName,
+                PointTypeName = raffle.PointTypeName,
                 IsActive = isActive ?? true,
                 EntryCount = raffle.Entries.Count,
                 WinnerCount = raffle.WinnerCount,
@@ -268,6 +272,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             string raffleName,
             string joinCommand,
             string pointGameName,
+            string pointTypeName,
             int winnerCount,
             long totalAward)
         {
@@ -275,6 +280,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             public string RaffleName { get; } = raffleName;
             public string JoinCommand { get; } = joinCommand;
             public string PointGameName { get; } = pointGameName;
+            public string PointTypeName { get; } = pointTypeName;
             public int WinnerCount { get; set; } = winnerCount;
             public long TotalAward { get; set; } = totalAward;
             public HashSet<string> Entries { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -299,6 +305,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         public string RaffleName { get; init; } = string.Empty;
         public string JoinCommand { get; init; } = string.Empty;
         public string PointGameName { get; init; } = string.Empty;
+        public string PointTypeName { get; init; } = string.Empty;
         public bool IsActive { get; init; }
         public int EntryCount { get; init; }
         public int WinnerCount { get; init; }

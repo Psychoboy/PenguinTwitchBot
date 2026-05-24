@@ -12,7 +12,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["raffle_key"] = result.RaffleKey;
             variables["raffle_name"] = result.RaffleName;
             variables["raffle_join_command"] = result.JoinCommand;
-            variables["raffle_point_game"] = result.PointGameName;
+            variables["raffle_point_game"] = string.IsNullOrWhiteSpace(result.PointTypeName)
+                ? result.PointGameName
+                : result.PointTypeName;
             variables["raffle_is_active"] = result.IsActive.ToString().ToLowerInvariant();
             variables["raffle_entry_count"] = result.EntryCount.ToString();
             variables["raffle_winner_count"] = result.WinnerCount.ToString();
