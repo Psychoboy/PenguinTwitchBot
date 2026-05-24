@@ -226,7 +226,7 @@
                             @if (_testResult.HasValue)
                             {
                                 <MudChip T="string" Color="@(_testResult.Value ? Color.Success : Color.Default)" Size="Size.Medium">
-                                    @(_testResult.Value ? "✔ Match!" : "âœ— No Match")
+                                    @(_testResult.Value ? "✔ Match!" : "❌ No Match")
                                 </MudChip>
                             }
                         </MudStack>

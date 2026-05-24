@@ -2646,8 +2646,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long>("TotalAward")
-                        .HasColumnType("bigint");
+                    b.Property<string>("TotalAward")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.ToTable("subactions_rafflesettotalaward", (string)null);
                 });
@@ -2686,8 +2687,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long>("TotalAward")
-                        .HasColumnType("bigint");
+                    b.Property<string>("TotalAward")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("WinnerCount")
                         .HasColumnType("integer");

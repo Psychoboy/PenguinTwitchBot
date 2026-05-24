@@ -13,12 +13,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public RaffleSetTotalAwardType() => SubActionTypes = SubActionTypes.RaffleSetTotalAward;
 
         public string RaffleKey { get; set; } = string.Empty;
-        public long TotalAward { get; set; }
+        public string TotalAward { get; set; } = "0";
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null) =>
         [
             new() { PropertyName = nameof(RaffleKey), Label = "Raffle Key", FieldType = UIFieldType.Text, Required = true },
-            new() { PropertyName = nameof(TotalAward), Label = "Total Award", FieldType = UIFieldType.Number, Required = true, DefaultValue = 0, Min = 0 },
+            new() { PropertyName = nameof(TotalAward), Label = "Total Award", FieldType = UIFieldType.Text, Required = true, DefaultValue = "0", HelperText = "You can enter a number or a %variable%." },
             new() { PropertyName = nameof(Enabled), Label = "Enabled", FieldType = UIFieldType.Switch, SwitchColor = "Success", DefaultValue = true }
         ];
 
@@ -32,7 +32,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public void SetValues(Dictionary<string, object?> values)
         {
             RaffleKey = values.GetValueOrDefault(nameof(RaffleKey))?.ToString() ?? string.Empty;
-            TotalAward = long.TryParse(values.GetValueOrDefault(nameof(TotalAward))?.ToString(), out var totalAward) ? totalAward : 0;
+            TotalAward = values.GetValueOrDefault(nameof(TotalAward))?.ToString() ?? "0";
             Enabled = bool.TryParse(values.GetValueOrDefault(nameof(Enabled))?.ToString(), out var enabled) ? enabled : true;
         }
 
@@ -43,9 +43,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                 return "Raffle Key is required";
             }
 
-            return long.TryParse(values.GetValueOrDefault(nameof(TotalAward))?.ToString(), out var totalAward) && totalAward >= 0
-                ? null
-                : "Total Award must be 0 or greater";
+            var totalAward = values.GetValueOrDefault(nameof(TotalAward))?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(totalAward))
+            {
+                return "Total Award is required";
+            }
+
+            return totalAward.Contains(' ') ? "Total Award cannot contain spaces" : null;
         }
     }
 }

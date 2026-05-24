@@ -2645,8 +2645,9 @@ namespace PenguinTwitchBot.Migrations.MariaDb.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<long>("TotalAward")
-                        .HasColumnType("bigint");
+                    b.Property<string>("TotalAward")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.ToTable("subactions_rafflesettotalaward", (string)null);
                 });
@@ -2685,8 +2686,9 @@ namespace PenguinTwitchBot.Migrations.MariaDb.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<long>("TotalAward")
-                        .HasColumnType("bigint");
+                    b.Property<string>("TotalAward")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int>("WinnerCount")
                         .HasColumnType("int");

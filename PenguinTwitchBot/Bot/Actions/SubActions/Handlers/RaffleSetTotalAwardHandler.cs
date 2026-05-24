@@ -17,7 +17,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var raffleKey = VariableReplacer.ReplaceVariables(raffleSetTotalAward.RaffleKey, variables);
-            var result = await raffleRuntimeService.SetTotalAwardAsync(raffleKey, raffleSetTotalAward.TotalAward);
+            var totalAwardText = VariableReplacer.ReplaceVariables(raffleSetTotalAward.TotalAward, variables);
+
+            if (!long.TryParse(totalAwardText, out var totalAward) || totalAward < 0)
+            {
+                throw new SubActionHandlerException(subAction, "Invalid Total Award value for RaffleSetTotalAward: {TotalAward}", totalAwardText);
+            }
+
+            var result = await raffleRuntimeService.SetTotalAwardAsync(raffleKey, totalAward);
             RaffleSubActionVariableWriter.Write(variables, result);
         }
     }

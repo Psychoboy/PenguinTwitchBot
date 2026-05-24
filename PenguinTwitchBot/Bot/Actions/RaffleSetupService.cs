@@ -195,7 +195,7 @@ namespace PenguinTwitchBot.Bot.Actions
                     JoinCommand = request.JoinCommandName,
                     PointGameName = request.RaffleKey,
                     WinnerCount = request.WinnerCount,
-                    TotalAward = request.TotalAward
+                    TotalAward = request.TotalAward.ToString()
                 }
             };
 

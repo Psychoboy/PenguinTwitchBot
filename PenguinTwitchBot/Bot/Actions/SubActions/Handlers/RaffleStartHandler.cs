@@ -16,6 +16,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for RaffleStartHandler: {SubActionType}", subAction.GetType().Name);
             }
 
+            var totalAwardText = VariableReplacer.ReplaceVariables(raffleStart.TotalAward, variables);
+            if (!long.TryParse(totalAwardText, out var totalAward) || totalAward < 0)
+            {
+                throw new SubActionHandlerException(subAction, "Invalid Total Award value for RaffleStart: {TotalAward}", totalAwardText);
+            }
+
             var result = await raffleRuntimeService.StartAsync(new RaffleStartRequest
             {
                 RaffleKey = VariableReplacer.ReplaceVariables(raffleStart.RaffleKey, variables),
@@ -23,7 +29,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 JoinCommand = VariableReplacer.ReplaceVariables(raffleStart.JoinCommand, variables),
                 PointGameName = VariableReplacer.ReplaceVariables(raffleStart.PointGameName, variables),
                 WinnerCount = raffleStart.WinnerCount,
-                TotalAward = raffleStart.TotalAward
+                TotalAward = totalAward
             });
 
             RaffleSubActionVariableWriter.Write(variables, result);

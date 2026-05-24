@@ -74,14 +74,14 @@
                                      Min="0" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudSelect T="PointType?" @bind-Value="_selectedPointType"
+                    <MudSelect T="PointType" @bind-Value="_selectedPointType"
                                Label="Award Point Type"
                                Variant="Variant.Outlined"
                                Clearable="true"
                                HelperText="Winners receive points of this type. Leave blank for the default.">
                         @foreach (var pt in _pointTypes)
                         {
-                            <MudSelectItem T="PointType?" Value="pt">@pt.Name</MudSelectItem>
+                            <MudSelectItem T="PointType" Value="pt">@pt.Name</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -126,7 +126,7 @@
     private readonly List<string> _errors = [];
     private bool _isSaving;
     private List<PointType> _pointTypes = [];
-    private PointType? _selectedPointType;
+    private PointType _selectedPointType = null!;
 
     private IReadOnlyList<string> QueueOptions => AvailableQueues.Count > 0 ? AvailableQueues : ["Default"];
 
@@ -136,7 +136,7 @@
         _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
     }
 
-    private Task OnRaffleNameChanged(string? raffleName)
+    private Task OnRaffleNameChanged(string raffleName)
     {
         var previousKey = GenerateRaffleKey(_request.RaffleName);
         var previousJoin = GenerateCommand("join", _request.RaffleName);
