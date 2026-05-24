@@ -237,7 +237,7 @@ internal class Program
 
         builder.Services.AddSignalR();
 
-        // Always register circuit services â€” MainLayout injects these and Blazor's SSR
+        // Always register circuit services — MainLayout injects these and Blazor's SSR
         // prerender instantiates it even when the page specifies its own layout.
         builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IpLog>();
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
@@ -293,7 +293,7 @@ internal class Program
         app.UseAuthorization();
         app.UseForwardedHeaders();
 
-        // Always migrate â€” for SQLite this creates the database file and schema on first run.
+        // Always migrate — for SQLite this creates the database file and schema on first run.
         // For MariaDB/Postgres the server must be reachable before starting the app.
         {
             using var scope = app.Services.CreateScope();
@@ -473,7 +473,7 @@ internal class Program
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine();
         Console.WriteLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        Console.WriteLine("â•‘          DOTNET TWITCHBOT â€” SETUP REQUIRED           â•‘");
+        Console.WriteLine("â•‘          DOTNET TWITCHBOT — SETUP REQUIRED           â•‘");
         Console.WriteLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
         Console.WriteLine($"â•‘  Config file not found: {secretsPath,-29}â•‘");
         Console.WriteLine("â•‘                                                      â•‘");

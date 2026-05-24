@@ -679,7 +679,7 @@ namespace PenguinTwitchBot.Bot.Core
         {
             if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
             {
-                _logger.LogInformation("Discord token is not configured â€” Discord service will not start.");
+                _logger.LogInformation("Discord token is not configured — Discord service will not start.");
                 return;
             }
 

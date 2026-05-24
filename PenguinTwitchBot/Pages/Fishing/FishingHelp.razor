@@ -80,9 +80,9 @@
                                 <strong>3-Star Fish</strong>
                             </MudText>
                             <MudText Typo="Typo.caption">
-                                â€¢ @(helpData.Gold.GoldRangePerStar.TryGetValue(3, out var g3) ? g3 : "1.25â€“1.41x base gold")<br/>
-                                â€¢ Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(3, out var w3) ? $"{w3:F1}x" : "1.5x")<br/>
-                                â€¢ Perfect quality catch!
+                                • @(helpData.Gold.GoldRangePerStar.TryGetValue(3, out var g3) ? g3 : "1.25–1.41x base gold")<br/>
+                                • Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(3, out var w3) ? $"{w3:F1}x" : "1.5x")<br/>
+                                • Perfect quality catch!
                             </MudText>
                         </MudCard>
                         <MudCard Elevation="1" Class="pa-2">
@@ -93,9 +93,9 @@
                                 <strong>2-Star Fish</strong>
                             </MudText>
                             <MudText Typo="Typo.caption">
-                                â€¢ @(helpData.Gold.GoldRangePerStar.TryGetValue(2, out var g2) ? g2 : "1.0â€“1.25x base gold")<br/>
-                                â€¢ Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(2, out var w2) ? $"{w2:F1}x" : "1.2x")<br/>
-                                â€¢ Good quality catch
+                                • @(helpData.Gold.GoldRangePerStar.TryGetValue(2, out var g2) ? g2 : "1.0–1.25x base gold")<br/>
+                                • Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(2, out var w2) ? $"{w2:F1}x" : "1.2x")<br/>
+                                • Good quality catch
                             </MudText>
                         </MudCard>
                         <MudCard Elevation="1" Class="pa-2">
@@ -106,9 +106,9 @@
                                 <strong>1-Star Fish</strong>
                             </MudText>
                             <MudText Typo="Typo.caption">
-                                â€¢ @(helpData.Gold.GoldRangePerStar.TryGetValue(1, out var g1) ? g1 : "0.75â€“1.0x base gold")<br/>
-                                â€¢ Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(1, out var w1) ? $"{w1:F1}x" : "1.0x")<br/>
-                                â€¢ Standard catch
+                                • @(helpData.Gold.GoldRangePerStar.TryGetValue(1, out var g1) ? g1 : "0.75–1.0x base gold")<br/>
+                                • Weight multiplier: @(helpData.StarWeight.WeightMultiplierPerStar.TryGetValue(1, out var w1) ? $"{w1:F1}x" : "1.0x")<br/>
+                                • Standard catch
                             </MudText>
                         </MudCard>
                     </MudStack>
@@ -127,7 +127,7 @@
                         <MudStack Spacing="1" Class="mt-2">
                             @foreach (var example in helpData.Gold.ValueExamples)
                             {
-                                <MudText Typo="Typo.caption">â€¢ @example</MudText>
+                                <MudText Typo="Typo.caption">• @example</MudText>
                             }
                         </MudStack>
                     </MudPaper>

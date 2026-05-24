@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public string InputName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Audio track number (1â€“6).
+        /// Audio track number (1–6).
         /// </summary>
         public int TrackNumber { get; set; } = 1;
 
@@ -100,7 +100,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.Select,
                     Required = true,
                     SelectOptions = trackOptions,
-                    HelperText = "Audio mix track to enable or disable (1â€“6)"
+                    HelperText = "Audio mix track to enable or disable (1–6)"
                 },
                 new SubActionUIField
                 {

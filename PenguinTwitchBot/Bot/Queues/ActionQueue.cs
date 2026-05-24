@@ -135,7 +135,7 @@ namespace PenguinTwitchBot.Bot.Queues
             {
                 Interlocked.Decrement(ref _pendingCount);
                 _logger.LogError(
-                    "Queue {QueueName} is saturated â€” action {ActionName} dropped after {TimeoutMs}ms wait.",
+                    "Queue {QueueName} is saturated — action {ActionName} dropped after {TimeoutMs}ms wait.",
                     Name, action.Name, EnqueueTimeout.TotalMilliseconds);
                 _executionLogger.UpdateActionFailed(logId, "Enqueue timed out: queue is saturated.", variables);
                 return;

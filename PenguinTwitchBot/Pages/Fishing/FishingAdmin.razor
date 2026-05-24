@@ -2004,7 +2004,7 @@
                                 var sampleEntry = entryItems.First();
                                 var currentEntry = shopItems.FirstOrDefault(i => i.Name == sampleEntry.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Entry Tier (~2 weeks):</strong> @minEntry - @maxEntry gold
+                                    • <strong>Entry Tier (~2 weeks):</strong> @minEntry - @maxEntry gold
                                     @if (currentEntry != null)
                                     {
                                         var change = sampleEntry.Value - currentEntry.Cost;
@@ -2023,7 +2023,7 @@
                                 var sampleMid = midItems.First();
                                 var currentMid = shopItems.FirstOrDefault(i => i.Name == sampleMid.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Mid Tier (~6 weeks):</strong> @minMid - @maxMid gold
+                                    • <strong>Mid Tier (~6 weeks):</strong> @minMid - @maxMid gold
                                     @if (currentMid != null)
                                     {
                                         var change = sampleMid.Value - currentMid.Cost;
@@ -2042,7 +2042,7 @@
                                 var sampleHigh = highItems.First();
                                 var currentHigh = shopItems.FirstOrDefault(i => i.Name == sampleHigh.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>High Tier (~12 weeks):</strong> @minHigh - @maxHigh gold
+                                    • <strong>High Tier (~12 weeks):</strong> @minHigh - @maxHigh gold
                                     @if (currentHigh != null)
                                     {
                                         var change = sampleHigh.Value - currentHigh.Cost;
@@ -2061,7 +2061,7 @@
                                 var sampleTop = topItems.First();
                                 var currentTop = shopItems.FirstOrDefault(i => i.Name == sampleTop.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Top Tier (~@targetWeeksForEndgame weeks):</strong> @minTop - @maxTop gold
+                                    • <strong>Top Tier (~@targetWeeksForEndgame weeks):</strong> @minTop - @maxTop gold
                                     @if (currentTop != null)
                                     {
                                         var change = sampleTop.Value - currentTop.Cost;

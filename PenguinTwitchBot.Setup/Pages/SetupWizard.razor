@@ -5,7 +5,7 @@
 @using PenguinTwitchBot.Setup.Services
 @inject DiscordLookupService DiscordLookupSvc
 
-<PageTitle>PenguinTwitchBot â€” First-Time Setup</PageTitle>
+<PageTitle>PenguinTwitchBot — First-Time Setup</PageTitle>
 
 @if (_done)
 {
@@ -33,7 +33,7 @@ else
     <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6 mb-6">
 
         <!-- Header -->
-        <MudText Typo="Typo.h4" Class="mb-1">PenguinTwitchBot â€” First-Time Setup</MudText>
+        <MudText Typo="Typo.h4" Class="mb-1">PenguinTwitchBot — First-Time Setup</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
             Step @(_step + 1) of @TotalSteps &mdash; @StepTitle
         </MudText>
@@ -58,7 +58,7 @@ else
                     <MudText Typo="Typo.h6">Welcome!</MudText>
                     <MudText>
                         This wizard will guide you through configuring PenguinTwitchBot for the first time.
-                        It takes about 5â€“10 minutes and creates the <code>appsettings.secrets.json</code> file
+                        It takes about 5–10 minutes and creates the <code>appsettings.secrets.json</code> file
                         that the bot reads on every startup.
                     </MudText>
                     <MudText Typo="Typo.subtitle2">You will need:</MudText>
@@ -90,7 +90,7 @@ else
                                   Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_model.Broadcaster"
                                   Label="Broadcaster / Channel Name"
-                                  HelperText="Your Twitch channel name â€” the channel the bot monitors"
+                                  HelperText="Your Twitch channel name — the channel the bot monitors"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tv"
                                   Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_model.BaseUrl"
@@ -158,7 +158,7 @@ else
                         <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
                             Create a second application at
                             <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink>
-                            â€” this time log in with your <strong>bot</strong> account and add redirect URL
+                            — this time log in with your <strong>bot</strong> account and add redirect URL
                             <code>http://localhost:5000/botredirect</code>.
                         </MudAlert>
                         <MudTextField @bind-Value="_model.TwitchBotClientId"
@@ -283,7 +283,7 @@ else
                     <MudSelect T="DatabaseProviderOption" @bind-Value="_model.DatabaseProvider"
                                Label="Database Provider" Variant="Variant.Outlined"
                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
-                        <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended â€” no server needed)</MudSelectItem>
+                        <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended — no server needed)</MudSelectItem>
                         <MudSelectItem Value="DatabaseProviderOption.MariaDb">MariaDB / MySQL</MudSelectItem>
                         <MudSelectItem Value="DatabaseProviderOption.Postgres">PostgreSQL</MudSelectItem>
                     </MudSelect>
@@ -325,7 +325,7 @@ else
                     <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
                         <strong>How to get a YouTube Data API v3 key:</strong>
                         <ol style="margin: 8px 0 0 16px; padding: 0;">
-                            <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console â€” YouTube Data API v3</MudLink></li>
+                            <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console — YouTube Data API v3</MudLink></li>
                             <li>Enable the API for your project</li>
                             <li>Go to Credentials â†’ Create Credentials â†’ API Key</li>
                         </ol>
@@ -556,7 +556,7 @@ else
                     @if (_saving)
                     {
                         <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configurationâ€¦</MudText>
+                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configurationâ¦</MudText>
                     }
                 </MudStack>
             }
