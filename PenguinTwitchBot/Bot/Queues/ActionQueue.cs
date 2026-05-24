@@ -399,43 +399,81 @@ namespace PenguinTwitchBot.Bot.Queues
 
                 // Pass the context explicitly to RunAction
                 var actionTask = actionService.RunAction(queuedAction.Variables, queuedAction.Action, executionContext);
-                // Use CancellationToken.None so a shutdown cancellation doesn't complete the
-                // delay early and trigger a misleading long-running-action warning.
-                var warningTask = Task.Delay(ActionWarningTimeout, CancellationToken.None);
-                var firstCompleted = await Task.WhenAny(actionTask, warningTask);
-
-                if (firstCompleted == warningTask && !cancellationToken.IsCancellationRequested)
+                var warnedNoProgress = false;
+                while (!actionTask.IsCompleted)
                 {
-                    ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
-                    ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);
-                    _logger.LogWarning(
-                        "Long-running action detected in queue {QueueName}: {ActionName} exceeded warning timeout {TimeoutMs}ms. WorkerThreads={AvailableWorkers}/{MaxWorkers}, IOCP={AvailableIocp}/{MaxIocp}, pending={PendingCount}, executing={CurrentlyExecuting}",
-                        Name,
-                        queuedAction.Action.Name,
-                        ActionWarningTimeout.TotalMilliseconds,
-                        availableWorkers,
-                        maxWorkers,
-                        availableIocp,
-                        maxIocp,
-                        _pendingCount,
-                        _currentlyExecuting);
+                    // Use CancellationToken.None so shutdown cancellation does not complete
+                    // this delay early and trigger misleading stuck-action diagnostics.
+                    var warningTask = Task.Delay(ActionWarningTimeout, CancellationToken.None);
+                    var firstCompleted = await Task.WhenAny(actionTask, warningTask);
+                    if (firstCompleted == actionTask)
+                    {
+                        break;
+                    }
 
-                    // Wait for completion to preserve current action semantics.
-                    await actionTask;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    if (executionContext.IsIntentionalDelayInProgress)
+                    {
+                        warnedNoProgress = false;
+                        var remainingDelay = executionContext.GetIntentionalDelayRemaining();
+                        _logger.LogDebug(
+                            "Skipping long-running warning for queue {QueueName}: {ActionName} is in intentional delay. Remaining delay: {RemainingDelayMs}ms",
+                            Name,
+                            queuedAction.Action.Name,
+                            (long)remainingDelay.TotalMilliseconds);
+                        continue;
+                    }
+
+                    var idleFor = executionContext.TimeSinceProgress;
+                    if (idleFor < ActionWarningTimeout)
+                    {
+                        warnedNoProgress = false;
+                        continue;
+                    }
+
+                    if (!warnedNoProgress)
+                    {
+                        ThreadPool.GetAvailableThreads(out var availableWorkers, out var availableIocp);
+                        ThreadPool.GetMaxThreads(out var maxWorkers, out var maxIocp);
+                        _logger.LogWarning(
+                            "Long-running action detected in queue {QueueName}: {ActionName} had no progress for {IdleForMs}ms (threshold {TimeoutMs}ms). WorkerThreads={AvailableWorkers}/{MaxWorkers}, IOCP={AvailableIocp}/{MaxIocp}, pending={PendingCount}, executing={CurrentlyExecuting}",
+                            Name,
+                            queuedAction.Action.Name,
+                            (long)idleFor.TotalMilliseconds,
+                            ActionWarningTimeout.TotalMilliseconds,
+                            availableWorkers,
+                            maxWorkers,
+                            availableIocp,
+                            maxIocp,
+                            _pendingCount,
+                            _currentlyExecuting);
+                        warnedNoProgress = true;
+                    }
                 }
-                else
-                {
-                    await actionTask;
-                }
+
+                await actionTask;
 
                 stopwatch.Stop();
-                if (stopwatch.Elapsed >= SlowActionThreshold)
+                var intentionalDelay = executionContext.GetCompletedIntentionalDelay();
+                var effectiveElapsed = stopwatch.Elapsed - intentionalDelay;
+                if (effectiveElapsed < TimeSpan.Zero)
+                {
+                    effectiveElapsed = TimeSpan.Zero;
+                }
+
+                if (effectiveElapsed >= SlowActionThreshold)
                 {
                     _logger.LogWarning(
-                        "Slow action detected in queue {QueueName}: {ActionName} took {ElapsedMs}ms (pending: {PendingCount}, executing: {CurrentlyExecuting})",
+                        "Slow action detected in queue {QueueName}: {ActionName} effective runtime {EffectiveElapsedMs}ms (raw: {ElapsedMs}ms, intentional delay: {IntentionalDelayMs}ms, pending: {PendingCount}, executing: {CurrentlyExecuting})",
                         Name,
                         queuedAction.Action.Name,
+                        effectiveElapsed.TotalMilliseconds,
                         stopwatch.ElapsedMilliseconds,
+                        intentionalDelay.TotalMilliseconds,
                         _pendingCount,
                         _currentlyExecuting);
                 }

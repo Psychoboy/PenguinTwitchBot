@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PenguinTwitchBot.Bot.Core.Database;
 
@@ -10,9 +11,11 @@ using PenguinTwitchBot.Bot.Core.Database;
 namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260524171720_refactorRaffles")]
+    partial class refactorRaffles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
@@ -2546,9 +2549,8 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TotalAward")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.Property<long>("TotalAward")
+                        .HasColumnType("INTEGER");
 
                     b.ToTable("subactions_rafflesettotalaward", (string)null);
                 });
@@ -2587,9 +2589,8 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TotalAward")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.Property<long>("TotalAward")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("WinnerCount")
                         .HasColumnType("INTEGER");

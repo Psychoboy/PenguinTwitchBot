@@ -16,8 +16,15 @@
 <PageTitle>SPTV Twitch Bot - Manage Actions</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Action Management</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">Create, edit, and manage actions with their triggers and subactions.</MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4" GutterBottom="true">Action Management</MudText>
+            <MudText Typo="Typo.body2">Create, edit, and manage actions with their triggers and subactions.</MudText>
+        </MudStack>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
+            Create Raffle
+        </MudButton>
+    </MudStack>
 
     <MudGrid>
         <!-- Left Panel - Actions List -->
@@ -399,6 +406,43 @@
         _isNavigating = true;
         NavigationManager.NavigateTo("/actions/manage", false);
         _isNavigating = false;
+    }
+
+    private async Task OpenCreateRaffleDialog()
+    {
+        var parameters = new DialogParameters<CreateRaffleDialog>
+        {
+            { x => x.AvailableQueues, _availableQueues }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CreateRaffleDialog>("Create Raffle", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled || result.Data is not RaffleSetupResult raffleSetup)
+        {
+            return;
+        }
+
+        await LoadActions();
+
+        var actionIdToSelect = raffleSetup.StartActionId ?? raffleSetup.JoinActionId ?? raffleSetup.EndActionId;
+        if (actionIdToSelect.HasValue)
+        {
+            var createdAction = _actions.FirstOrDefault(a => a.Id == actionIdToSelect.Value);
+            if (createdAction != null)
+            {
+                await OnActionSelected(createdAction);
+            }
+        }
+
+        Snackbar.Add($"Raffle '{raffleSetup.RaffleKey}' created with commands '!{raffleSetup.StartCommandName}', '!{raffleSetup.JoinCommandName}', and '!{raffleSetup.EndCommandName}'.", Severity.Success);
     }
 
     private async Task RunAction()

@@ -1,0 +1,233 @@
+@using System.Text
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Models.Points
+@using MudBlazor
+@inject IRaffleSetupService RaffleSetupService
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Creates three command-triggered actions for the raffle: start, join, and end. Starter chat messages are optional and can be edited afterward in Action Management.
+            </MudAlert>
+
+            @if (_errors.Count > 0)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">
+                    @foreach (var error in _errors)
+                    {
+                        <div>@error</div>
+                    }
+                </MudAlert>
+            }
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Value="@_request.RaffleName"
+                                  ValueChanged="OnRaffleNameChanged"
+                                  Label="Raffle Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_request.RaffleKey"
+                                  Label="Raffle Key"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  HelperText="Used by all raffle subactions. Keep it unique." />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_request.JoinCommandName"
+                                  Label="Join Command"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  HelperText="Enter without !" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_request.StartCommandName"
+                                  Label="Start Command"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  HelperText="Enter without !" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_request.EndCommandName"
+                                  Label="End Command"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  HelperText="Enter without !" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudNumericField T="int" @bind-Value="_request.WinnerCount"
+                                     Label="Winner Count"
+                                     Variant="Variant.Outlined"
+                                     Min="1" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField T="long" @bind-Value="_request.TotalAward"
+                                     Label="Total Award"
+                                     Variant="Variant.Outlined"
+                                     Min="0" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="PointType" @bind-Value="_selectedPointType"
+                               Label="Award Point Type"
+                               Variant="Variant.Outlined"
+                               Clearable="true"
+                               HelperText="Winners receive points of this type. Leave blank for the default.">
+                        @foreach (var pt in _pointTypes)
+                        {
+                            <MudSelectItem T="PointType" Value="pt">@pt.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_request.Group"
+                                  Label="Action Group"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" @bind-Value="_request.QueueName" Label="Queue" Variant="Variant.Outlined">
+                        @foreach (var queue in QueueOptions)
+                        {
+                            <MudSelectItem T="string" Value="@queue">@queue</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_request.IncludeStarterMessages"
+                               Label="Include starter chat messages"
+                               Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isSaving">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Create" Disabled="_isSaving">
+            Create Raffle
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public List<string> AvailableQueues { get; set; } = [];
+
+    private readonly RaffleSetupRequest _request = new();
+    private readonly List<string> _errors = [];
+    private bool _isSaving;
+    private List<PointType> _pointTypes = [];
+    private PointType _selectedPointType = null!;
+
+    private IReadOnlyList<string> QueueOptions => AvailableQueues.Count > 0 ? AvailableQueues : ["Default"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _request.QueueName = QueueOptions[0];
+        _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
+    }
+
+    private Task OnRaffleNameChanged(string raffleName)
+    {
+        var previousKey = GenerateRaffleKey(_request.RaffleName);
+        var previousJoin = GenerateCommand("join", _request.RaffleName);
+        var previousStart = GenerateCommand("start", _request.RaffleName);
+        var previousEnd = GenerateCommand("end", _request.RaffleName);
+
+        _request.RaffleName = raffleName?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_request.RaffleKey) || _request.RaffleKey.Equals(previousKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _request.RaffleKey = GenerateRaffleKey(_request.RaffleName);
+        }
+
+        if (string.IsNullOrWhiteSpace(_request.JoinCommandName) || _request.JoinCommandName.Equals(previousJoin, StringComparison.OrdinalIgnoreCase))
+        {
+            _request.JoinCommandName = GenerateCommand("join", _request.RaffleName);
+        }
+
+        if (string.IsNullOrWhiteSpace(_request.StartCommandName) || _request.StartCommandName.Equals(previousStart, StringComparison.OrdinalIgnoreCase))
+        {
+            _request.StartCommandName = GenerateCommand("start", _request.RaffleName);
+        }
+
+        if (string.IsNullOrWhiteSpace(_request.EndCommandName) || _request.EndCommandName.Equals(previousEnd, StringComparison.OrdinalIgnoreCase))
+        {
+            _request.EndCommandName = GenerateCommand("end", _request.RaffleName);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task Create()
+    {
+        _errors.Clear();
+        _isSaving = true;
+        _request.PointTypeId = _selectedPointType?.Id;
+
+        try
+        {
+            var result = await RaffleSetupService.CreateAsync(_request);
+            if (result.Success)
+            {
+                MudDialog.Close(DialogResult.Ok(result));
+                return;
+            }
+
+            _errors.AddRange(result.Errors);
+        }
+        catch (Exception)
+        {
+            _errors.Add("An unexpected error occurred while creating the raffle setup.");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private static string GenerateRaffleKey(string raffleName)
+    {
+        var token = BuildToken(raffleName);
+        return string.IsNullOrWhiteSpace(token) ? "raffle" : token;
+    }
+
+    private static string GenerateCommand(string prefix, string raffleName)
+    {
+        var token = BuildToken(raffleName);
+        return string.IsNullOrWhiteSpace(token) ? prefix + "raffle" : prefix + token;
+    }
+
+    private static string BuildToken(string raffleName)
+    {
+        if (string.IsNullOrWhiteSpace(raffleName))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        foreach (var character in raffleName.Trim())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
+    }
+}
