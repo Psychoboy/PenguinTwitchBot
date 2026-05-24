@@ -508,4 +508,5 @@ PenguinTwitchBot/Data/counters/shots.txt
 /PenguinTwitchBot/wwwroot/fishes/shot_fish_x2_small.webp
 /PenguinTwitchBot/wwwroot/fishes/shot_fish_x2_thumbnail.webp
 /PenguinTwitchBot/wwwroot/fishes/*.*
-PenguinTwitchBot/Data/PenguinTwitchBot.sqlite
+PenguinTwitchBot/Data/*.sqlite
+PenguinTwitchBot/Data/*.sqlite*
