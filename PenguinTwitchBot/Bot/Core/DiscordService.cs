@@ -4,6 +4,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using PenguinTwitchBot.Application.Discord;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.StreamSchedule;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Repository;
@@ -149,6 +150,26 @@ namespace PenguinTwitchBot.Bot.Core
         public ulong GetConnectedAsId()
         {
             return _client.CurrentUser.Id;
+        }
+
+        public IReadOnlyList<DiscordGuildInfo> GetCachedGuilds()
+        {
+            if (string.IsNullOrWhiteSpace(_settings.DiscordToken)) return [];
+            return [.. _client.Guilds.Select(g => new DiscordGuildInfo(g.Id, g.Name))];
+        }
+
+        public IReadOnlyList<DiscordChannelInfo> GetCachedTextChannels(ulong guildId)
+        {
+            var guild = _client.GetGuild(guildId);
+            if (guild is null) return [];
+            return [.. guild.TextChannels.OrderBy(c => c.Position).Select(c => new DiscordChannelInfo(c.Id, c.Name))];
+        }
+
+        public IReadOnlyList<DiscordRoleInfo> GetCachedRoles(ulong guildId)
+        {
+            var guild = _client.GetGuild(guildId);
+            if (guild is null) return [];
+            return [.. guild.Roles.Where(r => !r.IsEveryone).OrderByDescending(r => r.Position).Select(r => new DiscordRoleInfo(r.Id, r.Name))];
         }
 
         public async Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime)

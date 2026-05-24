@@ -20,6 +20,8 @@ var outputPath = args.FirstOrDefault(a => !a.StartsWith('-'))
     ?? builder.Configuration["SecretsOutputPath"]
     ?? "appsettings.secrets.json";
 
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<DiscordLookupService>();
 builder.Services.AddSingleton<SetupService>(sp => new SetupService(
     outputPath,
     sp.GetRequiredService<IHostApplicationLifetime>(),

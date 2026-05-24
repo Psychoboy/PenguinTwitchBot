@@ -61,7 +61,7 @@ internal class Program
             Environment.ExitCode = 1;
             return;
         }
-        builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: false);
+        builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: true);
         Activity.DefaultIdFormat = System.Diagnostics.ActivityIdFormat.W3C;
         var readerOptions = new Serilog.Settings.Configuration.ConfigurationReaderOptions(
             typeof(ConsoleLoggerConfigurationExtensions).Assembly,
@@ -267,6 +267,7 @@ internal class Program
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot");

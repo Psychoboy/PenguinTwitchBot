@@ -49,9 +49,10 @@
                 <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/giveawaybots" Match="NavLinkMatch.Prefix">G Exclusions</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "botauth", "voices", "tools", "backups", "validation-status", "pointsettings", "gamesettings", "obs/connections")">
-                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "botauth", "voices")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "botauth", "voices", "settings/integrations")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/botauth" Match="NavLinkMatch.Prefix">Bot Auth</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/settings/integrations" Match="NavLinkMatch.Prefix">Integrations</MudNavLink>
                 </MudNavGroup>
                 <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools", "backups", "validation-status")">
                     <MudNavLink Icon="@Icons.Material.Filled.FlashOn" Href="/tools" Match="NavLinkMatch.Prefix">Quick Actions</MudNavLink>

@@ -1,0 +1,432 @@
+@page "/settings/integrations"
+@attribute [Authorize(Roles = "Streamer")]
+@using PenguinTwitchBot.Bot.Core
+@using PenguinTwitchBot.Bot.TwitchServices
+@using PenguinTwitchBot.Services
+@inject IConfiguration Configuration
+@inject SettingsFileManager SettingsFileManager
+@inject ISnackbar Snackbar
+@inject IDiscordService DiscordService
+@inject DiscordLookupService DiscordLookupSvc
+
+<PageTitle>SPTV Twitch Bot - Integration Settings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
+    <MudText Typo="Typo.h5" Class="mb-2">Integration Settings</MudText>
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        Changes are written to <code>appsettings.secrets.json</code> and take effect after restarting the bot.
+    </MudAlert>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+
+        <!-- ── YouTube ──────────────────────────────────────────────────── -->
+        <MudTabPanel Text="YouTube" Icon="@Icons.Material.Filled.OndemandVideo">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">YouTube API</MudText>
+                <MudText>
+                    Required for the song-request feature to search and queue YouTube videos.
+                </MudText>
+                <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                    <strong>How to get a YouTube Data API v3 key:</strong>
+                    <ol style="margin: 8px 0 0 16px; padding: 0;">
+                        <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console &ndash; YouTube Data API v3</MudLink></li>
+                        <li>Enable the API for your project</li>
+                        <li>Go to Credentials &rarr; Create Credentials &rarr; API Key</li>
+                    </ol>
+                </MudAlert>
+                <MudTextField @bind-Value="_youtubeApiKey"
+                              Label="YouTube API Key"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.OndemandVideo"
+                              Variant="Variant.Outlined" />
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveYoutubeAsync"
+                               Disabled="_saving">
+                        Save YouTube Settings
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudTabPanel>
+
+        <!-- ── Discord ──────────────────────────────────────────────────── -->
+        <MudTabPanel Text="Discord" Icon="@Icons.Material.Filled.Forum">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Discord Integration</MudText>
+                <MudSwitch @bind-Value="_discordEnabled" Color="Color.Primary" Label="Enable Discord integration" />
+
+                @if (_discordEnabled)
+                {
+                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                        <strong>How to create a Discord bot:</strong>
+                        <ol style="margin: 8px 0 0 16px; padding: 0;">
+                            <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
+                            <li>Click "New Application", give it a name</li>
+                            <li>Go to the "Bot" tab &rarr; copy the token below</li>
+                            <li>Enable "Server Members Intent" and "Message Content Intent"</li>
+                            <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scope: bot)</li>
+                        </ol>
+                    </MudAlert>
+                    <MudTextField @bind-Value="_discordToken"
+                                  Label="Bot Token"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
+                                  Variant="Variant.Outlined" />
+
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                        @if (_discordConnected)
+                        {
+                            <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">Bot Connected</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">Bot Not Connected</MudChip>
+                        }
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="@(_discordLookupLoading || string.IsNullOrWhiteSpace(_discordToken))"
+                                   OnClick="RefreshDiscordDataAsync">
+                            Refresh from Token
+                        </MudButton>
+                        @if (_discordLookupLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudStack>
+
+                    @if (_discordLookupError != null)
+                    {
+                        <MudAlert Severity="Severity.Error">@_discordLookupError</MudAlert>
+                    }
+
+                    @if (_discordGuilds.Count > 0)
+                    {
+                        <MudSelect T="string" @bind-Value="_discordServerId"
+                                   Label="Server"
+                                   Variant="Variant.Outlined"
+                                   @bind-Value:after="OnDiscordServerChangedAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
+                            @foreach (var g in _discordGuilds)
+                            {
+                                <MudSelectItem Value="g.Id">@g.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        @if (_discordChannels.Count > 0)
+                        {
+                            <MudSelect T="string" @bind-Value="_discordBroadcastChannel"
+                                       Label="Broadcast Channel"
+                                       HelperText="Channel where the bot posts go-live announcements"
+                                       Variant="Variant.Outlined"
+                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tag">
+                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                @foreach (var c in _discordChannels)
+                                {
+                                    <MudSelectItem Value="c.Id">#@c.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudSelect T="string" @bind-Value="_discordPingRoleId"
+                                       Label="Live Ping Role"
+                                       HelperText="Role pinged when you go live (select 'None' to disable)"
+                                       Variant="Variant.Outlined"
+                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NotificationsActive">
+                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                @foreach (var r in _discordRoles)
+                                {
+                                    <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudSelect T="string" @bind-Value="_discordMemberRoleId"
+                                       Label="Live Member Role"
+                                       HelperText="Role assigned to members while you are live (select 'None' to disable)"
+                                       Variant="Variant.Outlined"
+                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Group">
+                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                @foreach (var r in _discordRoles)
+                                {
+                                    <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else if (!_discordLookupLoading)
+                        {
+                            <MudAlert Severity="Severity.Info">Select a server above to load its channels and roles.</MudAlert>
+                        }
+                    }
+                    else if (!_discordLookupLoading)
+                    {
+                        <MudAlert Severity="Severity.Info">
+                            Click <strong>Refresh from Token</strong> to load servers, channels, and roles from Discord.
+                            Or enter IDs manually below.
+                        </MudAlert>
+                        <MudTextField @bind-Value="_discordServerId"
+                                      Label="Server ID"
+                                      HelperText="Right-click your server &rarr; Copy Server ID"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_discordBroadcastChannel"
+                                      Label="Broadcast Channel ID"
+                                      HelperText="Channel where the bot posts go-live announcements"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_discordPingRoleId"
+                                      Label="Live Ping Role ID"
+                                      HelperText="Role that gets pinged when you go live (leave 0 to disable)"
+                                      Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_discordMemberRoleId"
+                                      Label="Live Member Role ID"
+                                      HelperText="Role assigned to members while you are live (leave 0 to disable)"
+                                      Variant="Variant.Outlined" />
+                    }
+                }
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveDiscordAsync"
+                               Disabled="_saving">
+                        Save Discord Settings
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudTabPanel>
+
+        <!-- ── Weather ──────────────────────────────────────────────────── -->
+        <MudTabPanel Text="Weather" Icon="@Icons.Material.Filled.Cloud">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Weather Integration</MudText>
+                <MudSwitch @bind-Value="_weatherEnabled" Color="Color.Primary" Label="Enable weather commands" />
+
+                @if (_weatherEnabled)
+                {
+                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                        Get a free API key at <MudLink Href="https://openweathermap.org/api" Target="_blank">openweathermap.org/api</MudLink>
+                        (the free "Current Weather Data" plan is sufficient).
+                    </MudAlert>
+                    <MudTextField @bind-Value="_weatherApiKey"
+                                  Label="OpenWeatherMap API Key"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Cloud"
+                                  Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_weatherDefaultLocation"
+                                  Label="Default Location"
+                                  HelperText="A ZIP code or city name (e.g. 85234)"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                  Variant="Variant.Outlined" />
+                }
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveWeatherAsync"
+                               Disabled="_saving">
+                        Save Weather Settings
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudTabPanel>
+
+        <!-- ── OpenAI ───────────────────────────────────────────────────── -->
+        <MudTabPanel Text="OpenAI" Icon="@Icons.Material.Filled.Psychology">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">OpenAI Integration</MudText>
+                <MudSwitch @bind-Value="_openAiEnabled" Color="Color.Primary" Label="Enable AI-powered features" />
+
+                @if (_openAiEnabled)
+                {
+                    <MudText>Used for AI chat responses and automated shoutouts in chat.</MudText>
+                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
+                        Get an API key at <MudLink Href="https://platform.openai.com/api-keys" Target="_blank">platform.openai.com/api-keys</MudLink>.
+                        Usage is billed by token &mdash; set spend limits in your OpenAI account.
+                    </MudAlert>
+                    <MudTextField @bind-Value="_openAiApiKey"
+                                  Label="OpenAI API Key"
+                                  InputType="InputType.Password"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Psychology"
+                                  Variant="Variant.Outlined" />
+                }
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveOpenAiAsync"
+                               Disabled="_saving">
+                        Save OpenAI Settings
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudTabPanel>
+
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private bool _saving = false;
+
+    // YouTube
+    private string _youtubeApiKey = "";
+
+    // Discord
+    private bool _discordEnabled = false;
+    private string _discordToken = "";
+    private string _discordServerId = "";
+    private string _discordBroadcastChannel = "";
+    private string _discordPingRoleId = "";
+    private string _discordMemberRoleId = "";
+
+    // Discord dropdown state
+    private bool _discordConnected = false;
+    private bool _discordLookupLoading = false;
+    private string? _discordLookupError;
+    private List<(string Id, string Name)> _discordGuilds = [];
+    private List<(string Id, string Name)> _discordChannels = [];
+    private List<(string Id, string Name)> _discordRoles = [];
+
+    // Weather
+    private bool _weatherEnabled = false;
+    private string _weatherApiKey = "";
+    private string _weatherDefaultLocation = "";
+
+    // OpenAI
+    private bool _openAiEnabled = false;
+    private string _openAiApiKey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _youtubeApiKey = Configuration["youtubeApi"] ?? "";
+
+        _discordToken = Configuration["Discord:discordToken"] ?? "";
+        _discordServerId = Configuration["Discord:DiscordServerId"] ?? "0";
+        _discordBroadcastChannel = Configuration["Discord:BroadcastChannel"] ?? "0";
+        _discordPingRoleId = Configuration["Discord:PingRoleWhenLive"] ?? "0";
+        _discordMemberRoleId = Configuration["Discord:RoleIdToAssignMemberWhenLive"] ?? "0";
+        _discordEnabled = !string.IsNullOrWhiteSpace(_discordToken);
+
+        _weatherApiKey = Configuration["Weather:ApiKey"] ?? "";
+        _weatherDefaultLocation = Configuration["Weather:DefaultLocation"] ?? "";
+        _weatherEnabled = !string.IsNullOrWhiteSpace(_weatherApiKey);
+
+        _openAiApiKey = Configuration["OpenAI:ApiKey"] ?? "";
+        _openAiEnabled = !string.IsNullOrWhiteSpace(_openAiApiKey);
+
+        // Auto-load Discord dropdowns if the bot is connected
+        if (_discordEnabled && DiscordService.ServiceStatus() == Discord.ConnectionState.Connected)
+        {
+            _discordConnected = true;
+            _discordGuilds = DiscordService.GetCachedGuilds()
+                .Select(g => (g.Id.ToString(), g.Name))
+                .ToList();
+
+            if (!string.IsNullOrEmpty(_discordServerId) && _discordServerId != "0"
+                && ulong.TryParse(_discordServerId, out var guildId))
+            {
+                _discordChannels = DiscordService.GetCachedTextChannels(guildId)
+                    .Select(c => (c.Id.ToString(), c.Name))
+                    .ToList();
+                _discordRoles = DiscordService.GetCachedRoles(guildId)
+                    .Select(r => (r.Id.ToString(), r.Name))
+                    .ToList();
+            }
+        }
+    }
+
+    private async Task RefreshDiscordDataAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_discordToken)) return;
+        _discordLookupLoading = true;
+        _discordLookupError = null;
+        _discordChannels = [];
+        _discordRoles = [];
+        try
+        {
+            _discordGuilds = await DiscordLookupSvc.GetGuildsAsync(_discordToken);
+            if (!string.IsNullOrEmpty(_discordServerId) && _discordServerId != "0"
+                && _discordGuilds.Any(g => g.Id == _discordServerId))
+            {
+                await LoadDiscordServerDataAsync(_discordServerId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _discordLookupError = $"Failed to fetch Discord data: {ex.Message}";
+        }
+        _discordLookupLoading = false;
+    }
+
+    private async Task OnDiscordServerChangedAsync()
+    {
+        _discordChannels = [];
+        _discordRoles = [];
+        if (string.IsNullOrEmpty(_discordServerId) || _discordServerId == "0") return;
+        await LoadDiscordServerDataAsync(_discordServerId);
+    }
+
+    private async Task LoadDiscordServerDataAsync(string guildId)
+    {
+        _discordLookupLoading = true;
+        try
+        {
+            if (_discordConnected && ulong.TryParse(guildId, out var ulongId))
+            {
+                _discordChannels = DiscordService.GetCachedTextChannels(ulongId)
+                    .Select(c => (c.Id.ToString(), c.Name))
+                    .ToList();
+                _discordRoles = DiscordService.GetCachedRoles(ulongId)
+                    .Select(r => (r.Id.ToString(), r.Name))
+                    .ToList();
+            }
+            else if (!string.IsNullOrWhiteSpace(_discordToken))
+            {
+                var channelsTask = DiscordLookupSvc.GetTextChannelsAsync(_discordToken, guildId);
+                var rolesTask = DiscordLookupSvc.GetRolesAsync(_discordToken, guildId);
+                await Task.WhenAll(channelsTask, rolesTask);
+                _discordChannels = channelsTask.Result;
+                _discordRoles = rolesTask.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            _discordLookupError = $"Failed to load server data: {ex.Message}";
+        }
+        _discordLookupLoading = false;
+    }
+
+    private async Task SaveYoutubeAsync()
+    {
+        _saving = true;
+        await SettingsFileManager.AddOrUpdateAppSetting("youtubeApi", _youtubeApiKey.Trim());
+        _saving = false;
+        Snackbar.Add("YouTube settings saved. Restart the bot for changes to take effect.", Severity.Success);
+    }
+
+    private async Task SaveDiscordAsync()
+    {
+        _saving = true;
+        var token = _discordEnabled ? _discordToken.Trim() : "";
+        await SettingsFileManager.AddOrUpdateAppSetting("Discord:discordToken", token);
+        await SettingsFileManager.AddOrUpdateAppSetting("Discord:DiscordServerId", ParseUlong(_discordServerId));
+        await SettingsFileManager.AddOrUpdateAppSetting("Discord:BroadcastChannel", ParseUlong(_discordBroadcastChannel));
+        await SettingsFileManager.AddOrUpdateAppSetting("Discord:PingRoleWhenLive", ParseUlong(_discordPingRoleId));
+        await SettingsFileManager.AddOrUpdateAppSetting("Discord:RoleIdToAssignMemberWhenLive", ParseUlong(_discordMemberRoleId));
+        _saving = false;
+        Snackbar.Add("Discord settings saved. Restart the bot for changes to take effect.", Severity.Success);
+    }
+
+    private async Task SaveWeatherAsync()
+    {
+        _saving = true;
+        await SettingsFileManager.AddOrUpdateAppSetting("Weather:ApiKey", _weatherEnabled ? _weatherApiKey.Trim() : "");
+        await SettingsFileManager.AddOrUpdateAppSetting("Weather:DefaultLocation", _weatherEnabled ? _weatherDefaultLocation.Trim() : "");
+        _saving = false;
+        Snackbar.Add("Weather settings saved. Restart the bot for changes to take effect.", Severity.Success);
+    }
+
+    private async Task SaveOpenAiAsync()
+    {
+        _saving = true;
+        await SettingsFileManager.AddOrUpdateAppSetting("OpenAI:ApiKey", _openAiEnabled ? _openAiApiKey.Trim() : "");
+        _saving = false;
+        Snackbar.Add("OpenAI settings saved. Restart the bot for changes to take effect.", Severity.Success);
+    }
+
+    private static ulong ParseUlong(string? value) =>
+        ulong.TryParse(value?.Trim(), out var result) ? result : 0;
+}

@@ -15,7 +15,7 @@ namespace PenguinTwitchBot.Setup.Services
 
         public string SecretsFilePath => secretsFilePath;
 
-        // â”€â”€ Pending model (survives OAuth browser redirect) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- Pending model (survives OAuth browser redirect) ---------------
         public SetupWizardModel? PendingModel { get; private set; }
         public int PendingStep { get; private set; }
 
@@ -25,7 +25,7 @@ namespace PenguinTwitchBot.Setup.Services
             PendingStep = step;
         }
 
-        // â”€â”€ OAuth state tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- OAuth state tokens --------------------------------------------
         public string BeginAuth()
         {
             var state = Guid.NewGuid().ToString("N");
@@ -36,7 +36,7 @@ namespace PenguinTwitchBot.Setup.Services
         public bool ValidateAndConsumeState(string state)
             => _pendingStates.TryRemove(state, out _);
 
-        // â”€â”€ Stored tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- Stored tokens -------------------------------------------------
         public string? TwitchAccessToken { get; private set; }
         public string? TwitchRefreshToken { get; private set; }
         public int TwitchExpiresIn { get; private set; }
