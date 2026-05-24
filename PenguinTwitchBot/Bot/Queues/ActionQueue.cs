@@ -458,13 +458,22 @@ namespace PenguinTwitchBot.Bot.Queues
                 await actionTask;
 
                 stopwatch.Stop();
-                if (stopwatch.Elapsed >= SlowActionThreshold)
+                var intentionalDelay = executionContext.GetCompletedIntentionalDelay();
+                var effectiveElapsed = stopwatch.Elapsed - intentionalDelay;
+                if (effectiveElapsed < TimeSpan.Zero)
+                {
+                    effectiveElapsed = TimeSpan.Zero;
+                }
+
+                if (effectiveElapsed >= SlowActionThreshold)
                 {
                     _logger.LogWarning(
-                        "Slow action detected in queue {QueueName}: {ActionName} took {ElapsedMs}ms (pending: {PendingCount}, executing: {CurrentlyExecuting})",
+                        "Slow action detected in queue {QueueName}: {ActionName} effective runtime {EffectiveElapsedMs}ms (raw: {ElapsedMs}ms, intentional delay: {IntentionalDelayMs}ms, pending: {PendingCount}, executing: {CurrentlyExecuting})",
                         Name,
                         queuedAction.Action.Name,
+                        effectiveElapsed.TotalMilliseconds,
                         stopwatch.ElapsedMilliseconds,
+                        intentionalDelay.TotalMilliseconds,
                         _pendingCount,
                         _currentlyExecuting);
                 }

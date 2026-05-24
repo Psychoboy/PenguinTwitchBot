@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     try
                     {
                         await Task.Delay(duration);
+                        context?.AddCompletedIntentionalDelay(TimeSpan.FromMilliseconds(duration));
                     }
                     finally
                     {

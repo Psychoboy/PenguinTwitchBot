@@ -12,6 +12,7 @@
         private long _lastProgressUtcTicks = DateTime.UtcNow.Ticks;
         private int _intentionalDelayCount;
         private long _intentionalDelayUntilUtcTicks;
+        private long _completedIntentionalDelayTicks;
 
         /// <summary>
         /// Unique identifier for this action execution instance
@@ -152,6 +153,22 @@
             var untilTicks = Volatile.Read(ref _intentionalDelayUntilUtcTicks);
             var remaining = new DateTime(untilTicks, DateTimeKind.Utc) - DateTime.UtcNow;
             return remaining < TimeSpan.Zero ? TimeSpan.Zero : remaining;
+        }
+
+        public void AddCompletedIntentionalDelay(TimeSpan duration)
+        {
+            if (duration <= TimeSpan.Zero)
+            {
+                return;
+            }
+
+            Interlocked.Add(ref _completedIntentionalDelayTicks, duration.Ticks);
+            TouchProgress();
+        }
+
+        public TimeSpan GetCompletedIntentionalDelay()
+        {
+            return TimeSpan.FromTicks(Interlocked.Read(ref _completedIntentionalDelayTicks));
         }
 
         /// <summary>
