@@ -10,7 +10,7 @@
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => RefreshBotAuth()">Bot Auth Streamer</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => RefreshBotAuth()">Bot Auth</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => TestAlert()">Test Alert</MudButton>
         @if(twitchService.IsServiceUp())
         {

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -59,6 +60,45 @@ namespace PenguinTwitchBot.Setup.Services
             TwitchBotAccessToken = accessToken;
             TwitchBotRefreshToken = refreshToken;
             TwitchBotExpiresIn = expiresIn;
+        }
+
+        public async Task<bool> RefreshBotAccessTokenAsync(string clientId, string clientSecret)
+        {
+            using var http = new HttpClient();
+            var form = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["grant_type"] = "client_credentials"
+            });
+
+            try
+            {
+                var response = await http.PostAsync("https://id.twitch.tv/oauth2/token", form);
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogWarning("Failed to refresh bot access token during setup. Status code: {StatusCode}", response.StatusCode);
+                    return false;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                var tokens = JsonSerializer.Deserialize<TwitchClientCredentialsTokenResult>(json);
+                if (tokens == null || string.IsNullOrWhiteSpace(tokens.AccessToken))
+                {
+                    logger.LogWarning("Failed to deserialize refreshed bot access token during setup");
+                    return false;
+                }
+
+                TwitchBotAccessToken = tokens.AccessToken;
+                TwitchBotRefreshToken = "";
+                TwitchBotExpiresIn = tokens.ExpiresIn;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error refreshing bot access token during setup");
+                return false;
+            }
         }
 
         public async Task SaveSetupAsync(SetupWizardModel model)
@@ -192,5 +232,9 @@ namespace PenguinTwitchBot.Setup.Services
 
         private static ulong ParseUlong(string? value) =>
             ulong.TryParse(value?.Trim(), out var result) ? result : 0;
+
+        private sealed record TwitchClientCredentialsTokenResult(
+            [property: System.Text.Json.Serialization.JsonPropertyName("access_token")] string AccessToken,
+            [property: System.Text.Json.Serialization.JsonPropertyName("expires_in")] int ExpiresIn);
     }
 }

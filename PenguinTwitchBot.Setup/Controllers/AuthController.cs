@@ -81,6 +81,13 @@ public class AuthController(SetupService setupService, ILogger<AuthController> l
         }
 
         setupService.SetBotTokens(tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn);
+        var refreshed = await setupService.RefreshBotAccessTokenAsync(clientId, clientSecret);
+        if (!refreshed)
+        {
+            logger.LogError("Failed to refresh bot token after OAuth completion");
+            return Redirect("/?botAuthFailed=1");
+        }
+
         logger.LogInformation("Bot account authorized successfully");
         return Redirect("/?botAuthed=1");
     }

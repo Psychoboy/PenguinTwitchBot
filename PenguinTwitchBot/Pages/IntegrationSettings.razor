@@ -64,15 +64,20 @@
                             <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
                             <li>Click "New Application", give it a name</li>
                             <li>Go to the "Bot" tab &rarr; copy the token below</li>
-                            <li>Enable "Server Members Intent" and "Message Content Intent"</li>
+                            <li>Enable "Server Members Intent", "Message Content Intent", and "Presence Intent"</li>
                             <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scope: bot)</li>
                         </ol>
                     </MudAlert>
                     <MudTextField @bind-Value="_discordToken"
                                   Label="Bot Token"
                                   InputType="InputType.Password"
+                                  Immediate="true"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
                                   Variant="Variant.Outlined" />
+
+                    <MudSwitch @bind-Value="_restartDiscordAfterSave"
+                               Color="Color.Primary"
+                               Label="Restart Discord service after saving" />
 
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
                         @if (_discordConnected)
@@ -187,6 +192,14 @@
                                Disabled="_saving">
                         Save Discord Settings
                     </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="RestartDiscordServiceAsync"
+                               Disabled="_saving"
+                               Class="ml-2">
+                        Restart Discord Service
+                    </MudButton>
                 </div>
             </MudStack>
         </MudTabPanel>
@@ -271,6 +284,7 @@
     private string _discordBroadcastChannel = "";
     private string _discordPingRoleId = "";
     private string _discordMemberRoleId = "";
+    private bool _restartDiscordAfterSave = false;
 
     // Discord dropdown state
     private bool _discordConnected = false;
@@ -400,14 +414,53 @@
     private async Task SaveDiscordAsync()
     {
         _saving = true;
-        var token = _discordEnabled ? _discordToken.Trim() : "";
-        await SettingsFileManager.AddOrUpdateAppSetting("Discord:discordToken", token);
-        await SettingsFileManager.AddOrUpdateAppSetting("Discord:DiscordServerId", ParseUlong(_discordServerId));
-        await SettingsFileManager.AddOrUpdateAppSetting("Discord:BroadcastChannel", ParseUlong(_discordBroadcastChannel));
-        await SettingsFileManager.AddOrUpdateAppSetting("Discord:PingRoleWhenLive", ParseUlong(_discordPingRoleId));
-        await SettingsFileManager.AddOrUpdateAppSetting("Discord:RoleIdToAssignMemberWhenLive", ParseUlong(_discordMemberRoleId));
-        _saving = false;
-        Snackbar.Add("Discord settings saved. Restart the bot for changes to take effect.", Severity.Success);
+        try
+        {
+            var token = _discordEnabled ? _discordToken.Trim() : "";
+            await SettingsFileManager.AddOrUpdateAppSetting("Discord:discordToken", token);
+            await SettingsFileManager.AddOrUpdateAppSetting("Discord:DiscordServerId", ParseUlong(_discordServerId));
+            await SettingsFileManager.AddOrUpdateAppSetting("Discord:BroadcastChannel", ParseUlong(_discordBroadcastChannel));
+            await SettingsFileManager.AddOrUpdateAppSetting("Discord:PingRoleWhenLive", ParseUlong(_discordPingRoleId));
+            await SettingsFileManager.AddOrUpdateAppSetting("Discord:RoleIdToAssignMemberWhenLive", ParseUlong(_discordMemberRoleId));
+
+            if (_restartDiscordAfterSave)
+            {
+                await DiscordService.RestartAsync();
+                _discordConnected = DiscordService.ServiceStatus() == Discord.ConnectionState.Connected;
+                Snackbar.Add("Discord settings saved and Discord service restarted.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Discord settings saved. Restart Discord service (or the bot) for changes to take effect.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save Discord settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RestartDiscordServiceAsync()
+    {
+        _saving = true;
+        try
+        {
+            await DiscordService.RestartAsync();
+            _discordConnected = DiscordService.ServiceStatus() == Discord.ConnectionState.Connected;
+            Snackbar.Add("Discord service restart requested.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restart Discord service: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task SaveWeatherAsync()

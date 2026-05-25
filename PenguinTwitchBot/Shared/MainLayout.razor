@@ -59,14 +59,6 @@
                 </div>
             </div>
             <MudSpacer />
-            <AuthorizeView Roles="Streamer">
-                @if (!VersionCheckService.IsUpToDate)
-                {
-                    <MudTooltip Text="@($"Current: {VersionCheckService.CurrentVersion} | Latest: {VersionCheckService.LatestVersion}")">
-                        <MudAlert Severity="Severity.Warning" NoIcon="true">Update available: v@(VersionCheckService.LatestVersion)</MudAlert>
-                    </MudTooltip>
-                }
-            </AuthorizeView>
             <AuthorizeView>
                 <Authorized Context="Auth">
                     <MudImage Width="48" Src="@ProfileImage" />
@@ -95,6 +87,9 @@
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
+    private bool _isStreamer;
+    private bool _hasShownUpdateNotice;
+    private const string ReleasesUrl = "https://github.com/Psychoboy/PenguinTwitchBot/releases";
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
 
@@ -108,6 +103,7 @@
 
         if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
         {
+            _isStreamer = user.IsInRole("Streamer");
             Username = user.Identity.Name;
             if (user.HasClaim(x => x.Type.Equals("DisplayName")))
             {
@@ -123,6 +119,9 @@
                 UserId = user.Claims.Where(x => x.Type.Equals("UserId")).First().Value;
             }
         }
+
+        VersionCheckService.VersionStatusChanged += HandleVersionStatusChanged;
+
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         await UserService.Connect(handler.CircuitId, Username, UserId, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
@@ -166,6 +165,7 @@
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
 
         dataLoaded = true;
+        ShowUpdateNoticeIfNeeded();
         StateHasChanged();
     }
 
@@ -173,6 +173,39 @@
     {
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
+    }
+
+    private void HandleVersionStatusChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            ShowUpdateNoticeIfNeeded();
+            StateHasChanged();
+        });
+    }
+
+    private void ShowUpdateNoticeIfNeeded()
+    {
+        if (_hasShownUpdateNotice || !_isStreamer || VersionCheckService.IsUpToDate || string.IsNullOrWhiteSpace(VersionCheckService.LatestVersion))
+        {
+            return;
+        }
+
+        Snackbar.Add(
+            $"Update available: v{VersionCheckService.LatestVersion} (current: {VersionCheckService.CurrentVersion})",
+            Severity.Warning,
+            options =>
+            {
+                options.RequireInteraction = true;
+                options.Action = "View release";
+                options.OnClick = _ =>
+                {
+                    Navigation.NavigateTo(ReleasesUrl, true);
+                    return Task.CompletedTask;
+                };
+            });
+
+        _hasShownUpdateNotice = true;
     }
 
     private void Signin()
@@ -193,6 +226,7 @@
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
+        VersionCheckService.VersionStatusChanged -= HandleVersionStatusChanged;
 
         // Cancel any pending reconnection attempts
         _hubConnectionCts?.Cancel();

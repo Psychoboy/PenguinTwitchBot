@@ -20,8 +20,8 @@ public class BonusTicketsSettingsProvider : IGameSettingsFormProvider
         {
             [BonusTickets.MINAMOUNT]   = await svc.GetIntSetting(BonusTickets.GAMENAME, BonusTickets.MINAMOUNT, 25),
             [BonusTickets.MAXAMOUNT]   = await svc.GetIntSetting(BonusTickets.GAMENAME, BonusTickets.MAXAMOUNT, 50),
-            [BonusTickets.WINMESSAGE]  = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets."),
-            [BonusTickets.ERRORMESSAGE] = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator."),
+            [BonusTickets.WINMESSAGE]  = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.WINMESSAGE, "{Name} just got {Amount} bonus tickets from the bot interface and now has {Total} points."),
+            [BonusTickets.ERRORMESSAGE] = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus points. Please contact a moderator."),
         };
     }
 

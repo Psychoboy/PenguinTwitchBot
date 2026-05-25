@@ -20,7 +20,9 @@ namespace PenguinTwitchBot.Bot.Core
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly DiscordSettings _settings;
+        private readonly IConfiguration _configuration;
+        private readonly SemaphoreSlim _restartLock = new(1, 1);
+        private DiscordSettings _settings;
         private readonly string _broadcaster;
         private bool isReady = false;
 
@@ -40,9 +42,9 @@ namespace PenguinTwitchBot.Bot.Core
             _scopeFactory = scopeFactory;
             _dispatcher = dispatcher;
             _loggerFactory = loggerFactory;
+            _configuration = configuration;
 
-            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
-            _settings = settings;
+            _settings = LoadSettings();
             _broadcaster = configuration["broadcaster"] ?? "";
             var config = new DiscordSocketConfig
             {
@@ -51,6 +53,12 @@ namespace PenguinTwitchBot.Bot.Core
                 MessageCacheSize = 1024
             };
             _client = new DiscordSocketClient(config);
+        }
+
+        private DiscordSettings LoadSettings()
+        {
+            return _configuration.GetRequiredSection("Discord").Get<DiscordSettings>()
+                ?? throw new Exception("Invalid Configuration. Discord settings missing.");
         }
 
         public ConnectionState ServiceStatus()
@@ -677,6 +685,8 @@ namespace PenguinTwitchBot.Bot.Core
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            _settings = LoadSettings();
+
             if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
             {
                 _logger.LogInformation("Discord token is not configured — Discord service will not start.");
@@ -703,13 +713,10 @@ namespace PenguinTwitchBot.Bot.Core
             _client.InviteCreated += InviteCreated;
             _client.UserVoiceStateUpdated += UserVoiceStateUpdated;
             await Initialize(_settings.DiscordToken);
-        }     
+        }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
-                return;
-
             _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
             _client.Ready -= OnReady;
@@ -723,8 +730,44 @@ namespace PenguinTwitchBot.Bot.Core
             _client.UserUpdated -= UserUpdated;
             _client.MessageUpdated -= MessageUpdated;
             _client.MessageDeleted -= MessageDeleted;
-            await _client.StopAsync();
-            // return Task.CompletedTask;
+            _client.GuildScheduledEventUserAdd -= GuildScheduledEventUserAdd;
+            _client.GuildScheduledEventUserRemove -= GuildScheduledEventUserRemove;
+            _client.GuildScheduledEventUpdated -= GuildScheduledEventUpdated;
+            _client.InviteCreated -= InviteCreated;
+            _client.UserVoiceStateUpdated -= UserVoiceStateUpdated;
+
+            if (_client.ConnectionState != ConnectionState.Disconnected)
+            {
+                await _client.StopAsync();
+            }
+
+            if (_client.LoginState != LoginState.LoggedOut)
+            {
+                await _client.LogoutAsync();
+            }
+        }
+
+        public async Task RestartAsync(CancellationToken cancellationToken = default)
+        {
+            await _restartLock.WaitAsync(cancellationToken);
+            try
+            {
+                _logger.LogInformation("Restarting Discord Service.");
+                await StopAsync(cancellationToken);
+                _settings = LoadSettings();
+
+                if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
+                {
+                    _logger.LogInformation("Discord token is not configured after restart request. Leaving Discord service stopped.");
+                    return;
+                }
+
+                await StartAsync(cancellationToken);
+            }
+            finally
+            {
+                _restartLock.Release();
+            }
         }
     }
 }

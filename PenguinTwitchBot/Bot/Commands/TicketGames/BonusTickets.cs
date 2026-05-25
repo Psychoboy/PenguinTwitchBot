@@ -66,13 +66,13 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
                 if(amount == 0)
                 {
                     logger.LogWarning("Failed to add {ticketsWon} bonus tickets to {username}.", ticketsWon, username);
-                    var errorMsg = (await gameSettingsService.GetStringSetting(GAMENAME, ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator.")) ?? string.Empty;
+                    var errorMsg = (await gameSettingsService.GetStringSetting(GAMENAME, ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus points. Please contact a moderator.")) ?? string.Empty;
                     errorMsg = errorMsg.Replace("{Name}", username, StringComparison.OrdinalIgnoreCase);
                     await dispatcher.Publish(new SendBotMessage(errorMsg, true));
                     return;
                 }
                 logger.LogInformation("Gave {username} {tickets} tickets via website.", username, ticketsWon);
-                var winMessage = (await gameSettingsService.GetStringSetting(GAMENAME, WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets.")) ?? string.Empty;
+                var winMessage = (await gameSettingsService.GetStringSetting(GAMENAME, WINMESSAGE, "{Name} just got {Amount} bonus tickets from the bot interface and now has {Total} tickets.")) ?? string.Empty;
                 winMessage = winMessage
                     .Replace("{Name}", username, StringComparison.OrdinalIgnoreCase)
                     .Replace("{Amount}", ticketsWon.ToString("N0"), StringComparison.OrdinalIgnoreCase)
