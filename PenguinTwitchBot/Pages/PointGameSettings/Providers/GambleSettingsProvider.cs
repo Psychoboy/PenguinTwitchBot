@@ -67,7 +67,7 @@ public class GambleSettingsProvider : IGameSettingsFormProvider
                 new() { Key = Gamble.STARTING_JACKPOT, Label = "Starting Jackpot", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Jackpot amount when reset" },
                 new() { Key = Gamble.MINIMUM_FOR_WIN, Label = "Minimum to Win", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum roll value to win" },
                 new() { Key = Gamble.MINIMUM_BET, Label = "Minimum Bet", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum bet allowed" },
-                new() { Key = Gamble.WINNING_MULTIPLIER, Label = "Win Multiplier", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Prize = bet Ã— multiplier" },
+                new() { Key = Gamble.WINNING_MULTIPLIER, Label = "Win Multiplier", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Prize = bet × multiplier" },
                 new() { Key = Gamble.JACKPOT_CONTRIBUTION, Label = "Jackpot Contribution", FieldType = GameSettingFieldType.Double, Min = 0.0, Max = 1.0, HelperText = "Fraction of each bet added to jackpot (0.10 = 10%)" },
             ]
         },

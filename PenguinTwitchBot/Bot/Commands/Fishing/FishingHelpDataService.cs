@@ -161,15 +161,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { 1, "0.75–1.0x gold multiplier (1-star)" }
             };
 
-            section.WeightMultiplierNote = "Final gold = fish base gold Ã— star multiplier Ã— weight multiplier. " +
+            section.WeightMultiplierNote = "Final gold = fish base gold × star multiplier × weight multiplier. " +
                 "Weight ranges from 0.9x to 1.065x of base weight, providing -10% to +6.5% gold bonus. " +
                 "Example: A 100 base gold fish with 3-star (1.41x max) and heavy weight (1.065x) yields ~150g.";
 
             section.ValueExamples = new List<string>
             {
-                "3-star at max weight: base gold Ã— 1.41 Ã— 1.065 = +50% total",
-                "2-star at average: base gold Ã— 1.125 Ã— 1.0 = +12.5% total",
-                "1-star at light: base gold Ã— 0.875 Ã— 0.9 = -21.25% total"
+                "3-star at max weight: base gold × 1.41 × 1.065 = +50% total",
+                "2-star at average: base gold × 1.125 × 1.0 = +12.5% total",
+                "1-star at light: base gold × 0.875 × 0.9 = -21.25% total"
             };
 
             return section;

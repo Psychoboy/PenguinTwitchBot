@@ -472,14 +472,14 @@ internal class Program
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine();
-        Console.WriteLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        Console.WriteLine("â•‘          DOTNET TWITCHBOT — SETUP REQUIRED           â•‘");
-        Console.WriteLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-        Console.WriteLine($"â•‘  Config file not found: {secretsPath,-29}â•‘");
-        Console.WriteLine("â•‘                                                      â•‘");
-        Console.WriteLine("â•‘  Run PenguinTwitchBot.Setup.exe first to create       â•‘");
-        Console.WriteLine("â•‘  your configuration file, then restart the bot.      â•‘");
-        Console.WriteLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+        Console.WriteLine("║          DOTNET TWITCHBOT - SETUP REQUIRED          ║");
+        Console.WriteLine("╠══════════════════════════════════════════════════════╣");
+        Console.WriteLine($"║  Config file not found: {secretsPath,-29}║");
+        Console.WriteLine("║                                                      ║");
+        Console.WriteLine("║  Run PenguinTwitchBot.Setup.exe first to create     ║");
+        Console.WriteLine("║  your configuration file, then restart the bot.     ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════╝");
         Console.WriteLine();
         Console.ResetColor();
         Console.Write("Press any key to exit...");
