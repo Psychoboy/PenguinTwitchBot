@@ -522,7 +522,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var contribution = tierGold * tierWeight;
                 weightedGold += contribution;
 
-                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g Ã— {Weight:P1} = {Contribution}g", 
+                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g × {Weight:P1} = {Contribution}g", 
                     tier.Name,
                     tier.Weeks,
                     Math.Round(grossTierGold, 2),
@@ -1311,14 +1311,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var recommendations = new List<string>();
 
             if (report.SnapAdjustedAverageGoldPerAttempt <= 0)
-                recommendations.Add("âš ï¸ Snap-adjusted net gold/attempt is non-positive. Lower snap rates or reduce rod/line/hook prices.");
+                recommendations.Add("⚠️ Snap-adjusted net gold/attempt is non-positive. Lower snap rates or reduce rod/line/hook prices.");
 
             if (report.EstimatedFailedAttempts > 0 && report.EstimatedTotalAttempts > 0)
             {
                 var failPct = Math.Round((double)report.EstimatedFailedAttempts / report.EstimatedTotalAttempts * 100.0, 2);
                 if (failPct > 5.0)
                 {
-                    recommendations.Add($"âš ï¸ Estimated snap failure rate is {failPct:F2}%. Consider lowering line/rod snap chances.");
+                    recommendations.Add($"⚠️ Estimated snap failure rate is {failPct:F2}%. Consider lowering line/rod snap chances.");
                 }
             }
 
@@ -1328,7 +1328,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToList();
 
             if (expensiveItems.Any())
-                recommendations.Add($"âš ï¸ {expensiveItems.Count} permanent items take over 20 active sessions. At {report.StreamsPerWeekFromAttempts:F2} streams/week this can be very slow progression.");
+                recommendations.Add($"⚠️ {expensiveItems.Count} permanent items take over 20 active sessions. At {report.StreamsPerWeekFromAttempts:F2} streams/week this can be very slow progression.");
 
             // Check for progression that's TOO fast
             var tooFastItems = report.ItemAffordabilityAnalysis
@@ -1336,7 +1336,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToList();
 
             if (tooFastItems.Any())
-                recommendations.Add($"ðŸ’¨ {tooFastItems.Count} permanent items can be bought in less than 1 session. Consider increasing prices to extend progression.");
+                recommendations.Add($"💨 {tooFastItems.Count} permanent items can be bought in less than 1 session. Consider increasing prices to extend progression.");
 
             // Consumable value check
             var poorValueConsumables = report.ItemAffordabilityAnalysis
@@ -1344,10 +1344,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToList();
 
             if (poorValueConsumables.Any())
-                recommendations.Add($"ðŸ’° {poorValueConsumables.Count} consumables are expensive relative to rewards. Review pricing or boost effectiveness.");
+                recommendations.Add($"💰 {poorValueConsumables.Count} consumables are expensive relative to rewards. Review pricing or boost effectiveness.");
 
             if (!recommendations.Any())
-                recommendations.Add("âœ… Game balance looks healthy! No major issues detected.");
+                recommendations.Add("✅ Game balance looks healthy! No major issues detected.");
 
             report.BalanceRecommendations = recommendations;
             return report;
@@ -1502,14 +1502,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     continue;
                 }
 
-                // Calculate price: sessions Ã— catches/session Ã— gold/catch
+                // Calculate price: sessions × catches/session × gold/catch
                 var sessionsNeeded = tier.TargetWeeks * streamsPerWeek;
                 var catchesNeeded = sessionsNeeded * activeAttemptsPerSession;
                 var targetPrice = (int)Math.Round(catchesNeeded * expectedGoldPerCatch);
 
                 recommendations[itemName] = targetPrice;
 
-                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w Ã— {SessionsPerWeek} Ã— {CatchesPerSession} Ã— {GoldPerCatch}g",
+                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w × {SessionsPerWeek} × {CatchesPerSession} × {GoldPerCatch}g",
                     itemName, tierName, targetPrice, tier.TargetWeeks, streamsPerWeek, Math.Round(activeAttemptsPerSession, 1), Math.Round(expectedGoldPerCatch, 2));
             }
 

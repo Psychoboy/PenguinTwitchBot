@@ -174,7 +174,7 @@
                                 {
                                     if (fishTypeLookup.TryGetValue(context.TargetFishTypeId.Value, out var fishName))
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishName</MudText>
                                     }
                                 }
                             </MudStack>
@@ -279,7 +279,7 @@
                                 <MudText><strong>@shopItem?.Name</strong></MudText>
                                 @if (fishType != null)
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
                                 }
                             </MudStack>
                         </MudTd>

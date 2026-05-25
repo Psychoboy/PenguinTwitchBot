@@ -49,9 +49,9 @@ namespace PenguinTwitchBot.Bot.Models.Fishing
 
     public enum EquipmentTier
     {
-        Entry,      // Starter equipment (~2 weeks, â‰¤105g)
-        Mid,        // Mid-tier equipment (~6 weeks, â‰¤270g)
-        High,       // High-tier equipment (~12 weeks, â‰¤660g)
+        Entry,      // Starter equipment (~2 weeks, ≤105g)
+        Mid,        // Mid-tier equipment (~6 weeks, ≤270g)
+        High,       // High-tier equipment (~12 weeks, ≤660g)
         Top,        // Top-tier equipment (~26 weeks, >660g)
         Consumable  // Consumable items (no tier)
     }

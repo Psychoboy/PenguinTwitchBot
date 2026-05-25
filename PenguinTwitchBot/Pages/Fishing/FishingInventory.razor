@@ -95,7 +95,7 @@
                                                         var fishType = fishTypes.FirstOrDefault(f => f.Id == equippedItem.ShopItem!.TargetFishTypeId.Value);
                                                         if (fishType != null)
                                                         {
-                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
                                                         }
                                                     }
                                                     <MudStack Row="true" Spacing="1">
@@ -259,7 +259,7 @@
                                             var fishType = fishTypes.FirstOrDefault(f => f.Id == context.ShopItem!.TargetFishTypeId.Value);
                                             if (fishType != null)
                                             {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ Targets: @fishType.Name</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">→ Targets: @fishType.Name</MudText>
                                             }
                                         }
                                     </MudStack>
@@ -413,7 +413,7 @@
                                         var fishType = fishTypes.FirstOrDefault(f => f.Id == item.ShopItem!.TargetFishTypeId.Value);
                                         if (fishType != null)
                                         {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
                                         }
                                     }
                                 </MudStack>

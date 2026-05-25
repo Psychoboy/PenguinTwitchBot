@@ -73,7 +73,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             abgrColor = 0;
             if (hexColor.Length == 6)
             {
-                // #RRGGBB â†’ alpha = 0xFF
+                // #RRGGBB -> alpha = 0xFF
                 if (!uint.TryParse(hexColor, NumberStyles.HexNumber, null, out var rgb)) return false;
                 byte r = (byte)((rgb >> 16) & 0xFF);
                 byte g = (byte)((rgb >> 8) & 0xFF);

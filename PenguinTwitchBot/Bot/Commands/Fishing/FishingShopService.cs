@@ -152,13 +152,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>
         /// Calculates dynamic tiers from pre-fetched shop items (avoids extra DB query).
-        /// Pre-groups by slot to avoid O(nÂ²) complexity.
+        /// Pre-groups by slot to avoid O(n²) complexity.
         /// </summary>
         public Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
         {
             var tierMap = new Dictionary<int, EquipmentTier>();
 
-            // Pre-group by equipment slot to avoid O(nÂ²) - each slot is sorted once
+            // Pre-group by equipment slot to avoid O(n²) - each slot is sorted once
             var itemsBySlot = allItems
                 .Where(i => !i.IsConsumable && i.Enabled && i.EquipmentSlot.HasValue)
                 .GroupBy(i => i.EquipmentSlot!.Value)
