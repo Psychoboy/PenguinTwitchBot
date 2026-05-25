@@ -546,18 +546,20 @@ internal class Program
                 inner is ObjectDisposedException ||
                 inner is Microsoft.JSInterop.JSDisconnectedException)
             {
-                return true;
+                continue;
             }
 
             var message = inner.ToString();
             if (message.Contains("circuit has disconnected and is being disposed", StringComparison.OrdinalIgnoreCase) ||
                 message.Contains("JavaScript interop calls cannot be issued at this time", StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                continue;
             }
+
+            return false; // at least one non-transient exception — don't suppress
         }
 
-        return false;
+        return true; // all inner exceptions are expected transient types
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
