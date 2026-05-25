@@ -29,6 +29,7 @@ using Quartz;
 using Quartz.AspNetCore;
 using Serilog;
 using Serilog.Enrichers.Span;
+using Serilog.Events;
 using Serilog.Sinks.OpenTelemetry;
 using System.Collections;
 using System.Diagnostics;
@@ -75,16 +76,7 @@ internal class Program
            .Enrich.FromLogContext()
            .Filter.ByExcluding(logEvent =>
            {
-               // Filter out TaskCanceledException from Blazor Server navigation/circuit components
-               if (logEvent.Exception is TaskCanceledException &&
-                   logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
-               {
-                   var context = sourceContext.ToString().Trim('"');
-                   return context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteNavigationManager", StringComparison.Ordinal) ||
-                          context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost", StringComparison.Ordinal) ||
-                          context.StartsWith("Microsoft.AspNetCore.Components.Server.ComponentHub", StringComparison.Ordinal);
-               }
-               return false;
+               return IsExpectedTransientBlazorException(logEvent.Exception, logEvent.Properties);
            })
            .WriteTo.OpenTelemetry(options =>
            {
@@ -518,6 +510,48 @@ internal class Program
             var message = inner.ToString();
             if (message.Contains("Interop methods are already registered for renderer", StringComparison.OrdinalIgnoreCase) &&
                 message.Contains("attachWebRendererInterop", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsExpectedTransientBlazorException(Exception? exception, IReadOnlyDictionary<string, LogEventPropertyValue> properties)
+    {
+        if (exception is null || !properties.TryGetValue("SourceContext", out var sourceContext))
+        {
+            return false;
+        }
+
+        var context = sourceContext.ToString().Trim('"');
+        var isBlazorCircuitContext = context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteNavigationManager", StringComparison.Ordinal) ||
+                                     context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost", StringComparison.Ordinal) ||
+                                     context.StartsWith("Microsoft.AspNetCore.Components.Server.ComponentHub", StringComparison.Ordinal) ||
+                                     context.StartsWith("Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime", StringComparison.Ordinal);
+
+        if (!isBlazorCircuitContext)
+        {
+            return false;
+        }
+
+        var aggregate = exception as AggregateException;
+        var all = aggregate?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var inner in all)
+        {
+            if (inner is TaskCanceledException ||
+                inner is OperationCanceledException ||
+                inner is ObjectDisposedException ||
+                inner is Microsoft.JSInterop.JSDisconnectedException)
+            {
+                return true;
+            }
+
+            var message = inner.ToString();
+            if (message.Contains("circuit has disconnected and is being disposed", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("JavaScript interop calls cannot be issued at this time", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
