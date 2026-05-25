@@ -685,6 +685,19 @@ namespace PenguinTwitchBot.Bot.Core
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            await _restartLock.WaitAsync(cancellationToken);
+            try
+            {
+                await StartCoreAsync(cancellationToken);
+            }
+            finally
+            {
+                _restartLock.Release();
+            }
+        }
+
+        private async Task StartCoreAsync(CancellationToken cancellationToken)
+        {
             _settings = LoadSettings();
 
             if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
@@ -716,6 +729,19 @@ namespace PenguinTwitchBot.Bot.Core
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            await _restartLock.WaitAsync(cancellationToken);
+            try
+            {
+                await StopCoreAsync(cancellationToken);
+            }
+            finally
+            {
+                _restartLock.Release();
+            }
+        }
+
+        private async Task StopCoreAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Stopping Discord Service.");
             _client.Connected -= Connected;
@@ -753,7 +779,7 @@ namespace PenguinTwitchBot.Bot.Core
             try
             {
                 _logger.LogInformation("Restarting Discord Service.");
-                await StopAsync(cancellationToken);
+                await StopCoreAsync(cancellationToken);
                 _settings = LoadSettings();
 
                 if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
@@ -762,7 +788,7 @@ namespace PenguinTwitchBot.Bot.Core
                     return;
                 }
 
-                await StartAsync(cancellationToken);
+                await StartCoreAsync(cancellationToken);
             }
             finally
             {
