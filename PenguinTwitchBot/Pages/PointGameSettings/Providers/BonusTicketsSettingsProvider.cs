@@ -8,8 +8,8 @@ namespace PenguinTwitchBot.Pages.PointGameSettings.Providers;
 
 public class BonusTicketsSettingsProvider : IGameSettingsFormProvider
 {
-    public string DisplayName => "Bonus Tickets";
-    public string? Description => "One-time per-stream bonus ticket claim via the bot website";
+    public string DisplayName => "Bonus Points";
+    public string? Description => "One-time per-stream bonus point claim via the bot website";
     public string Icon => Icons.Material.Filled.Stars;
     public string? PointsGameName => BonusTickets.GAMENAME;
 
@@ -20,8 +20,8 @@ public class BonusTicketsSettingsProvider : IGameSettingsFormProvider
         {
             [BonusTickets.MINAMOUNT]   = await svc.GetIntSetting(BonusTickets.GAMENAME, BonusTickets.MINAMOUNT, 25),
             [BonusTickets.MAXAMOUNT]   = await svc.GetIntSetting(BonusTickets.GAMENAME, BonusTickets.MAXAMOUNT, 50),
-            [BonusTickets.WINMESSAGE]  = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.WINMESSAGE, "{Name} just got {Amount} bonus tickets from https://bot.superpenguin.tv and now has {Total} tickets."),
-            [BonusTickets.ERRORMESSAGE] = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus tickets. Please contact a moderator."),
+            [BonusTickets.WINMESSAGE]  = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.WINMESSAGE, "{Name} just got {Amount} bonus {PointsName} from the bot interface and now has {Total} {PointsName}."),
+            [BonusTickets.ERRORMESSAGE] = await svc.GetStringSetting(BonusTickets.GAMENAME, BonusTickets.ERRORMESSAGE, "{Name}, something went wrong when trying to give you bonus {PointsName}. Please contact a moderator."),
         };
     }
 
@@ -52,19 +52,19 @@ public class BonusTicketsSettingsProvider : IGameSettingsFormProvider
         new()
         {
             Title = "Amounts",
-            Description = "Random ticket range awarded on each claim",
+            Description = "Random point range awarded on each claim",
             Icon = Icons.Material.Filled.Casino,
             Columns = 2,
             Fields =
             [
-                new() { Key = BonusTickets.MINAMOUNT, Label = "Min Amount", FieldType = GameSettingFieldType.Int, Min = 1, Required = true, HelperText = "Minimum tickets a viewer can receive" },
-                new() { Key = BonusTickets.MAXAMOUNT, Label = "Max Amount", FieldType = GameSettingFieldType.Int, Min = 1, Required = true, HelperText = "Maximum tickets a viewer can receive" },
+                new() { Key = BonusTickets.MINAMOUNT, Label = "Min Amount", FieldType = GameSettingFieldType.Int, Min = 1, Required = true, HelperText = "Minimum points a viewer can receive" },
+                new() { Key = BonusTickets.MAXAMOUNT, Label = "Max Amount", FieldType = GameSettingFieldType.Int, Min = 1, Required = true, HelperText = "Maximum points a viewer can receive" },
             ]
         },
         new()
         {
             Title = "Messages",
-            Description = "Use {Name} for username, {Amount} for tickets won, {Total} for new balance",
+            Description = "Use {Name} for username, {Amount} for points won, {Total} for new balance, and {PointsName} for the configured point type name",
             Icon = Icons.Material.Filled.Chat,
             Fields =
             [

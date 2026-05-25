@@ -17,6 +17,7 @@ namespace PenguinTwitchBot.Bot.Core
         IReadOnlyList<DiscordRoleInfo> GetCachedRoles(ulong guildId);
         Task LogAsync(LogMessage message);
         Task<ulong> PostSchedule(List<ScheduledStream> scheduledStreams);
+        Task RestartAsync(CancellationToken cancellationToken = default);
         ConnectionState ServiceStatus();
         void SetReady(bool ready);
         Task UpdateEvent(IGuildScheduledEvent evt, string title, DateTime startTime, DateTime endTime);

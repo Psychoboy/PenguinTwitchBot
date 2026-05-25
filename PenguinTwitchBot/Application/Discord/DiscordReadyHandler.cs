@@ -10,8 +10,20 @@ namespace PenguinTwitchBot.Application.Discord
         {
             try
             {
-                var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
-                IGuild guild = notification.Client.GetGuild(settings.DiscordServerId);
+                var settings = configuration.GetSection("Discord").Get<DiscordSettings>();
+                if (settings == null || string.IsNullOrWhiteSpace(settings.DiscordToken) || settings.DiscordServerId == 0)
+                {
+                    logger.LogInformation("Discord is not fully configured. Skipping ready handler initialization.");
+                    return;
+                }
+
+                IGuild? guild = notification.Client.GetGuild(settings.DiscordServerId);
+                if (guild == null)
+                {
+                    logger.LogInformation("Discord guild {GuildId} is unavailable. Skipping ready handler initialization.", settings.DiscordServerId);
+                    return;
+                }
+
                 await guild.DownloadUsersAsync(); //Load all users
                 var users = await guild.GetUsersAsync();
                 foreach (var user in users)

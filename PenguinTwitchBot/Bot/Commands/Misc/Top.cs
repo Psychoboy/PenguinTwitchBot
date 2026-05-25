@@ -92,18 +92,6 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await ServiceBackbone.SendChatMessage(string.Format("Top {0} in Time: {1}", topN, names));
         }
 
-        //private async Task SayTicketsTopN(int topN)
-        //{
-        //    await using var scope = scopeFactory.CreateAsyncScope();
-        //    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        //    var broadcasterName = ServiceBackbone.BroadcasterName;
-        //    var botName = ServiceBackbone.BotName ?? "";
-        //    var top = await db.ViewerTicketsWithRank.GetAsync(x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), orderBy: y => y.OrderBy(z => z.Ranking), limit: topN);
-        //    var rank = 1;
-        //    var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
-        //    await ServiceBackbone.SendChatMessage(string.Format("Top {0} in Tickets: {1}", topN, names));
-        //}
-
         public Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting {moduledname}", "Top");

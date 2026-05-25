@@ -8,12 +8,15 @@ public interface IVersionCheckService
     string CurrentVersion { get; }
     string? LatestVersion { get; }
     bool IsUpToDate { get; }
+    event Action? VersionStatusChanged;
 }
 
 public class VersionCheckService : BackgroundService, IVersionCheckService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<VersionCheckService> _logger;
+
+    public event Action? VersionStatusChanged;
 
     public string CurrentVersion { get; } =
         Assembly.GetEntryAssembly()
@@ -70,6 +73,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 LatestVersion = release.TagName.TrimStart('v');
                 _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}",
                     CurrentVersion, LatestVersion, IsUpToDate);
+                VersionStatusChanged?.Invoke();
             }
         }
         catch (Exception ex)

@@ -88,37 +88,6 @@ namespace PenguinTwitchBot.Controllers
         public async Task<IActionResult> BotSignin()
         {
             logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
-            //#if DEBUG
-            //            var url = GetBotScopeUrl("https://localhost:7293/botredirect", configuration["twitchBotClientId"]);
-            //#else
-            //            var url = GetBotScopeUrl("https://bot.superpenguin.tv/botredirect", configuration["twitchBotClientId"]);
-            //#endif
-            //            return Redirect(url);
-            //var url = "https://id.twitch.tv/oauth2/token";
-            //var formData = new List<KeyValuePair<string, string>>
-            //{
-            //    new KeyValuePair<string, string>("client_id", configuration["twitchBotClientId"]),
-            //    new KeyValuePair<string, string>("client_secret", configuration["twitchBotClientSecret"]),
-            //    new KeyValuePair<string, string>("grant_type", "client_credentials"),
-            //};
-            //var encodedContent = new FormUrlEncodedContent(formData);
-            //using (var client = new HttpClient())
-            //{
-            //    try
-            //    {
-            //        var response = await client.PostAsync(url, encodedContent);
-            //        if(response.IsSuccessStatusCode)
-            //        {
-            //            logger.LogInformation("Successfully requested bot access token");
-            //            var content = await response.Content.ReadAsStringAsync();
-            //            var tokenResponse = System.Text.Json.JsonSerializer.Deserialize<TwitchTokenResponse>(content);
-            //        }
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        logger.LogError(ex, "Error requesting bot access token");
-            //    }
-            //}
             return Redirect("/botauth");
         }
         [HttpGet("botredirect")]
