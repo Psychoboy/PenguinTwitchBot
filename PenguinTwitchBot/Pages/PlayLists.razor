@@ -65,6 +65,10 @@
                                 <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Color="Color.Secondary" Class="mr-2" />
                                 <MudText Typo="Typo.h6">Available Playlists</MudText>
                                 <MudSpacer />
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                           StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" Class="mr-2">
+                                    Import from YouTube
+                                </MudButton>
                                 <MudBadge Content="@musicPlaylists.Count" Color="Color.Info" Overlap="true">
                                     <MudIcon Icon="@Icons.Material.Filled.PlaylistPlay" Color="Color.Default" />
                                 </MudBadge>
@@ -82,14 +86,21 @@
                                 </MudTd>
                                 <MudTd DataLabel="Actions">
                                     <MudStack Row="true" Spacing="1">
-                                        <MudTooltip Text="Load Playlist">
-                                            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
-                                                           OnClick="() => StartPlaylist(context)" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="View Playlist Details">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
-                                                           OnClick="() => ViewList(context)" />
-                                        </MudTooltip>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                                   OnClick="() => StartPlaylist(context)">
+                                            Load
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                                   StartIcon="@Icons.Material.Filled.Visibility"
+                                                   OnClick="() => ViewList(context)">
+                                            View
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                                   StartIcon="@Icons.Material.Filled.Delete"
+                                                   OnClick="() => DeletePlaylist(context)">
+                                            Delete
+                                        </MudButton>
                                     </MudStack>
                                 </MudTd>
                             </RowTemplate>
@@ -317,6 +328,46 @@
     private async Task StealSong()
     {
         await YtPlayer.StealCurrentSong();
+    }
+
+    private async Task DeletePlaylist(MusicPlaylist playlist)
+    {
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Playlist",
+            $"Are you sure you want to delete '{playlist.Name}'? This cannot be undone!",
+            yesText: "Delete", cancelText: "Cancel");
+        if (result != null && playlist.Id != null)
+        {
+            await YtPlayer.DeletePlaylist((int)playlist.Id);
+            musicPlaylists = await YtPlayer.Playlists();
+            Snackbar.Add($"Playlist '{playlist.Name}' deleted.", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task ImportFromYouTube()
+    {
+        var parameters = new DialogParameters<ImportYouTubePlaylistDialog>();
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ImportYouTubePlaylistDialog>("Import YouTube Playlist", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is (string playlistName, string youtubeUrl))
+        {
+            try
+            {
+                Snackbar.Add($"Importing YouTube playlist into '{playlistName}'...", Severity.Info);
+                var imported = await YtPlayer.ImportYouTubePlaylist(playlistName, youtubeUrl);
+                musicPlaylists = await YtPlayer.Playlists();
+                Snackbar.Add($"Imported {imported} new songs into '{playlistName}'.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to import YouTube playlist from UI");
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
     }
     public async ValueTask DisposeAsync()
     {

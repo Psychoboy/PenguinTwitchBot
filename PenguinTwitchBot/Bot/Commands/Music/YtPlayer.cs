@@ -310,6 +310,16 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             return (await db.Playlists.GetAsync(x => x.Id == id, includeProperties: "Songs")).First();
         }
 
+        public async Task DeletePlaylist(int id)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var playList = (await db.Playlists.GetAsync(x => x.Id == id, includeProperties: "Songs")).FirstOrDefault();
+            if (playList == null) return;
+            db.Playlists.Remove(playList);
+            await db.SaveChangesAsync();
+        }
+
         public async Task AddSongToRequests(string url)
         {
             var song = await GetSongByLinkOrId(url);
@@ -701,6 +711,147 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.SendChatMessage("Failed to import playlist");
             }
 
+        }
+
+        public async Task<int> ImportYouTubePlaylist(string playlistName, string youtubePlaylistUrl)
+        {
+            var playlistId = ExtractYouTubePlaylistId(youtubePlaylistUrl);
+            if (string.IsNullOrWhiteSpace(playlistId))
+                throw new ArgumentException("Could not extract a valid YouTube playlist ID from the provided URL.");
+
+            MusicPlaylist playList;
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                playList = await db.Playlists.Find(x => x.Name.Equals(playlistName)).FirstOrDefaultAsync()
+                    ?? new MusicPlaylist { Name = playlistName };
+            }
+
+            // Step 1: collect all video IDs from the YouTube playlist via pagination
+            var videoIds = new List<string>();
+            string? nextPageToken = null;
+            try
+            {
+                do
+                {
+                    var request = _youtubeService.PlaylistItems.List("snippet");
+                    request.PlaylistId = playlistId;
+                    request.MaxResults = 50;
+                    if (nextPageToken != null) request.PageToken = nextPageToken;
+
+                    var response = await request.ExecuteAsync();
+                    nextPageToken = response.NextPageToken;
+
+                    foreach (var item in response.Items)
+                    {
+                        var videoId = item.Snippet?.ResourceId?.VideoId;
+                        if (!string.IsNullOrWhiteSpace(videoId))
+                            videoIds.Add(videoId);
+                    }
+                } while (nextPageToken != null);
+            }
+            catch (Google.GoogleApiException apiEx) when (apiEx.Error?.Errors?.Any(e => e.Reason == "playlistNotFound") == true)
+            {
+                throw new InvalidOperationException("Playlist not found. It may be private, deleted, or the ID is incorrect.", apiEx);
+            }
+
+            _logger.LogInformation("YouTube playlist import: found {total} video IDs in playlist", videoIds.Count);
+
+            // Step 2: batch-fetch video details 50 at a time (Videos.List accepts comma-separated IDs)
+            var existingIds = playList.Songs.Select(s => s.SongId).ToHashSet();
+            var importedSongs = 0;
+
+            for (var i = 0; i < videoIds.Count; i += 50)
+            {
+                var batchIds = videoIds.Skip(i).Take(50).ToList();
+                var newIds = batchIds.Where(id => !existingIds.Contains(id)).ToList();
+
+                // Log any that are already in the playlist
+                foreach (var skipped in batchIds.Where(id => existingIds.Contains(id)))
+                    _logger.LogDebug("YouTube playlist import: skipping {videoId} - already in playlist", skipped);
+
+                if (newIds.Count == 0) continue;
+
+                var videoRequest = _youtubeService.Videos.List("snippet,contentDetails,status");
+                videoRequest.Id = string.Join(",", newIds);
+                var videoResponse = await videoRequest.ExecuteAsync();
+
+                // Find IDs the API returned nothing for (private/deleted/unavailable)
+                var returnedIds = videoResponse.Items.Select(v => v.Id).ToHashSet();
+                foreach (var missing in newIds.Where(id => !returnedIds.Contains(id)))
+                    _logger.LogWarning("YouTube playlist import: skipping {videoId} - not returned by API (video may be private, deleted, or region-restricted)", missing);
+
+                foreach (var item in videoResponse.Items)
+                {
+                    // Log and skip age-restricted content
+                    if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
+                    {
+                        _logger.LogWarning("YouTube playlist import: skipping {videoId} '{title}' - age restricted (ytAgeRestricted)", item.Id, item.Snippet?.Title);
+                        continue;
+                    }
+                    if (item.AgeGating?.Restricted == true)
+                    {
+                        _logger.LogWarning("YouTube playlist import: skipping {videoId} '{title}' - age gated", item.Id, item.Snippet?.Title);
+                        continue;
+                    }
+
+                    // Log and skip videos that are not public
+                    var privacyStatus = item.Status?.PrivacyStatus;
+                    if (!string.IsNullOrEmpty(privacyStatus) && !privacyStatus.Equals("public", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning("YouTube playlist import: skipping {videoId} '{title}' - privacy status is '{status}'", item.Id, item.Snippet?.Title, privacyStatus);
+                        continue;
+                    }
+
+                    // Log and skip embeddable=false (some licensed music blocks embedding/API playback)
+                    if (item.Status?.Embeddable == false)
+                    {
+                        _logger.LogWarning("YouTube playlist import: skipping {videoId} '{title}' - not embeddable (may be blocked for API/external playback)", item.Id, item.Snippet?.Title);
+                        continue;
+                    }
+
+                    TimeSpan length = new();
+                    if (Iso8601DurationHelper.Duration.TryParse(item.ContentDetails.Duration, out var duration))
+                        length = new TimeSpan((int)duration.Hours, (int)duration.Minutes, (int)duration.Seconds);
+
+                    var song = new Song
+                    {
+                        Title = item.Snippet?.Title ?? item.Id,
+                        Duration = length,
+                        SongId = item.Id,
+                        RequestedBy = ServiceBackbone.BotName ?? "TheBot"
+                    };
+                    playList.Songs.Add(song);
+                    existingIds.Add(item.Id);
+                    importedSongs++;
+                    _logger.LogInformation("YouTube playlist import: {importedSongs}/{total} - {title}", importedSongs, videoIds.Count, song.Title);
+                }
+            }
+
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                db.Playlists.Update(playList);
+                await db.SaveChangesAsync();
+            }
+
+            return importedSongs;
+        }
+
+        private static string? ExtractYouTubePlaylistId(string input)
+        {
+            input = input.Trim();
+            if (!input.Contains('/'))
+                return input; // treat raw input as playlist ID
+
+            if (Uri.TryCreate(input, UriKind.Absolute, out var uri))
+            {
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var listParam = query["list"];
+                if (!string.IsNullOrWhiteSpace(listParam))
+                    return listParam;
+            }
+            return null;
         }
 
         private async Task<Song?> GetSongByLinkOrId(string songLink)
