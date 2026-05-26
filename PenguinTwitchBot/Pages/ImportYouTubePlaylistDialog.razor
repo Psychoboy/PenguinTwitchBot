@@ -1,0 +1,75 @@
+@using MudBlazor
+@inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudAutocomplete T="string"
+                             @bind-Value="PlaylistName"
+                             Label="Playlist Name"
+                             Required="true"
+                             RequiredError="Playlist name is required"
+                             HelperText="Select an existing playlist or type a new name to create one"
+                             SearchFunc="SearchPlaylists"
+                             CoerceText="false"
+                             CoerceValue="true"
+                             MaxItems="null" />
+            <MudTextField @bind-Value="YoutubePlaylistUrl"
+                          Label="YouTube Playlist URL or ID"
+                          Required="true"
+                          RequiredError="YouTube playlist URL or ID is required"
+                          HelperText="e.g. https://www.youtube.com/playlist?list=PLxxxxxx or just the playlist ID"
+                          Class="mt-4" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Disabled="@(!_isValid)" OnClick="Submit">Import</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string PlaylistName { get; set; } = "";
+
+    [Parameter]
+    public string YoutubePlaylistUrl { get; set; } = "";
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private List<string> _existingPlaylists = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var playlists = await YtPlayer.Playlists();
+        _existingPlaylists = playlists.Select(p => p.Name).OrderBy(n => n).ToList();
+    }
+
+    private Task<IEnumerable<string>> SearchPlaylists(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult<IEnumerable<string>>(_existingPlaylists);
+
+        value = value.Trim();
+        var filtered = _existingPlaylists
+            .Where(p => p.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // If the typed value isn't already an exact match, offer it as a "create new" option
+        if (!filtered.Any(p => p.Equals(value, StringComparison.OrdinalIgnoreCase)))
+            filtered.Insert(0, value);
+
+        return Task.FromResult<IEnumerable<string>>(filtered);
+    }
+
+    private void Submit()
+    {
+        if (_isValid)
+            MudDialog.Close(DialogResult.Ok((PlaylistName, YoutubePlaylistUrl)));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
