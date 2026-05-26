@@ -365,7 +365,7 @@
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to import YouTube playlist from UI");
-                Snackbar.Add(ex.Message, Severity.Error);
+                Snackbar.Add("Failed to import YouTube playlist. Please try again.", Severity.Error);
             }
         }
     }

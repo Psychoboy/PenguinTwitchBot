@@ -783,8 +783,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
                 foreach (var item in videoResponse.Items)
                 {
+                    if (item.ContentDetails == null)
+                    {
+                        _logger.LogWarning("YouTube playlist import: skipping {videoId} - contentDetails missing from API response", item.Id);
+                        continue;
+                    }
+
                     // Log and skip age-restricted content
-                    if (item.ContentDetails.ContentRating.YtRating?.Equals("ytAgeRestricted") == true)
+                    if (item.ContentDetails.ContentRating?.YtRating?.Equals("ytAgeRestricted") == true)
                     {
                         _logger.LogWarning("YouTube playlist import: skipping {videoId} '{title}' - age restricted (ytAgeRestricted)", item.Id, item.Snippet?.Title);
                         continue;
