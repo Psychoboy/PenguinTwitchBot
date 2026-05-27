@@ -1,0 +1,244 @@
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Bot.Models
+@using PenguinTwitchBot.Bot.Models.Commands
+@using PenguinTwitchBot.Repository.Repositories
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
+@inject IActionCommandService CommandService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.FileDownload" Class="mr-2" />
+            Export Actions
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect T="ExportScope" @bind-Value="_scope" Label="Export Scope" Variant="Variant.Outlined">
+                @if (SelectedAction != null)
+                {
+                    <MudSelectItem T="ExportScope" Value="ExportScope.SelectedAction">
+                        Selected Action: "@SelectedAction.Name"
+                    </MudSelectItem>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedGroup))
+                {
+                    <MudSelectItem T="ExportScope" Value="ExportScope.SelectedGroup">
+                        Group: "@SelectedGroup" (@AllActions.Count(a => (a.Group ?? string.Empty).Trim() == SelectedGroup.Trim()) actions)
+                    </MudSelectItem>
+                }
+                <MudSelectItem T="ExportScope" Value="ExportScope.AllActions">
+                    All Actions (@AllActions.Count)
+                </MudSelectItem>
+            </MudSelect>
+
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle2">Include in Export</MudText>
+            <MudSwitch @bind-Value="_includeTriggers" Label="Triggers" Color="Color.Primary" />
+            @if (_includeTriggers)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Only Command, Twitch Event, and Manual triggers are included. Timer, Keyword, and Default Command triggers reference system-specific IDs and are excluded.
+                </MudAlert>
+            }
+            <MudSwitch @bind-Value="_includeQueueName" Label="Queue Name" Color="Color.Primary" />
+            <MudSwitch @bind-Value="_includeGroup" Label="Group" Color="Color.Primary" />
+
+            <MudAlert Severity="Severity.Info" Dense="true">
+                @GetActionCount() action(s) will be exported.
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Export"
+                   StartIcon="@Icons.Material.Filled.FileDownload"
+                   Disabled="@(GetActionCount() == 0)">
+            Export
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public List<ActionType> AllActions { get; set; } = [];
+    [Parameter] public ActionType? SelectedAction { get; set; }
+    [Parameter] public string? SelectedGroup { get; set; }
+
+    private ExportScope _scope;
+    private bool _includeTriggers = true;
+    private bool _includeQueueName = true;
+    private bool _includeGroup = true;
+
+    protected override void OnInitialized()
+    {
+        if (SelectedAction != null)
+            _scope = ExportScope.SelectedAction;
+        else if (!string.IsNullOrWhiteSpace(SelectedGroup))
+            _scope = ExportScope.SelectedGroup;
+        else
+            _scope = ExportScope.AllActions;
+    }
+
+    private int GetActionCount() => _scope switch
+    {
+        ExportScope.SelectedAction => SelectedAction != null ? 1 : 0,
+        ExportScope.SelectedGroup => AllActions.Count(a => (a.Group ?? string.Empty).Trim() == (SelectedGroup ?? string.Empty).Trim()),
+        ExportScope.AllActions => AllActions.Count,
+        _ => 0
+    };
+
+    private List<ActionType> GetActionsToExport() => _scope switch
+    {
+        ExportScope.SelectedAction => SelectedAction != null ? [SelectedAction] : [],
+        ExportScope.SelectedGroup => AllActions.Where(a => (a.Group ?? string.Empty).Trim() == (SelectedGroup ?? string.Empty).Trim()).ToList(),
+        ExportScope.AllActions => AllActions,
+        _ => []
+    };
+
+    private async Task Export()
+    {
+        var actionsToExport = GetActionsToExport();
+
+        // Preload all commands so we can embed definitions in Command triggers
+        Dictionary<int, ActionCommand> commandById = new();
+        if (_includeTriggers)
+        {
+            var allCommands = await CommandService.GetAllAsync();
+            commandById = allCommands
+                .Where(c => c.Id.HasValue)
+                .ToDictionary(c => c.Id!.Value);
+        }
+
+        var package = new ActionsExportPackage
+        {
+            ExportedAt = DateTime.UtcNow,
+            Actions = actionsToExport.Select(a => new ActionExportDto
+            {
+                Name = a.Name,
+                Group = _includeGroup ? a.Group : null,
+                Enabled = a.Enabled,
+                RandomAction = a.RandomAction,
+                ConcurrentAction = a.ConcurrentAction,
+                OnlineOnly = a.OnlineOnly,
+                QueueName = _includeQueueName ? a.QueueName : null,
+                SubActions = a.SubActions.OrderBy(s => s.Index).ToList(),
+                Triggers = _includeTriggers
+                    ? a.Triggers
+                        .Where(t => t.Type == TriggerTypes.Command ||
+                                    t.Type == TriggerTypes.TwitchEvent ||
+                                    t.Type == TriggerTypes.Manual)
+                        .Select(t =>
+                        {
+                            ActionCommandExportDto? commandDef = null;
+                            if (t.Type == TriggerTypes.Command)
+                            {
+                                ActionCommand? cmd = null;
+                                if (t.CommandId.HasValue)
+                                    commandById.TryGetValue(t.CommandId.Value, out cmd);
+                                if (cmd != null)
+                                {
+                                    commandDef = new ActionCommandExportDto
+                                    {
+                                        CommandName = cmd.CommandName,
+                                        UserCooldown = cmd.UserCooldown,
+                                        UserCooldownMax = cmd.UserCooldownMax,
+                                        GlobalCooldown = cmd.GlobalCooldown,
+                                        GlobalCooldownMax = cmd.GlobalCooldownMax,
+                                        MinimumRank = cmd.MinimumRank,
+                                        Cost = cmd.Cost,
+                                        Disabled = cmd.Disabled,
+                                        SayCooldown = cmd.SayCooldown
+                                    };
+                                }
+                            }
+                            return new TriggerExportDto
+                            {
+                                Name = t.Name,
+                                Type = t.Type,
+                                Configuration = t.Configuration,
+                                Enabled = t.Enabled,
+                                CommandDefinition = commandDef
+                            };
+                        }).ToList()
+                    : []
+            }).ToList()
+        };
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            TypeInfoResolver = new SubActionTypeResolver()
+        };
+
+        var json = JsonSerializer.Serialize(package, options);
+
+        var fileName = _scope switch
+        {
+            ExportScope.SelectedAction => $"Action_{SanitizeName(SelectedAction?.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.json",
+            ExportScope.SelectedGroup => $"ActionGroup_{SanitizeName(SelectedGroup)}_{DateTime.Now:yyyyMMdd_HHmmss}.json",
+            _ => $"Actions_{DateTime.Now:yyyyMMdd_HHmmss}.json"
+        };
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private static string SanitizeName(string? name) =>
+        string.IsNullOrWhiteSpace(name)
+            ? "export"
+            : string.Concat(name.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_'));
+
+    private void Cancel() => MudDialog.Cancel();
+
+    public enum ExportScope { SelectedAction, SelectedGroup, AllActions }
+
+    public class ActionsExportPackage
+    {
+        public string Version { get; set; } = "1.0";
+        public DateTime ExportedAt { get; set; }
+        public List<ActionExportDto> Actions { get; set; } = [];
+    }
+
+    public class ActionExportDto
+    {
+        public string Name { get; set; } = "";
+        public string? Group { get; set; }
+        public bool Enabled { get; set; } = true;
+        public bool RandomAction { get; set; }
+        public bool ConcurrentAction { get; set; }
+        public bool OnlineOnly { get; set; }
+        public string? QueueName { get; set; }
+        public List<SubActionType> SubActions { get; set; } = [];
+        public List<TriggerExportDto> Triggers { get; set; } = [];
+    }
+
+    public class TriggerExportDto
+    {
+        public string Name { get; set; } = "";
+        public TriggerTypes Type { get; set; }
+        public string Configuration { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+        public ActionCommandExportDto? CommandDefinition { get; set; }
+    }
+
+    public class ActionCommandExportDto
+    {
+        public string CommandName { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int UserCooldownMax { get; set; }
+        public int GlobalCooldown { get; set; }
+        public int GlobalCooldownMax { get; set; }
+        public Rank MinimumRank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public bool Disabled { get; set; }
+        public bool SayCooldown { get; set; } = true;
+    }
+}

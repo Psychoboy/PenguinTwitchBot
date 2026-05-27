@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Pages.Components
+@using PenguinTwitchBot.Pages.Actions
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IActionManagementService ActionService
@@ -21,9 +22,17 @@
             <MudText Typo="Typo.h4" GutterBottom="true">Action Management</MudText>
             <MudText Typo="Typo.body2">Create, edit, and manage actions with their triggers and subactions.</MudText>
         </MudStack>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
-            Create Raffle
-        </MudButton>
+        <MudStack Row="true" Spacing="1">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileUpload" OnClick="OpenImportDialog">
+                Import
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="OpenExportDialog">
+                Export
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
+                Create Raffle
+            </MudButton>
+        </MudStack>
     </MudStack>
 
     <MudGrid>
@@ -406,6 +415,54 @@
         _isNavigating = true;
         NavigationManager.NavigateTo("/actions/manage", false);
         _isNavigating = false;
+    }
+
+    private async Task OpenExportDialog()
+    {
+        var exportGroup = _filterGroup;
+        if (string.IsNullOrWhiteSpace(exportGroup) && !string.IsNullOrWhiteSpace(_selectedAction?.Group))
+            exportGroup = _selectedAction.Group;
+
+        var parameters = new DialogParameters<ExportActionsDialog>
+        {
+            { x => x.AllActions, _actions },
+            { x => x.SelectedAction, _selectedAction },
+            { x => x.SelectedGroup, exportGroup }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<ExportActionsDialog>("Export Actions", parameters, options);
+    }
+
+    private async Task OpenImportDialog()
+    {
+        var parameters = new DialogParameters<ImportActionsDialog>
+        {
+            { x => x.AvailableQueues, _availableQueues },
+            { x => x.Groups, _groups }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ImportActionsDialog>("Import Actions", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: int importedCount } && importedCount > 0)
+        {
+            await LoadActions();
+            Snackbar.Add($"{importedCount} action(s) imported successfully.", Severity.Success);
+        }
     }
 
     private async Task OpenCreateRaffleDialog()
