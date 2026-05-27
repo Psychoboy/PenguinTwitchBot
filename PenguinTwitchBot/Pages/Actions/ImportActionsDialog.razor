@@ -263,6 +263,11 @@
                     })
                     .ToList();
 
+                // Clear stale source-system ActionIds so PopulateExecuteActionNamesBeforeSave
+                // doesn't corrupt ActionName before the relink pass runs
+                foreach (var ea in GetAllExecuteActionSubActions(subActions))
+                    ea.ActionId = null;
+
                 var triggers = new List<TriggerType>();
                 if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
                 {
@@ -348,10 +353,14 @@
         // Pass 2: relink ExecuteAction sub-actions by ActionName
         if (createdActions.Count > 0)
         {
-            var allActions = await ActionService.GetAllActionsAsync();
-            var nameToId = allActions
-                .Where(a => a.Id.HasValue)
-                .ToDictionary(a => a.Name, a => a.Id!.Value, StringComparer.OrdinalIgnoreCase);
+            // Build name→ID map: imported batch takes priority, then fall back to pre-existing
+            var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var created in createdActions.Where(a => a.Id.HasValue))
+                nameToId[created.Name] = created.Id!.Value;
+
+            var allExisting = await ActionService.GetAllActionsAsync();
+            foreach (var existing in allExisting.Where(a => a.Id.HasValue && !nameToId.ContainsKey(a.Name)))
+                nameToId[existing.Name] = existing.Id!.Value;
 
             foreach (var created in createdActions)
             {
