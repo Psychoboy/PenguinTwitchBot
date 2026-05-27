@@ -20,10 +20,10 @@ public class TwitchEventBonusSettingsProvider : IGameSettingsFormProvider
         {
             [TwitchEventsBonus.POINTSPERSUB]          = await svc.GetIntSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.POINTSPERSUB, 500),
             [TwitchEventsBonus.BITSPERPOINT]          = await svc.GetDoubleSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.BITSPERPOINT, 1.0),
-            [TwitchEventsBonus.SUBMESSAGE]            = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.SUBMESSAGE, "{Name} just subscribed{Details}! sptvHype"),
-            [TwitchEventsBonus.CHEERMESSAGE]          = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.CHEERMESSAGE, "{Name} just cheered {Amount} bits! sptvHype"),
-            [TwitchEventsBonus.ANONYMOUSCHEERMESSAGE] = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.ANONYMOUSCHEERMESSAGE, "Someone just cheered {Amount} bits! sptvHype"),
-            [TwitchEventsBonus.SUBGIFTMESSAGE]        = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.SUBGIFTMESSAGE, "{Name} gifted {Amount} subscriptions to the channel! sptvHype sptvHype sptvHype"),
+            [TwitchEventsBonus.SUBMESSAGE]            = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.SUBMESSAGE, "{Name} just subscribed{Details}!"),
+            [TwitchEventsBonus.CHEERMESSAGE]          = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.CHEERMESSAGE, "{Name} just cheered {Amount} bits!"),
+            [TwitchEventsBonus.ANONYMOUSCHEERMESSAGE] = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.ANONYMOUSCHEERMESSAGE, "Someone just cheered {Amount} bits!"),
+            [TwitchEventsBonus.SUBGIFTMESSAGE]        = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.SUBGIFTMESSAGE, "{Name} gifted {Amount} subscriptions to the channel!"),
             [TwitchEventsBonus.SUBGIFTTOTALMESSAGE]   = await svc.GetStringSetting(TwitchEventsBonus.GAMENAME, TwitchEventsBonus.SUBGIFTTOTALMESSAGE, " They have gifted a total of {Total} subs to the channel!"),
         };
     }

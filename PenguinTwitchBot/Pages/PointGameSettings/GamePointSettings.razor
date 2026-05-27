@@ -4,10 +4,13 @@
 @using PenguinTwitchBot.Bot.Models.Points
 @using PenguinTwitchBot.Bot.Commands.Games
 
-<MudPaper>
+<MudPaper Elevation="2">
     <MudTable Items="@PointSettings" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted">
         <ToolBarContent>
-            <MudText Typo="Typo.h6">Settings for the game points system.</MudText>
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">Game Point Assignments</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose which point type each game uses. Click the edit icon on a row to change it.</MudText>
+            </MudStack>
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Name</MudTh>

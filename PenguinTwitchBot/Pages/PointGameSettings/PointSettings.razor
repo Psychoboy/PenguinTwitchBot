@@ -3,69 +3,82 @@
 @using PenguinTwitchBot.Bot.Models.Points
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>SPTV Twitch Bot - Point Settings</PageTitle>
+<PageTitle>Penguin Twitch Bot - Point Settings</PageTitle>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudGrid>
-        <MudItem xs="6">
+
+        @* ── Page header ── *@
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.h5">Point Settings</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Manage your point types and configure which point type each game uses.
+                        You can create as many point types as you like (e.g. one for casual fun games, one for
+                        giveaway tickets) and assign them individually per game. The first point type cannot be
+                        deleted — rename or repurpose it as needed.
+                    </MudText>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @* ── Row 1: Game assignments + game documentation ── *@
+        <MudItem xs="12" md="6">
             <GamePointSettings />
         </MudItem>
-        <MudItem xs="6">
-            <MudText Typo="Typo.h5">Basic descripts of the various games</MudText>
-            <MudText>The games were originally designed with 2 different points in mind.
-                The first list is the more wreckless fun games. While the second is the more
-                serious ones designed with Giveaways in mind. You can configure these to use any point types
-                you want. You can also have as many point types as you want. The seperation is simply a 
-                suggest.
-            </MudText>
-            <MudDivider Class="mb-2 mt-2" />
-            <MudText Typo="Typo.h5">Suggested "Fun" Games</MudText>
-            <MudText Typo="Typo.h6">Defuse</MudText>
-            <MudText>Simple game where a user defuses a bomb by choosing a color</MudText>
-            <MudText Typo="Typo.h6">FFA</MudText>
-            <MudText>A free for all battle, winner takes all</MudText>
-            <MudText Typo="Typo.h6">Gamble</MudText>
-            <MudText>A way to gamble those points away</MudText>
-            <MudText Typo="Typo.h6">Heist</MudText>
-            <MudText>A heist where multiple people can join and some may succeed rather others may fail.</MudText>
-            <MudText Typo="Typo.h6">Roll</MudText>
-            <MudText>Roll some dice for a chance at points</MudText>
-            <MudText Typo="Typo.h6">Slots</MudText>
-            <MudText>Spin the wheel to win some points. The more emotes the lower the odds of winning</MudText>
-            <MudText Typo="Typo.h6">Steal</MudText>
-            <MudText>Attempt to steal points from another viewer</MudText>
-            <MudText Typo="Typo.h6">Tax</MudText>
-            <MudText>Post stream tax. After the stream has been offline for a bit process a tax removing
-                a small percentage of points up to a max for anyone who did not show up in stream.</MudText>
-            <MudText Typo="Typo.h6">Top</MudText>
-            <MudText>Top5/10 watch time, points, messages</MudText>
-            <MudText Typo="Typo.h6">LoyaltyFeature</MudText>
-            <MudText>Awards Periodic Points</MudText>
-            <MudDivider Class="mb-2 mt-2" />
-            <MudText Typo="Typo.h5">Suggested games for more serious points ie. Giveaways</MudText>
-            <MudText Typo="Typo.h6">AddActive</MudText>
-            <MudText>Add points to all active viewers in chat. Can be used multiple times to stack up the points
-                then after a small period of time distributes all the points at once.
-            </MudText>
-            <MudText Typo="Typo.h6">Bonus</MudText>
-            <MudText>User can get bonus points once a stream via the web interface</MudText>
-            <MudText Typo="Typo.h6">DuelGame</MudText>
-            <MudText>Duel another viewer to win/lose tickets against opponent. The opponent must accept the duel.</MudText>
-            <MudText Typo="Typo.h6">First</MudText>
-            <MudText>Allows people to do a !first type of command and based on order lower amount of points awarded</MudText>
-            <MudText Typo="Typo.h6">GiveawayFeature</MudText>
-            <MudText>Used to run giveaways</MudText>
-            
-            <MudText Typo="Typo.h6">Raffle</MudText>
-            <MudText>Do various raffles for points in chat</MudText>
-            <MudText Typo="Typo.h6">Roulette</MudText>
-            <MudText>Gamble those points away with a max per stream</MudText>
-            <MudText Typo="Typo.h6">TicketsFeature</MudText>
-            <MudText>Periodically gives points with bonuses based on subs and such if active in chat.</MudText>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-1">About the Games</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Games were originally designed around two separate point pools — a casual pool for fun
+                    and a more serious pool used for giveaways and raffles. You can configure any game to use
+                    any point type, or consolidate everything into one. The groupings below are suggestions only.
+                </MudText>
+                <MudExpansionPanels MultiExpansion="true">
+                    <MudExpansionPanel Text="Suggested &quot;Fun&quot; Games" Icon="@Icons.Material.Filled.SportsEsports">
+                        <MudList T="string" Dense="true">
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Defuse</b> — Defuse a bomb by choosing the correct color. Quick, simple fun.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>FFA</b> — Free-for-all battle; last one standing takes all the points.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Gamble</b> — Risk points for a chance to double up or lose it all.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Heist</b> — Group event where some participants succeed and some fail.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Roll</b> — Roll dice for a chance to win points.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Slots</b> — Spin the wheel. More emotes configured means lower win odds.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Steal</b> — Attempt to steal points directly from another viewer.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Tax</b> — Post-stream tax that removes a small percentage (up to a cap) from viewers who missed the stream.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>Top</b> — Display top 5/10 leaderboards for watch time, points, and messages.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Casino"><b>LoyaltyFeature</b> — Awards passive points periodically just for being in chat.</MudListItem>
+                        </MudList>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Text="Suggested Giveaway / Ticket Games" Icon="@Icons.Material.Filled.ConfirmationNumber">
+                        <MudList T="string" Dense="true">
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>AddActive</b> — Awards points to all active viewers at once. Can be stacked and distributed after a short delay.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>Bonus</b> — Viewers claim a one-time bonus per stream through the web interface.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>DuelGame</b> — Challenge another viewer; the opponent must accept. Winner gains, loser loses.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>First</b> — First-to-respond command; earlier responders earn proportionally more points.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>GiveawayFeature</b> — Runs and manages giveaways using point redemptions.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>Raffle</b> — Run point-based raffles in chat.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>Roulette</b> — Gamble points with a configurable per-stream maximum.</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.ConfirmationNumber"><b>TicketsFeature</b> — Periodically awards points with bonuses for active chatters, subscribers, etc.</MudListItem>
+                        </MudList>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudPaper>
         </MudItem>
-        <MudItem xs="9">
-            <MudPaper>
-                <MudTable Items="@PointTypes">
+
+        @* ── Row 2: Point types table + create/edit form ── *@
+        <MudItem xs="12" md="9">
+            <MudPaper Elevation="2">
+                <MudTable Items="@PointTypes" Elevation="0">
+                    <ToolBarContent>
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h6">Point Types</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Each point type has its own chat commands and can be assigned to any game independently.
+                            </MudText>
+                        </MudStack>
+                    </ToolBarContent>
                     <HeaderContent>
                         <MudTh>Id</MudTh>
                         <MudTh>Name</MudTh>
@@ -74,28 +87,30 @@
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>@context.Id</MudTd>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.Description</MudTd>
+                        <MudTd DataLabel="Id">@context.Id</MudTd>
+                        <MudTd DataLabel="Name">@context.Name</MudTd>
+                        <MudTd DataLabel="Description">@context.Description</MudTd>
                         <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => EditPointType(context)">Edit</MudButton>
+                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Color="Color.Primary" OnClick="() => EditPointType(context)" />
                         </MudTd>
                         <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="() => DeletePointType(context)">Delete</MudButton>
+                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeletePointType(context)" />
                         </MudTd>
                     </RowTemplate>
                     <ChildRowContent>
                         <MudTr>
-                            <td>
-                                <MudCard>
+                            <td colspan="5">
+                                <MudCard Elevation="0" Class="pa-2">
                                     <MudCardHeader>
-                                        Commands for <strong>@context.Name</strong>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.subtitle2">Commands for <strong>@context.Name</strong></MudText>
+                                        </CardHeaderContent>
                                     </MudCardHeader>
-                                    <MudCardContent>
-                                        <MudTable Items="@context.PointCommands.ToList()" Context="CommandContext">
+                                    <MudCardContent Class="pa-0">
+                                        <MudTable Items="@context.PointCommands.ToList()" Context="CommandContext" Elevation="0" Dense="true">
                                             <HeaderContent>
                                                 <MudTh>Command</MudTh>
-                                                <MudTh>Command Description</MudTh>
+                                                <MudTh>Type</MudTh>
                                             </HeaderContent>
                                             <RowTemplate>
                                                 <MudTd>@CommandContext.CommandName</MudTd>
@@ -110,22 +125,43 @@
                 </MudTable>
             </MudPaper>
         </MudItem>
-        <MudItem xs="3">
-            <MudPaper>
+
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    @(newPointType.Id == null ? "Create Point Type" : $"Editing: {newPointType.Name}")
+                </MudText>
                 <EditForm Model="@newPointType" OnValidSubmit="SavePointType">
                     <DataAnnotationsValidator />
-                    <MudTextField Label="Name" @bind-Value="newPointType.Name" />
-                    <MudTextField Label="Description" @bind-Value="newPointType.Description" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="GenerateCommands">GenerateCommands</MudButton>
-                    <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" />
-                    <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" />
-                    <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" />
-                    <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" />
-                    <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save</MudButton>
+                    <MudStack Spacing="2">
+                        <MudTextField Label="Name" @bind-Value="newPointType.Name" Variant="Variant.Outlined" />
+                        <MudTextField Label="Description" @bind-Value="newPointType.Description" Variant="Variant.Outlined" Lines="2" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                                   OnClick="GenerateCommands" StartIcon="@Icons.Material.Filled.AutoAwesome">
+                            Auto-Generate Commands
+                        </MudButton>
+                        <MudDivider />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Chat Commands</MudText>
+                        <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" Variant="Variant.Outlined" HelperText="e.g. !addpoints" />
+                        <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" Variant="Variant.Outlined" HelperText="e.g. !removepoints" />
+                        <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" Variant="Variant.Outlined" HelperText="e.g. !points — viewers check their balance" />
+                        <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" Variant="Variant.Outlined" HelperText="e.g. !setpoints — mod override" />
+                        <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" Variant="Variant.Outlined" HelperText="e.g. !addactive — awards all active viewers" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                                   FullWidth="true" StartIcon="@Icons.Material.Filled.Save">
+                            Save
+                        </MudButton>
+                        @if (newPointType.Id != null)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" OnClick="CancelEdit">
+                                Cancel
+                            </MudButton>
+                        }
+                    </MudStack>
                 </EditForm>
             </MudPaper>
         </MudItem>
+
     </MudGrid>
 </MudContainer>
 
@@ -168,9 +204,14 @@
         newPointType = pointType;
     }
 
+    private void CancelEdit()
+    {
+        newPointType = CreateNewPointType();
+    }
+
     private async Task DeletePointType(PointType pointType)
     {
-        if(pointType.Id == 1)
+        if (pointType.Id == 1)
         {
             Snackbar.Add("You can not delete the primary points. You can edit/rename it only.", Severity.Error);
             return;

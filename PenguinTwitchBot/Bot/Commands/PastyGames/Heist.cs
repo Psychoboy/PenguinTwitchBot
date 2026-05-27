@@ -210,14 +210,14 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     {
                         case 0:
                             CalculateResult();
-                            var stageOne = await gameSettingsService.GetStringSetting(GAMENAME, STAGEONE, "The Fin Fam sptvTFF gets ready to steal some pasties from Charlie! sptvCharlie");
+                            var stageOne = await gameSettingsService.GetStringSetting(GAMENAME, STAGEONE, "The chat gets ready to steal some points!");
                             stageOne = ReplaceStageMessages(stageOne);
                             await ServiceBackbone.SendChatMessage(stageOne); //STAGEONE
                             CurrentStoryPart++;
                             break;
 
                         case 1:
-                            var stageTwo = await gameSettingsService.GetStringSetting(GAMENAME, STAGETWO, "Everyone sharpens their beaks, brushes their feathers, and gets ready to sneak past Charlie!");
+                            var stageTwo = await gameSettingsService.GetStringSetting(GAMENAME, STAGETWO, "Everyone attempts to sneak by the troll guarding the points, but the troll is on high alert! Who will get caught?");
                             stageTwo = ReplaceStageMessages(stageTwo);
                             await ServiceBackbone.SendChatMessage(stageTwo); //STAGETWO
                             CurrentStoryPart++;
@@ -226,7 +226,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                         case 2:
                             if (Caught.Count > 0)
                             {
-                                var stageThree = await gameSettingsService.GetStringSetting(GAMENAME, STAGETHREE, "Look out! Charlie sptvCharlie captured {Caught}");
+                                var stageThree = await gameSettingsService.GetStringSetting(GAMENAME, STAGETHREE, "Look out! The troll captured {Caught}");
                                 stageThree = ReplaceStageMessages(stageThree);
                                 await ServiceBackbone.SendChatMessage(stageThree); //STAGETHREE
                             }
@@ -236,7 +236,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                         case 3:
                             if (Survivors.Count > 0)
                             {
-                                var stageFour = await gameSettingsService.GetStringSetting(GAMENAME, STAGEFOUR, "{Survivors} managed to sneak past Charlie sptvCharlie and grab some of those precious pasties!");
+                                var stageFour = await gameSettingsService.GetStringSetting(GAMENAME, STAGEFOUR, "{Survivors} managed to sneak past the troll and grab some of those precious points!");
                                 stageFour = ReplaceStageMessages(stageFour);
                                 await ServiceBackbone.SendChatMessage(stageFour); //STAGEFOUR
                             }

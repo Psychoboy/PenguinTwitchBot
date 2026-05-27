@@ -108,7 +108,6 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         public async Task OnIncomingRaid(RaidEventArgs e)
         {
-            await ServiceBackbone.SendChatMessage($"{e.DisplayName} just raided with {e.NumberOfViewers} viewers! sptvHype", false);
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
