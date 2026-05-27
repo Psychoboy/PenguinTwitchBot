@@ -142,11 +142,11 @@
                         </MudButton>
                         <MudDivider />
                         <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Chat Commands</MudText>
-                        <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" Variant="Variant.Outlined" HelperText="e.g. !addpoints" />
-                        <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" Variant="Variant.Outlined" HelperText="e.g. !removepoints" />
-                        <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" Variant="Variant.Outlined" HelperText="e.g. !points — viewers check their balance" />
-                        <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" Variant="Variant.Outlined" HelperText="e.g. !setpoints — mod override" />
-                        <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" Variant="Variant.Outlined" HelperText="e.g. !addactive — awards all active viewers" />
+                        <MudTextField Label="Add Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName" Variant="Variant.Outlined" HelperText="e.g. addpoints (no ! prefix)" />
+                        <MudTextField Label="Remove Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName" Variant="Variant.Outlined" HelperText="e.g. removepoints (no ! prefix)" />
+                        <MudTextField Label="Get Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName" Variant="Variant.Outlined" HelperText="e.g. points — viewers check their balance" />
+                        <MudTextField Label="Set Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName" Variant="Variant.Outlined" HelperText="e.g. setpoints — mod override" />
+                        <MudTextField Label="Add Active Command" @bind-Value="newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName" Variant="Variant.Outlined" HelperText="e.g. addactivepoints — awards all active viewers" />
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
                                    FullWidth="true" StartIcon="@Icons.Material.Filled.Save">
                             Save
@@ -201,6 +201,12 @@
 
     private void EditPointType(PointType pointType)
     {
+        var requiredTypes = new[] { PointCommandType.Add, PointCommandType.Remove, PointCommandType.Get, PointCommandType.Set, PointCommandType.AddActive };
+        foreach (var type in requiredTypes)
+        {
+            if (!pointType.PointCommands.Any(c => c.CommandType == type))
+                pointType.PointCommands.Add(new PointCommand { CommandType = type });
+        }
         newPointType = pointType;
     }
 
@@ -222,10 +228,12 @@
 
     private void GenerateCommands()
     {
-        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName = $"!add{newPointType.Name.ToLower()}";
-        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName = $"!remove{newPointType.Name.ToLower()}";
-        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName = $"!get{newPointType.Name.ToLower()}";
-        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName = $"!set{newPointType.Name.ToLower()}";
-        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName = $"!addactive{newPointType.Name.ToLower()}";
+        if (string.IsNullOrWhiteSpace(newPointType.Name)) return;
+        var name = newPointType.Name.ToLower();
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Add).CommandName = $"add{name}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Remove).CommandName = $"remove{name}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Get).CommandName = $"get{name}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.Set).CommandName = $"set{name}";
+        newPointType.PointCommands.First(x => x.CommandType == PointCommandType.AddActive).CommandName = $"addactive{name}";
     }
 }
