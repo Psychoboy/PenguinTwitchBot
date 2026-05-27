@@ -1,0 +1,358 @@
+{
+  "Version": "1.0",
+  "ExportedAt": "2026-05-27T15:24:52.1161532Z",
+  "Actions": [
+    {
+      "Name": "Fish",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "FishingNonblock",
+      "SubActions": [
+        {
+          "$type": "Fishing",
+          "Attempts": 1,
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 35
+        },
+        {
+          "$type": "LogicIfElse",
+          "LeftValue": "%fish_rarity%",
+          "RightValue": "Accident",
+          "Operator": 0,
+          "TrueSubActions": [
+            {
+              "$type": "SendMessage",
+              "UseBot": true,
+              "FallBack": true,
+              "StreamOnly": true,
+              "Index": 0,
+              "Text": "%user% had an accident and their %fish_type%",
+              "Enabled": true,
+              "SubActionTypes": 22
+            }
+          ],
+          "FalseSubActions": [],
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 29
+        },
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 2,
+          "Text": "%user% caught a %fish_stars% star %fish_rarity% %fish_type% worth %fish_gold% gold weighing in at %fish_weight%",
+          "Enabled": true,
+          "SubActionTypes": 22
+        },
+        {
+          "$type": "LogicIfElse",
+          "LeftValue": "%fish_stars%",
+          "RightValue": "3",
+          "Operator": 0,
+          "TrueSubActions": [
+            {
+              "$type": "SetVariable",
+              "Value": "8000",
+              "Index": 0,
+              "Text": "award_multiplier",
+              "Enabled": true,
+              "SubActionTypes": 30
+            }
+          ],
+          "FalseSubActions": [
+            {
+              "$type": "LogicIfElse",
+              "LeftValue": "%fish_stars%",
+              "RightValue": "2",
+              "Operator": 0,
+              "TrueSubActions": [
+                {
+                  "$type": "SetVariable",
+                  "Value": "4000",
+                  "Index": 0,
+                  "Text": "award_multiplier",
+                  "Enabled": true,
+                  "SubActionTypes": 30
+                }
+              ],
+              "FalseSubActions": [
+                {
+                  "$type": "SetVariable",
+                  "Value": "1000",
+                  "Index": 0,
+                  "Text": "award_multiplier",
+                  "Enabled": true,
+                  "SubActionTypes": 30
+                }
+              ],
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 29
+            }
+          ],
+          "Index": 3,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 29
+        },
+        {
+          "$type": "SetVariable",
+          "Value": "$math((%fish_gold% * 4) * (%fish_stars% * 4) * %award_multiplier%)$",
+          "Index": 4,
+          "Text": "award_amount",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "PointCommand",
+          "Arguments": "%user% %award_amount%",
+          "RespondToChat": false,
+          "ElevatedCommand": true,
+          "RankToExecuteAs": "Streamer",
+          "Index": 5,
+          "Text": "addpoints",
+          "Enabled": true,
+          "SubActionTypes": 34
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Fish - Multi",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Blocking",
+      "SubActions": [
+        {
+          "$type": "LogicIfElse",
+          "LeftValue": "%cumulative%",
+          "RightValue": "0",
+          "Operator": 2,
+          "TrueSubActions": [
+            {
+              "$type": "ExecuteAction",
+              "ActionId": 145,
+              "ActionName": "Fish",
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 24
+            }
+          ],
+          "FalseSubActions": [
+            {
+              "$type": "Break",
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 28
+            }
+          ],
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 29
+        },
+        {
+          "$type": "SetVariable",
+          "Value": "$math(%cumulative%-1)$",
+          "Index": 1,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "Delay",
+          "Duration": "9000",
+          "Index": 2,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 27
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 146,
+          "ActionName": "Fish - Multi",
+          "Index": 3,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Fish 1x",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": true,
+      "QueueName": "FishingNonblock",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "1",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 146,
+          "ActionName": "Fish - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!fish",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:109,\u0022CommandName\u0022:\u0022fish\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "fish",
+            "UserCooldown": 90,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Fish 5x",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "FishingNonblock",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "5",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 146,
+          "ActionName": "Fish - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelPointsCustomRewardRedemptionAdd",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelPointsCustomRewardRedemptionAdd\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[\u0022Fish 5x\u0022],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fish Cheer",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "FishingNonblock",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "$math(min(%amount%/50, 15))$",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 146,
+          "ActionName": "Fish - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelCheer",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelCheer\u0022,\u0022MinAmount\u0022:50,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fish Help",
+      "Group": "Fishing",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 0,
+          "Text": "Fishing user guide available at https://bot.superpenguin.tv/fishing/help",
+          "Enabled": true,
+          "SubActionTypes": 22
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!fishhelp",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:110,\u0022CommandName\u0022:\u0022fishhelp\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "fishhelp",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    }
+  ]
+}

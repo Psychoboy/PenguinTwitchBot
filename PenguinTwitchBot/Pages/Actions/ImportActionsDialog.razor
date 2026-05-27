@@ -1,0 +1,497 @@
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Bot.Models
+@using PenguinTwitchBot.Bot.Models.Commands
+@using PenguinTwitchBot.Repository.Repositories
+@using System.Text.Json
+@using System.IO
+@inject IActionManagementService ActionService
+@inject IActionCommandService CommandService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.FileUpload" Class="mr-2" />
+            Import Actions
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_importedPackage == null)
+            {
+                <MudText Typo="Typo.body2">
+                    Upload a JSON file previously exported from Action Management.
+                </MudText>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen">
+                            Select File
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                @if (!string.IsNullOrEmpty(_parseError))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_parseError</MudAlert>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Found @_importedPackage.Actions.Count action(s) exported on @_importedPackage.ExportedAt.ToLocalTime().ToString("g").
+                </MudAlert>
+
+                @if (_fileHasTriggers)
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2">Triggers</MudText>
+                    <MudSwitch @bind-Value="_importTriggers" Label="Import triggers from file" Color="Color.Primary" />
+                }
+
+                <MudDivider />
+                <MudText Typo="Typo.subtitle2">Queue Name</MudText>
+
+                @if (_fileHasQueueNames)
+                {
+                    <MudStack Spacing="1">
+                        <MudRadioGroup T="bool" @bind-Value="_useFileQueueName">
+                            <MudRadio T="bool" Value="true" Color="Color.Primary">Use queue name from file</MudRadio>
+                            <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
+                        </MudRadioGroup>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        File does not include queue names. Select a queue to assign to all imported actions.
+                    </MudText>
+                }
+
+                @if (!_useFileQueueName || !_fileHasQueueNames)
+                {
+                    <MudSelect T="string" @bind-Value="_overrideQueueName" Label="Queue Name"
+                               Variant="Variant.Outlined" Required="true">
+                        @foreach (var queue in AvailableQueues)
+                        {
+                            <MudSelectItem T="string" Value="@queue">@queue</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+
+                <MudDivider />
+                <MudText Typo="Typo.subtitle2">Group</MudText>
+
+                @if (_fileHasGroups)
+                {
+                    <MudStack Spacing="1">
+                        <MudRadioGroup T="bool" @bind-Value="_useFileGroup">
+                            <MudRadio T="bool" Value="true" Color="Color.Primary">Use group from file</MudRadio>
+                            <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
+                        </MudRadioGroup>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        File does not include groups. Optionally assign a group to all imported actions.
+                    </MudText>
+                }
+
+                @if (!_useFileGroup || !_fileHasGroups)
+                {
+                    <MudAutocomplete T="string" @bind-Value="_overrideGroup" Label="Group (optional)"
+                                     Variant="Variant.Outlined"
+                                     SearchFunc="@SearchGroups"
+                                     Clearable="true"
+                                     CoerceText="false"
+                                     CoerceValue="true"
+                                     MaxItems="null" />
+                }
+
+                @if (_importErrors.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        @foreach (var error in _importErrors)
+                        {
+                            <div>@error</div>
+                        }
+                    </MudAlert>
+                }
+
+                @if (_importedCount > 0)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        @_importedCount action(s) imported successfully.
+                        @if (_relinkCount > 0)
+                        {
+                            <text> @_relinkCount Execute Action link(s) resolved automatically by name.</text>
+                        }
+                    </MudAlert>
+                }
+
+                @if (_importedCount == 0)
+                {
+                    <MudButton Variant="Variant.Text" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">
+                        Choose Different File
+                    </MudButton>
+                }
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isImporting">Cancel</MudButton>
+        @if (_importedPackage != null && _importedCount == 0)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Import"
+                       Disabled="_isImporting" StartIcon="@Icons.Material.Filled.FileUpload">
+                @if (_isImporting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Import
+            </MudButton>
+        }
+        @if (_importedCount > 0)
+        {
+            <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Done">
+                Done
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public List<string> AvailableQueues { get; set; } = [];
+    [Parameter] public List<string> Groups { get; set; } = [];
+
+    private ActionsImportPackage? _importedPackage;
+    private string _parseError = "";
+
+    private bool _fileHasTriggers;
+    private bool _fileHasQueueNames;
+    private bool _fileHasGroups;
+
+    private bool _importTriggers = true;
+    private bool _useFileQueueName = true;
+    private bool _useFileGroup = true;
+    private string _overrideQueueName = "Default";
+    private string _overrideGroup = "";
+
+    private bool _isImporting;
+    private List<string> _importErrors = [];
+    private int _importedCount;
+    private int _relinkCount;
+
+    protected override void OnParametersSet()
+    {
+        _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
+    }
+
+    private async Task OnFileSelected(IBrowserFile? file)
+    {
+        if (file == null) return;
+        _parseError = "";
+        _importedPackage = null;
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                TypeInfoResolver = new SubActionTypeResolver()
+            };
+
+            _importedPackage = JsonSerializer.Deserialize<ActionsImportPackage>(json, options);
+
+            if (_importedPackage == null || _importedPackage.Actions == null)
+            {
+                _parseError = "Failed to parse the file. Make sure it is a valid actions export.";
+                _importedPackage = null;
+                return;
+            }
+
+            _fileHasTriggers = _importedPackage.Actions.Any(a => a.Triggers?.Count > 0);
+            _fileHasQueueNames = _importedPackage.Actions.Any(a => !string.IsNullOrWhiteSpace(a.QueueName));
+            _fileHasGroups = _importedPackage.Actions.Any(a => a.Group != null);
+
+            _importTriggers = _fileHasTriggers;
+            _useFileQueueName = _fileHasQueueNames;
+            _useFileGroup = _fileHasGroups;
+
+            _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
+            _overrideGroup = "";
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading file: {ex.Message}";
+            _importedPackage = null;
+        }
+    }
+
+    private async Task Import()
+    {
+        if (_importedPackage == null) return;
+
+        _isImporting = true;
+        _importErrors.Clear();
+        _importedCount = 0;
+        _relinkCount = 0;
+
+        var createdActions = new List<ActionType>();
+
+        foreach (var dto in _importedPackage.Actions)
+        {
+            try
+            {
+                var subActions = (dto.SubActions ?? [])
+                    .OrderBy(s => s.Index)
+                    .Select((s, idx) =>
+                    {
+                        s.Id = 0;
+                        s.Index = idx;
+                        return s;
+                    })
+                    .ToList();
+
+                // Clear stale source-system ActionIds so PopulateExecuteActionNamesBeforeSave
+                // doesn't corrupt ActionName before the relink pass runs
+                foreach (var ea in GetAllExecuteActionSubActions(subActions))
+                    ea.ActionId = null;
+
+                var triggers = new List<TriggerType>();
+                if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
+                {
+                    foreach (var t in dto.Triggers)
+                    {
+                        if (t.Type == TriggerTypes.Command)
+                        {
+                            var commandName = !string.IsNullOrEmpty(t.CommandDefinition?.CommandName)
+                                ? t.CommandDefinition.CommandName
+                                : t.Name.TrimStart('!');
+
+                            if (string.IsNullOrWhiteSpace(commandName)) continue;
+
+                            var existingCmd = await CommandService.GetByCommandNameAsync(commandName);
+                            ActionCommand command;
+                            if (existingCmd != null)
+                            {
+                                command = existingCmd;
+                            }
+                            else
+                            {
+                                command = await CommandService.AddAsync(new ActionCommand
+                                {
+                                    CommandName = commandName,
+                                    UserCooldown = t.CommandDefinition?.UserCooldown ?? 0,
+                                    UserCooldownMax = t.CommandDefinition?.UserCooldownMax ?? 0,
+                                    GlobalCooldown = t.CommandDefinition?.GlobalCooldown ?? 0,
+                                    GlobalCooldownMax = t.CommandDefinition?.GlobalCooldownMax ?? 0,
+                                    MinimumRank = t.CommandDefinition?.MinimumRank ?? Rank.Viewer,
+                                    Cost = t.CommandDefinition?.Cost ?? 0,
+                                    Disabled = t.CommandDefinition?.Disabled ?? false,
+                                    SayCooldown = t.CommandDefinition?.SayCooldown ?? true
+                                });
+                            }
+
+                            var configuration = JsonSerializer.Serialize(new { CommandId = command.Id, CommandName = commandName });
+                            triggers.Add(new TriggerType
+                            {
+                                Name = $"!{commandName}",
+                                Type = TriggerTypes.Command,
+                                Configuration = configuration,
+                                Enabled = t.Enabled,
+                                CommandId = command.Id
+                            });
+                        }
+                        else
+                        {
+                            // TwitchEvent, Manual — no IDs, portable as-is
+                            triggers.Add(new TriggerType
+                            {
+                                Name = t.Name,
+                                Type = t.Type,
+                                Configuration = t.Configuration,
+                                Enabled = t.Enabled
+                            });
+                        }
+                    }
+                }
+
+                var action = new ActionType
+                {
+                    Name = dto.Name,
+                    Group = ResolveGroup(dto.Group),
+                    Enabled = dto.Enabled,
+                    RandomAction = dto.RandomAction,
+                    ConcurrentAction = dto.ConcurrentAction,
+                    OnlineOnly = dto.OnlineOnly,
+                    QueueName = ResolveQueueName(dto.QueueName),
+                    SubActions = subActions,
+                    Triggers = triggers
+                };
+
+                var created = await ActionService.CreateActionAsync(action);
+                createdActions.Add(created);
+                _importedCount++;
+            }
+            catch (Exception ex)
+            {
+                _importErrors.Add($"Failed to import '{dto.Name}': {ex.Message}");
+            }
+        }
+
+        // Pass 2: relink ExecuteAction sub-actions by ActionName
+        if (createdActions.Count > 0)
+        {
+            // Build name→ID map: imported batch takes priority, then fall back to pre-existing
+            var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var created in createdActions.Where(a => a.Id.HasValue))
+                nameToId[created.Name] = created.Id!.Value;
+
+            var allExisting = await ActionService.GetAllActionsAsync();
+            foreach (var existing in allExisting.Where(a => a.Id.HasValue && !nameToId.ContainsKey(a.Name)))
+                nameToId[existing.Name] = existing.Id!.Value;
+
+            foreach (var created in createdActions)
+            {
+                var executeActions = GetAllExecuteActionSubActions(created.SubActions);
+                bool needsUpdate = false;
+                foreach (var ea in executeActions)
+                {
+                    if (!string.IsNullOrWhiteSpace(ea.ActionName) &&
+                        nameToId.TryGetValue(ea.ActionName, out var resolvedId) &&
+                        ea.ActionId != resolvedId)
+                    {
+                        ea.ActionId = resolvedId;
+                        needsUpdate = true;
+                        _relinkCount++;
+                    }
+                }
+                if (needsUpdate)
+                {
+                    try
+                    {
+                        await ActionService.UpdateActionAsync(created);
+                    }
+                    catch (Exception ex)
+                    {
+                        _importErrors.Add($"Failed to relink Execute Actions in '{created.Name}': {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        _isImporting = false;
+    }
+
+    private static List<ExecuteActionType> GetAllExecuteActionSubActions(IEnumerable<SubActionType> subActions)
+    {
+        var result = new List<ExecuteActionType>();
+        foreach (var subAction in subActions)
+        {
+            if (subAction is ExecuteActionType exec)
+                result.Add(exec);
+            else if (subAction is LogicIfElseType logic)
+            {
+                result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
+                result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
+            }
+        }
+        return result;
+    }
+
+    private string ResolveQueueName(string? fileQueueName)
+    {
+        if (_useFileQueueName && _fileHasQueueNames && !string.IsNullOrWhiteSpace(fileQueueName))
+            return fileQueueName;
+        return string.IsNullOrWhiteSpace(_overrideQueueName) ? "Default" : _overrideQueueName;
+    }
+
+    private string ResolveGroup(string? fileGroup)
+    {
+        if (_useFileGroup && _fileHasGroups && fileGroup != null)
+            return fileGroup;
+        return _overrideGroup ?? string.Empty;
+    }
+
+    private Task<IEnumerable<string>> SearchGroups(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult<IEnumerable<string>>(Groups);
+
+        value = value.Trim();
+        var filtered = Groups
+            .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!filtered.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
+            filtered.Insert(0, value);
+
+        return Task.FromResult<IEnumerable<string>>(filtered);
+    }
+
+    private void Reset()
+    {
+        _importedPackage = null;
+        _parseError = "";
+        _importErrors.Clear();
+        _importedCount = 0;
+        _relinkCount = 0;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Done() => MudDialog.Close(DialogResult.Ok(_importedCount));
+
+    // DTOs — must match ExportActionsDialog serialization format
+    public class ActionsImportPackage
+    {
+        public string Version { get; set; } = "1.0";
+        public DateTime ExportedAt { get; set; }
+        public List<ActionImportDto> Actions { get; set; } = [];
+    }
+
+    public class ActionImportDto
+    {
+        public string Name { get; set; } = "";
+        public string? Group { get; set; }
+        public bool Enabled { get; set; } = true;
+        public bool RandomAction { get; set; }
+        public bool ConcurrentAction { get; set; }
+        public bool OnlineOnly { get; set; }
+        public string? QueueName { get; set; }
+        public List<SubActionType> SubActions { get; set; } = [];
+        public List<TriggerImportDto> Triggers { get; set; } = [];
+    }
+
+    public class TriggerImportDto
+    {
+        public string Name { get; set; } = "";
+        public TriggerTypes Type { get; set; }
+        public string Configuration { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+        public ActionCommandImportDto? CommandDefinition { get; set; }
+    }
+
+    public class ActionCommandImportDto
+    {
+        public string CommandName { get; set; } = "";
+        public int UserCooldown { get; set; }
+        public int UserCooldownMax { get; set; }
+        public int GlobalCooldown { get; set; }
+        public int GlobalCooldownMax { get; set; }
+        public Rank MinimumRank { get; set; } = Rank.Viewer;
+        public int Cost { get; set; }
+        public bool Disabled { get; set; }
+        public bool SayCooldown { get; set; } = true;
+    }
+}

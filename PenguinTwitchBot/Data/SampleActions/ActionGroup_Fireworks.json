@@ -1,0 +1,422 @@
+{
+  "Version": "1.0",
+  "ExportedAt": "2026-05-27T15:25:25.1413261Z",
+  "Actions": [
+    {
+      "Name": "Fireworks",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "Delay",
+          "Duration": "10",
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 27
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Fireworks - 10",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "10",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!fireworks",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:98,\u0022CommandName\u0022:\u0022fireworks\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "fireworks",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 3,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        },
+        {
+          "Name": "ChannelPointsCustomRewardRedemptionAdd",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelPointsCustomRewardRedemptionAdd\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[\u0022Fireworks\u0022],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fireworks - 100",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "100",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Fireworks - 25",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "25",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelRaid",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelRaid\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fireworks - 5",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "5",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelFollow",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelFollow\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fireworks - 50",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "50",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelSubscriptionGift",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelSubscriptionGift\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:1,\u0022MaxGiftAmount\u0022:9,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    },
+    {
+      "Name": "Fireworks - Epic",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "250",
+          "Index": 0,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelSubscriptionGift",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelSubscriptionGift\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:10,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        },
+        {
+          "Name": "!epicfireworks",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:99,\u0022CommandName\u0022:\u0022epicfireworks\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "epicfireworks",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Fireworks - Multi",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "LogicIfElse",
+          "LeftValue": "%cumulative%",
+          "RightValue": "0",
+          "Operator": 2,
+          "TrueSubActions": [
+            {
+              "$type": "ExecuteAction",
+              "ActionId": 113,
+              "ActionName": "Fireworks",
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 24
+            }
+          ],
+          "FalseSubActions": [
+            {
+              "$type": "Break",
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 28
+            }
+          ],
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 29
+        },
+        {
+          "$type": "SetVariable",
+          "Value": "$math(%cumulative%-1)$",
+          "Index": 1,
+          "Text": "cumulative",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 113,
+          "ActionName": "Fireworks",
+          "Index": 2,
+          "Text": "",
+          "Enabled": false,
+          "SubActionTypes": 24
+        },
+        {
+          "$type": "Delay",
+          "Duration": "100",
+          "Index": 3,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 27
+        },
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 114,
+          "ActionName": "Fireworks - Multi",
+          "Index": 4,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Subscription Check Fireworks",
+      "Group": "Fireworks",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Fireworks",
+      "SubActions": [
+        {
+          "$type": "LogicIfElse",
+          "LeftValue": "HadPreviousSub",
+          "RightValue": "True",
+          "Operator": 0,
+          "TrueSubActions": [
+            {
+              "$type": "LogicIfElse",
+              "LeftValue": "%IsRenewal%",
+              "RightValue": "True",
+              "Operator": 0,
+              "TrueSubActions": [
+                {
+                  "$type": "ExecuteAction",
+                  "ActionId": 117,
+                  "ActionName": "Fireworks - 25",
+                  "Index": 0,
+                  "Text": "",
+                  "Enabled": true,
+                  "SubActionTypes": 24
+                }
+              ],
+              "FalseSubActions": [],
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 29
+            }
+          ],
+          "FalseSubActions": [
+            {
+              "$type": "ExecuteAction",
+              "ActionId": 117,
+              "ActionName": "Fireworks - 25",
+              "Index": 0,
+              "Text": "",
+              "Enabled": true,
+              "SubActionTypes": 24
+            }
+          ],
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 29
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "ChannelSubscribe",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelSubscribe\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        },
+        {
+          "Name": "ChannelSubscriptionMessage",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelSubscriptionMessage\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null}",
+          "Enabled": true,
+          "CommandDefinition": null
+        }
+      ]
+    }
+  ]
+}

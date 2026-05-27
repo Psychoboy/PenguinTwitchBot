@@ -1,0 +1,174 @@
+{
+  "Version": "1.0",
+  "ExportedAt": "2026-05-27T15:25:56.9799035Z",
+  "Actions": [
+    {
+      "Name": "Gift Pasties",
+      "Group": "Pasties",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "GiftPoints",
+          "FromUsername": "%user%",
+          "TargetName": "%target%",
+          "Amount": "%Args_1%",
+          "Index": 0,
+          "Text": "Pasties",
+          "Enabled": true,
+          "SubActionTypes": 20
+        },
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 1,
+          "Text": "%user% gifted %target% %Args_1% pasties!",
+          "Enabled": true,
+          "SubActionTypes": 22
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!gift",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:97,\u0022CommandName\u0022:\u0022gift\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "gift",
+            "UserCooldown": 5,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Jackpot Win!",
+      "Group": "Pasties",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "ExecuteAction",
+          "ActionId": 117,
+          "ActionName": "Fireworks - 25",
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 24
+        },
+        {
+          "$type": "Tts",
+          "Name": "%user%",
+          "Index": 1,
+          "Text": "%user% won the jackpot!",
+          "Enabled": true,
+          "SubActionTypes": 15
+        }
+      ],
+      "Triggers": []
+    },
+    {
+      "Name": "Redeem",
+      "Group": "Pasties",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 0,
+          "Text": "Redeem Pasties for various items -- !drink - 100 Pasties to make SPTV take a drink, !customtitle - 1mil Pasties for a custom Rank/Title, !customvoice - 100mil Pasties for a custom TTS voice (!voice for details)",
+          "Enabled": true,
+          "SubActionTypes": 22
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!redeem",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:72,\u0022CommandName\u0022:\u0022redeem\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "redeem",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    },
+    {
+      "Name": "checkpoints",
+      "Group": "Pasties",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "CheckPoints",
+          "PointTypeName": "Pasties",
+          "TargetUser": "%targetorself%",
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 21
+        },
+        {
+          "$type": "ReplyToMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 1,
+          "Text": "%targetorself% has %TargetPointsFormatted% Pasties",
+          "Enabled": true,
+          "SubActionTypes": 23
+        }
+      ],
+      "Triggers": [
+        {
+          "Name": "!check",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:23,\u0022CommandName\u0022:\u0022check\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "check",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          }
+        }
+      ]
+    }
+  ]
+}
