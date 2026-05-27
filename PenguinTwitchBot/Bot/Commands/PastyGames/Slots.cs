@@ -185,17 +185,11 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
         public static List<string> GetDefaultEmotes()
         {
             return [
-                //"sptvLove",
-                "sptvDrink",
-                "sptvBacon",
-                "sptvWaffle",
-                "sptvPancake",
-                "sptvLights",
-                //"sptvSalute",
-                //"sptvHype",
-                //"sptvHello",
-                //"sptv30k",
-                //"sptvHi"
+                "Kappa",
+                "PogChamp",
+                "LUL",
+                "4Head",
+                "BloodTrail"
             ];
         }
 

@@ -67,8 +67,8 @@ public class ModSpamSettingsProvider : IGameSettingsFormProvider
             [
                 new() { Key = ModSpam.MIN_TIME, Label = "Min Time (seconds)", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum seconds between spam bursts" },
                 new() { Key = ModSpam.MAX_TIME, Label = "Max Time (seconds)", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Maximum seconds between spam bursts" },
-                new() { Key = ModSpam.MIN_AMOUNT, Label = "Min Messages", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum messages per burst" },
-                new() { Key = ModSpam.MAX_AMOUNT, Label = "Max Messages", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Maximum messages per burst" },
+                new() { Key = ModSpam.MIN_AMOUNT, Label = "Min Points", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Minimum points per burst" },
+                new() { Key = ModSpam.MAX_AMOUNT, Label = "Max Points", FieldType = GameSettingFieldType.Int, Min = 1, HelperText = "Maximum points per burst" },
             ]
         },
         new()

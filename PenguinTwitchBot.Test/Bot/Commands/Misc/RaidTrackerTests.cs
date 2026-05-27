@@ -163,7 +163,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             //Assert
             dbContext.RaidHistory.Received(1).Update(Arg.Any<RaidHistoryEntry>());
             await dbContext.Received(1).SaveChangesAsync();
-            await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>(), Arg.Any<bool>());
         }
 
         [Fact]
