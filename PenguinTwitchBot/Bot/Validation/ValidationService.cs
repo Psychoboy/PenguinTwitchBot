@@ -68,6 +68,18 @@ namespace PenguinTwitchBot.Bot.Validation
             // Track action names to check for duplicates
             var actionNameCounts = new Dictionary<string, List<int?>>(StringComparer.OrdinalIgnoreCase);
 
+            // Build set of action IDs that are called by other actions via ExecuteAction subactions.
+            // These are "triggered" indirectly and should not be flagged as having no triggers.
+            var calledByExecuteAction = new HashSet<int>();
+            foreach (var a in allActions)
+            {
+                foreach (var ea in GetAllExecuteActionSubActions(a.SubActions ?? []))
+                {
+                    if (ea.ActionId.HasValue)
+                        calledByExecuteAction.Add(ea.ActionId.Value);
+                }
+            }
+
             foreach (var action in allActions)
             {
                 // Validate action name
@@ -105,8 +117,10 @@ namespace PenguinTwitchBot.Bot.Validation
                     });
                 }
 
-                // Warn about actions with no triggers (orphaned actions)
-                if (action.Triggers == null || action.Triggers.Count == 0)
+                // Warn about actions with no triggers (orphaned actions).
+                // Skip if this action is called by another action via ExecuteAction — that counts as a trigger.
+                if ((action.Triggers == null || action.Triggers.Count == 0) &&
+                    !(action.Id.HasValue && calledByExecuteAction.Contains(action.Id.Value)))
                 {
                     result.Issues.Add(new ValidationIssue
                     {
@@ -166,6 +180,22 @@ namespace PenguinTwitchBot.Bot.Validation
 
             if (HasCircularDependency(action.Id.Value, allActions, visited, recursionStack, out var cyclePath))
             {
+                // Parse the action IDs from the cycle path (format: "1 -> 2 -> 1")
+                // and check if any action in the cycle uses the counter-decrement pattern:
+                // SetVariable (e.g. $math($var$-1)$) + LogicIfElse to guard the recursive
+                // ExecuteAction call. Such cycles will naturally exit and are not infinite loops.
+                var cycleActionIds = cyclePath
+                    .Split(" -> ", StringSplitOptions.RemoveEmptyEntries)
+                    .Select(id => int.TryParse(id, out var i) ? i : -1)
+                    .Where(id => id > 0)
+                    .ToHashSet();
+
+                var cycleActions = allActions
+                    .Where(a => a.Id.HasValue && cycleActionIds.Contains(a.Id.Value));
+
+                if (cycleActions.Any(HasCounterDecrementPattern))
+                    return;
+
                 result.Issues.Add(new ValidationIssue
                 {
                     IssueType = ValidationIssueType.ActionCircularDependency,
@@ -176,6 +206,39 @@ namespace PenguinTwitchBot.Bot.Validation
                     Message = $"Action '{action.Name}' has a circular dependency: {cyclePath}"
                 });
             }
+        }
+
+        /// <summary>
+        /// Returns true when an action contains both a SetVariable subaction and a LogicIfElse
+        /// subaction anywhere in its subaction tree. This combination indicates the action uses
+        /// a counter-decrement pattern (e.g. <c>$math($var$-1)$</c>) with a conditional exit,
+        /// which is intentional bounded recursion rather than an infinite loop.
+        /// </summary>
+        private static bool HasCounterDecrementPattern(ActionType action)
+        {
+            var subActions = action.SubActions;
+            if (subActions == null || subActions.Count == 0)
+                return false;
+
+            return ContainsSubActionOfType<SetVariableType>(subActions) &&
+                   ContainsSubActionOfType<LogicIfElseType>(subActions);
+        }
+
+        private static bool ContainsSubActionOfType<T>(List<SubActionType> subActions) where T : SubActionType
+        {
+            foreach (var subAction in subActions)
+            {
+                if (subAction is T)
+                    return true;
+
+                if (subAction is LogicIfElseType logicIfElse)
+                {
+                    if ((logicIfElse.TrueSubActions != null && ContainsSubActionOfType<T>(logicIfElse.TrueSubActions)) ||
+                        (logicIfElse.FalseSubActions != null && ContainsSubActionOfType<T>(logicIfElse.FalseSubActions)))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private bool HasCircularDependency(
