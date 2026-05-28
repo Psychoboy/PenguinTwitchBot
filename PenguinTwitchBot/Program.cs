@@ -117,7 +117,7 @@ internal class Program
 
         RegisterGlobalExceptionHandlers();
 
-        if (otelEnabled)
+        if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
         {
             // Add OpenTelemetry data to json logs
             builder.Services.AddOpenTelemetry()
@@ -127,6 +127,7 @@ internal class Program
                     .AddHttpClientInstrumentation()
                     .AddOtlpExporter(otlp =>
                     {
+                        otlp.Endpoint = new Uri(otelEndpoint);
                         otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
                     }))
                 .WithMetrics(metrics => metrics
