@@ -47,10 +47,6 @@ internal class Program
         // can find them in self-contained / single-file publish scenarios.
         PreloadMigrationAssemblies();
 
-        Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
-        Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "PenguinTwitchBot");
-        using var server = new Prometheus.KestrelMetricServer(port: 4999);
-        server.Start();
         var builder = WebApplication.CreateBuilder(args);
         var section = builder.Configuration.GetSection("Secrets");
         var secretsFileLocation = section.GetValue<string>("SecretsConf") ?? "appsettings.secrets.json";
@@ -63,6 +59,24 @@ internal class Program
             return;
         }
         builder.Configuration.AddJsonFile(secretsFileLocation, optional: false, reloadOnChange: true);
+
+        var prometheusEnabled = builder.Configuration.GetValue<bool>("Observability:Prometheus:Enabled");
+        var prometheusPort = builder.Configuration.GetValue<int>("Observability:Prometheus:Port", 4999);
+        var otelEnabled = builder.Configuration.GetValue<bool>("Observability:OpenTelemetry:Enabled");
+        var otelEndpoint = builder.Configuration.GetValue<string>("Observability:OpenTelemetry:Endpoint") ?? "http://localhost:4318";
+
+        IDisposable? metricsServer = null;
+        if (prometheusEnabled)
+        {
+            var ks = new Prometheus.KestrelMetricServer(port: prometheusPort);
+            ks.Start();
+            metricsServer = ks;
+        }
+        if (otelEnabled)
+        {
+            Environment.SetEnvironmentVariable("OTEL_DOTNET_AUTO_INSTRUMENTATION_ENABLED", "true");
+            Environment.SetEnvironmentVariable("OTEL_SERVICE_NAME", "PenguinTwitchBot");
+        }
         Activity.DefaultIdFormat = System.Diagnostics.ActivityIdFormat.W3C;
         var readerOptions = new Serilog.Settings.Configuration.ConfigurationReaderOptions(
             typeof(ConsoleLoggerConfigurationExtensions).Assembly,
@@ -77,20 +91,23 @@ internal class Program
            .Filter.ByExcluding(logEvent =>
            {
                return IsExpectedTransientBlazorException(logEvent.Exception, logEvent.Properties);
-           })
-           .WriteTo.OpenTelemetry(options =>
-           {
-               options.Endpoint = "http://localhost:4318"; // Adjust the endpoint as needed
-               options.Protocol = Serilog.Sinks.OpenTelemetry.OtlpProtocol.HttpProtobuf; // Use the appropriate protocol
-               options.IncludedData = IncludedData.MessageTemplateTextAttribute |
-                                      IncludedData.TraceIdField | IncludedData.SpanIdField |
-                                      IncludedData.SpecRequiredResourceAttributes; 
-               options.ResourceAttributes = new Dictionary<string, object>
-               {
-                   { "service.name", "PenguinTwitchBot" },
-                   { "service.environment", builder.Environment.EnvironmentName }
-               };
            });
+        if (otelEnabled)
+        {
+            loggerConfiguration = loggerConfiguration.WriteTo.OpenTelemetry(options =>
+            {
+                options.Endpoint = otelEndpoint;
+                options.Protocol = Serilog.Sinks.OpenTelemetry.OtlpProtocol.HttpProtobuf;
+                options.IncludedData = IncludedData.MessageTemplateTextAttribute |
+                                       IncludedData.TraceIdField | IncludedData.SpanIdField |
+                                       IncludedData.SpecRequiredResourceAttributes;
+                options.ResourceAttributes = new Dictionary<string, object>
+                {
+                    { "service.name", "PenguinTwitchBot" },
+                    { "service.environment", builder.Environment.EnvironmentName }
+                };
+            });
+        }
 
         var serilogLogger = loggerConfiguration.CreateLogger();
         Log.Logger = serilogLogger;
@@ -100,18 +117,21 @@ internal class Program
 
         RegisterGlobalExceptionHandlers();
 
-        // Add OpenTelemetry data to json logs
-        builder.Services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService("PenguinTwitchBot"))
-            .WithTracing(tracing => tracing
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddOtlpExporter(otlp =>
-                {
-                    otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-                }))
-            .WithMetrics(metrics => metrics
-                .AddAspNetCoreInstrumentation());
+        if (otelEnabled)
+        {
+            // Add OpenTelemetry data to json logs
+            builder.Services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService("PenguinTwitchBot"))
+                .WithTracing(tracing => tracing
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddOtlpExporter(otlp =>
+                    {
+                        otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                    }))
+                .WithMetrics(metrics => metrics
+                    .AddAspNetCoreInstrumentation());
+        }
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
@@ -339,15 +359,17 @@ internal class Program
 
         app.MapControllers();
 
-        app.UseHttpMetrics();
-        DotNetRuntimeStatsBuilder
-            .Customize()
-            .WithContentionStats(CaptureLevel.Informational)
-            .WithJitStats()
-            .WithThreadPoolStats()
-            .WithGcStats()
-            .WithExceptionStats(CaptureLevel.Errors)
-            .StartCollecting();
+        if (prometheusEnabled)
+        {
+            app.UseHttpMetrics();
+            DotNetRuntimeStatsBuilder
+                .Customize()
+                .WithContentionStats(CaptureLevel.Informational)
+                .WithThreadPoolStats()
+                .WithGcStats()
+                .WithExceptionStats(CaptureLevel.Errors)
+                .StartCollecting();
+        }
 
         logger = app.Services.GetRequiredService<ILogger<Program>>();
         var lifetime = app.Lifetime;
@@ -418,6 +440,7 @@ internal class Program
         }
         finally
         {
+            metricsServer?.Dispose();
             Log.CloseAndFlush();
         }
 

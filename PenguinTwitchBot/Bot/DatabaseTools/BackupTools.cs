@@ -17,8 +17,27 @@ namespace PenguinTwitchBot.Bot.DatabaseTools
 
         public static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
         {
-            var records = await context.Set<T>().ToListAsync();
-            await WriteData(backupDirectory, records, logger);
+            var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
+            var options = new JsonSerializerOptions
+            {
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                WriteIndented = true
+            };
+            await using var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
+                FileShare.None, bufferSize: 65536, useAsync: true);
+            await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
+            writer.WriteStartArray();
+            var count = 0;
+            await foreach (var record in context.Set<T>().AsNoTracking().AsAsyncEnumerable())
+            {
+                JsonSerializer.Serialize(writer, record, options);
+                count++;
+                if (count % 500 == 0)
+                    await writer.FlushAsync();
+            }
+            writer.WriteEndArray();
+            await writer.FlushAsync();
+            logger?.LogDebug("Backed up {Count} records to {Name}", count, typeof(T).Name);
         }
 
         public static async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger = null)
@@ -28,11 +47,10 @@ namespace PenguinTwitchBot.Bot.DatabaseTools
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
                 WriteIndented = true
             };
-
-            var json = JsonSerializer.Serialize(records, options);
-
             var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
-            await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
+            await using var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
+                FileShare.None, bufferSize: 65536, useAsync: true);
+            await JsonSerializer.SerializeAsync(fileStream, records, options);
             logger?.LogDebug("Backed up {Count} records to {Name}", records.Count, typeof(T).Name);
         }
 
@@ -43,14 +61,14 @@ namespace PenguinTwitchBot.Bot.DatabaseTools
                 var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
                 if (!File.Exists(fileName)) return;
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<T>>(json, options);
+                await using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<T>>(fileStream, options);
                 if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
 
                 await context.Set<T>().ExecuteDeleteAsync();

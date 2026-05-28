@@ -58,6 +58,22 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private async void OnChatterUpdaterTimerElapsed(object? sender, ElapsedEventArgs e)
         {
             await UpdateChatters();
+            CleanupStaleEntries();
+        }
+
+        private void CleanupStaleEntries()
+        {
+            var cutoff = DateTime.UtcNow.AddHours(-2);
+            foreach (var key in _usersLastActive.Keys.ToList())
+            {
+                if (_usersLastActive.TryGetValue(key, out var lastActive) && lastActive < cutoff)
+                    _usersLastActive.TryRemove(key, out _);
+            }
+            foreach (var key in _lurkers.Keys.ToList())
+            {
+                if (_lurkers.TryGetValue(key, out var lurkerTime) && lurkerTime < cutoff)
+                    _lurkers.TryRemove(key, out _);
+            }
         }
 
         private async Task UpdateChatters()

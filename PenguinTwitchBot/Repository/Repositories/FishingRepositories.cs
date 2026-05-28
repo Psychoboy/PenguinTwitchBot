@@ -36,14 +36,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishType>>(json, options);
+                await using var fishTypeStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishType>>(fishTypeStream, options);
                 if (records == null) throw new Exception($"{typeof(FishType).Name}.json was null");
 
                 // CRITICAL: Preserve IDs from backup by explicitly setting them
@@ -140,14 +140,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishingShopItem>>(json, options);
+                await using var shopItemStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishingShopItem>>(shopItemStream, options);
                 if (records == null) throw new Exception($"{typeof(FishingShopItem).Name}.json was null");
 
                 // Deletion already handled by FishingRepository
@@ -193,14 +193,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishCatch>>(json, options);
+                await using var fishCatchStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishCatch>>(fishCatchStream, options);
                 if (records == null) throw new Exception($"{typeof(FishCatch).Name}.json was null");
 
                 // Deletion already handled by FishingRepository
@@ -246,14 +246,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<UserFishingBoost>>(json, options);
+                await using var boostStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<UserFishingBoost>>(boostStream, options);
                 if (records == null) throw new Exception($"{typeof(UserFishingBoost).Name}.json was null");
 
                 // Deletion already handled by FishingRepository
@@ -299,14 +299,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishingGold>>(json, options);
+                await using var goldStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishingGold>>(goldStream, options);
                 if (records == null) throw new Exception($"{typeof(FishingGold).Name}.json was null");
 
                 // Deletion already handled by FishingRepository
@@ -351,14 +351,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishingSettings>>(json, options);
+                await using var settingsStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishingSettings>>(settingsStream, options);
                 if (records == null) throw new Exception($"{typeof(FishingSettings).Name}.json was null");
 
                 // Deletion already handled by FishingRepository
@@ -403,14 +403,14 @@ namespace PenguinTwitchBot.Repository.Repositories
                     return;
                 }
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                var records = JsonSerializer.Deserialize<List<FishingSnapEvent>>(json, options);
+                await using var snapStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishingSnapEvent>>(snapStream, options);
                 if (records == null) throw new Exception($"{typeof(FishingSnapEvent).Name}.json was null");
 
                 foreach (var record in records)

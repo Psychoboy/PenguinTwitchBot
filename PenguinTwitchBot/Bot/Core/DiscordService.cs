@@ -48,9 +48,16 @@ namespace PenguinTwitchBot.Bot.Core
             _broadcaster = configuration["broadcaster"] ?? "";
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
-                AlwaysDownloadUsers = true,
-                MessageCacheSize = 1024
+                GatewayIntents = GatewayIntents.Guilds
+                    | GatewayIntents.GuildMembers
+                    | GatewayIntents.GuildPresences
+                    | GatewayIntents.GuildMessages
+                    | GatewayIntents.GuildInvites
+                    | GatewayIntents.GuildVoiceStates
+                    | GatewayIntents.GuildScheduledEvents
+                    | GatewayIntents.MessageContent,
+                AlwaysDownloadUsers = false,
+                MessageCacheSize = 100
             };
             _client = new DiscordSocketClient(config);
         }
