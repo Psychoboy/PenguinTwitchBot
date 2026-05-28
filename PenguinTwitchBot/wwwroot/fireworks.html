@@ -401,11 +401,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			transition-timing-function: ease-out;
 			transition-duration: 0.4s;
 		}
+
+		#ws-status {
+			position: fixed;
+			top: 12px;
+			left: 50%;
+			transform: translateX(-50%);
+			padding: 6px 14px;
+			border-radius: 6px;
+			font-size: 0.85em;
+			font-weight: bold;
+			color: #fff !important;
+			background: #c0392b !important;
+			opacity: 1;
+			transition: opacity 0.6s ease;
+			pointer-events: none;
+			z-index: 9999;
+		}
+
+		#ws-status.connected {
+			background: #27ae60 !important;
+		}
+
+		#ws-status.hidden {
+			opacity: 0;
+		}
 	</style>
 
 </head>
 
 <body>
+	<div id="ws-status">Disconnected</div>
 	<!-- partial:index.partial.html -->
 	<!-- SVG Spritesheet -->
 	<div style="height: 0; width: 0; position: absolute; visibility: hidden;">
@@ -516,6 +542,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/fscreen%401.0.1.js'></script>
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/Stage%400.1.4.js'></script>
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/MyMath.js'></script>
+	<script src="js/ws-status.js"></script>
 	<script>
 		'use strict';
 		var timer;
@@ -2847,6 +2874,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			ws.onclose = function () {
 				// "connectws" is the function we defined previously
 				setTimeout("wsconnect()", 10000);
+				wsStatusShow(false);
 				
 			};
 
@@ -2854,6 +2882,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 			ws.onopen = function () {
+				wsStatusShow(true);
 				ws.send(JSON.stringify(
 					{
 						"request": "Subscribe",

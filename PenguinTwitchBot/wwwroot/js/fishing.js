@@ -13,10 +13,15 @@ function connectWS() {
         ws.addEventListener('open', (event) => {
             printDebug('WebSocket connected');
             wsReady = true;
+            wsStatusShow(true);
         });
         ws.addEventListener('error', (event) => {
             printDebug('WebSocket error:', true);
             printDebug(event, true);
+        });
+        ws.addEventListener('close', () => {
+            wsReady = false;
+            wsStatusShow(false);
         });
         ws.addEventListener('message', (message) => {
             try {

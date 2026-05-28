@@ -93,6 +93,15 @@ let queue = [];
 connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
 
 socket = getWebSocket();
+
+socket.onopen = function () {
+    wsStatusShow(true);
+};
+
+socket.onclose = function () {
+    wsStatusShow(false);
+};
+
 socket.onmessage = function (event) {
     try {
         let rawMessage = event.data;

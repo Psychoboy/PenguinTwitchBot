@@ -491,9 +491,11 @@ connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
 socket = getWebSocket();
 socket.onopen = function (event) {
     updateState();
+    wsStatusShow(true);
 };
 socket.onclose = function (event) {
     updateState();
+    wsStatusShow(false);
 };
 socket.onerror = updateState;
 socket.onmessage = function (event) {

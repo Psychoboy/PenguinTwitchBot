@@ -138,9 +138,35 @@
         .gold {
             color: #FFD700;
         }
+
+        #ws-status {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #fff;
+            background: #c0392b;
+            opacity: 1;
+            transition: opacity 0.6s ease;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        #ws-status.connected {
+            background: #27ae60;
+        }
+
+        #ws-status.hidden {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
+    <div id="ws-status">Disconnected</div>
     <div class="container">
         <div id="fishing-alert" style="display: none;">
             <div class="content">
@@ -160,6 +186,7 @@
     </div>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="js/ws-status.js"></script>
     <script src="js/fishing.js" asp-append-version="true"></script>
 </body>
 </html>
