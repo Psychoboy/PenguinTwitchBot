@@ -92,7 +92,7 @@ internal class Program
            {
                return IsExpectedTransientBlazorException(logEvent.Exception, logEvent.Properties);
            });
-        if (otelEnabled)
+        if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
         {
             loggerConfiguration = loggerConfiguration.WriteTo.OpenTelemetry(options =>
             {
