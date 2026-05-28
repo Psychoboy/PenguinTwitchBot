@@ -292,6 +292,7 @@ namespace PenguinTwitchBot.Repository.Repositories
         {
             // Load Actions with all related SubActions and Triggers
             var records = await context.Set<ActionType>()
+                .AsNoTracking()
                 .Include(a => a.SubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
@@ -318,10 +319,10 @@ namespace PenguinTwitchBot.Repository.Repositories
                 TypeInfoResolver = new SubActionTypeResolver()
             };
 
-            var json = JsonSerializer.Serialize(records, options);
-
             var fileName = $"{backupDirectory}/ActionType.json";
-            await File.WriteAllTextAsync(fileName, json, encoding: System.Text.Encoding.UTF8);
+            await using var writeStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
+                FileShare.None, bufferSize: 65536, useAsync: true);
+            await JsonSerializer.SerializeAsync(writeStream, records, options);
             logger?.LogDebug("Backed up {Count} ActionType records with SubActions and Triggers", records.Count);
         }
 
@@ -332,15 +333,15 @@ namespace PenguinTwitchBot.Repository.Repositories
                 var fileName = $"{backupDirectory}/ActionType.json";
                 if (!File.Exists(fileName)) return;
 
-                var json = await File.ReadAllTextAsync(fileName, encoding: System.Text.Encoding.UTF8);
-
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = ReferenceHandler.IgnoreCycles,
                     TypeInfoResolver = new SubActionTypeResolver()
                 };
 
-                var records = JsonSerializer.Deserialize<List<ActionType>>(json, options);
+                await using var readStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<ActionType>>(readStream, options);
                 if (records == null) throw new Exception("ActionType.json was null");
 
                 logger?.LogDebug("Deserialized {Count} ActionType records", records.Count);
