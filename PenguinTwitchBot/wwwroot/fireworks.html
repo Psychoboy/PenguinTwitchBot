@@ -401,11 +401,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			transition-timing-function: ease-out;
 			transition-duration: 0.4s;
 		}
+
+		#ws-status {
+			position: fixed;
+			top: 12px;
+			left: 50%;
+			transform: translateX(-50%);
+			padding: 6px 14px;
+			border-radius: 6px;
+			font-size: 0.85em;
+			font-weight: bold;
+			color: #fff !important;
+			background: #c0392b !important;
+			opacity: 1;
+			transition: opacity 0.6s ease;
+			pointer-events: none;
+			z-index: 9999;
+		}
+
+		#ws-status.connected {
+			background: #27ae60 !important;
+		}
+
+		#ws-status.hidden {
+			opacity: 0;
+		}
 	</style>
 
 </head>
 
 <body>
+	<div id="ws-status">Disconnected</div>
 	<!-- partial:index.partial.html -->
 	<!-- SVG Spritesheet -->
 	<div style="height: 0; width: 0; position: absolute; visibility: hidden;">
@@ -2838,6 +2864,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			document.querySelector('.loading-init__status').textContent = status;
 		}
 
+		function wsStatusShow(connected) {
+			var el = document.getElementById('ws-status');
+			if (!el) return;
+			clearTimeout(el._hideTimer);
+			if (connected) {
+				el.textContent = 'Connected';
+				el.classList.add('connected');
+				el.classList.remove('hidden');
+				el._hideTimer = setTimeout(function () { el.classList.add('hidden'); }, 2000);
+			} else {
+				el.textContent = 'Disconnected';
+				el.classList.remove('connected', 'hidden');
+			}
+		}
+
 		
 		
 		function wsconnect()
@@ -2847,6 +2888,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			ws.onclose = function () {
 				// "connectws" is the function we defined previously
 				setTimeout("wsconnect()", 10000);
+				wsStatusShow(false);
 				
 			};
 
@@ -2854,6 +2896,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 			ws.onopen = function () {
+				wsStatusShow(true);
 				ws.send(JSON.stringify(
 					{
 						"request": "Subscribe",

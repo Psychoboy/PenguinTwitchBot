@@ -13,10 +13,15 @@ function connectWS() {
         ws.addEventListener('open', (event) => {
             printDebug('WebSocket connected');
             wsReady = true;
+            wsStatusShow(true);
         });
         ws.addEventListener('error', (event) => {
             printDebug('WebSocket error:', true);
             printDebug(event, true);
+        });
+        ws.addEventListener('close', () => {
+            wsReady = false;
+            wsStatusShow(false);
         });
         ws.addEventListener('message', (message) => {
             try {
@@ -48,6 +53,21 @@ function printDebug(message, force) {
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function wsStatusShow(connected) {
+    var el = document.getElementById('ws-status');
+    if (!el) return;
+    clearTimeout(el._hideTimer);
+    if (connected) {
+        el.textContent = 'Connected';
+        el.classList.add('connected');
+        el.classList.remove('hidden');
+        el._hideTimer = setTimeout(function () { el.classList.add('hidden'); }, 2000);
+    } else {
+        el.textContent = 'Disconnected';
+        el.classList.remove('connected', 'hidden');
+    }
 }
 
 setInterval(() => handleQueue(), 250);

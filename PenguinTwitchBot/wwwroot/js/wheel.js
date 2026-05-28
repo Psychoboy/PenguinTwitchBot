@@ -93,6 +93,28 @@ let queue = [];
 connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
 
 socket = getWebSocket();
+
+var wsStatusEl = document.getElementById('ws-status');
+var wsHideTimer = null;
+
+socket.onopen = function () {
+    if (!wsStatusEl) return;
+    clearTimeout(wsHideTimer);
+    wsStatusEl.textContent = 'Connected';
+    wsStatusEl.classList.add('connected');
+    wsStatusEl.classList.remove('hidden');
+    wsHideTimer = setTimeout(function () {
+        wsStatusEl.classList.add('hidden');
+    }, 2000);
+};
+
+socket.onclose = function () {
+    if (!wsStatusEl) return;
+    clearTimeout(wsHideTimer);
+    wsStatusEl.textContent = 'Disconnected';
+    wsStatusEl.classList.remove('connected', 'hidden');
+};
+
 socket.onmessage = function (event) {
     try {
         let rawMessage = event.data;
