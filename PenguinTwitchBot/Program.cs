@@ -291,6 +291,9 @@ internal class Program
         builder.Services.AddHostedService(sp =>
             sp.GetRequiredService<PenguinTwitchBot.Services.VersionCheckService>());
 
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Services.Chat.IChatColorService,
+            PenguinTwitchBot.Bot.Services.Chat.ChatColorService>();
+
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;

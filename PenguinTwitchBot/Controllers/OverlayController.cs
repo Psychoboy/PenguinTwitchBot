@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PenguinTwitchBot.Bot.Models.Overlay;
 using PenguinTwitchBot.Repository;
+using System.Text.Json;
 
 namespace PenguinTwitchBot.Controllers
 {
@@ -40,9 +41,11 @@ namespace PenguinTwitchBot.Controllers
                 .Select(w =>
                 {
                     var def = WidgetRegistry.Find(w.WidgetType);
+                    var basePath = def?.SourcePath ?? $"/{w.WidgetType}.html";
+                    var sourcePath = BuildSourcePath(basePath, w.CustomSettings);
                     return new OverlayWidgetResponse(
                         w.WidgetType,
-                        def?.SourcePath ?? $"/{w.WidgetType}.html",
+                        sourcePath,
                         w.IsEnabled,
                         w.X,
                         w.Y,
@@ -174,6 +177,38 @@ namespace PenguinTwitchBot.Controllers
                 w.DefaultWidth,
                 w.DefaultHeight
             }));
+        }
+
+        /// <summary>
+        /// Appends CustomSettings JSON fields as URL query parameters onto basePath.
+        /// Null/empty/whitespace values are skipped.
+        /// </summary>
+        private static string BuildSourcePath(string basePath, string? customSettings)
+        {
+            if (string.IsNullOrWhiteSpace(customSettings)) return basePath;
+            try
+            {
+                using var doc = JsonDocument.Parse(customSettings);
+                var parts = doc.RootElement.EnumerateObject()
+                    .Where(p => p.Value.ValueKind != JsonValueKind.Null
+                             && p.Value.ValueKind != JsonValueKind.Undefined)
+                    .Select(p =>
+                    {
+                        var val = p.Value.ValueKind == JsonValueKind.String
+                            ? p.Value.GetString() ?? ""
+                            : p.Value.ToString();
+                        return (key: p.Name, val);
+                    })
+                    .Where(t => !string.IsNullOrWhiteSpace(t.val))
+                    .Select(t => $"{Uri.EscapeDataString(t.key)}={Uri.EscapeDataString(t.val)}")
+                    .ToList();
+
+                return parts.Count > 0 ? basePath + "?" + string.Join("&", parts) : basePath;
+            }
+            catch
+            {
+                return basePath;
+            }
         }
     }
 

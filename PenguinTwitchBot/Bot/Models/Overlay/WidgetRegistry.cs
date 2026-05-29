@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Bot.Models.Overlay
             new("fireworks", "Fireworks", "/fireworks.html", 1920, 1080),
             new("fishing",   "Fishing",   "/fishing.html",    500,  300),
             new("wheel",     "Wheel",     "/wheel.html",      800,  800),
+            new("chat",      "Chat",      "/chat.html",       400,  600),
         ];
 
         public static WidgetDefinition? Find(string type) =>

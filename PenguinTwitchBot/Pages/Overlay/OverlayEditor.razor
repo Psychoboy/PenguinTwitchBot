@@ -2,6 +2,7 @@
 @using Microsoft.EntityFrameworkCore
 @using PenguinTwitchBot.Bot.Models.Overlay
 @using PenguinTwitchBot.Repository
+@using System.Text.Json
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IUnitOfWork UnitOfWork
 @inject ISnackbar Snackbar
@@ -161,6 +162,84 @@
             <MudNumericField T="int" Label="Z-Index" @bind-Value="_selected.ZIndex"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-4"
                              Min="1" />
+
+            @* ── Chat widget configuration ── *@
+            @if (_selected.WidgetType == "chat" && _chatSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Chat Settings</b></MudText>
+
+                <MudSelect T="string" Label="Direction"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_chatSettings.Direction"
+                           ValueChanged="@(v => { _chatSettings.Direction = v; SaveChatSettings(); })">
+                    <MudSelectItem Value="@("vertical")">Vertical (stack)</MudSelectItem>
+                    <MudSelectItem Value="@("horizontal")">Horizontal (push-left)</MudSelectItem>
+                </MudSelect>
+
+                @if (_chatSettings.Direction == "vertical")
+                {
+                    <MudSelect T="string" Label="Align"
+                               Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                               Value="_chatSettings.Valign"
+                               ValueChanged="@(v => { _chatSettings.Valign = v; SaveChatSettings(); })">
+                        <MudSelectItem Value="@("bottom")">New messages at bottom</MudSelectItem>
+                        <MudSelectItem Value="@("top")">New messages at top</MudSelectItem>
+                    </MudSelect>
+                }
+
+                <MudTextField Label="Message color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_chatSettings.MsgColor"
+                              ValueChanged="@((string v) => { _chatSettings.MsgColor = v; SaveChatSettings(); })"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Circle"
+                              AdornmentColor="@GetMudColorFromHex(_chatSettings.MsgColor)" />
+
+                <MudTextField Label="Background color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Use 'transparent' for OBS, or e.g. rgba(0,0,0,0.6)"
+                              Value="_chatSettings.BgColor"
+                              ValueChanged="@((string v) => { _chatSettings.BgColor = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Row background"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Per-message row bg, e.g. rgba(0,0,0,0.4)"
+                              Value="_chatSettings.RowBg"
+                              ValueChanged="@((string v) => { _chatSettings.RowBg = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Font size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="8" Max="72"
+                                 Value="_chatSettings.FontSize"
+                                 ValueChanged="@(v => { _chatSettings.FontSize = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Font family"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Leave blank for default system font"
+                              Value="_chatSettings.FontFamily"
+                              ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Max messages"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="1" Max="200"
+                                 Value="_chatSettings.MaxMessages"
+                                 ValueChanged="@(v => { _chatSettings.MaxMessages = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Badge size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="48"
+                                 Value="_chatSettings.BadgeSize"
+                                 ValueChanged="@(v => { _chatSettings.BadgeSize = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Message timeout (s)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="0 = messages stay forever"
+                                 Min="0"
+                                 Value="_chatSettings.Timeout"
+                                 ValueChanged="@(v => { _chatSettings.Timeout = v; SaveChatSettings(); })" />
+
+            }
 
             <MudDivider Class="mb-3" />
             <MudButton FullWidth="true" Color="Color.Error" Variant="Variant.Outlined"
@@ -451,8 +530,11 @@
         });
     }
 
-    private void SelectWidget(WidgetModel w) =>
+    private void SelectWidget(WidgetModel w)
+    {
         _selected = (w == _selected ? null : w);
+        LoadChatSettings();
+    }
 
     private void RemoveSelectedWidget()
     {
@@ -503,7 +585,45 @@
         "fireworks" => "#BF360C",
         "fishing"   => "#00695C",
         "wheel"     => "#6A1B9A",
+        "chat"      => "#00838F",
         _           => "#455A64"
+    };
+
+    // ── Chat settings helpers ───────────────────────────────────────────────────
+
+    private ChatSettings? _chatSettings;
+
+    private static readonly JsonSerializerOptions _chatJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private void LoadChatSettings()
+    {
+        if (_selected?.WidgetType == "chat")
+        {
+            _chatSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                ? new ChatSettings()
+                : (JsonSerializer.Deserialize<ChatSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new ChatSettings());
+        }
+        else
+        {
+            _chatSettings = null;
+        }
+    }
+
+    private void SaveChatSettings()
+    {
+        if (_selected != null && _chatSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_chatSettings, _chatJsonOptions);
+    }
+
+    private static Color GetMudColorFromHex(string? hex) => hex switch
+    {
+        var h when !string.IsNullOrWhiteSpace(h) && h.StartsWith('#') => Color.Primary,
+        _ => Color.Default
     };
 
     // ── Inner types ─────────────────────────────────────────────────────────────
@@ -522,5 +642,19 @@
         public int    Height      { get; set; }
         public int    ZIndex      { get; set; } = 1;
         public string? CustomSettings { get; set; }
+    }
+
+    private sealed class ChatSettings
+    {
+        public string Direction  { get; set; } = "vertical";
+        public string Valign     { get; set; } = "bottom";
+        public string MsgColor   { get; set; } = "#ffffff";
+        public string BgColor    { get; set; } = "transparent";
+        public string RowBg      { get; set; } = "transparent";
+        public int    FontSize    { get; set; } = 16;
+        public string FontFamily  { get; set; } = "";
+        public int    MaxMessages { get; set; } = 30;
+        public int    BadgeSize   { get; set; } = 20;
+        public int    Timeout     { get; set; } = 0;
     }
 }
