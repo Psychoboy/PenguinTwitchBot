@@ -100,28 +100,41 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
 
         public void SpinWheel()
         {
-            if (CurrentWheel?.Properties == null || CurrentWheel.Properties.Count == 0)
-            {
-                logger.LogWarning("Cannot spin wheel: no properties configured.");
-                return;
-            }
-
-            List<WheelSpinIndex> spots = [];
-            for(var index = 0; index < CurrentWheel?.Properties.Count; index++)
-            {
-                var prop = CurrentWheel.Properties[index];
-                var totalWeight = prop.Weight * 100;
-                for (var i = 0; i < totalWeight; i++)
-                {
-                    spots.Add(new WheelSpinIndex { Index = index });
-                }
-            }
-            WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
+            int winningIndex;
             lock (spinResultLock)
             {
+                var props = CurrentWheel?.Properties;
+                if (props == null || props.Count == 0)
+                {
+                    logger.LogWarning("Cannot spin wheel: no properties configured.");
+                    awaitingSpinResult = false;
+                    return;
+                }
+
+                List<WheelSpinIndex> spots = [];
+                for (var index = 0; index < props.Count; index++)
+                {
+                    var prop = props[index];
+                    var totalWeight = prop.Weight * 100;
+                    for (var i = 0; i < totalWeight; i++)
+                    {
+                        spots.Add(new WheelSpinIndex { Index = index });
+                    }
+                }
+
+                if (spots.Count == 0)
+                {
+                    logger.LogWarning("Cannot spin wheel: all entries have zero weight.");
+                    awaitingSpinResult = false;
+                    return;
+                }
+
+                winningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
+                WinningIndex = winningIndex;
                 awaitingSpinResult = true;
             }
-            var spinWheel = new SpinWheel(WinningIndex);
+
+            var spinWheel = new SpinWheel(winningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
             _ = QueueWheelMessageAsync(json, "spin wheel");
         }
