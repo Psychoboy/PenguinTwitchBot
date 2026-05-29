@@ -49,6 +49,10 @@
                                            Color="Color.Warning" OnClick="() => SetDefault(layoutItem.Id)" />
                         </MudTooltip>
                     }
+                    <MudTooltip Text="Duplicate layout">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                       Color="Color.Info" OnClick="() => DuplicateLayout(layoutItem.Id)" />
+                    </MudTooltip>
                     <MudTooltip Text="Delete layout">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                        Color="Color.Error" OnClick="() => DeleteLayout(layoutItem.Id)" />
@@ -508,6 +512,35 @@
         await UnitOfWork.SaveChangesAsync();
         await RefreshLayouts();
         Snackbar.Add("Default layout updated.", Severity.Success);
+    }
+
+    private async Task DuplicateLayout(int id)
+    {
+        var source = await UnitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        if (source == null) return;
+
+        var copy = new OverlayLayout
+        {
+            Name         = $"Copy of {source.Name}",
+            IsDefault    = false,
+            CanvasWidth  = source.CanvasWidth,
+            CanvasHeight = source.CanvasHeight,
+            Widgets      = source.Widgets.Select(w => new OverlayWidget
+            {
+                WidgetType     = w.WidgetType,
+                IsEnabled      = w.IsEnabled,
+                X              = w.X,
+                Y              = w.Y,
+                Width          = w.Width,
+                Height         = w.Height,
+                ZIndex         = w.ZIndex,
+                CustomSettings = w.CustomSettings
+            }).ToList()
+        };
+        await UnitOfWork.OverlayLayouts.AddAsync(copy);
+        await UnitOfWork.SaveChangesAsync();
+        await RefreshLayouts();
+        Snackbar.Add($"Duplicated as '{copy.Name}'.", Severity.Success);
     }
 
     private async Task DeleteLayout(int id)
