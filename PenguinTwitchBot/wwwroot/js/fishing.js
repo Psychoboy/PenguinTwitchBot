@@ -158,6 +158,7 @@ async function handleFishingAlert(fishingData) {
     // Trigger reflow to ensure transition works
     alertElement[0].offsetHeight;
 
+    scaleContainer();
     alertElement.addClass('show');
 
     // Play audio if found
@@ -208,6 +209,20 @@ function toFiniteNumber(value, fallback) {
         : Number(value);
 
     return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function scaleContainer() {
+    const container = document.querySelector('.container');
+    if (!container) return;
+    container.style.transform = '';
+    const naturalW = container.offsetWidth;
+    const naturalH = container.offsetHeight;
+    const padding = 40; // 20px body padding each side
+    const vpW = window.innerWidth - padding;
+    const vpH = window.innerHeight - padding;
+    if (naturalW <= vpW && naturalH <= vpH) return;
+    const scale = Math.min(vpW / naturalW, vpH / naturalH);
+    container.style.transform = `scale(${scale})`;
 }
 
 function normalizeRarity(rarity) {

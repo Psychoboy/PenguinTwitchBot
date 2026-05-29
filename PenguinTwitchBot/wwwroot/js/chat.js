@@ -49,6 +49,9 @@
     let badgeCache = new Map();
     let badgeCacheLoaded = false;
 
+    /** @type {Map<string, string>} emoteName → imageUrl (BTTV, FFZ, 7TV) */
+    let emoteCache = new Map();
+
     // ── Apply global CSS vars / body styles ───────────────────────────────────
     document.documentElement.style.setProperty('--msg-color', msgColor);
     document.documentElement.style.setProperty('--chat-bg', bgColor);
@@ -93,6 +96,44 @@
             console.warn('[chat] Could not load badge map:', e);
         } finally {
             badgeCacheLoaded = true;
+        }
+    }
+
+    // ── Third-party emote loading (BTTV, FFZ, 7TV) ───────────────────────────
+    async function loadEmotes() {
+        try {
+            const resp = await fetch('/api/chat/emotes');
+            if (!resp.ok) throw new Error('Emote fetch failed: ' + resp.status);
+            const data = await resp.json();
+            if (data && data.emotes) {
+                emoteCache = new Map(Object.entries(data.emotes));
+                console.log('[chat] Loaded ' + emoteCache.size + ' third-party emotes');
+            }
+        } catch (e) {
+            console.warn('[chat] Could not load third-party emotes:', e);
+        }
+    }
+
+    // ── Emote text helpers ────────────────────────────────────────────────────
+    /** Split a text fragment by whitespace and replace emote words with <img>. */
+    function buildTextWithEmotes(text, parentEl) {
+        // Split on whitespace, keeping the whitespace tokens so spacing is preserved
+        const tokens = text.split(/(\s+)/);
+        for (const token of tokens) {
+            const url = emoteCache.get(token);
+            if (url) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = token;
+                img.title = token;
+                img.classList.add('fragment-emote');
+                img.style.height = (fontSize * 1.5) + 'px';
+                img.style.width = 'auto';
+                img.style.verticalAlign = 'middle';
+                parentEl.appendChild(img);
+            } else {
+                parentEl.appendChild(document.createTextNode(token));
+            }
         }
     }
 
@@ -160,15 +201,16 @@
                 img.style.verticalAlign = 'middle';
                 fragmentsEl.appendChild(img);
             } else {
-                const span = document.createElement('span');
-                // Cheermote with no image still shows amount
                 if (frag.type === 'cheermote' && frag.cheerAmount) {
+                    // Cheermote with no image still shows the amount in its colour
+                    const span = document.createElement('span');
                     span.textContent = frag.text;
                     if (frag.cheerColor) span.style.color = frag.cheerColor;
+                    fragmentsEl.appendChild(span);
                 } else {
-                    span.textContent = frag.text;
+                    // Plain text: scan word-by-word for third-party emotes
+                    buildTextWithEmotes(frag.text, fragmentsEl);
                 }
-                fragmentsEl.appendChild(span);
             }
         }
 
@@ -198,7 +240,7 @@
         if (timeoutSecs > 0) {
             timerId = setTimeout(() => removeMessage(msg.id), timeoutSecs * 1000);
         }
-        messageMap.set(msg.id, { el, timerId });
+        messageMap.set(msg.id, { el, timerId, userId: msg.userId });
 
         // Trim oldest if over limit
         while (messageMap.size > maxMessages) {
@@ -213,6 +255,11 @@
         if (entry.timerId) clearTimeout(entry.timerId);
         entry.el.remove();
         messageMap.delete(id);
+    }
+
+    function removeMessagesByUser(userId) {
+        const ids = [...messageMap.keys()].filter(id => messageMap.get(id).userId === userId);
+        ids.forEach(removeMessage);
     }
 
     // ── Horizontal (push-left) mode message management ─────────────────────────
@@ -253,7 +300,7 @@
         if (timeoutSecs > 0) {
             timerId = setTimeout(() => removeHMessage(msg.id), timeoutSecs * 1000);
         }
-        hChatMap.set(msg.id, { el: li, timerId, width: measuredWidth });
+        hChatMap.set(msg.id, { el: li, timerId, width: measuredWidth, userId: msg.userId });
 
         // Prune by hard message count first
         while (hChatMap.size > maxMessages) {
@@ -301,6 +348,11 @@
         }));
     }
 
+    function removeHMessagesByUser(userId) {
+        const ids = [...hChatMap.keys()].filter(id => hChatMap.get(id).userId === userId);
+        ids.forEach(removeHMessage);
+    }
+
     // ── WebSocket ─────────────────────────────────────────────────────────────
     function getWebSocket() {
         const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -339,6 +391,12 @@
                 } else {
                     removeMessage(msg.id);
                 }
+            } else if (msg.type === 'chat_user_banned') {
+                if (direction === 'horizontal') {
+                    removeHMessagesByUser(msg.userId);
+                } else {
+                    removeMessagesByUser(msg.userId);
+                }
             }
         } catch (e) {
             console.warn('[chat] Failed to parse WS message:', e);
@@ -347,4 +405,5 @@
 
     // ── Bootstrap ─────────────────────────────────────────────────────────────
     loadBadges();
+    loadEmotes();
 }());

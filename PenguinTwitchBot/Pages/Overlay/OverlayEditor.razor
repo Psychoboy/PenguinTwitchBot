@@ -188,13 +188,18 @@
                     </MudSelect>
                 }
 
-                <MudTextField Label="Message color"
-                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
-                              Value="_chatSettings.MsgColor"
-                              ValueChanged="@((string v) => { _chatSettings.MsgColor = v; SaveChatSettings(); })"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Circle"
-                              AdornmentColor="@GetMudColorFromHex(_chatSettings.MsgColor)" />
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_chatSettings.MsgColor"
+                           @oninput="@(e => { _chatSettings.MsgColor = e.Value?.ToString() ?? "#ffffff"; SaveChatSettings(); })"
+                           title="Pick message colour"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Message color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_chatSettings.MsgColor"
+                                  ValueChanged="@((string v) => { _chatSettings.MsgColor = v; SaveChatSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
 
                 <MudTextField Label="Background color"
                               Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -619,12 +624,6 @@
         if (_selected != null && _chatSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_chatSettings, _chatJsonOptions);
     }
-
-    private static Color GetMudColorFromHex(string? hex) => hex switch
-    {
-        var h when !string.IsNullOrWhiteSpace(h) && h.StartsWith('#') => Color.Primary,
-        _ => Color.Default
-    };
 
     // ── Inner types ─────────────────────────────────────────────────────────────
 

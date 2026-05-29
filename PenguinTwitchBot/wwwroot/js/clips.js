@@ -234,6 +234,7 @@ async function handleClipAlert(json) {
 
     // Append a new the image.
     $('#alert').append(htmlObj).fadeIn(1e2, async function () {// Set the volume.
+        scaleClipsToFit();
         if (isVideo) {
             // Play the sound.
             htmlObj[0].play().catch(function () {
@@ -317,6 +318,37 @@ function findFirstFile(filePath, fileName, extensions) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function scaleClipsToFit() {
+    const container = document.querySelector('.container');
+    if (!container) return;
+    container.style.transform = '';
+
+    const style = getComputedStyle(document.documentElement);
+    const avatarWidth = parseFloat(style.getPropertyValue('--avatar-width')) || 200;
+    const gameWidth = parseFloat(style.getPropertyValue('--game-width')) || 100;
+
+    const containerW = container.offsetWidth;
+    const containerH = container.offsetHeight;
+    if (containerW === 0 || containerH === 0) return;
+
+    // Container is flex-centered, so each side must fit within half the viewport.
+    // Left: avatar overflows containerW/2 + avatarWidth/2  → scale ≤ vpW / (containerW + avatarWidth)
+    // Right: box-art overflows containerW/2 + gameWidth/2  → scale ≤ vpW / (containerW + gameWidth)
+    const scaleX = Math.min(
+        window.innerWidth / (containerW + avatarWidth),
+        window.innerWidth / (containerW + gameWidth)
+    );
+    const scaleY = Math.min(
+        window.innerHeight / (containerH + avatarWidth),
+        window.innerHeight / (containerH + gameWidth)
+    );
+    const scale = Math.min(scaleX, scaleY, 1);
+
+    if (scale < 1) {
+        container.style.transform = `scale(${scale})`;
+    }
 }
 
 promisePoll = (promiseFunction, { pollIntervalMs = 2000 } = {}) => {

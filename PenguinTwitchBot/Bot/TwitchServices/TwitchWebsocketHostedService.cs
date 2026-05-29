@@ -379,9 +379,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (e.Payload.Event.IsPermanent == false)
                 {
                     logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Payload.Event.UserLogin, e.Payload.Event.ModeratorUserLogin);
+                    await dispatcher.Publish(new BannedChatUser { UserId = e.Payload.Event.UserId });
                     return;
                 }
                 logger.LogInformation("{UserLogin} banned by {Moderator}", e.Payload.Event.UserLogin, e.Payload.Event.ModeratorUserLogin);
+                await dispatcher.Publish(new BannedChatUser { UserId = e.Payload.Event.UserId });
                 
                 await eventService.OnViewerBan(e.Payload.Event.UserId, e.Payload.Event.UserLogin, false, e.Payload.Event.EndsAt);
                 await twitchEventActionHandler.HandleChannelBanAsync(new BanEventArgs

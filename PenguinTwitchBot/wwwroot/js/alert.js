@@ -168,7 +168,6 @@ async function handleGifAlert(json) {
     if (gifFile.match(/\.(webm|mp4|ogg|ogv)$/) !== null) {
         htmlObj = $('<video/>', {
             'src': defaultPath + gifFile,
-            'style': gifCss,
             'preload': 'auto'
         });
 
@@ -182,10 +181,13 @@ async function handleGifAlert(json) {
     } else {
         htmlObj = $('<img/>', {
             'src': defaultPath + gifFile,
-            'style': gifCss,
             'alt': "Video"
         });
-        await htmlObj[0].decode();
+        try {
+            await htmlObj[0].decode();
+        } catch (e) {
+            printDebug('Image decode failed for ' + gifFile + ': ' + e.message, true);
+        }
     }
 
     let audioPath = getAudioFile(gifFile.slice(0, gifFile.indexOf('.')), defaultPath);
