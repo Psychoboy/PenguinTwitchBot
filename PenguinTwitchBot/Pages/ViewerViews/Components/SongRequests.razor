@@ -76,7 +76,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Load initial data immediately - don't wait for hub connection
         UpdateSongList(await YtPlayer.GetRequestedSongs());
+        dataLoaded = true;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -88,6 +90,7 @@
         hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
             {
+                // Prefer WebSocket for better performance; fall back if unavailable
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
                                      Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
                                      Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
@@ -104,8 +107,6 @@
         });
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
-
-        dataLoaded = true;
         StateHasChanged();
     }
 
