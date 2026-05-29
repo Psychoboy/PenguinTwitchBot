@@ -279,6 +279,8 @@ internal class Program
                 .ForwardToPrometheus();
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>

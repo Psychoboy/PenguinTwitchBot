@@ -1,0 +1,199 @@
+@using PenguinTwitchBot.Bot.Models
+@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Bot
+@using PenguinTwitchBot.Models
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+@inject PenguinTwitchBot.Bot.Core.Leaderboards Leaderboards
+@inject ILogger<LeaderboardCard> logger
+
+<MudPaper Elevation="3">
+    <MudTable ServerData="Reload" Dense="true" Hover="true" @ref="table">
+        <ToolBarContent>
+            <MudIcon Icon="@GetIcon()" Color="@GetColor()" Class="mr-2" />
+            <MudText Typo="Typo.h6">@GetTitle()</MudText>
+            <MudSpacer />
+            <MudTextField DebounceInterval="1000"
+                          T="string"
+                          ValueChanged="@(text => OnSearchChanged(text))"
+                          Placeholder="Search"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Rank</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Amount</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Rank">
+                @RenderRankBadge(context.Rank)
+            </MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Amount">@RenderAmount(context.Amount)</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No matching records found</MudAlert>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<LeaderPosition>? table;
+    private string? searchText;
+
+    [Parameter, EditorRequired]
+    public LeaderboardWidgetConfig Widget { get; set; } = new();
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PointType> PointTypes { get; set; } = [];
+
+    private async Task<TableData<LeaderPosition>> Reload(TableState state, CancellationToken _)
+    {
+        var pageFilter = new PaginationFilter
+        {
+            Page = state.Page,
+            Count = state.PageSize,
+            Filter = searchText ?? string.Empty
+        };
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.PointLeaderboard, StringComparison.OrdinalIgnoreCase))
+        {
+            var pointTypeId = Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.GetId() ?? 0;
+            if (pointTypeId == 0)
+            {
+                return new TableData<LeaderPosition> { TotalItems = 0, Items = [] };
+            }
+
+            var response = await PointsSystem.GetLeaderPositions(pageFilter, pointTypeId);
+            return new TableData<LeaderPosition> { TotalItems = response.TotalItems, Items = response.Data };
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.Loudest, StringComparison.OrdinalIgnoreCase))
+        {
+            var response = await Leaderboards.GetLoudest(pageFilter);
+            return new TableData<LeaderPosition> { TotalItems = response.TotalItems, Items = response.Data };
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.WatchedTime, StringComparison.OrdinalIgnoreCase))
+        {
+            var response = await Leaderboards.GetTime(pageFilter);
+            return new TableData<LeaderPosition> { TotalItems = response.TotalItems, Items = response.Data };
+        }
+
+        return new TableData<LeaderPosition> { TotalItems = 0, Items = [] };
+    }
+
+    private void OnSearchChanged(string text)
+    {
+        searchText = text;
+        table?.ReloadServerData();
+    }
+
+    private string GetTitle()
+    {
+        if (!string.IsNullOrWhiteSpace(Widget.Title))
+        {
+            return Widget.Title;
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.PointLeaderboard, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolvePointTypeName(Widget.PointTypeId ?? PointTypes.FirstOrDefault()?.GetId());
+        }
+
+        return LeaderboardsWidgetCatalog.TryGetDefinition(Widget.Type, out var definition) ? definition.DisplayName : Widget.Type;
+    }
+
+    private string ResolvePointTypeName(int? pointTypeId)
+    {
+        if (pointTypeId == null)
+        {
+            return "Point Leaderboard";
+        }
+
+        var pointType = PointTypes.FirstOrDefault(x => x.GetId() == pointTypeId.Value);
+        return pointType?.Name ?? "Point Leaderboard";
+    }
+
+    private string RenderAmount(long amount)
+    {
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.WatchedTime, StringComparison.OrdinalIgnoreCase))
+        {
+            return StaticTools.ConvertToCompoundDuration(amount);
+        }
+
+        return amount.ToString("n0");
+    }
+
+    private string GetIcon()
+    {
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.PointLeaderboard, StringComparison.OrdinalIgnoreCase))
+        {
+            return Icons.Material.Filled.ConfirmationNumber;
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.Loudest, StringComparison.OrdinalIgnoreCase))
+        {
+            return Icons.Material.Filled.VolumeUp;
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.WatchedTime, StringComparison.OrdinalIgnoreCase))
+        {
+            return Icons.Material.Filled.AccessTime;
+        }
+
+        return Icons.Material.Filled.Leaderboard;
+    }
+
+    private Color GetColor()
+    {
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.Loudest, StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.Error;
+        }
+
+        if (string.Equals(Widget.Type, LeaderboardsWidgetCatalog.WatchedTime, StringComparison.OrdinalIgnoreCase))
+        {
+            return Color.Info;
+        }
+
+        return Color.Primary;
+    }
+
+    private RenderFragment RenderRankBadge(int rank) => __builder =>
+    {
+        if (rank == 1)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else if (rank == 2)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: silver;" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else if (rank == 3)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Style="color: #CD7F32;" Size="Size.Small" />
+                <MudText><strong>#@rank</strong></MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudText><strong>#@rank</strong></MudText>
+        }
+    };
+}
