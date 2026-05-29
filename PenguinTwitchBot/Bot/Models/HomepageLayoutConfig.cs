@@ -55,7 +55,7 @@ public sealed class HomepageWidgetDefinition
 
 public static class HomepageWidgetCatalog
 {
-    public const string CommunitySummary = "community-summary";
+    public const string Giveaway = "giveaway";
     public const string StreamerTools = "streamer-tools";
     public const string StreamSchedule = "stream-schedule";
     public const string SongRequests = "song-requests";
@@ -64,8 +64,8 @@ public static class HomepageWidgetCatalog
     public static readonly IReadOnlyList<HomepageWidgetDefinition> Definitions =
     [
         new HomepageWidgetDefinition(
-            CommunitySummary,
-            "Community Summary",
+            Giveaway,
+            "Giveaway",
             "Shows bonus points and the current giveaway."),
         new HomepageWidgetDefinition(
             StreamerTools,
@@ -94,7 +94,7 @@ public static class HomepageWidgetCatalog
     {
         Widgets =
         [
-            CreateDefaultWidget(CommunitySummary),
+            CreateDefaultWidget(Giveaway),
             CreateDefaultWidget(StreamerTools),
             CreateDefaultWidget(StreamSchedule),
             CreateDefaultWidget(SongRequests),
@@ -106,7 +106,7 @@ public static class HomepageWidgetCatalog
     {
         return type switch
         {
-            CommunitySummary => new HomepageWidgetConfig { Type = CommunitySummary },
+            Giveaway => new HomepageWidgetConfig { Type = Giveaway },
             StreamerTools => new HomepageWidgetConfig { Type = StreamerTools },
             StreamSchedule => new HomepageWidgetConfig { Type = StreamSchedule },
             SongRequests => new HomepageWidgetConfig
@@ -152,7 +152,7 @@ public static class HomepageWidgetCatalog
         }
 
         normalized.Type = string.IsNullOrWhiteSpace(normalized.Type)
-            ? CommunitySummary
+            ? Giveaway
             : normalized.Type.Trim();
         normalized.Title = string.IsNullOrWhiteSpace(normalized.Title) ? null : normalized.Title.Trim();
 
