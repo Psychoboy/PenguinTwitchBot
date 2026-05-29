@@ -1,0 +1,242 @@
+/* ── Root layout ──────────────────────────────────────────────────────────── */
+.editor-root {
+    display: grid;
+    grid-template-columns: 220px 1fr 260px;
+    height: calc(100vh - 64px);   /* subtract MudBlazor app bar */
+    overflow: hidden;
+}
+
+/* ── Left panel: layout list ──────────────────────────────────────────────── */
+.layouts-panel {
+    border-right: 1px solid var(--mud-palette-divider);
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px 8px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    margin-bottom: 4px;
+}
+
+.layout-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.layout-item:hover {
+    background-color: var(--mud-palette-action-hover);
+}
+
+.layout-item--active {
+    background-color: var(--mud-palette-primary-hover);
+    font-weight: 600;
+}
+
+.layout-item__name {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.layout-item__actions {
+    display: flex;
+    flex-shrink: 0;
+}
+
+/* ── Center: toolbar + canvas ─────────────────────────────────────────────── */
+.canvas-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--mud-palette-background-grey);
+}
+
+.canvas-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    background-color: var(--mud-palette-surface);
+    flex-shrink: 0;
+}
+
+.canvas-scroll-wrapper {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 60px;  /* extra room so off-screen tiles are still visible/draggable */
+}
+
+.canvas-hint {
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--mud-palette-text-disabled);
+    flex-shrink: 0;
+}
+
+/* ── The overlay canvas ────────────────────────────────────────────────────── */
+.overlay-canvas {
+    position: relative;
+    /* width/height set dynamically via inline style from Blazor */
+    background-color: #1a1a2e;
+    background-image:
+        linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: visible;  /* tiles can hang off edges for partial off-screen placement */
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* ── Widget tiles ──────────────────────────────────────────────────────────── */
+.widget-tile {
+    position: absolute;
+    cursor: move;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    opacity: 0.82;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    box-sizing: border-box;
+    transition: border-color 0.1s, opacity 0.1s;
+    /* interact.js resizes via style; touch-action must be none */
+    touch-action: none;
+}
+
+.widget-tile:hover {
+    border-color: rgba(255, 255, 255, 0.7);
+    opacity: 0.9;
+}
+
+.widget-tile--selected {
+    border: 2px solid #fff !important;
+    opacity: 1 !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+}
+
+.widget-tile--disabled {
+    opacity: 0.3 !important;
+    filter: grayscale(50%);
+}
+
+.widget-label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    padding: 2px 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ── Preset size buttons ────────────────────────────────────────────────── */
+.preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ── Right panel: widget list ─────────────────────────────────────────────── */
+.widget-list-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    cursor: pointer;
+    gap: 8px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    margin: 1px 4px;
+    transition: background-color 0.1s;
+}
+
+.widget-list-item:hover {
+    background-color: var(--mud-palette-action-hover);
+}
+
+.widget-list-item--active {
+    background-color: var(--mud-palette-primary-hover);
+    font-weight: 600;
+}
+
+.widget-list-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.widget-list-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.widget-list-z {
+    font-size: 0.7rem;
+    color: var(--mud-palette-text-secondary);
+    flex-shrink: 0;
+    font-family: monospace;
+}
+
+/* ── Right panel: properties ──────────────────────────────────────────────── */
+.props-panel {
+    border-left: 1px solid var(--mud-palette-divider);
+    padding: 16px 12px;
+    overflow-y: auto;
+}
+
+.props-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    padding: 16px;
+}
+
+/* ── New layout dialog ────────────────────────────────────────────────────── */
+.dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.dialog-box {
+    padding: 24px;
+    min-width: 320px;
+    max-width: 400px;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}

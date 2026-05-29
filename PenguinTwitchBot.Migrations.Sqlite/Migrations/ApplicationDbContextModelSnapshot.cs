@@ -1336,6 +1336,73 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("obs_connections");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CanvasHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CanvasWidth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("overlay_layouts");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CustomSettings")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("OverlayLayoutId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WidgetType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("X")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Y")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ZIndex")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OverlayLayoutId");
+
+                    b.ToTable("overlay_widgets");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.Property<int>("Id")
@@ -2836,6 +2903,17 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Navigation("ShopItem");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", "Layout")
+                        .WithMany("Widgets")
+                        .HasForeignKey("OverlayLayoutId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Layout");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.HasOne("PenguinTwitchBot.Bot.Models.Points.PointType", "PointType")
@@ -2890,6 +2968,11 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.MusicPlaylist", b =>
                 {
                     b.Navigation("Songs");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Navigation("Widgets");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointType", b =>

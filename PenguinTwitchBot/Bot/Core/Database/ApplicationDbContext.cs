@@ -9,6 +9,7 @@ using PenguinTwitchBot.Bot.Models.Timers;
 using PenguinTwitchBot.Bot.Models.Wheel;
 using PenguinTwitchBot.Bot.Models.Obs;
 using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Bot.Models.Overlay;
 using PenguinTwitchBot.Bot.Core;
 using Microsoft.EntityFrameworkCore;
 
@@ -75,6 +76,10 @@ namespace PenguinTwitchBot.Bot.Core.Database
         public DbSet<Models.Actions.Triggers.TriggerType> Triggers { get; set; } = null!;
         public DbSet<Models.Queues.QueueConfiguration> QueueConfigurations { get; set; } = null!;
         public DbSet<OBSConnection> OBSConnections { get; set; } = null!;
+
+        // Overlay tables
+        public DbSet<OverlayLayout> OverlayLayouts { get; set; } = null!;
+        public DbSet<OverlayWidget> OverlayWidgets { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -193,6 +198,11 @@ namespace PenguinTwitchBot.Bot.Core.Database
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
 
+            modelBuilder.Entity<OverlayLayout>()
+                .HasMany(l => l.Widgets)
+                .WithOne(w => w.Layout)
+                .HasForeignKey(w => w.OverlayLayoutId)
+                .OnDelete(DeleteBehavior.Cascade);
 
         }
     }

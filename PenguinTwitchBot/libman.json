@@ -3,6 +3,13 @@
   "defaultProvider": "unpkg",
   "libraries": [
     {
+      "library": "interactjs@1.10.27",
+      "destination": "wwwroot/js/interact",
+      "files": [
+        "dist/interact.min.js"
+      ]
+    },
+    {
       "library": "@microsoft/signalr@latest",
       "destination": "wwwroot/js/signalr",
       "files": [
