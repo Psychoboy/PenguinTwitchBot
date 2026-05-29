@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Overlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        #overlay-canvas {
+            position: relative;
+            width: 1920px;
+            height: 1080px;
+        }
+
+        .overlay-widget {
+            position: absolute;
+            border: none;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        #overlay-error {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(180, 0, 0, 0.85);
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-family: sans-serif;
+            font-size: 0.85em;
+            z-index: 99999;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay-canvas"></div>
+    <div id="overlay-error"></div>
+
+    <script>
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const layoutName = params.get('layout') || '';
+            const apiUrl = '/api/overlay/config' + (layoutName ? '?layout=' + encodeURIComponent(layoutName) : '');
+
+            try {
+                const resp = await fetch(apiUrl);
+                if (!resp.ok) {
+                    showError('Overlay config request failed: ' + resp.status);
+                    return;
+                }
+
+                const data = await resp.json();
+                const canvas = document.getElementById('overlay-canvas');
+
+                // Apply canvas dimensions from config
+                const cw = data.canvasWidth  || 1920;
+                const ch = data.canvasHeight || 1080;
+                document.documentElement.style.width  = cw + 'px';
+                document.documentElement.style.height = ch + 'px';
+                document.body.style.width  = cw + 'px';
+                document.body.style.height = ch + 'px';
+                canvas.style.width  = cw + 'px';
+                canvas.style.height = ch + 'px';
+
+                const enabledWidgets = data.widgets
+                    .filter(w => w.isEnabled)
+                    .sort((a, b) => a.zIndex - b.zIndex);
+
+                for (const w of enabledWidgets) {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = w.sourcePath;
+                    iframe.className = 'overlay-widget';
+                    iframe.style.left   = w.x + 'px';
+                    iframe.style.top    = w.y + 'px';
+                    iframe.style.width  = w.width + 'px';
+                    iframe.style.height = w.height + 'px';
+                    iframe.style.zIndex = w.zIndex;
+                    iframe.setAttribute('allowtransparency', 'true');
+                    iframe.setAttribute('frameborder', '0');
+                    iframe.setAttribute('scrolling', 'no');
+                    canvas.appendChild(iframe);
+                }
+            } catch (e) {
+                showError('Failed to load overlay: ' + e.message);
+                console.error(e);
+            }
+        })();
+
+        function showError(msg) {
+            const el = document.getElementById('overlay-error');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

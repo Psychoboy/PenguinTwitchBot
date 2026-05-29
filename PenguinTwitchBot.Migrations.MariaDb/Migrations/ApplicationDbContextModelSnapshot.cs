@@ -1401,6 +1401,80 @@ namespace PenguinTwitchBot.Migrations.MariaDb.Migrations
                     b.ToTable("obs_connections");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CanvasHeight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CanvasWidth")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("overlay_layouts");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CustomSettings")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("OverlayLayoutId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WidgetType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.Property<int>("X")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Y")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ZIndex")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OverlayLayoutId");
+
+                    b.ToTable("overlay_widgets");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.Property<int>("Id")
@@ -2935,6 +3009,17 @@ namespace PenguinTwitchBot.Migrations.MariaDb.Migrations
                     b.Navigation("ShopItem");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", "Layout")
+                        .WithMany("Widgets")
+                        .HasForeignKey("OverlayLayoutId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Layout");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.HasOne("PenguinTwitchBot.Bot.Models.Points.PointType", "PointType")
@@ -2989,6 +3074,11 @@ namespace PenguinTwitchBot.Migrations.MariaDb.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.MusicPlaylist", b =>
                 {
                     b.Navigation("Songs");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Navigation("Widgets");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointType", b =>

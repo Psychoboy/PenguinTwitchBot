@@ -1,0 +1,801 @@
+@page "/overlay/editor"
+@using Microsoft.EntityFrameworkCore
+@using PenguinTwitchBot.Bot.Models.Overlay
+@using PenguinTwitchBot.Repository
+@using System.Text.Json
+@using Microsoft.Extensions.DependencyInjection
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IServiceScopeFactory ScopeFactory
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Overlay Editor</PageTitle>
+
+<div class="editor-root">
+
+    <!-- ===================== LEFT: Layout list ===================== -->
+    <div class="layouts-panel">
+        <div class="panel-header">
+            <MudText Typo="Typo.subtitle1"><b>Layouts</b></MudText>
+            <MudTooltip Text="New layout">
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
+                               Size="Size.Small" OnClick="ShowNewLayoutDialog" />
+            </MudTooltip>
+        </div>
+
+        @if (_layouts.Count == 0)
+        {
+            <MudText Typo="Typo.caption" Class="pa-2 text-disabled">No layouts yet — click + to create one.</MudText>
+        }
+
+        @foreach (var layoutItem in _layouts)
+        {
+            <div class="layout-item @(_currentLayoutId == layoutItem.Id ? "layout-item--active" : "")"
+                 @onclick="() => LoadLayout(layoutItem.Id)">
+                <div class="layout-item__name">
+                    @layoutItem.Name
+                    @if (layoutItem.IsDefault)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary"
+                                 Class="ml-1" Style="height:16px;font-size:10px;">Default</MudChip>
+                    }
+                </div>
+                <div class="layout-item__actions" @onclick:stopPropagation="true">
+                    @if (!layoutItem.IsDefault)
+                    {
+                        <MudTooltip Text="Set as default">
+                            <MudIconButton Icon="@Icons.Material.Filled.Star" Size="Size.Small"
+                                           Color="Color.Warning" OnClick="() => SetDefault(layoutItem.Id)" />
+                        </MudTooltip>
+                    }
+                    <MudTooltip Text="Rename layout">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       Color="Color.Default" OnClick="() => ShowRenameDialog(layoutItem.Id, layoutItem.Name)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Duplicate layout">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                       Color="Color.Info" OnClick="() => DuplicateLayout(layoutItem.Id)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Delete layout">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="() => DeleteLayout(layoutItem.Id)" />
+                    </MudTooltip>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- ===================== CENTER: Toolbar + Canvas ===================== -->
+    <div class="canvas-area">
+        <div class="canvas-toolbar">
+            @if (_currentLayoutId.HasValue)
+            {
+                <MudMenu Label="Add Widget" StartIcon="@Icons.Material.Filled.Add"
+                         Variant="Variant.Filled" Color="Color.Secondary" Dense="true"
+                         Class="mr-2">
+                    @foreach (var def in WidgetRegistry.All.Where(d => _widgets.All(w => w.WidgetType != d.Type)))
+                    {
+                        <MudMenuItem OnClick="() => AddWidget(def)">@def.DisplayName</MudMenuItem>
+                    }
+                </MudMenu>
+
+                <MudButton StartIcon="@Icons.Material.Filled.Save"
+                           Variant="Variant.Filled" Color="Color.Success"
+                           OnClick="SaveLayout" Disabled="_saving">
+                    @(_saving ? "Saving…" : "Save")
+                </MudButton>
+
+                <MudTooltip Text="Opens overlay.html in a new tab — save first!">
+                    <MudButton StartIcon="@Icons.Material.Filled.OpenInNew"
+                               Variant="Variant.Outlined"
+                               OnClick="OpenPreview" Class="ml-2">
+                        Preview
+                    </MudButton>
+                </MudTooltip>
+                <MudTooltip Text="Copy OBS browser source URL to clipboard — save first!">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Variant="Variant.Outlined"
+                                   OnClick="CopyUrl" Class="ml-1" />
+                </MudTooltip>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="ml-2 text-disabled">← Select or create a layout</MudText>
+            }
+        </div>
+
+        <div class="canvas-scroll-wrapper">
+            <div id="overlay-canvas" class="overlay-canvas"
+                 style="width:@(DisplayCanvasWidthPx)px; height:@(DisplayCanvasHeightPx)px;"
+                 @onclick="() => _selected = null">
+                @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
+                {
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "")"
+                         data-widget-id="@w.TempId"
+                         data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
+                         data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
+                         style="left:@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))px; top:@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))px; width:@((w.Width * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))px; height:@((w.Height * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))px; z-index:@w.ZIndex; background-color:@GetWidgetColor(w.WidgetType);"
+                         @key="w.TempId"
+                         @onclick:stopPropagation="true"
+                         @onclick="() => SelectWidget(w)">
+                        <span class="widget-label">@w.DisplayName</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <MudText Typo="Typo.caption" Class="canvas-hint">@_canvasWidth × @_canvasHeight (scale: @((int)(Scale * 100))%)</MudText>
+    </div>
+
+    <!-- ===================== RIGHT: Properties panel ===================== -->
+    <div class="props-panel">
+
+        <!-- Widget list (select by name instead of clicking canvas) -->
+        @if (_widgets.Count > 0)
+        {
+            <div class="panel-header">
+                <MudText Typo="Typo.subtitle2"><b>Widgets</b></MudText>
+            </div>
+            @foreach (var wi in _widgets.OrderByDescending(x => x.ZIndex))
+            {
+                <div class="widget-list-item @(wi == _selected ? "widget-list-item--active" : "")"
+                     @onclick="() => SelectWidget(wi)">
+                    <span class="widget-list-dot" style="background:@GetWidgetColor(wi.WidgetType);"></span>
+                    <span class="widget-list-name">@wi.DisplayName</span>
+                    <span class="widget-list-z">z:@wi.ZIndex</span>
+                </div>
+            }
+            <MudDivider Class="my-2" />
+        }
+
+        @if (_selected != null)
+        {
+            <MudText Typo="Typo.subtitle1" Class="mb-2"><b>@_selected.DisplayName</b></MudText>
+            <MudDivider Class="mb-3" />
+
+            <MudSwitch @bind-Value="_selected.IsEnabled" Label="Enabled"
+                       Color="Color.Success" Class="mb-3" />
+
+            <MudNumericField T="int" Label="X" @bind-Value="_selected.X"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" />
+            <MudNumericField T="int" Label="Y" @bind-Value="_selected.Y"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" />
+            <MudNumericField T="int" Label="Width" @bind-Value="_selected.Width"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                             Min="10" />
+            <MudNumericField T="int" Label="Height" @bind-Value="_selected.Height"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                             Min="10" />
+            <MudNumericField T="int" Label="Z-Index" @bind-Value="_selected.ZIndex"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-4"
+                             Min="1" />
+
+            @* ── Chat widget configuration ── *@
+            @if (_selected.WidgetType == "chat" && _chatSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Chat Settings</b></MudText>
+
+                <MudSelect T="string" Label="Direction"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_chatSettings.Direction"
+                           ValueChanged="@(v => { _chatSettings.Direction = v; SaveChatSettings(); })">
+                    <MudSelectItem Value="@("vertical")">Vertical (stack)</MudSelectItem>
+                    <MudSelectItem Value="@("horizontal")">Horizontal (push-left)</MudSelectItem>
+                </MudSelect>
+
+                @if (_chatSettings.Direction == "vertical")
+                {
+                    <MudSelect T="string" Label="Align"
+                               Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                               Value="_chatSettings.Valign"
+                               ValueChanged="@(v => { _chatSettings.Valign = v; SaveChatSettings(); })">
+                        <MudSelectItem Value="@("bottom")">New messages at bottom</MudSelectItem>
+                        <MudSelectItem Value="@("top")">New messages at top</MudSelectItem>
+                    </MudSelect>
+                }
+
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_chatSettings.MsgColor"
+                           @oninput="@(e => { _chatSettings.MsgColor = e.Value?.ToString() ?? "#ffffff"; SaveChatSettings(); })"
+                           title="Pick message colour"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Message color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_chatSettings.MsgColor"
+                                  ValueChanged="@((string v) => { _chatSettings.MsgColor = v; SaveChatSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudTextField Label="Background color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Use 'transparent' for OBS, or e.g. rgba(0,0,0,0.6)"
+                              Value="_chatSettings.BgColor"
+                              ValueChanged="@((string v) => { _chatSettings.BgColor = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Row background"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Per-message row bg, e.g. rgba(0,0,0,0.4)"
+                              Value="_chatSettings.RowBg"
+                              ValueChanged="@((string v) => { _chatSettings.RowBg = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Font size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="8" Max="72"
+                                 Value="_chatSettings.FontSize"
+                                 ValueChanged="@(v => { _chatSettings.FontSize = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Font family"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Leave blank for default system font"
+                              Value="_chatSettings.FontFamily"
+                              ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Max messages"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="1" Max="200"
+                                 Value="_chatSettings.MaxMessages"
+                                 ValueChanged="@(v => { _chatSettings.MaxMessages = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Badge size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="48"
+                                 Value="_chatSettings.BadgeSize"
+                                 ValueChanged="@(v => { _chatSettings.BadgeSize = v; SaveChatSettings(); })" />
+
+                <MudNumericField T="int" Label="Message timeout (s)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="0 = messages stay forever"
+                                 Min="0"
+                                 Value="_chatSettings.Timeout"
+                                 ValueChanged="@(v => { _chatSettings.Timeout = v; SaveChatSettings(); })" />
+
+            }
+
+            <MudDivider Class="mb-3" />
+            <MudButton FullWidth="true" Color="Color.Error" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="RemoveSelectedWidget">
+                Remove Widget
+            </MudButton>
+        }
+        else if (_currentLayoutId.HasValue)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Canvas Size</b></MudText>
+            <MudDivider Class="mb-2" />
+            <div class="preset-row mb-3">
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick='() => SetCanvasSize(1280,  720)'>720p</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick='() => SetCanvasSize(1920, 1080)'>1080p</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick='() => SetCanvasSize(2560, 1440)'>1440p</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick='() => SetCanvasSize(3840, 2160)'>4K</MudButton>
+            </div>
+            <MudNumericField T="int" Label="Width (px)" @bind-Value="_canvasWidth"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" Min="100" />
+            <MudNumericField T="int" Label="Height (px)" @bind-Value="_canvasHeight"
+                             Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-1" Min="100" />
+            <MudText Typo="Typo.caption" Class="mb-4" Style="color: var(--mud-palette-text-secondary);">Display scale: @((int)(Scale * 100))%</MudText>
+            <MudDivider Class="mb-3" />
+            <div class="props-empty">
+                <MudIcon Icon="@Icons.Material.Filled.TouchApp"
+                         Style="font-size:2.5rem; color: var(--mud-palette-text-disabled);" />
+                <MudText Typo="Typo.body2" Class="mt-2" Style="color: var(--mud-palette-text-disabled); text-align:center;">
+                    Click a widget to edit its properties.
+                </MudText>
+            </div>
+        }
+        else
+        {
+            <div class="props-empty">
+                <MudIcon Icon="@Icons.Material.Filled.Layers"
+                         Style="font-size:2.5rem; color: var(--mud-palette-text-disabled);" />
+                <MudText Typo="Typo.body2" Class="mt-2" Style="color: var(--mud-palette-text-disabled); text-align:center;">
+                    Select a layout to begin.
+                </MudText>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ===================== New Layout dialog ===================== -->
+@if (_showNewLayoutDialog)
+{
+    <div class="dialog-backdrop" @onclick="() => _showNewLayoutDialog = false">
+        <MudPaper Class="dialog-box" @onclick:stopPropagation="true" Elevation="8">
+            <MudText Typo="Typo.h6" Class="mb-4">New Layout</MudText>
+            <MudTextField @bind-Value="_newLayoutName"
+                          Label="Layout name"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          @onkeydown="OnNewLayoutKeyDown"
+                          AutoFocus="true" />
+            <div class="dialog-actions mt-4">
+                <MudButton OnClick="() => _showNewLayoutDialog = false">Cancel</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                           OnClick="CreateLayout"
+                           Disabled="@string.IsNullOrWhiteSpace(_newLayoutName)">
+                    Create
+                </MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+<!-- ===================== Rename Layout dialog ===================== -->
+@if (_showRenameDialog)
+{
+    <div class="dialog-backdrop" @onclick="() => _showRenameDialog = false">
+        <MudPaper Class="dialog-box" @onclick:stopPropagation="true" Elevation="8">
+            <MudText Typo="Typo.h6" Class="mb-4">Rename Layout</MudText>
+            <MudTextField @bind-Value="_renameLayoutName"
+                          Label="New name"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          @onkeydown="OnRenameKeyDown"
+                          AutoFocus="true" />
+            <div class="dialog-actions mt-4">
+                <MudButton OnClick="() => _showRenameDialog = false">Cancel</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                           OnClick="RenameLayout"
+                           Disabled="@string.IsNullOrWhiteSpace(_renameLayoutName)">
+                    Rename
+                </MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    private const double MaxDisplayWidth  = 960;
+    private const double MaxDisplayHeight = 540;
+
+    // Scale to fit the layout's canvas inside MaxDisplay dimensions
+    private double Scale => Math.Min(MaxDisplayWidth / _canvasWidth, MaxDisplayHeight / _canvasHeight);
+    private int DisplayCanvasWidthPx  => (int)(_canvasWidth  * Scale);
+    private int DisplayCanvasHeightPx => (int)(_canvasHeight * Scale);
+
+    private List<LayoutListItem> _layouts = [];
+    private int? _currentLayoutId;
+    private int  _canvasWidth  = 1920;
+    private int  _canvasHeight = 1080;
+    private List<WidgetModel> _widgets = [];
+    private WidgetModel? _selected;
+    private bool _saving;
+    private bool _jsInitialized;
+    private bool _jsNeedsReinit;
+    private bool _showNewLayoutDialog;
+    private string _newLayoutName = "";
+    private bool _showRenameDialog;
+    private int _renameLayoutId;
+    private string _renameLayoutName = "";
+    private DotNetObjectReference<OverlayEditor>? _dotNetRef;
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshLayouts();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+        }
+
+        if ((!_jsInitialized || _jsNeedsReinit) && _dotNetRef != null)
+        {
+            _jsInitialized = true;
+            _jsNeedsReinit = false;
+            await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("overlayEditor.destroy");
+        }
+        catch (JSDisconnectedException) { /* circuit already gone — safe to ignore */ }
+        _dotNetRef?.Dispose();
+    }
+
+    // ── JS callbacks ───────────────────────────────────────────────────────────
+
+    [JSInvokable]
+    public void OnWidgetMoved(string tempId, int x, int y)
+    {
+        var w = _widgets.FirstOrDefault(w => w.TempId == tempId);
+        if (w != null) { w.X = x; w.Y = y; }
+    }
+
+    [JSInvokable]
+    public void OnWidgetResized(string tempId, int x, int y, int width, int height)
+    {
+        var w = _widgets.FirstOrDefault(w => w.TempId == tempId);
+        if (w != null) { w.X = x; w.Y = y; w.Width = width; w.Height = height; }
+    }
+
+    [JSInvokable]
+    public async Task OnDragEnd()
+    {
+        // Refresh property panel to show the final position after drag/resize.
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ── Data ────────────────────────────────────────────────────────────────────
+
+    private async Task RefreshLayouts()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var all = await db.OverlayLayouts.GetAllWithWidgetsAsync();
+        _layouts = all.Select(l => new LayoutListItem(l.Id, l.Name, l.IsDefault)).ToList();
+    }
+
+    private async Task LoadLayout(int id)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        if (layout == null) return;
+
+        _currentLayoutId = id;
+        _canvasWidth  = layout.CanvasWidth;
+        _canvasHeight = layout.CanvasHeight;
+        _selected = null;
+        _jsNeedsReinit = true;
+        _widgets = layout.Widgets.Select(w =>
+        {
+            var def = WidgetRegistry.Find(w.WidgetType);
+            return new WidgetModel
+            {
+                WidgetType = w.WidgetType,
+                DisplayName = def?.DisplayName ?? w.WidgetType,
+                IsEnabled = w.IsEnabled,
+                X = w.X,
+                Y = w.Y,
+                Width = w.Width,
+                Height = w.Height,
+                ZIndex = w.ZIndex,
+                CustomSettings = w.CustomSettings
+            };
+        }).ToList();
+    }
+
+    private async Task SaveLayout()
+    {
+        if (!_currentLayoutId.HasValue) return;
+        _saving = true;
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            // Save canvas dimensions on the layout entity
+            var layoutEntity = await db.OverlayLayouts.GetByIdAsync(_currentLayoutId.Value);
+            if (layoutEntity != null)
+            {
+                layoutEntity.CanvasWidth  = _canvasWidth;
+                layoutEntity.CanvasHeight = _canvasHeight;
+            }
+
+            // Replace all widgets
+            var existing = await db.OverlayWidgets
+                .Find(w => w.OverlayLayoutId == _currentLayoutId.Value)
+                .ToListAsync();
+            db.OverlayWidgets.RemoveRange(existing);
+
+            foreach (var w in _widgets)
+            {
+                db.OverlayWidgets.Add(new OverlayWidget
+                {
+                    OverlayLayoutId = _currentLayoutId.Value,
+                    WidgetType      = w.WidgetType,
+                    IsEnabled       = w.IsEnabled,
+                    X               = w.X,
+                    Y               = w.Y,
+                    Width           = w.Width,
+                    Height          = w.Height,
+                    ZIndex          = w.ZIndex,
+                    CustomSettings  = w.CustomSettings
+                });
+            }
+
+            await db.SaveChangesAsync();
+            Snackbar.Add("Layout saved!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Failed to save: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task CreateLayout()
+    {
+        if (string.IsNullOrWhiteSpace(_newLayoutName)) return;
+
+        var trimmed = _newLayoutName.Trim();
+        if (_layouts.Any(l => l.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            Snackbar.Add($"A layout named '{trimmed}' already exists.", Severity.Warning);
+            return;
+        }
+
+        _showNewLayoutDialog = false;
+
+        var isFirst = _layouts.Count == 0;
+        var layout = new OverlayLayout
+        {
+            Name      = trimmed,
+            IsDefault = isFirst
+        };
+        await using (var scope = ScopeFactory.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await db.OverlayLayouts.AddAsync(layout);
+            await db.SaveChangesAsync();
+        }
+        await RefreshLayouts();
+        await LoadLayout(layout.Id);
+        Snackbar.Add($"Layout '{layout.Name}' created.", Severity.Success);
+    }
+
+    private async Task SetDefault(int id)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var all = await db.OverlayLayouts.GetAllWithWidgetsAsync();
+        foreach (var l in all)
+        {
+            l.IsDefault = (l.Id == id);
+            db.OverlayLayouts.Update(l);
+        }
+        await db.SaveChangesAsync();
+        await RefreshLayouts();
+        Snackbar.Add("Default layout updated.", Severity.Success);
+    }
+
+    private async Task DuplicateLayout(int id)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var source = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        if (source == null) return;
+
+        // Generate a unique name: "Copy of X", then "Copy of X (2)", etc.
+        var baseName = $"Copy of {source.Name}";
+        var candidateName = baseName;
+        var counter = 2;
+        while (_layouts.Any(l => l.Name.Equals(candidateName, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidateName = $"{baseName} ({counter++})";
+        }
+
+        var copy = new OverlayLayout
+        {
+            Name         = candidateName,
+            IsDefault    = false,
+            CanvasWidth  = source.CanvasWidth,
+            CanvasHeight = source.CanvasHeight,
+            Widgets      = source.Widgets.Select(w => new OverlayWidget
+            {
+                WidgetType     = w.WidgetType,
+                IsEnabled      = w.IsEnabled,
+                X              = w.X,
+                Y              = w.Y,
+                Width          = w.Width,
+                Height         = w.Height,
+                ZIndex         = w.ZIndex,
+                CustomSettings = w.CustomSettings
+            }).ToList()
+        };
+        await db.OverlayLayouts.AddAsync(copy);
+        await db.SaveChangesAsync();
+        await RefreshLayouts();
+        Snackbar.Add($"Duplicated as '{copy.Name}'.", Severity.Success);
+    }
+
+    private async Task DeleteLayout(int id)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        if (layout == null) return;
+        db.OverlayLayouts.Remove(layout);
+        await db.SaveChangesAsync();
+        if (_currentLayoutId == id) { _currentLayoutId = null; _widgets = []; _selected = null; }
+        await RefreshLayouts();
+        Snackbar.Add("Layout deleted.", Severity.Warning);
+    }
+
+    // ── Widget management ───────────────────────────────────────────────────────
+
+    private void AddWidget(WidgetDefinition def)
+    {
+        _widgets.Add(new WidgetModel
+        {
+            WidgetType  = def.Type,
+            DisplayName = def.DisplayName,
+            Width       = def.DefaultWidth,
+            Height      = def.DefaultHeight,
+            ZIndex      = _widgets.Count + 1
+        });
+    }
+
+    private void SelectWidget(WidgetModel w)
+    {
+        _selected = (w == _selected ? null : w);
+        LoadChatSettings();
+    }
+
+    private void RemoveSelectedWidget()
+    {
+        if (_selected == null) return;
+        _widgets.Remove(_selected);
+        _selected = null;
+    }
+
+    // ── UI helpers ──────────────────────────────────────────────────────────────
+
+    private void SetCanvasSize(int w, int h)
+    {
+        _canvasWidth  = w;
+        _canvasHeight = h;
+        _jsNeedsReinit = true;
+    }
+
+    private void ShowNewLayoutDialog()
+    {
+        _newLayoutName = "";
+        _showNewLayoutDialog = true;
+    }
+
+    private async Task OnNewLayoutKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")  await CreateLayout();
+        if (e.Key == "Escape") _showNewLayoutDialog = false;
+    }
+
+    private void ShowRenameDialog(int id, string currentName)
+    {
+        _renameLayoutId   = id;
+        _renameLayoutName = currentName;
+        _showRenameDialog = true;
+    }
+
+    private async Task RenameLayout()
+    {
+        var trimmed = _renameLayoutName.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed)) return;
+
+        if (_layouts.Any(l => l.Id != _renameLayoutId && l.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            Snackbar.Add($"A layout named '{trimmed}' already exists.", Severity.Warning);
+            return;
+        }
+
+        _showRenameDialog = false;
+
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdAsync(_renameLayoutId);
+        if (layout == null) return;
+        layout.Name = trimmed;
+        db.OverlayLayouts.Update(layout);
+        await db.SaveChangesAsync();
+        await RefreshLayouts();
+        Snackbar.Add($"Renamed to '{trimmed}'.", Severity.Success);
+    }
+
+    private async Task OnRenameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")  await RenameLayout();
+        if (e.Key == "Escape") _showRenameDialog = false;
+    }
+
+    private async Task OpenPreview()
+    {
+        var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
+        await JS.InvokeVoidAsync("open", $"/overlay.html?layout={Uri.EscapeDataString(name)}", "_blank");
+    }
+
+    private async Task CopyUrl()
+    {
+        var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
+        var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}";
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+        Snackbar.Add("URL copied to clipboard!", Severity.Info);
+    }
+
+    private static string GetWidgetColor(string type) => type switch
+    {
+        "alerts"    => "#1565C0",
+        "clips"     => "#2E7D32",
+        "fireworks" => "#BF360C",
+        "fishing"   => "#00695C",
+        "wheel"     => "#6A1B9A",
+        "chat"      => "#00838F",
+        _           => "#455A64"
+    };
+
+    // ── Chat settings helpers ───────────────────────────────────────────────────
+
+    private ChatSettings? _chatSettings;
+
+    private static readonly JsonSerializerOptions _chatJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private void LoadChatSettings()
+    {
+        if (_selected?.WidgetType == "chat")
+        {
+            try
+            {
+                _chatSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new ChatSettings()
+                    : (JsonSerializer.Deserialize<ChatSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new ChatSettings());
+            }
+            catch
+            {
+                _chatSettings = new ChatSettings();
+            }
+        }
+        else
+        {
+            _chatSettings = null;
+        }
+    }
+
+    private void SaveChatSettings()
+    {
+        if (_selected != null && _chatSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_chatSettings, _chatJsonOptions);
+    }
+
+    // ── Inner types ─────────────────────────────────────────────────────────────
+
+    private record LayoutListItem(int Id, string Name, bool IsDefault);
+
+    private sealed class WidgetModel
+    {
+        public string TempId      { get; } = Guid.NewGuid().ToString("N")[..8];
+        public string WidgetType  { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public bool   IsEnabled   { get; set; } = true;
+        public int    X           { get; set; }
+        public int    Y           { get; set; }
+        public int    Width       { get; set; }
+        public int    Height      { get; set; }
+        public int    ZIndex      { get; set; } = 1;
+        public string? CustomSettings { get; set; }
+    }
+
+    private sealed class ChatSettings
+    {
+        public string Direction  { get; set; } = "vertical";
+        public string Valign     { get; set; } = "bottom";
+        public string MsgColor   { get; set; } = "#ffffff";
+        public string BgColor    { get; set; } = "transparent";
+        public string RowBg      { get; set; } = "transparent";
+        public int    FontSize    { get; set; } = 16;
+        public string FontFamily  { get; set; } = "";
+        public int    MaxMessages { get; set; } = 30;
+        public int    BadgeSize   { get; set; } = 20;
+        public int    Timeout     { get; set; } = 0;
+    }
+}

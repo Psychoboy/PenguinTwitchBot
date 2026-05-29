@@ -1333,6 +1333,50 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return serviceUp;
         }
 
+        /// <inheritdoc />
+        public async Task<Dictionary<string, string>> GetChatBadgesAsync()
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            try
+            {
+                var globalBadges = await _twitchApi.Helix.Chat.GetGlobalChatBadgesAsync(
+                    accessToken: _configuration["twitchAccessToken"]);
+                if (globalBadges?.EmoteSet != null)
+                {
+                    foreach (var set in globalBadges.EmoteSet)
+                    {
+                        foreach (var version in set.Versions ?? [])
+                        {
+                            result[$"{set.SetId}/{version.Id}"] = version.ImageUrl1x;
+                        }
+                    }
+                }
+
+                var broadcasterId = await GetBroadcasterUserId();
+                if (!string.IsNullOrEmpty(broadcasterId))
+                {
+                    var channelBadges = await _twitchApi.Helix.Chat.GetChannelChatBadgesAsync(
+                        broadcasterId, accessToken: _configuration["twitchAccessToken"]);
+                    if (channelBadges?.EmoteSet != null)
+                    {
+                        foreach (var set in channelBadges.EmoteSet)
+                        {
+                            foreach (var version in set.Versions ?? [])
+                            {
+                                // Channel badges override globals for the same key
+                                result[$"{set.SetId}/{version.Id}"] = version.ImageUrl1x;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch chat badges");
+            }
+            return result;
+        }
+
 
     }
 }

@@ -6,7 +6,7 @@
     <style>
         :root {
             --video-width: 1000px;
-            --avatar-width: 200px;
+            --avatar-width: 150px;
             --game-width: 100px;
             --text-color: #fff;
             --background-color: #000;
@@ -27,11 +27,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #333;
         }
 
         .container {
             position: relative;
+            transform-origin: center center;
         }
 
         #avatar {
@@ -64,16 +64,12 @@
 				background: #000;
 				img,
 				video {
-					width: var(--video-width); 
-					aspect-ratio: 848 / 480;
-				}
+				width: var(--video-width); 
+				aspect-ratio: 848 / 480;
 			}
+		}
 
         #alert-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            font-size: 2em;
             color: var(--text-color);
             background-image: linear-gradient(to right, rgba(25,25,25,0.75), transparent);
             text-align: left;

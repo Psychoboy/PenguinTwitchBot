@@ -65,6 +65,10 @@ namespace PenguinTwitchBot.Repository
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
             FishingSnapEvents = new FishingSnapEventRepository(_context);
+
+            // Initialize overlay repositories
+            OverlayLayouts = new OverlayLayoutRepository(_context);
+            OverlayWidgets = new OverlayWidgetRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -122,6 +126,10 @@ namespace PenguinTwitchBot.Repository
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
         public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
+
+        // Overlay repository properties
+        public IOverlayLayoutRepository OverlayLayouts { get; private set; }
+        public IOverlayWidgetRepository OverlayWidgets { get; private set; }
 
         public void Dispose()
         {

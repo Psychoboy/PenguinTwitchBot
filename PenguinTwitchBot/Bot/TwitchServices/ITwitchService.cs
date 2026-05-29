@@ -63,5 +63,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task SendMesssageAsStreamer(string message);
         Task<string> GetUserBio(string userId);
         Task<string> GetUserStreamTitle(string userId);
+        /// <summary>
+        /// Returns a flat dictionary mapping "setId/versionId" to the badge image URL (1x).
+        /// Combines global and channel-specific badges; channel badges override globals.
+        /// </summary>
+        Task<Dictionary<string, string>> GetChatBadgesAsync();
     }
 }

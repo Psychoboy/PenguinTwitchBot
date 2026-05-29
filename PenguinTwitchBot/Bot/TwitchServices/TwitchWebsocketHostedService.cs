@@ -2,6 +2,8 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models.Chat;
+using PenguinTwitchBot.Bot.Services.Chat;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
@@ -25,7 +27,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         ITwitchService twitchService,
         TimeProvider timeProvider,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        ITwitchEventActionHandler twitchEventActionHandler) : ITwitchWebsocketHostedService
+        ITwitchEventActionHandler twitchEventActionHandler,
+        IChatColorService chatColorService) : ITwitchWebsocketHostedService
     {
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
@@ -223,6 +226,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             var messageText = e.Message.Text;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+
+            var fragments = (e.Message.Fragments ?? [])
+                .Select(f => MapFragment(f))
+                .ToList();
+
+            var badges = (e.Badges ?? [])
+                .Select(b => new ChatOverlayBadge { SetId = b.SetId, Id = b.Id })
+                .ToList();
+
             var chatMessage = new ChatMessageEventArgs
             {
                 Message = messageText,
@@ -234,10 +246,47 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 MessageId = e.MessageId,
-                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId)
-
+                FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
+                Fragments = fragments,
+                Badges = badges,
+                ResolvedColor = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color),
             };
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
+        }
+
+        private static ChatOverlayFragment MapFragment(TwitchLib.EventSub.Core.Models.Chat.ChatMessageFragment f)
+        {
+            if (f.Type == "emote" && f.Emote != null)
+            {
+                var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
+                var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/1.0";
+                return new ChatOverlayFragment
+                {
+                    Type = "emote",
+                    Text = f.Text,
+                    EmoteId = f.Emote.Id,
+                    EmoteProvider = "twitch",
+                    EmoteUrl = url,
+                };
+            }
+
+            if (f.Type == "cheermote" && f.Cheermote != null)
+            {
+                return new ChatOverlayFragment
+                {
+                    Type = "cheermote",
+                    Text = f.Text,
+                    EmoteId = f.Cheermote.Prefix,
+                    EmoteProvider = "twitch",
+                    CheerAmount = f.Cheermote.Bits,
+                };
+            }
+
+            return new ChatOverlayFragment
+            {
+                Type = f.Type ?? "text",
+                Text = f.Text,
+            };
         }
 
         private async Task ProcessCommandMessage(ChannelChatMessage e)
@@ -330,9 +379,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (e.Payload.Event.IsPermanent == false)
                 {
                     logger.LogInformation("{UserLogin} timed out by {Moderator}.", e.Payload.Event.UserLogin, e.Payload.Event.ModeratorUserLogin);
+                    await dispatcher.Publish(new BannedChatUser { UserId = e.Payload.Event.UserId });
                     return;
                 }
                 logger.LogInformation("{UserLogin} banned by {Moderator}", e.Payload.Event.UserLogin, e.Payload.Event.ModeratorUserLogin);
+                await dispatcher.Publish(new BannedChatUser { UserId = e.Payload.Event.UserId });
                 
                 await eventService.OnViewerBan(e.Payload.Event.UserId, e.Payload.Event.UserLogin, false, e.Payload.Event.EndsAt);
                 await twitchEventActionHandler.HandleChannelBanAsync(new BanEventArgs

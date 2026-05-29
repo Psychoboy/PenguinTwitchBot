@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Chat Overlay</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: transparent;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* ── status indicator (same pattern as alerts.html) ──────── */
+        #ws-status {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #fff;
+            background: #c0392b;
+            opacity: 1;
+            transition: opacity 0.6s ease;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        #ws-status.connected { background: #27ae60; }
+        #ws-status.hidden    { opacity: 0; }
+
+        /* ── chat container ──────────────────────────────────────── */
+        #chat-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            overflow: hidden;
+            background-color: var(--chat-bg, transparent);
+        }
+
+        /* vertical (stack) mode */
+        #chat-container.vertical {
+            flex-direction: column;
+        }
+        #chat-container.vertical.valign-bottom {
+            justify-content: flex-end;
+        }
+        #chat-container.vertical.valign-top {
+            justify-content: flex-start;
+        }
+
+        /* horizontal (push-left) mode */
+        #chat-container.horizontal {
+            align-items: flex-end;
+        }
+
+        /* Message list anchors to bottom-right; new messages append at the right
+           and push existing messages leftward as they expand.
+           #chat-container's overflow:hidden clips anything past the left edge. */
+        #hchat-list {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            display: flex;
+            align-items: flex-end;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #hchat-list li {
+            list-style: none;
+            max-width: 0;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: max-width 0.8s ease-in-out;
+        }
+
+        /* Off-screen container used to measure a message's natural width */
+        #hchat-measure {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+            pointer-events: none;
+            white-space: nowrap;
+            display: inline-flex;
+        }
+
+        /* ── individual message rows ─────────────────────────────── */
+        .chat-message {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 3px 6px;
+            word-break: break-word;
+            animation: fadeIn 0.15s ease;
+            background-color: var(--row-bg, transparent);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* horizontal mode: single-line message card */
+        .horizontal .chat-message {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            white-space: nowrap;
+            word-break: normal;
+            padding: 2px 12px;
+            animation: none;
+        }
+
+        .chat-message .badges {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .chat-message .badges img {
+            display: block;
+        }
+
+        .chat-message .username {
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .chat-message .separator {
+            flex-shrink: 0;
+        }
+
+        .chat-message .fragments {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .horizontal .chat-message .fragments {
+            flex-wrap: nowrap;
+        }
+
+        .chat-message .fragment-emote {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div id="ws-status">Disconnected</div>
+    <div id="chat-container"></div>
+
+    <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="js/ws-status.js"></script>
+    <script>
+        // Load chat.js with a cache-busting timestamp so stale versions are never served
+        const s = document.createElement('script');
+        s.src = 'js/chat.js?v=' + Date.now();
+        document.head.appendChild(s);
+    </script>
+</body>
+</html>

@@ -64,5 +64,9 @@ namespace PenguinTwitchBot.Repository
         IUserFishingBoostRepository UserFishingBoosts { get; }
         IFishingSettingsRepository FishingSettings { get; }
         IFishingSnapEventRepository FishingSnapEvents { get; }
+
+        // Overlay repositories
+        IOverlayLayoutRepository OverlayLayouts { get; }
+        IOverlayWidgetRepository OverlayWidgets { get; }
     }
 }

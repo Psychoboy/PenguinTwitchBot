@@ -1402,6 +1402,80 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("obs_connections");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CanvasHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CanvasWidth")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("overlay_layouts");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CustomSettings")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("OverlayLayoutId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("WidgetType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("X")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Y")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ZIndex")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OverlayLayoutId");
+
+                    b.ToTable("overlay_widgets");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.Property<int>("Id")
@@ -2936,6 +3010,17 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Navigation("ShopItem");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayWidget", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", "Layout")
+                        .WithMany("Widgets")
+                        .HasForeignKey("OverlayLayoutId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Layout");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointCommand", b =>
                 {
                     b.HasOne("PenguinTwitchBot.Bot.Models.Points.PointType", "PointType")
@@ -2990,6 +3075,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.MusicPlaylist", b =>
                 {
                     b.Navigation("Songs");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Overlay.OverlayLayout", b =>
+                {
+                    b.Navigation("Widgets");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Bot.Models.Points.PointType", b =>
