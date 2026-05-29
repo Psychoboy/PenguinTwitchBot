@@ -3,12 +3,14 @@
 @using PenguinTwitchBot.Bot.Models.Overlay
 @using PenguinTwitchBot.Repository
 @using System.Text.Json
+@using System.Globalization
 @using Microsoft.Extensions.DependencyInjection
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IServiceScopeFactory ScopeFactory
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -228,11 +230,27 @@
                                  Value="_chatSettings.FontSize"
                                  ValueChanged="@(v => { _chatSettings.FontSize = v; SaveChatSettings(); })" />
 
-                <MudTextField Label="Font family"
-                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
-                              HelperText="Leave blank for default system font"
-                              Value="_chatSettings.FontFamily"
-                              ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })" />
+                <MudAutocomplete T="string"
+                                 Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="Pick a common web font or type a custom family"
+                                 Value="_chatSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })"
+                                 SearchFunc="SearchFontFamilies"
+                                 CoerceText="false"
+                                 CoerceValue="false"
+                                 ResetValueOnEmptyText="true"
+                                 MinCharacters="0"
+                                 MaxItems="12"
+                                 Dense="true"
+                                 Clearable="true" />
+
+                <MudNumericField T="int" Label="Font weight"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="900" Step="100"
+                                 HelperText="100-900, e.g. 400 = normal, 700 = bold"
+                                 Value="_chatSettings.FontWeight"
+                                 ValueChanged="@(v => { _chatSettings.FontWeight = v; SaveChatSettings(); })" />
 
                 <MudNumericField T="int" Label="Max messages"
                                  Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -252,6 +270,17 @@
                                  Min="0"
                                  Value="_chatSettings.Timeout"
                                  ValueChanged="@(v => { _chatSettings.Timeout = v; SaveChatSettings(); })" />
+
+                <MudCheckBox T="bool" Label="Hide commands (messages starting with !)"
+                             Class="mb-2"
+                             Value="_chatSettings.HideCommands"
+                             ValueChanged="@(v => { _chatSettings.HideCommands = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Ignored users"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Comma-separated login names to hide"
+                              Value="_chatSettings.IgnoredUsers"
+                              ValueChanged="@((string v) => { _chatSettings.IgnoredUsers = v; SaveChatSettings(); })" />
 
             }
 
@@ -509,6 +538,12 @@
             }
 
             await db.SaveChangesAsync();
+
+            // Notify any overlay.html page showing this layout to reload
+            var layoutName = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId.Value)?.Name ?? "";
+            var reloadJson = System.Text.Json.JsonSerializer.Serialize(new { type = "overlay_reload", layout = layoutName });
+            await WebSocketMessenger.AddToQueue(reloadJson);
+
             Snackbar.Add("Layout saved!", Severity.Success);
         }
         catch (Exception ex)
@@ -733,12 +768,49 @@
 
     private ChatSettings? _chatSettings;
 
+    private static readonly string[] _fontFamilyOptions =
+    [
+        "Arial",
+        "Verdana",
+        "Tahoma",
+        "Trebuchet MS",
+        "Segoe UI",
+        "Georgia",
+        "Times New Roman",
+        "Courier New",
+        "Roboto",
+        "Open Sans",
+        "Lato",
+        "Montserrat",
+        "Poppins",
+        "Nunito",
+        "Merriweather",
+        "Oswald",
+        "Bebas Neue",
+        "Raleway",
+        "Playfair Display",
+        "Inter"
+    ];
+
     private static readonly JsonSerializerOptions _chatJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
+
+    private Task<IEnumerable<string>> SearchFontFamilies(string? value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(_fontFamilyOptions.AsEnumerable());
+
+        var matches = _fontFamilyOptions.Where(f =>
+            CultureInfo.InvariantCulture.CompareInfo.IndexOf(f, value, CompareOptions.IgnoreCase) >= 0);
+
+        return Task.FromResult(matches);
+    }
 
     private void LoadChatSettings()
     {
@@ -792,10 +864,13 @@
         public string MsgColor   { get; set; } = "#ffffff";
         public string BgColor    { get; set; } = "transparent";
         public string RowBg      { get; set; } = "transparent";
-        public int    FontSize    { get; set; } = 16;
-        public string FontFamily  { get; set; } = "";
-        public int    MaxMessages { get; set; } = 30;
-        public int    BadgeSize   { get; set; } = 20;
-        public int    Timeout     { get; set; } = 0;
+        public int    FontSize      { get; set; } = 16;
+        public string FontFamily    { get; set; } = "";
+        public int    FontWeight    { get; set; } = 700;
+        public int    MaxMessages   { get; set; } = 30;
+        public int    BadgeSize     { get; set; } = 20;
+        public int    Timeout       { get; set; } = 0;
+        public bool   HideCommands  { get; set; } = false;
+        public string IgnoredUsers  { get; set; } = "";
     }
 }

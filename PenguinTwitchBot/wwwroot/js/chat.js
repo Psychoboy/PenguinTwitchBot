@@ -10,8 +10,11 @@
  *   msgColor    hex color, default #ffffff
  *   bgColor     CSS color for container background, default transparent
  *   rowBg       CSS color for each message row background, default transparent
- *   badgeSize   px integer, default 20
- *   timeout     seconds, 0 = no timeout, default 0
+ *   badgeSize      px integer, default 20
+ *   timeout        seconds, 0 = no timeout, default 0
+ *   fontWeight     CSS font-weight value, default 700
+ *   hideCommands   true|false — hide messages starting with !, default false
+ *   ignoredUsers   comma-separated login names to suppress, default empty
  */
 
 (function () {
@@ -42,7 +45,12 @@
     const rowBg       = qp.get('rowBg')        || 'transparent';
     const badgeSize   = parseInt(qp.get('badgeSize')   || '20', 10);
     const timeoutSecs = parseInt(qp.get('timeout')     || '0',  10);
-    const tickerSpeed = parseInt(qp.get('tickerSpeed') || '80', 10); // px/sec
+    const tickerSpeed   = parseInt(qp.get('tickerSpeed')  || '80',   10); // px/sec
+    const fontWeight    = parseInt(qp.get('fontWeight')   || '400',  10) || 400;
+    const hideCommands  = qp.get('hideCommands') === 'true';
+    const ignoredUsers  = new Set(
+        (qp.get('ignoredUsers') || '').split(',').map(u => u.trim().toLowerCase()).filter(Boolean)
+    );
 
     // ── Shared state ──────────────────────────────────────────────────────────
     /** @type {Map<string, string>} "setId/versionId" → imageUrl */
@@ -51,6 +59,32 @@
 
     /** @type {Map<string, string>} emoteName → imageUrl (BTTV, FFZ, 7TV) */
     let emoteCache = new Map();
+
+    function normalizeFontFamilyForGoogle(fontFamilyValue) {
+        if (!fontFamilyValue) return '';
+        // If user typed a full stack, use only the first family name for fetch.
+        return fontFamilyValue
+            .split(',')[0]
+            .trim()
+            .replace(/^['\"]|['\"]$/g, '');
+    }
+
+    function loadGoogleFont(fontFamilyValue) {
+        const family = normalizeFontFamilyForGoogle(fontFamilyValue);
+        if (!family) return;
+
+        // Avoid duplicate link tags when the same widget reloads.
+        const existing = document.querySelector(`link[data-chat-font="${family}"]`);
+        if (existing) return;
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@100;200;300;400;500;600;700;800;900&display=swap`;
+        link.setAttribute('data-chat-font', family);
+        document.head.appendChild(link);
+    }
+
+    if (fontFamily) loadGoogleFont(fontFamily);
 
     // ── Apply global CSS vars / body styles ───────────────────────────────────
     document.documentElement.style.setProperty('--msg-color', msgColor);
@@ -61,8 +95,9 @@
     if (fontFamily) {
         document.documentElement.style.setProperty('--font-family', fontFamily);
     }
-    document.body.style.fontSize = fontSize + 'px';
-    document.body.style.color = msgColor;
+    document.body.style.fontSize   = fontSize + 'px';
+    document.body.style.fontWeight  = String(fontWeight);
+    document.body.style.color       = msgColor;
     if (fontFamily) document.body.style.fontFamily = fontFamily;
 
     // ── Container setup ───────────────────────────────────────────────────────
@@ -380,6 +415,13 @@
             const msg = JSON.parse(raw);
 
             if (msg.type === 'chat_message') {
+                // Filter: ignored users
+                if (ignoredUsers.size > 0 && ignoredUsers.has((msg.login || '').toLowerCase())) return;
+                // Filter: hide commands (messages whose first text fragment starts with !)
+                if (hideCommands) {
+                    const firstText = (msg.fragments || []).find(f => f.type === 'text');
+                    if (firstText && firstText.text.trimStart().startsWith('!')) return;
+                }
                 if (direction === 'horizontal') {
                     addMessageHorizontal(msg);
                 } else {

@@ -33,6 +33,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
                 Type = "chat_message",
                 Id = e.MessageId,
                 UserId = e.UserId,
+                Login = e.Name,
                 DisplayName = e.DisplayName,
                 Color = color,
                 Badges = e.Badges.Select(b => new ChatOverlayBadgeDto
@@ -63,6 +64,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
             public string Type { get; set; } = "";
             public string Id { get; set; } = "";
             public string UserId { get; set; } = "";
+            public string Login { get; set; } = "";
             public string DisplayName { get; set; } = "";
             public string Color { get; set; } = "";
             public List<ChatOverlayBadgeDto> Badges { get; set; } = [];
