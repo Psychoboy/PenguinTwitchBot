@@ -81,6 +81,11 @@
     padding: 60px;  /* extra room so off-screen tiles are still visible/draggable */
 }
 
+.canvas-scroll-wrapper--panning,
+.canvas-scroll-wrapper--panning * {
+    cursor: grabbing !important;
+}
+
 .canvas-hint {
     padding: 4px 12px;
     font-size: 0.75rem;
@@ -137,6 +142,13 @@
     filter: grayscale(50%);
 }
 
+.widget-tile--chat-preview {
+    display: block;
+    align-items: initial;
+    justify-content: initial;
+    overflow: hidden;
+}
+
 .widget-label {
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.75rem;
@@ -149,6 +161,76 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     max-width: 100%;
+}
+
+.widget-label--corner {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    font-size: 0.62rem;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 3px;
+}
+
+.chat-preview {
+    position: absolute;
+    inset: 0;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    line-height: 1.2;
+    overflow: hidden;
+}
+
+.chat-preview--vertical {
+    flex-direction: column;
+}
+
+.chat-preview--horizontal {
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.chat-preview--valign-top {
+    justify-content: flex-start;
+}
+
+.chat-preview--valign-bottom {
+    justify-content: flex-end;
+}
+
+.chat-preview-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-height: 1.45em;
+    border-radius: 3px;
+    padding: 1px 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.chat-preview-badge {
+    flex-shrink: 0;
+    border-radius: 2px;
+    background: linear-gradient(135deg, #a1e3ff, #5ea9ff);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.chat-preview-user {
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.chat-preview-sep {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.chat-preview-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ── Preset size buttons ────────────────────────────────────────────────── */
