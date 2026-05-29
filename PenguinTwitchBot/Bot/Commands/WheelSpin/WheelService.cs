@@ -29,6 +29,8 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         private Wheel? nameWheel = null;
         private bool nameWheelActive = false;
         private bool nameWheelShown = false;
+        private readonly object spinResultLock = new();
+        private bool awaitingSpinResult = false;
 
         public async Task OpenNameWheel()
         {
@@ -88,24 +90,51 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         {
             var hideWheel = new HideWheel();
             var json = JsonSerializer.Serialize(hideWheel, jsonOptions);
+            lock (spinResultLock)
+            {
+                awaitingSpinResult = false;
+            }
             _ = QueueWheelMessageAsync(json, "hide wheel");
             nameWheel = null;
         }
 
         public void SpinWheel()
         {
-            List<WheelSpinIndex> spots = [];
-            for(var index = 0; index < CurrentWheel?.Properties.Count; index++)
+            int winningIndex;
+            lock (spinResultLock)
             {
-                var prop = CurrentWheel.Properties[index];
-                var totalWeight = prop.Weight * 100;
-                for (var i = 0; i < totalWeight; i++)
+                var props = CurrentWheel?.Properties;
+                if (props == null || props.Count == 0)
                 {
-                    spots.Add(new WheelSpinIndex { Index = index });
+                    logger.LogWarning("Cannot spin wheel: no properties configured.");
+                    awaitingSpinResult = false;
+                    return;
                 }
+
+                List<WheelSpinIndex> spots = [];
+                for (var index = 0; index < props.Count; index++)
+                {
+                    var prop = props[index];
+                    var totalWeight = prop.Weight * 100;
+                    for (var i = 0; i < totalWeight; i++)
+                    {
+                        spots.Add(new WheelSpinIndex { Index = index });
+                    }
+                }
+
+                if (spots.Count == 0)
+                {
+                    logger.LogWarning("Cannot spin wheel: all entries have zero weight.");
+                    awaitingSpinResult = false;
+                    return;
+                }
+
+                winningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
+                WinningIndex = winningIndex;
+                awaitingSpinResult = true;
             }
-            WinningIndex = spots[RandomNumberGenerator.GetInt32(0, spots.Count)].Index;
-            var spinWheel = new SpinWheel(WinningIndex);
+
+            var spinWheel = new SpinWheel(winningIndex);
             var json = JsonSerializer.Serialize(spinWheel, jsonOptions);
             _ = QueueWheelMessageAsync(json, "spin wheel");
         }
@@ -175,7 +204,18 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         }
         public async Task ValidateAndProcessWinner(int index)
         {
-            if (WinningIndex == index)
+            var shouldProcess = false;
+            lock (spinResultLock)
+            {
+                // Idempotency: only the first valid stop event for a spin cycle is processed.
+                if (awaitingSpinResult && WinningIndex == index)
+                {
+                    awaitingSpinResult = false;
+                    shouldProcess = true;
+                }
+            }
+
+            if (shouldProcess)
             {
                 var winningLabel = CurrentWheel?.Properties[index].Label;
                 if (!string.IsNullOrWhiteSpace(winningLabel))
