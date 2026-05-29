@@ -1,0 +1,53 @@
+@using PenguinTwitchBot.Bot.Models
+@using PenguinTwitchBot.Pages.ViewerViews.Components
+
+@if (Widget.Type == HomepageWidgetCatalog.Giveaway)
+{
+    <MudStack Spacing="3">
+        <BonusTickets />
+        <GiveawayPreview />
+    </MudStack>
+}
+else if (Widget.Type == HomepageWidgetCatalog.StreamerTools)
+{
+    @if (IsStreamer)
+    {
+        <MudPaper Class="pa-4" Elevation="3">
+            <QuickTools />
+            <MudDivider />
+            <SendMessage />
+        </MudPaper>
+    }
+}
+else if (Widget.Type == HomepageWidgetCatalog.StreamSchedule)
+{
+    <StreamSchedule />
+}
+else if (Widget.Type == HomepageWidgetCatalog.SongRequests)
+{
+    <SongRequests IsPreview="true"
+                  LimitNumberOfSongs="@(Widget.SongLimit ?? 5)"
+                  Title="@(string.IsNullOrWhiteSpace(Widget.Title) ? "Next 5 Song Requests" : Widget.Title)" />
+}
+else if (Widget.Type == HomepageWidgetCatalog.TopRequestedSongs)
+{
+    <TopRequestedSongs IsPreview="true"
+                       Months="@(Widget.Months ?? 3)"
+                       Title="@(string.IsNullOrWhiteSpace(Widget.Title) ? "Top 5 Requested Songs" : Widget.Title)" />
+}
+else
+{
+    <MudPaper Class="pa-4" Elevation="3">
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Text">
+            Unknown widget type: @Widget.Type
+        </MudAlert>
+    </MudPaper>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public HomepageWidgetConfig Widget { get; set; } = new();
+
+    [Parameter]
+    public bool IsStreamer { get; set; }
+}

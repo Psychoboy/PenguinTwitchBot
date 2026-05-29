@@ -1,0 +1,258 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using PenguinTwitchBot.Bot.Models
+@using PenguinTwitchBot.Bot.Models.Points
+
+@inject PenguinTwitchBot.Services.LeaderboardsLayoutService LeaderboardsLayoutService
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@if (!isLoaded)
+{
+    <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+        <MudSkeleton Height="260px" />
+    </MudContainer>
+}
+else
+{
+    <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h4" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Class="mr-2" />
+                    Leaderboards
+                </MudText>
+
+                @if (isStreamer && !isEditing)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="EnterEditMode">Edit Leaderboards</MudButton>
+                }
+            </MudStack>
+
+            @if (isStreamer && isEditing)
+            {
+                <MudPaper Class="pa-4" Elevation="3">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.h5">Edit Leaderboards</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Add, remove, and reorder leaderboard cards. Point leaderboards can target any point type.</MudText>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Disabled="@isSaving" OnClick="DiscardChanges">Discard</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Disabled="@isSaving" OnClick="ResetLayoutAsync">Reset to Default</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSaving" OnClick="SaveLayoutAsync">Save Layout</MudButton>
+                                <MudButton Variant="Variant.Text" Disabled="@isSaving" OnClick="ExitEditMode">Done</MudButton>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+                            The public leaderboard cards below do not change until you save.
+                        </MudAlert>
+
+                        <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2" Class="flex-wrap">
+                            <MudSelect T="string" Label="Add widget" @bind-Value="selectedWidgetType" Dense="true" Style="min-width: 260px;">
+                                @foreach (var definition in LeaderboardsWidgetCatalog.Definitions)
+                                {
+                                    <MudSelectItem T="string" Value="@definition.Type">@definition.DisplayName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@isSaving" OnClick="AddWidget">Add Widget</MudButton>
+                            <MudSpacer />
+                            <MudButton Variant="Variant.Text" Disabled="@isSaving" OnClick="ReloadWorkingLayout">Reload Saved Layout</MudButton>
+                        </MudStack>
+
+                        @if (editableWidgets.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Text">
+                                This layout is empty. Add a widget to restore the leaderboards page.
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            @for (var index = 0; index < editableWidgets.Count; index++)
+                            {
+                                var widgetIndex = index;
+                                var widget = editableWidgets[widgetIndex];
+                                LeaderboardsWidgetCatalog.TryGetDefinition(widget.Type, out var definition);
+
+                                <MudPaper Class="pa-4" Elevation="1" @key="widget.Id">
+                                    <MudStack Spacing="2">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.subtitle1">@definition.DisplayName</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@definition.Description</MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(widgetIndex == 0 || isSaving)" OnClick="@(() => MoveWidget(widgetIndex, -1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Disabled="@(widgetIndex == editableWidgets.Count - 1 || isSaving)" OnClick="@(() => MoveWidget(widgetIndex, 1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="@isSaving" OnClick="@(() => RemoveWidget(widgetIndex))" />
+                                            </MudStack>
+                                        </MudStack>
+
+                                        @if (definition.SupportsTitle)
+                                        {
+                                            <MudTextField T="string" Label="Title" Immediate="true" @bind-Value="widget.Title" />
+                                        }
+
+                                        @if (definition.SupportsPointType)
+                                        {
+                                            <MudSelect T="int?" Label="Point Type" @bind-Value="widget.PointTypeId">
+                                                <MudSelectItem T="int?" Value="@((int?)null)">Select a point type</MudSelectItem>
+                                                @foreach (var pointType in PointTypes)
+                                                {
+                                                    <MudSelectItem T="int?" Value="@(pointType.GetId())">@pointType.Name</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        }
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            <MudGrid Spacing="3">
+                @foreach (var widget in layout.Widgets)
+                {
+                    <MudItem xs="12" sm="6" @key="widget.Id">
+                        <LeaderboardCard Widget="widget" PointTypes="PointTypes" />
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudStack>
+    </MudContainer>
+}
+
+@code {
+    private readonly List<LeaderboardWidgetConfig> editableWidgets = [];
+    private LeaderboardsLayoutConfig layout = new();
+    private bool isLoaded;
+    private bool isSaving;
+    private bool isStreamer;
+    private bool isEditing;
+    private string selectedWidgetType = LeaderboardsWidgetCatalog.PointLeaderboard;
+    private IReadOnlyList<PointType> PointTypes { get; set; } = [];
+    private int? defaultTicketsPointTypeId;
+    private int? defaultPastiesPointTypeId = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isStreamer = authState.User.IsInRole("Streamer");
+
+        PointTypes = (await PointsSystem.GetPointTypes()).ToList();
+        defaultTicketsPointTypeId = (await PointsSystem.GetPointTypeForGame("giveawayfeature")).GetId();
+
+        await ReloadSavedLayoutAsync();
+        isLoaded = true;
+    }
+
+    private async Task ReloadSavedLayoutAsync()
+    {
+        var savedLayout = await LeaderboardsLayoutService.GetLayoutAsync();
+        layout = savedLayout ?? LeaderboardsWidgetCatalog.CreateDefaultLayout(defaultTicketsPointTypeId, defaultPastiesPointTypeId);
+        layout = LeaderboardsWidgetCatalog.Normalize(layout);
+        editableWidgets.Clear();
+        editableWidgets.AddRange(layout.Widgets.Select(LeaderboardsWidgetCatalog.Normalize));
+    }
+
+    private void ReloadWorkingLayout()
+    {
+        editableWidgets.Clear();
+        editableWidgets.AddRange(layout.Widgets.Select(LeaderboardsWidgetCatalog.Normalize));
+    }
+
+    private void EnterEditMode()
+    {
+        isEditing = true;
+        ReloadWorkingLayout();
+    }
+
+    private async Task SaveLayoutAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            layout.Widgets = editableWidgets.Select(LeaderboardsWidgetCatalog.Normalize).ToList();
+            await LeaderboardsLayoutService.SaveLayoutAsync(layout);
+            await ReloadSavedLayoutAsync();
+            Snackbar.Add("Leaderboards layout saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save leaderboards layout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ResetLayoutAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await LeaderboardsLayoutService.ResetLayoutAsync();
+            layout = LeaderboardsWidgetCatalog.CreateDefaultLayout(defaultTicketsPointTypeId, defaultPastiesPointTypeId);
+            layout = LeaderboardsWidgetCatalog.Normalize(layout);
+            ReloadWorkingLayout();
+            Snackbar.Add("Leaderboards layout reset to the default.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to reset leaderboards layout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void DiscardChanges()
+    {
+        ReloadWorkingLayout();
+    }
+
+    private void ExitEditMode()
+    {
+        isEditing = false;
+        ReloadWorkingLayout();
+    }
+
+    private void AddWidget()
+    {
+        editableWidgets.Add(LeaderboardsWidgetCatalog.Normalize(LeaderboardsWidgetCatalog.CreateDefaultWidget(
+            selectedWidgetType,
+            defaultTicketsPointTypeId,
+            selectedWidgetType == LeaderboardsWidgetCatalog.PointLeaderboard ? "" : null)));
+    }
+
+    private void RemoveWidget(int index)
+    {
+        editableWidgets.RemoveAt(index);
+    }
+
+    private void MoveWidget(int index, int offset)
+    {
+        var targetIndex = index + offset;
+        if (targetIndex < 0 || targetIndex >= editableWidgets.Count)
+        {
+            return;
+        }
+
+        (editableWidgets[index], editableWidgets[targetIndex]) = (editableWidgets[targetIndex], editableWidgets[index]);
+    }
+}

@@ -95,6 +95,9 @@
     [Parameter]
     public string Title { get; set; } = "Top Requested Songs";
 
+    [Parameter]
+    public int Months { get; set; } = 3;
+
     private bool dataLoaded = false;
 
 
@@ -127,5 +130,10 @@
         if (firstRender == false) return;
         dataLoaded = true;
         await InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnParametersSet()
+    {
+        numberOfMonths = Months;
     }
 }

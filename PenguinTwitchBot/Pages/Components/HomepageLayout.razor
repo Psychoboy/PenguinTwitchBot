@@ -1,0 +1,233 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using PenguinTwitchBot.Bot.Models
+
+@inject PenguinTwitchBot.Services.HomepageLayoutService HomepageLayoutService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@if (!isLoaded)
+{
+    <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+        <MudSkeleton Height="260px" />
+    </MudContainer>
+}
+else
+{
+    <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+        @if (isStreamer)
+        {
+            @if (isEditing)
+            {
+                <MudPaper Class="pa-4 mb-4" Elevation="3">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.h5">Homepage Layout</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Configure which widgets appear on the public homepage.</MudText>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Disabled="@isSaving" OnClick="ExitEditMode">Done</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Disabled="@isSaving" OnClick="ResetLayoutAsync">Reset to Default</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSaving" OnClick="SaveLayoutAsync">Save Layout</MudButton>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+                            Widgets are saved in order. Use the arrows to reorder them, or add and remove tiles as needed.
+                        </MudAlert>
+
+                        <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2" Class="flex-wrap">
+                            <MudSelect T="string" Label="Add widget" @bind-Value="selectedWidgetType" Dense="true" Style="min-width: 260px;">
+                                @foreach (var definition in HomepageWidgetCatalog.Definitions)
+                                {
+                                    <MudSelectItem T="string" Value="@definition.Type">@definition.DisplayName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@isSaving" OnClick="AddWidget">Add Widget</MudButton>
+                            <MudSpacer />
+                            <MudButton Variant="Variant.Text" Disabled="@isSaving" OnClick="ReloadLayoutAsync">Discard Changes</MudButton>
+                        </MudStack>
+
+                        @if (editableWidgets.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Text">
+                                This layout is empty. Add a widget to restore the homepage.
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            @for (var index = 0; index < editableWidgets.Count; index++)
+                            {
+                                var widgetIndex = index;
+                                var widget = editableWidgets[widgetIndex];
+                                HomepageWidgetCatalog.TryGetDefinition(widget.Type, out var definition);
+
+                                <MudPaper Class="pa-4" Elevation="1" @key="widget.Id">
+                                    <MudStack Spacing="2">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.subtitle1">@definition.DisplayName</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@definition.Description</MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Disabled="@(widgetIndex == 0 || isSaving)" OnClick="@(() => MoveWidget(widgetIndex, -1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Disabled="@(widgetIndex == editableWidgets.Count - 1 || isSaving)" OnClick="@(() => MoveWidget(widgetIndex, 1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="@isSaving" OnClick="@(() => RemoveWidget(widgetIndex))" />
+                                            </MudStack>
+                                        </MudStack>
+
+                                        @if (definition.SupportsTitle)
+                                        {
+                                            <MudTextField T="string" Label="Title" Immediate="true" @bind-Value="widget.Title" />
+                                        }
+
+                                        @if (definition.SupportsSongLimit)
+                                        {
+                                            <MudNumericField T="int?" Label="Songs to Show" Min="1" @bind-Value="widget.SongLimit" />
+                                        }
+
+                                        @if (definition.SupportsMonths)
+                                        {
+                                            <MudNumericField T="int?" Label="Months to Include" Min="0" @bind-Value="widget.Months" />
+                                        }
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-4">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="EnterEditMode">Edit Homepage Layout</MudButton>
+                </MudStack>
+            }
+        }
+
+        <MudGrid Spacing="3">
+            @foreach (var widget in layout.Widgets)
+            {
+                if (!ShouldRenderWidget(widget))
+                {
+                    continue;
+                }
+
+                <MudItem xs="12" sm="6" @key="widget.Id">
+                    <HomepageWidgetTile Widget="widget" IsStreamer="isStreamer" />
+                </MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
+}
+
+@code {
+    private readonly List<HomepageWidgetConfig> editableWidgets = [];
+    private HomepageLayoutConfig layout = new();
+    private bool isLoaded;
+    private bool isSaving;
+    private bool isStreamer;
+    private bool isEditing;
+    private string selectedWidgetType = HomepageWidgetCatalog.SongRequests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isStreamer = authState.User.IsInRole("Streamer");
+
+        await ReloadLayoutAsync();
+        isLoaded = true;
+    }
+
+    private async Task ReloadLayoutAsync()
+    {
+        layout = HomepageWidgetCatalog.Normalize(await HomepageLayoutService.GetLayoutAsync());
+        editableWidgets.Clear();
+        editableWidgets.AddRange(layout.Widgets.Select(HomepageWidgetCatalog.Normalize));
+    }
+
+    private async Task SaveLayoutAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            layout.Widgets = editableWidgets.Select(HomepageWidgetCatalog.Normalize).ToList();
+            await HomepageLayoutService.SaveLayoutAsync(layout);
+            await ReloadLayoutAsync();
+            Snackbar.Add("Homepage layout saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save homepage layout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ResetLayoutAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await HomepageLayoutService.ResetLayoutAsync();
+            await ReloadLayoutAsync();
+            Snackbar.Add("Homepage layout reset to the default.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to reset homepage layout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void AddWidget()
+    {
+        editableWidgets.Add(HomepageWidgetCatalog.Normalize(HomepageWidgetCatalog.CreateDefaultWidget(selectedWidgetType)));
+    }
+
+    private void EnterEditMode()
+    {
+        isEditing = true;
+    }
+
+    private void ExitEditMode()
+    {
+        isEditing = false;
+    }
+
+    private void RemoveWidget(int index)
+    {
+        editableWidgets.RemoveAt(index);
+    }
+
+    private void MoveWidget(int index, int offset)
+    {
+        var targetIndex = index + offset;
+        if (targetIndex < 0 || targetIndex >= editableWidgets.Count)
+        {
+            return;
+        }
+
+        (editableWidgets[index], editableWidgets[targetIndex]) = (editableWidgets[targetIndex], editableWidgets[index]);
+    }
+
+    private bool ShouldRenderWidget(HomepageWidgetConfig widget)
+    {
+        return isStreamer || !string.Equals(widget.Type, HomepageWidgetCatalog.StreamerTools, StringComparison.OrdinalIgnoreCase);
+    }
+}
