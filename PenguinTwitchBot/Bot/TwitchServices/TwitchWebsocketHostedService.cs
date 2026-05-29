@@ -258,7 +258,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             if (f.Type == "emote" && f.Emote != null)
             {
-                var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "default";
+                var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
                 var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/1.0";
                 return new ChatOverlayFragment
                 {

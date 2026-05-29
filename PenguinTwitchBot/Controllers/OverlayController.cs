@@ -8,7 +8,7 @@ namespace PenguinTwitchBot.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [AllowAnonymous]
+    [Authorize(Roles = "Streamer, Editor")]
     public class OverlayController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -24,6 +24,7 @@ namespace PenguinTwitchBot.Controllers
         /// Returns the overlay layout config for the compositor page.
         /// Called by overlay.html on load.
         /// </summary>
+        [AllowAnonymous]
         [HttpGet("config")]
         public async Task<IActionResult> GetConfig([FromQuery] string? layout = null)
         {

@@ -1358,6 +1358,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("overlay_layouts");
                 });
 

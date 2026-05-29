@@ -3,8 +3,9 @@
 @using PenguinTwitchBot.Bot.Models.Overlay
 @using PenguinTwitchBot.Repository
 @using System.Text.Json
+@using Microsoft.Extensions.DependencyInjection
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@inject IUnitOfWork UnitOfWork
+@inject IServiceScopeFactory ScopeFactory
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -49,6 +50,10 @@
                                            Color="Color.Warning" OnClick="() => SetDefault(layoutItem.Id)" />
                         </MudTooltip>
                     }
+                    <MudTooltip Text="Rename layout">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       Color="Color.Default" OnClick="() => ShowRenameDialog(layoutItem.Id, layoutItem.Name)" />
+                    </MudTooltip>
                     <MudTooltip Text="Duplicate layout">
                         <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
                                        Color="Color.Info" OnClick="() => DuplicateLayout(layoutItem.Id)" />
@@ -319,6 +324,31 @@
     </div>
 }
 
+<!-- ===================== Rename Layout dialog ===================== -->
+@if (_showRenameDialog)
+{
+    <div class="dialog-backdrop" @onclick="() => _showRenameDialog = false">
+        <MudPaper Class="dialog-box" @onclick:stopPropagation="true" Elevation="8">
+            <MudText Typo="Typo.h6" Class="mb-4">Rename Layout</MudText>
+            <MudTextField @bind-Value="_renameLayoutName"
+                          Label="New name"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          @onkeydown="OnRenameKeyDown"
+                          AutoFocus="true" />
+            <div class="dialog-actions mt-4">
+                <MudButton OnClick="() => _showRenameDialog = false">Cancel</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                           OnClick="RenameLayout"
+                           Disabled="@string.IsNullOrWhiteSpace(_renameLayoutName)">
+                    Rename
+                </MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
 @code {
     private const double MaxDisplayWidth  = 960;
     private const double MaxDisplayHeight = 540;
@@ -339,6 +369,9 @@
     private bool _jsNeedsReinit;
     private bool _showNewLayoutDialog;
     private string _newLayoutName = "";
+    private bool _showRenameDialog;
+    private int _renameLayoutId;
+    private string _renameLayoutName = "";
     private DotNetObjectReference<OverlayEditor>? _dotNetRef;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -400,13 +433,17 @@
 
     private async Task RefreshLayouts()
     {
-        var all = await UnitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var all = await db.OverlayLayouts.GetAllWithWidgetsAsync();
         _layouts = all.Select(l => new LayoutListItem(l.Id, l.Name, l.IsDefault)).ToList();
     }
 
     private async Task LoadLayout(int id)
     {
-        var layout = await UnitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
         if (layout == null) return;
 
         _currentLayoutId = id;
@@ -438,25 +475,26 @@
         _saving = true;
         try
         {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
             // Save canvas dimensions on the layout entity
-            var layoutEntity = await UnitOfWork.OverlayLayouts.GetByIdAsync(_currentLayoutId.Value);
+            var layoutEntity = await db.OverlayLayouts.GetByIdAsync(_currentLayoutId.Value);
             if (layoutEntity != null)
             {
                 layoutEntity.CanvasWidth  = _canvasWidth;
                 layoutEntity.CanvasHeight = _canvasHeight;
-                // No Update() call needed — FindAsync already tracks the entity;
-                // EF change-detection will pick up the modified properties on SaveChanges.
             }
 
             // Replace all widgets
-            var existing = await UnitOfWork.OverlayWidgets
+            var existing = await db.OverlayWidgets
                 .Find(w => w.OverlayLayoutId == _currentLayoutId.Value)
                 .ToListAsync();
-            UnitOfWork.OverlayWidgets.RemoveRange(existing);
+            db.OverlayWidgets.RemoveRange(existing);
 
             foreach (var w in _widgets)
             {
-                UnitOfWork.OverlayWidgets.Add(new OverlayWidget
+                db.OverlayWidgets.Add(new OverlayWidget
                 {
                     OverlayLayoutId = _currentLayoutId.Value,
                     WidgetType      = w.WidgetType,
@@ -470,7 +508,7 @@
                 });
             }
 
-            await UnitOfWork.SaveChangesAsync();
+            await db.SaveChangesAsync();
             Snackbar.Add("Layout saved!", Severity.Success);
         }
         catch (Exception ex)
@@ -486,16 +524,28 @@
     private async Task CreateLayout()
     {
         if (string.IsNullOrWhiteSpace(_newLayoutName)) return;
+
+        var trimmed = _newLayoutName.Trim();
+        if (_layouts.Any(l => l.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            Snackbar.Add($"A layout named '{trimmed}' already exists.", Severity.Warning);
+            return;
+        }
+
         _showNewLayoutDialog = false;
 
         var isFirst = _layouts.Count == 0;
         var layout = new OverlayLayout
         {
-            Name      = _newLayoutName.Trim(),
+            Name      = trimmed,
             IsDefault = isFirst
         };
-        await UnitOfWork.OverlayLayouts.AddAsync(layout);
-        await UnitOfWork.SaveChangesAsync();
+        await using (var scope = ScopeFactory.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await db.OverlayLayouts.AddAsync(layout);
+            await db.SaveChangesAsync();
+        }
         await RefreshLayouts();
         await LoadLayout(layout.Id);
         Snackbar.Add($"Layout '{layout.Name}' created.", Severity.Success);
@@ -503,25 +553,38 @@
 
     private async Task SetDefault(int id)
     {
-        var all = await UnitOfWork.OverlayLayouts.GetAllWithWidgetsAsync();
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var all = await db.OverlayLayouts.GetAllWithWidgetsAsync();
         foreach (var l in all)
         {
             l.IsDefault = (l.Id == id);
-            UnitOfWork.OverlayLayouts.Update(l);
+            db.OverlayLayouts.Update(l);
         }
-        await UnitOfWork.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await RefreshLayouts();
         Snackbar.Add("Default layout updated.", Severity.Success);
     }
 
     private async Task DuplicateLayout(int id)
     {
-        var source = await UnitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var source = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
         if (source == null) return;
+
+        // Generate a unique name: "Copy of X", then "Copy of X (2)", etc.
+        var baseName = $"Copy of {source.Name}";
+        var candidateName = baseName;
+        var counter = 2;
+        while (_layouts.Any(l => l.Name.Equals(candidateName, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidateName = $"{baseName} ({counter++})";
+        }
 
         var copy = new OverlayLayout
         {
-            Name         = $"Copy of {source.Name}",
+            Name         = candidateName,
             IsDefault    = false,
             CanvasWidth  = source.CanvasWidth,
             CanvasHeight = source.CanvasHeight,
@@ -537,18 +600,20 @@
                 CustomSettings = w.CustomSettings
             }).ToList()
         };
-        await UnitOfWork.OverlayLayouts.AddAsync(copy);
-        await UnitOfWork.SaveChangesAsync();
+        await db.OverlayLayouts.AddAsync(copy);
+        await db.SaveChangesAsync();
         await RefreshLayouts();
         Snackbar.Add($"Duplicated as '{copy.Name}'.", Severity.Success);
     }
 
     private async Task DeleteLayout(int id)
     {
-        var layout = await UnitOfWork.OverlayLayouts.GetByIdWithWidgetsAsync(id);
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdWithWidgetsAsync(id);
         if (layout == null) return;
-        UnitOfWork.OverlayLayouts.Remove(layout);
-        await UnitOfWork.SaveChangesAsync();
+        db.OverlayLayouts.Remove(layout);
+        await db.SaveChangesAsync();
         if (_currentLayoutId == id) { _currentLayoutId = null; _widgets = []; _selected = null; }
         await RefreshLayouts();
         Snackbar.Add("Layout deleted.", Severity.Warning);
@@ -602,6 +667,43 @@
         if (e.Key == "Escape") _showNewLayoutDialog = false;
     }
 
+    private void ShowRenameDialog(int id, string currentName)
+    {
+        _renameLayoutId   = id;
+        _renameLayoutName = currentName;
+        _showRenameDialog = true;
+    }
+
+    private async Task RenameLayout()
+    {
+        var trimmed = _renameLayoutName.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed)) return;
+
+        if (_layouts.Any(l => l.Id != _renameLayoutId && l.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            Snackbar.Add($"A layout named '{trimmed}' already exists.", Severity.Warning);
+            return;
+        }
+
+        _showRenameDialog = false;
+
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var layout = await db.OverlayLayouts.GetByIdAsync(_renameLayoutId);
+        if (layout == null) return;
+        layout.Name = trimmed;
+        db.OverlayLayouts.Update(layout);
+        await db.SaveChangesAsync();
+        await RefreshLayouts();
+        Snackbar.Add($"Renamed to '{trimmed}'.", Severity.Success);
+    }
+
+    private async Task OnRenameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")  await RenameLayout();
+        if (e.Key == "Escape") _showRenameDialog = false;
+    }
+
     private async Task OpenPreview()
     {
         var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
@@ -642,9 +744,16 @@
     {
         if (_selected?.WidgetType == "chat")
         {
-            _chatSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
-                ? new ChatSettings()
-                : (JsonSerializer.Deserialize<ChatSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new ChatSettings());
+            try
+            {
+                _chatSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new ChatSettings()
+                    : (JsonSerializer.Deserialize<ChatSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new ChatSettings());
+            }
+            catch
+            {
+                _chatSettings = new ChatSettings();
+            }
         }
         else
         {

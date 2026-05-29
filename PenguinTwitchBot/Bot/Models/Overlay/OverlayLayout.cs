@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PenguinTwitchBot.Bot.Models.Overlay
 {
     [Table("overlay_layouts")]
+    [Index(nameof(Name), IsUnique = true)]
     public class OverlayLayout
     {
         [Key]

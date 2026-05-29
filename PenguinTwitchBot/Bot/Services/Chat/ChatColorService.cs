@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Bot.Services.Chat
         ];
 
         private readonly ConcurrentDictionary<string, string> _assigned = new();
-        private int _nextIndex;
+        private long _nextIndex;
 
         /// <inheritdoc />
         public string GetOrAssignColor(string userId, string? twitchColor)
@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.Bot.Services.Chat
             return _assigned.GetOrAdd(userId, _ =>
             {
                 var idx = Interlocked.Increment(ref _nextIndex) - 1;
-                return Palette[idx % Palette.Length];
+                return Palette[idx % (long)Palette.Length];
             });
         }
     }

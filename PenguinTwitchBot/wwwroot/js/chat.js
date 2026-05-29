@@ -34,7 +34,7 @@
 
     const direction   = qp.get('direction')   || 'vertical';  // vertical | horizontal
     const valign      = qp.get('valign')       || 'bottom';    // top | bottom
-    const maxMessages = parseInt(qp.get('maxMessages') || '30', 10);
+    const maxMessages = Math.max(1, parseInt(qp.get('maxMessages') || '30', 10) || 30);
     const fontSize    = parseInt(qp.get('fontSize')    || '16', 10);
     const fontFamily  = qp.get('fontFamily')   || null;
     const msgColor    = qp.get('msgColor')     || '#ffffff';

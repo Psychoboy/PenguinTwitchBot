@@ -26,7 +26,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
             // ResolvedColor may be pre-set by TwitchWebsocketHostedService, but
             // chatColorService is the authoritative source so we call it again here
             // to handle any path that created the event without going through ProcessChatMessage.
-            var color = chatColorService.GetOrAssignColor(e.UserId, e.ResolvedColor.StartsWith('#') ? e.ResolvedColor : null);
+            var color = chatColorService.GetOrAssignColor(e.UserId, e.ResolvedColor?.StartsWith('#') == true ? e.ResolvedColor : null);
 
             var message = new ChatOverlayMessage
             {
